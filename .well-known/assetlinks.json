@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.thiagogaldinozicao_source.cinemoteca",
+      "sha256_cert_fingerprints": [
+        "74:63:4E:55:D8:EC:5E:E1:54:02:3B:1D:B1:FD:E8:17:FD:E4:B1:65:BC:53:92:91:73:F9:EE:DE:76:10:F8:55"
+      ]
+    }
+  }
+]
