@@ -295,7 +295,7 @@ function prop(nome) {
   const v = PropertiesService.getScriptProperties().getProperty(nome);
   if (v !== null && v !== undefined && v !== '') return v;
   // reserva: aba "config" da planilha (Chave | Valor). Serve pra valores grandes (ex.: workflow do ComfyUI) e pra configurar sem abrir o editor.
-  if (/^(COMFY_URL|COMFY_WORKFLOW|PC_MODELO|PC_MODELO_CODIGO|DEPLOY_ID|URL_TESTE)$/.test(nome)) {
+  if (/^(COMFY_URL|COMFY_WORKFLOW|PC_MODELO|PC_MODELO_CODIGO|DEPLOY_ID|URL_TESTE|PROXY_URL)$/.test(nome)) {
     try {
       const l = linhas('config').find(x => String(x[0]).trim() === nome);
       if (l && String(l[1]).trim()) return String(l[1]).trim();
@@ -557,17 +557,17 @@ function chamarCompat(c, msgs, maxSaida, extras) {
   const corpo = Object.assign({ model: c.modelo, messages: msgs, temperature: 0.6, max_tokens: maxSaida }, extras || {});
   if (extras && extras.reasoning_effort && !/gpt-oss/.test(c.modelo)) delete corpo.reasoning_effort;
   const cab = { Authorization: 'Bearer ' + chave, Accept: 'application/json' };
-  if (/models\.github\.ai/.test(url)) { cab['X-GitHub-Api-Version'] = '2022-11-28'; }
-  let r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true, followRedirects: true });
+  if (/models\.github\.ai/.test(url)) { cab['X-GitHub-Api-Version'] = '2026-03-10'; }
+  // models.github.ai bloqueia os servidores do Google (responde "OK" em texto). Com o atalho do Cloudflare (PROXY_URL + PROXY_SEGREDO) a chamada vai por lá.
+  const viaProxy = /models\.github\.ai/.test(url) && prop('PROXY_URL') && prop('PROXY_SEGREDO');
+  if (viaProxy) { cab['X-Zico-Key'] = prop('PROXY_SEGREDO'); url = String(prop('PROXY_URL')).replace(/\/+$/, '') + '/?alvo=' + encodeURIComponent(url); }
+  const r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true, followRedirects: true });
   if (c.local && /<html/i.test(r.getContentText().slice(0, 200))) throw new Error(c.nome + ' fora do ar');
-  let cod = r.getResponseCode();
-  let txt = r.getContentText();
-  // GitHub Models: se o endpoint novo não devolver JSON, tenta o endpoint antigo (Azure) com o id sem "openai/"
-  if (/models\.github\.ai/.test(url) && (cod !== 200 || !/^\s*\{/.test(txt))) {
-    const corpo2 = Object.assign({}, corpo, { model: String(c.modelo).replace(/^openai\//, '') });
-    const r2 = UrlFetchApp.fetch('https://models.inference.ai.azure.com/chat/completions', { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + chave, Accept: 'application/json' }, payload: JSON.stringify(corpo2), muteHttpExceptions: true });
-    if (r2.getResponseCode() === 200 && /^\s*\{/.test(r2.getContentText())) { r = r2; cod = 200; txt = r2.getContentText(); }
-    else if (cod === 200) throw new Error(c.nome + ' respondeu fora do formato: ' + txt.slice(0, 80).replace(/\s+/g, ' ') + ' | endpoint antigo: ' + r2.getResponseCode() + ' ' + resumoErro(r2.getContentText()).slice(0, 80));
+  const cod = r.getResponseCode();
+  const txt = r.getContentText();
+  if (cod === 200 && !/^\s*\{/.test(txt)) {
+    if (/models\.github\.ai/.test(c.url) && !viaProxy) throw new Error(c.nome + ': bloqueado pelo GitHub; configure PROXY_URL + PROXY_SEGREDO');
+    throw new Error(c.nome + ': respondeu fora do formato (' + txt.slice(0, 40).replace(/\s+/g, ' ') + ')');
   }
   if (cod !== 200) throw new Error(c.nome + ' ' + cod + ': ' + resumoErro(txt));
   let j;
