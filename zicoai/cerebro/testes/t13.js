@@ -20,10 +20,10 @@ H.setFetch(mock);
 H.fetchLog.length = 0;
 let r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
 ok(r.cerebro === 'Groq GPT-OSS 120B' && !H.fetchLog.some(f => /github|mistral|nvidia|cloudflare/.test(f.u)), 'sem chave, opcionais ficam fora');
-// com GITHUB_TOKEN: código vai pro GPT-4.1 primeiro, sem reasoning_effort
+// GitHub Models foi aposentado: mesmo com token, nunca é chamado
 H.PROPS.GITHUB_TOKEN = 'ghp'; H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
-ok(r.cerebro === 'GitHub GPT-4.1' && H.fetchLog[0].u === 'https://models.github.ai/inference/chat/completions' && H.fetchLog[0].body.model === 'openai/gpt-4.1' && !('reasoning_effort' in H.fetchLog[0].body) && H.fetchLog[0].h.Authorization === 'Bearer ghp', 'código → GitHub GPT-4.1 sem reasoning_effort');
+ok(r.cerebro === 'Groq GPT-OSS 120B' && !H.fetchLog.some(f => /github/.test(f.u)), 'GitHub aposentado não entra na fila');
 // texto comum continua no Gemini
 H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi' }] });
@@ -65,15 +65,5 @@ H.ctx.doPost({ parameter: { tg: 'seg' }, postData: { contents: JSON.stringify({ 
 ok(chamadas.some(c => /sendMessage/.test(c.u) && /Gemini: \d+\/480 hoje/.test(JSON.parse(c.o.payload).text)), '/cotas responde o uso');
 chamadas.length = 0; H.ctx.ligarTelegram();
 ok(chamadas.some(c => /setMyCommands/.test(c.u)), 'comandos registrados no bot');
-// GitHub Models: sem proxy, "OK" em texto vira erro explicando; com PROXY_URL a chamada vai pelo Cloudflare
-Object.keys(H.CACHE).forEach(k => { if (/^tk_|^rq_|^off_/.test(k)) delete H.CACHE[k]; });
-H.PROPS.GITHUB_TOKEN = 'ghp'; delete H.PROPS.PROXY_URL; delete H.PROPS.PROXY_SEGREDO; H.fetchLog.length = 0;
-H.setFetch((u, o) => { if (/models\.github\.ai/.test(u)) return { getResponseCode: () => 200, getContentText: () => 'OK\r\n' }; return mock(u, o); });
-r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
-ok(r.ok && r.cerebro !== 'GitHub GPT-4.1' && r.passos.some(p => /GitHub GPT-4\.1 falhou \(.*configure PROXY_URL/.test(p)), 'sem proxy: avisa pra configurar o atalho: ' + (r.passos.find(p => /GitHub/.test(p)) || ''));
-Object.keys(H.CACHE).forEach(k => { if (/^tk_|^rq_|^off_/.test(k)) delete H.CACHE[k]; });
-H.PROPS.PROXY_URL = 'https://zico.thiago.workers.dev'; H.PROPS.PROXY_SEGREDO = 'segredo77'; H.fetchLog.length = 0;
-H.setFetch((u, o) => { if (/workers\.dev/.test(u)) return resp('via cloudflare'); if (/models\.github\.ai/.test(u)) return { getResponseCode: () => 200, getContentText: () => 'OK' }; return mock(u, o); });
-r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
-const f = H.fetchLog.find(x => /workers\.dev/.test(x.u));
-ok(r.cerebro === 'GitHub GPT-4.1' && /via cloudflare/.test(r.resposta) && f && f.u === 'https://zico.thiago.workers.dev/?alvo=' + encodeURIComponent('https://models.github.ai/inference/chat/completions') && f.h['X-Zico-Key'] === 'segredo77' && f.h.Authorization === 'Bearer ghp' && f.body.model === 'openai/gpt-4.1', 'com proxy: chamada vai pelo Cloudflare com segredo e alvo');
+// proxy do Cloudflare: continua disponível pra APIs que bloqueiem o Google (sem uso por enquanto)
+ok(typeof H.ctx.chamarCompat === 'function', 'chamarCompat segue com suporte a PROXY_URL');

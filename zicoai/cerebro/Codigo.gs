@@ -27,8 +27,8 @@ const CEREBROS = {
   groq2:  { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'qwen/qwen3.8-27b', nome: 'Groq Qwen', limite: 7800, maxSaida: 4096, tpm: 7800, rpm: 28, rpd: 950 },
   // Cerebras (grátis, rápido, modelos grandes). Só entra se existir CEREBRAS_KEY nas Propriedades.
   cerebras: { url: 'https://api.cerebras.ai/v1/chat/completions', chave: 'CEREBRAS_KEY', modelo: 'gpt-oss-120b', nome: 'Cerebras GPT-OSS 120B', limite: 28000, maxSaida: 8192, tpm: 28000, rpm: 4, rpd: 900, opcional: true },
-  // GitHub Models (grátis com conta GitHub; token fine-grained com permissão "Models: read"). GPT-4.1 é forte em código.
-  github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true },
+  // GitHub Models foi APOSENTADO pelo GitHub em 30/07/2026 (o servidor só responde "OK"). Fica registrado e desligado.
+  github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true, aposentado: true },
   // Mistral "Experiment" (grátis, sem cartão)
   mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, opcional: true },
   // NVIDIA NIM (grátis, ~40 pedidos/min)
@@ -136,6 +136,7 @@ function msgsEnxutas(msgs, pergunta, extraSistema, imagem) {
 function temCerebro(nome) {
   const c = CEREBROS[nome];
   if (!c) return false;
+  if (c.aposentado) return false;
   if (nome === 'cloudflare') return !!prop('CF_TOKEN') && !!prop('CF_ACCOUNT_ID');
   return !c.opcional || !!prop(c.chave);
 }
@@ -496,8 +497,8 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
   const pc = codigo ? cerebroPCcodigo() : cerebroPC();
   let ordem;
   if (imagem) ordem = ['gemini', 'mistral', 'pc'];
-  else if (codigo) { ordem = ['github', 'groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
-  else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'github', 'pc', 'cloudflare', 'groq2'];
+  else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
+  else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'pc', 'cloudflare', 'groq2'];
   if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].indexOf(preferido) >= 0 && !(imagem && preferido !== 'gemini' && preferido !== 'pc' && preferido !== 'mistral')) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
   }
