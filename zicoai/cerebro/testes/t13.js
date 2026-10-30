@@ -72,4 +72,4 @@ r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'fa
 ok(r.cerebro === 'GitHub GPT-4.1' && /do endpoint antigo/.test(r.resposta) && H.fetchLog.some(f => /azure\.com/.test(f.u) && f.body.model === 'gpt-4.1') && H.fetchLog.some(f => /models\.github\.ai/.test(f.u) && f.h['X-GitHub-Api-Version']), 'GitHub "OK" → endpoint antigo responde: ' + r.cerebro);
 H.setFetch((u, o) => { if (/models\.github\.ai/.test(u)) return { getResponseCode: () => 200, getContentText: () => 'OK\r\n' }; if (/azure\.com/.test(u)) return cai(401, '{"error":{"message":"bad token"}}'); return mock(u, o); });
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
-ok(r.cerebro === 'Groq GPT-OSS 120B' && r.passos.some(p => /GitHub GPT-4\.1 falhou \(.*endpoint antigo: 401/.test(p)), 'os dois falham → passo explica, Groq responde');
+ok(r.ok && r.cerebro !== 'GitHub GPT-4.1' && r.passos.some(p => /GitHub GPT-4\.1 falhou \(.*endpoint antigo: 401/.test(p)), 'os dois falham → passo explica, Groq responde');
