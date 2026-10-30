@@ -29,7 +29,7 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 
 - `doPost` com PIN. Ações: `teste`, `chat`, `chats`, `abrir`, `apagarChat`, `memorias`, `salvar`, `apagarMemoria`, `contexto`, `registrar`.
 - `montarSistema()`: persona + regras + perfil inteiro + aprendizados + memória (25 recentes + 35 relevantes por palavra-chave) + até 10 trechos da base.
-- Ordem dos cérebros em `conversar()`: hoje normal = PC → Gemini → Groq → Groq Qwen; foto = PC → Gemini; programação = Groq → Gemini → PC. PC que falha fica "desligado" 3 min (CacheService).
+- Ordem dos cérebros em `conversar()`: normal = Gemini → Groq → PC → Groq Qwen; foto = Gemini → PC; programação = Groq → Gemini → PC → Groq Qwen. O PC de casa (modelo 8B) é reserva: só responde quando a nuvem falha/estoura o limite ou quando o Thiago escolhe "PC" no seletor. PC que falha fica "desligado" 3 min (CacheService).
 - Pesquisa (`pesquisar()`): Groq `browser_search` (funciona no grátis). Google Search do Gemini dá 429 no plano grátis.
 - Aprendizado:
   - tags que o modelo escreve: `[[MEMORIA: ...]]`, `[[APRENDIZADO: erro || certo]]`, `[[ESQUECER: trecho]]`, `[[IMAGEM: prompt em inglês]]`;

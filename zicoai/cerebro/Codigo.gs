@@ -208,16 +208,17 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
     } else msgs.push(m);
   });
 
-  // PC ligado = cérebro grátis e sem limite, vai primeiro no dia a dia e nas fotos
+  // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
+  // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
   const pc = cerebroPC();
-  if (prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
   let ordem;
-  if (imagem) ordem = ['pc', 'gemini'];
+  if (imagem) ordem = ['gemini', 'pc'];
   else if (ehProgramacao(pergunta)) { ordem = ['groq', 'gemini', 'pc', 'groq2']; passo('Assunto de programação: chamou o cérebro de código'); }
-  else ordem = ['pc', 'gemini', 'groq', 'groq2'];
+  else ordem = ['gemini', 'groq', 'pc', 'groq2'];
   if (['groq', 'gemini', 'pc'].indexOf(preferido) >= 0 && !(imagem && preferido === 'groq')) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
   }
+  if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
   ordem = ordem.filter(n => n !== 'pc' || pc);
 
   const tokens = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
@@ -228,11 +229,11 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
     if (maxSaida < 1200) { erros.push(c.nome + ': conversa grande demais pro plano grátis'); continue; }
     try {
       const texto = chamarCompat(c, msgs, maxSaida);
-      passo('Respondeu com ' + c.nome);
+      passo((c.local && erros.length ? 'Nuvem indisponível, respondeu com o ' : 'Respondeu com ') + c.nome);
       return { ok: true, texto: texto, cerebro: c.nome };
     } catch (err) {
       erros.push(String(err.message || err));
-      if (c.local) { marcarPCdesligado(); passo('PC não respondeu, usou a nuvem'); }
+      if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
       else passo(c.nome + ' falhou, trocou de cérebro');
     }
   }
