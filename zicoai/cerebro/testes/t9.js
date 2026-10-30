@@ -91,9 +91,16 @@ ok(TG[0].m === 'setWebhook' && TG[0].b.url === 'https://script.google.com/macros
 TG.length = 0; H.setFetch(mockBase); H.ctx.bomDia();
 ok(TG.some(t => t.m === 'sendMessage'), 'bom dia chega no Telegram');
 // com PROXY_URL o webhook vai pro /tg do Worker com secret_token; segredo com @ é recusado
-H.PROPS.PROXY_URL = 'https://zicoai.x.workers.dev'; H.PROPS.TELEGRAM_SEGREDO = '@ruim';
+H.PROPS.PROXY_URL = 'https://zicoai.x.workers.dev'; H.PROPS.PROXY_SEGREDO = '@ruim'; H.PROPS.TELEGRAM_SEGREDO = 'seg';
 let deuErro = ''; try { H.ctx.ligarTelegram(); } catch (e) { deuErro = e.message; }
 ok(/só pode ter letras/.test(deuErro), 'segredo com @ é recusado quando usa o Worker');
-H.PROPS.TELEGRAM_SEGREDO = 'seg_bom-1'; H.PROPS.DEPLOY_ID = 'DEPX'; TG.length = 0; H.ctx.ligarTelegram();
+H.PROPS.PROXY_SEGREDO = 'seg_bom-1'; H.PROPS.DEPLOY_ID = 'DEPX'; TG.length = 0; H.ctx.ligarTelegram();
 const hook = TG.find(t => t.m === 'setWebhook');
 ok(hook && hook.b.url === 'https://zicoai.x.workers.dev/tg' && hook.b.secret_token === 'seg_bom-1', 'webhook aponta pro Worker com secret_token: ' + JSON.stringify(hook && hook.b.url));
+
+// o Worker repassa com o segredo DELE (PROXY_SEGREDO): o doPost aceita
+TG.length = 0; H.PROPS.TELEGRAM_CHAT_ID = '555';
+let xx = JSON.parse(H.ctx.doPost({ parameter: { tg: 'seg_bom-1' }, postData: { contents: JSON.stringify({ update_id: 500, message: { chat: { id: 555 }, text: '/ajuda' } }) } }).t);
+ok(xx.ok && TG.some(t => t.m === 'sendMessage'), 'webhook com o segredo do Worker é aceito');
+xx = JSON.parse(H.ctx.doPost({ parameter: { tg: 'errado' }, postData: { contents: '{}' } }).t);
+ok(xx.ok === false, 'segredo desconhecido continua recusado');

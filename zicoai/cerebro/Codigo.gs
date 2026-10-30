@@ -242,7 +242,9 @@ function doPost(e) {
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
     if (e && e.parameter && e.parameter.tg) {
-      if (!prop('TELEGRAM_SEGREDO') || e.parameter.tg !== prop('TELEGRAM_SEGREDO')) return saida({ ok: false });
+      // aceita o segredo do Telegram ou o do Worker (o Worker repassa com o dele)
+      const okSeg = (prop('TELEGRAM_SEGREDO') && e.parameter.tg === prop('TELEGRAM_SEGREDO')) || (prop('PROXY_SEGREDO') && e.parameter.tg === prop('PROXY_SEGREDO'));
+      if (!okSeg) return saida({ ok: false });
       try { telegramEntrada(JSON.parse(e.postData.contents)); } catch (err) { Logger.log('telegram: ' + err.message); }
       return saida({ ok: true });
     }
@@ -1615,7 +1617,8 @@ function telegramEntrada(update) {
 function ligarTelegram() {
   const segredo = prop('TELEGRAM_SEGREDO');
   if (!segredo) throw new Error('Coloque TELEGRAM_SEGREDO (uma palavra qualquer) nas Propriedades');
-  if (prop('PROXY_URL') && !/^[A-Za-z0-9_-]{1,256}$/.test(segredo)) throw new Error('Com o Worker, TELEGRAM_SEGREDO só pode ter letras, números, _ e - (sem @ ou espaço). Troque a propriedade e rode de novo.');
+  const segWorker = prop('PROXY_SEGREDO') || segredo;
+  if (prop('PROXY_URL') && !/^[A-Za-z0-9_-]{1,256}$/.test(segWorker)) throw new Error('Com o Worker, PROXY_SEGREDO só pode ter letras, números, _ e - (sem @ ou espaço). Troque a propriedade (e a variável SEGREDO do Worker) e rode de novo.');
   // link OFICIAL (/exec) da implantação, nunca o /dev (que exige login e o Telegram não consegue abrir)
   const dep = prop('DEPLOY_ID');
   const base = dep ? 'https://script.google.com/macros/s/' + dep + '/exec' : String(ScriptApp.getService().getUrl()).replace(/\/dev$/, '/exec');
@@ -1623,7 +1626,7 @@ function ligarTelegram() {
   const corpoHook = { allowed_updates: ['message', 'edited_message'], drop_pending_updates: true };
   // O Telegram não aceita o redirecionamento 302 do Apps Script. Com o Worker do Cloudflare (PROXY_URL), o webhook vai pra /tg do Worker,
   // que repassa pra cá. O Worker precisa das variáveis SEGREDO (= TELEGRAM_SEGREDO) e ZICO_EXEC (= este link /exec).
-  if (prop('PROXY_URL')) { url = String(prop('PROXY_URL')).replace(/\/+$/, '') + '/tg'; corpoHook.secret_token = segredo; Logger.log('Via Worker do Cloudflare. No Worker, SEGREDO tem que ser "' + segredo + '" e ZICO_EXEC tem que ser ' + base); }
+  if (prop('PROXY_URL')) { url = String(prop('PROXY_URL')).replace(/\/+$/, '') + '/tg'; corpoHook.secret_token = segWorker; Logger.log('Via Worker do Cloudflare. No Worker, a variável SEGREDO tem que ser igual a PROXY_SEGREDO e ZICO_EXEC tem que ser ' + base); }
   corpoHook.url = url;
   const r = tgApi('setWebhook', corpoHook);
   try { tgApi('setMyCommands', { commands: [{ command: 'nova', description: 'Começar conversa nova' }, { command: 'cotas', description: 'Uso dos cérebros hoje' }, { command: 'ajuda', description: 'O que eu faço' }] }); } catch (e) { /* ok */ }
