@@ -235,10 +235,10 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
         <div class="sel-wrap">
           <button class="sel" id="bModelo"><b id="nomeModelo">Auto</b> ▾</button>
           <div class="menu" id="menuModelo">
-            <button data-c="auto"><b>Auto</b><span>Ela escolhe o melhor pra cada pergunta</span></button>
+            <button data-c="auto"><b>Auto</b><span>PC quando tiver ligado, senão a nuvem</span></button>
             <button data-c="gemini"><b>Gemini</b><span>Textos grandes, fotos e pesquisa no Google</span></button>
             <button data-c="groq"><b>Groq</b><span>Muito rápido, forte em programação</span></button>
-            <button data-c="pc"><b>PC (offline)</b><span>Modelo do seu PC. Só funciona no próprio PC</span></button>
+            <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
           </div>
         </div>
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
@@ -257,10 +257,6 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
     <input id="cPin" type="password" autocomplete="off">
     <label>Nome deste aparelho</label>
     <input id="cAparelho" placeholder="iPhone, PC, Mac...">
-    <label>Endereço do Ollama no PC (modo PC offline)</label>
-    <input id="cPcUrl" placeholder="http://localhost:11434" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <label>Modelo do PC</label>
-    <input id="cPcModelo" placeholder="zicoai" autocomplete="off" autocapitalize="off" spellcheck="false">
     <div class="aviso" id="cAviso"></div>
     <div class="linha-btn">
       <button class="btn cinza" id="cTestar">Testar</button>
@@ -517,7 +513,7 @@ function etapasPara(texto, temFoto){
   if(modo === 'web' || /pesquis|cota[cç][aã]o|d[oó]lar hoje|not[ií]cia|na internet|no google|pre[cç]o atual/i.test(texto)) e.push('Pesquisando na web', 'Conferindo as fontes');
   if(modo === 'imagem' || /(cri|ger|faz|desenh)\w* (uma )?(imagem|foto|arte|logo|desenho)/i.test(texto)) e.push('Montando a imagem');
   if(/c[oó]digo|html|python|unreal|script|programa|\bapp\b/i.test(texto)) e.push('Escrevendo o código');
-  if(cfg.cerebro === 'pc' && modo === 'auto') e.push('Rodando no seu PC');
+  if(cfg.cerebro !== 'gemini' && cfg.cerebro !== 'groq' && modo === 'auto') e.push('Vendo se o PC tá ligado');
   e.push('Escrevendo a resposta');
   return e;
 }
@@ -543,13 +539,10 @@ async function envia(refazendo){
   const novo = !atual;
   try{
     const hist = mensagens.filter(m => !m.erro).slice(-12).map(m => ({ role: m.role, content: m.content }));
-    const usarPC = cfg.cerebro === 'pc' && modo === 'auto';
-    const j = usarPC
-      ? await viaPC(hist, fotoEnvio, !!refazendo, controle.signal)
-      : await api({
-          acao:'chat', chatId: atual || undefined, mensagens: hist,
-          imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro === 'pc' ? 'auto' : cfg.cerebro, refazer: !!refazendo
-        }, controle.signal);
+    const j = await api({
+      acao:'chat', chatId: atual || undefined, mensagens: hist,
+      imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, refazer: !!refazendo
+    }, controle.signal);
     para();
     if(novo && j.chatId){
       atual = j.chatId; LS.set('atual', atual);
@@ -572,34 +565,6 @@ async function envia(refazendo){
   if(modo === 'imagem') setModo('auto');
   guarda(); desenha(); desenhaLista();
 }
-/* PC offline: a memória vem da planilha, quem responde é o Ollama do PC */
-async function viaPC(hist, fotoEnvio, refazendo, sinal){
-  const pergunta = hist[hist.length - 1].content;
-  const ctx = await api({ acao:'contexto', pergunta }, sinal);
-  const msgs = [{ role:'system', content: ctx.sistema }].concat(hist.map((m, i) => {
-    const o = { role: m.role, content: m.content };
-    if(fotoEnvio && i === hist.length - 1) o.images = [fotoEnvio.split(',')[1]];
-    return o;
-  }));
-  let r;
-  try{
-    r = await fetch(cfg.pcUrl + '/api/chat', {
-      method:'POST', signal: sinal,
-      body: JSON.stringify({ model: cfg.pcModelo, messages: msgs, stream: false, options: { num_ctx: 16384 } })
-    });
-  }catch(e){
-    if(e.name === 'AbortError') throw e;
-    throw new Error('Não achei o Ollama do PC. O modo PC só funciona abrindo o app no próprio PC, com o Ollama ligado e liberado pro site (veja o passo a passo).');
-  }
-  if(!r.ok) throw new Error('O PC respondeu erro ' + r.status + '. Confere se o modelo "' + cfg.pcModelo + '" existe no Ollama.');
-  const j = await r.json();
-  const resposta = (j.message && j.message.content) || '';
-  if(!resposta.trim()) throw new Error('O modelo do PC respondeu vazio.');
-  const reg = await api({ acao:'registrar', chatId: atual || undefined, pergunta, resposta, foto: !!fotoEnvio, refazer: refazendo, cerebro: 'PC · ' + cfg.pcModelo }, sinal);
-  reg.passos = (ctx.passos || []).concat(fotoEnvio ? ['Analisou a foto no PC'] : [], ['Respondeu com o PC (' + cfg.pcModelo + ')'], reg.passos || []);
-  return reg;
-}
-
 function refazer(){
   if(controle) return;
   while(mensagens.length && mensagens[mensagens.length - 1].role === 'assistant') mensagens.pop();
@@ -630,7 +595,7 @@ $('cWeb').onclick = () => setModo('web');
 $('cImg').onclick = () => setModo('imagem');
 
 /* ---------- seletor de cérebro ---------- */
-const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', pc:'PC (offline)' };
+const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', pc:'PC de casa' };
 function mostraModelo(){
   $('nomeModelo').textContent = NOMES[cfg.cerebro] || 'Auto';
   document.querySelectorAll('#menuModelo button').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
@@ -694,12 +659,11 @@ $('bNovo2').onclick = novaConversa;
 /* ---------- configurar ---------- */
 $('bCfg').onclick = () => {
   fechaLado();
-  $('cUrl').value = cfg.url; $('cPin').value = cfg.pin; $('cAparelho').value = cfg.aparelho; $('cPcUrl').value = cfg.pcUrl; $('cPcModelo').value = cfg.pcModelo;
+  $('cUrl').value = cfg.url; $('cPin').value = cfg.pin; $('cAparelho').value = cfg.aparelho;
   $('cAviso').textContent = ''; $('mCfg').classList.add('aberto');
 };
 const lerCfg = () => Object.assign({}, cfg, {
-  url: $('cUrl').value.trim(), pin: $('cPin').value.trim(), aparelho: $('cAparelho').value.trim() || 'app',
-  pcUrl: ($('cPcUrl').value.trim() || 'http://localhost:11434').replace(/\/+$/, ''), pcModelo: $('cPcModelo').value.trim() || 'zicoai'
+  url: $('cUrl').value.trim(), pin: $('cPin').value.trim(), aparelho: $('cAparelho').value.trim() || 'app'
 });
 $('cTestar').onclick = async () => {
   const antes = cfg; cfg = lerCfg();
