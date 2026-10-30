@@ -1115,6 +1115,9 @@ document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e =
   history.replaceState(null, '', location.pathname);
   if(!cfg.pin) setTimeout(() => { $('bCfg').onclick(); $('cPin').focus(); }, 350);
 })();
+// uma vez só: aparelhos que ficaram presos em "PC de casa" voltam pro Auto (o PC 8B é reserva, não padrão)
+if(cfg.cerebro === 'pc' && !LS.get('reset_pc_v1', false)){ cfg.cerebro = 'auto'; LS.set('cfg', cfg); }
+LS.set('reset_pc_v1', true);
 status();
 mostraModelo();
 desenhaLista();
