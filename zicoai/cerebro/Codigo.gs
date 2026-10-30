@@ -216,6 +216,12 @@ function doPost(e) {
   PASSOS = [];
   const t0 = Date.now();
   try {
+    // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
+    if (e && e.parameter && e.parameter.tg) {
+      if (!prop('TELEGRAM_SEGREDO') || e.parameter.tg !== prop('TELEGRAM_SEGREDO')) return saida({ ok: false });
+      try { telegramEntrada(JSON.parse(e.postData.contents)); } catch (err) { Logger.log('telegram: ' + err.message); }
+      return saida({ ok: true });
+    }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (!req.pin || String(req.pin) !== String(prop('PIN'))) return saida({ ok: false, erro: 'PIN errado' });
     const aparelho = String(req.aparelho || 'app').slice(0, 40);
@@ -225,6 +231,8 @@ function doPost(e) {
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
       case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
+      case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
+      case 'publicar':      return saida(publicarApp(req.nome, req.html));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
       case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS });
       case 'registrar':     return saida(registrar(req, aparelho));
@@ -287,15 +295,18 @@ function chat(req, aparelho) {
   if (temFoto) passo('Analisou a foto');
 
   let resultado = null;
-  const querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && precisaPesquisar(pergunta));
+  let querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && precisaPesquisar(pergunta));
   let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
   try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
+  // já tem dado ao vivo (dólar, clima, notícias)? então não precisa pesquisar na web
+  const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
+  if (querPesquisa && temDadoVivo && modo !== 'web') { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
 
-  if (querPesquisa) resultado = pesquisar(historico, pergunta);
+  if (querPesquisa) resultado = pesquisar(historico, pergunta, extraSistema);
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema);
   if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS });
 
@@ -492,8 +503,8 @@ function chamarCompat(c, msgs, maxSaida, extras) {
 
 /* ---------- pesquisa na web ---------- */
 
-function pesquisar(historico, pergunta) {
-  const sistema = montarSistema(pergunta, true) +
+function pesquisar(historico, pergunta, extraSistema) {
+  const sistema = montarSistema(pergunta, true) + (extraSistema || '') +
     '\n\nVocê tem acesso à pesquisa na web. Pesquise, confira e responda com os dados atuais. Diga a data da informação quando fizer diferença (preço, cotação).';
 
   // 1) Groq com navegador (funciona no plano grátis)
@@ -975,6 +986,32 @@ function contextoConectores(pergunta) {
     extra += '\n\n### ARQUIVOS NO DRIVE (ligados à pergunta)\n' + (ar.length ? ar.join('\n') : '(nenhum encontrado)');
     passo('Procurou no Drive (' + ar.length + ' arquivos)');
   }
+  if (/(dolar|d[oó]lar|cotacao|cambio|usd)/.test(s)) {
+    const d = cotacaoDolar();
+    if (d) { extra += '\n\n### DÓLAR AGORA (AwesomeAPI, ' + d.quando + ')\nComercial: R$ ' + d.compra + ' (compra) / R$ ' + d.venda + ' (venda). Variação do dia: ' + d.variacao + '%. Regra do Thiago: dólar comercial + 10 pontos = R$ ' + d.thiago + '.'; passo('Pegou o dólar ao vivo'); }
+  }
+  if (/(clima|tempo (hoje|amanha|em)|vai chover|previsao|temperatura|calor|frio)/.test(s)) {
+    const c = clima();
+    if (c) { extra += '\n\n### CLIMA EM ITAÚ DE MINAS (Open-Meteo)\n' + c; passo('Olhou a previsão do tempo'); }
+  }
+  const cep = s.match(/\b(\d{5})-?(\d{3})\b/);
+  if (cep && /cep|endereco|rua|bairro|entrega|frete/.test(s)) {
+    const r = consultaCEP(cep[1] + cep[2]);
+    if (r) { extra += '\n\n### CEP ' + cep[1] + '-' + cep[2] + ' (ViaCEP)\n' + r; passo('Consultou o CEP'); }
+  }
+  const cnpj = s.match(/\b(\d{2})\.?(\d{3})\.?(\d{3})\/?(\d{4})-?(\d{2})\b/);
+  if (cnpj) {
+    const r = consultaCNPJ(cnpj.slice(1).join(''));
+    if (r) { extra += '\n\n### CNPJ (BrasilAPI)\n' + r; passo('Consultou o CNPJ'); }
+  }
+  if (/(feriado|ponto facultativo|dia util|dias uteis)/.test(s)) {
+    const f = feriados();
+    if (f) { extra += '\n\n### FERIADOS NACIONAIS ' + new Date().getFullYear() + ' (BrasilAPI)\n' + f; passo('Olhou os feriados'); }
+  }
+  if (/(noticia|novidade|lancamento|lancou|saiu hoje|ultimas)/.test(s) && !/pesquis/.test(s)) {
+    const n = noticias(pergunta);
+    if (n) { extra += '\n\n### NOTÍCIAS (Google News, últimas)\n' + n; passo('Leu as notícias'); }
+  }
   if (/(venda|vendi|vendeu|faturamento|faturei|caixa do dia|quanto fiz hoje|quanto fiz no mes)/.test(s)) {
     const r = resumoVendas();
     extra += '\n\n### VENDAS ANOTADAS\nHoje: R$ ' + moeda(r.hoje) + ' (' + r.qtdHoje + ')\nMês: R$ ' + moeda(r.mes) + ' (' + r.qtdMes + ')\nÚltimas: ' + (r.ultimas.join(' | ') || '(nenhuma)');
@@ -1052,6 +1089,230 @@ function resumoVendas() {
   });
   const ultimas = todas.slice(-5).reverse().map(l => String(l[0]).slice(5, 16) + ' R$ ' + moeda(lerValor(l[1])) + (l[2] ? ' ' + l[2] : ''));
   return { hoje: hoje, mes: mes, qtdHoje: qtdHoje, qtdMes: qtdMes, ultimas: ultimas };
+}
+
+/* ============================================================
+ *  APIS GRÁTIS SEM CHAVE (dólar, clima, CEP, CNPJ, feriados, notícias)
+ *  Tudo com cache curto pra não martelar os serviços.
+ * ============================================================ */
+
+function pegarJSON(url, segCache) {
+  const cache = CacheService.getScriptCache();
+  const k = 'url_' + Utilities.base64EncodeWebSafe(url).slice(0, 200);
+  const c = cache.get(k);
+  if (c) return JSON.parse(c);
+  const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+  if (r.getResponseCode() !== 200) return null;
+  const txt = r.getContentText();
+  if (txt.length < 90000) cache.put(k, txt, segCache || 600);
+  return JSON.parse(txt);
+}
+
+function cotacaoDolar() {
+  try {
+    const j = pegarJSON('https://economia.awesomeapi.com.br/json/last/USD-BRL', 300);
+    const d = j && j.USDBRL;
+    if (!d) return null;
+    const venda = parseFloat(d.ask), compra = parseFloat(d.bid);
+    return { compra: compra.toFixed(2).replace('.', ','), venda: venda.toFixed(2).replace('.', ','), variacao: String(d.pctChange).replace('.', ','), thiago: (venda + 0.10).toFixed(2).replace('.', ','), quando: String(d.create_date || '').slice(11, 16) };
+  } catch (e) { return null; }
+}
+
+function clima() {
+  try {
+    // Itaú de Minas/MG
+    const j = pegarJSON('https://api.open-meteo.com/v1/forecast?latitude=-20.74&longitude=-46.75&current=temperature_2m,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=America%2FSao_Paulo&forecast_days=3', 1800);
+    if (!j || !j.daily) return null;
+    const desc = c => c === 0 ? 'céu limpo' : c <= 3 ? 'parcialmente nublado' : c <= 48 ? 'nublado/neblina' : c <= 67 ? 'chuva' : c <= 77 ? 'neve' : c <= 82 ? 'pancadas de chuva' : 'tempestade';
+    const dias = ['hoje', 'amanhã', 'depois de amanhã'];
+    let out = 'Agora: ' + Math.round(j.current.temperature_2m) + '°C, ' + desc(j.current.weather_code) + '.';
+    j.daily.time.forEach((t, i) => { out += '\n- ' + dias[i] + ' (' + t.slice(8, 10) + '/' + t.slice(5, 7) + '): ' + Math.round(j.daily.temperature_2m_min[i]) + '°C a ' + Math.round(j.daily.temperature_2m_max[i]) + '°C, ' + desc(j.daily.weather_code[i]) + ', chance de chuva ' + j.daily.precipitation_probability_max[i] + '%'; });
+    return out;
+  } catch (e) { return null; }
+}
+
+function consultaCEP(cep) {
+  try {
+    const j = pegarJSON('https://viacep.com.br/ws/' + cep + '/json/', 86400);
+    if (!j || j.erro) return 'CEP não encontrado.';
+    return [j.logradouro, j.bairro, j.localidade + '/' + j.uf].filter(Boolean).join(', ');
+  } catch (e) { return null; }
+}
+
+function consultaCNPJ(cnpj) {
+  try {
+    const j = pegarJSON('https://brasilapi.com.br/api/cnpj/v1/' + cnpj, 86400);
+    if (!j || !j.razao_social) return 'CNPJ não encontrado.';
+    return j.razao_social + (j.nome_fantasia ? ' (' + j.nome_fantasia + ')' : '') + ' | ' + (j.descricao_situacao_cadastral || '') + ' | ' + [j.logradouro, j.numero, j.bairro, j.municipio + '/' + j.uf].filter(Boolean).join(', ') + (j.cnae_fiscal_descricao ? ' | ' + j.cnae_fiscal_descricao : '');
+  } catch (e) { return null; }
+}
+
+function feriados() {
+  try {
+    const ano = new Date().getFullYear();
+    const j = pegarJSON('https://brasilapi.com.br/api/feriados/v1/' + ano, 86400);
+    if (!j || !j.length) return null;
+    const hojeStr = Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd');
+    return j.filter(f => f.date >= hojeStr).slice(0, 8).map(f => '- ' + f.date.slice(8, 10) + '/' + f.date.slice(5, 7) + ': ' + f.name).join('\n') || '(nenhum até o fim do ano)';
+  } catch (e) { return null; }
+}
+
+function noticias(pergunta) {
+  try {
+    const termo = normalizar(pergunta).replace(/(noticia|novidade|lancamento|lancou|saiu hoje|ultimas|sobre|das?|dos?|de|o|a|que|tem|quais)\b/g, ' ').replace(/\s+/g, ' ').trim() || 'iPhone';
+    const r = UrlFetchApp.fetch('https://news.google.com/rss/search?q=' + encodeURIComponent(termo) + '&hl=pt-BR&gl=BR&ceid=BR:pt-419', { muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) return null;
+    const doc = XmlService.parse(r.getContentText());
+    const itens = doc.getRootElement().getChild('channel').getChildren('item').slice(0, 8);
+    return itens.map(it => '- ' + it.getChildText('title') + ' (' + String(it.getChildText('pubDate') || '').slice(5, 16) + ')').join('\n') || null;
+  } catch (e) { return null; }
+}
+
+/* ============================================================
+ *  ÁUDIO → TEXTO (Groq Whisper, grátis, mesma GROQ_KEY)
+ * ============================================================ */
+
+function transcrever(audioBase64, tipo) {
+  const chave = prop('GROQ_KEY');
+  if (!chave) return { ok: false, erro: 'Falta GROQ_KEY' };
+  if (!audioBase64) return { ok: false, erro: 'Sem áudio' };
+  const b64 = String(audioBase64).replace(/^data:[^;]+;base64,/, '');
+  const mime = tipo || (String(audioBase64).match(/^data:([^;]+);/) || [])[1] || 'audio/webm';
+  const ext = /ogg|opus/.test(mime) ? 'ogg' : /mp4|m4a|aac/.test(mime) ? 'm4a' : /mpeg|mp3/.test(mime) ? 'mp3' : /wav/.test(mime) ? 'wav' : 'webm';
+  const blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, 'audio.' + ext);
+  const r = UrlFetchApp.fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'post', headers: { Authorization: 'Bearer ' + chave },
+    payload: { file: blob, model: 'whisper-large-v3-turbo', language: 'pt', response_format: 'json', temperature: '0' },
+    muteHttpExceptions: true
+  });
+  if (r.getResponseCode() !== 200) return { ok: false, erro: 'Transcrição ' + r.getResponseCode() + ': ' + resumoErro(r.getContentText()) };
+  const j = JSON.parse(r.getContentText());
+  passo('Transcreveu o áudio');
+  return { ok: true, texto: String(j.text || '').trim() };
+}
+
+/* ============================================================
+ *  TELEGRAM (grátis): vc fala com a ZicoAI pelo Telegram e ela
+ *  te avisa (bom dia, alertas). Propriedades: TELEGRAM_TOKEN
+ *  (do @BotFather), TELEGRAM_SEGREDO (qualquer palavra; vai na
+ *  URL do webhook), TELEGRAM_CHAT_ID (preenchido sozinho quando
+ *  vc manda o PIN pro bot pela primeira vez).
+ * ============================================================ */
+
+function tgApi(metodo, corpo) {
+  const token = prop('TELEGRAM_TOKEN');
+  if (!token) throw new Error('Falta TELEGRAM_TOKEN');
+  const r = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/' + metodo, { method: 'post', contentType: 'application/json', payload: JSON.stringify(corbo_(corpo)), muteHttpExceptions: true });
+  const j = JSON.parse(r.getContentText());
+  if (!j.ok) throw new Error('Telegram ' + metodo + ': ' + (j.description || r.getResponseCode()));
+  return j.result;
+}
+function corbo_(c) { return c || {}; }
+
+/** Manda texto pro Thiago no Telegram (quebra em pedaços de 3800). Markdown vira texto simples legível. */
+function tgEnviar(chatId, texto) {
+  chatId = chatId || prop('TELEGRAM_CHAT_ID');
+  if (!chatId) return false;
+  const imgs = [];
+  let t = String(texto || '').replace(/!\[[^\]]*\]\(([^)]+)\)/g, (_, u) => { imgs.push(u); return ''; });
+  t = t.replace(/```[a-z]*\n?/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/^#{1,4}\s*/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+  for (let i = 0; i < t.length; i += 3800) tgApi('sendMessage', { chat_id: chatId, text: t.slice(i, i + 3800), disable_web_page_preview: true });
+  imgs.forEach(u => { try { tgApi('sendPhoto', { chat_id: chatId, photo: u }); } catch (e) { tgApi('sendMessage', { chat_id: chatId, text: u }); } });
+  return true;
+}
+
+function tgBaixarArquivo(fileId) {
+  const token = prop('TELEGRAM_TOKEN');
+  const f = tgApi('getFile', { file_id: fileId });
+  const r = UrlFetchApp.fetch('https://api.telegram.org/file/bot' + token + '/' + f.file_path, { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('não baixou o arquivo do Telegram');
+  return r.getBlob();
+}
+
+function telegramEntrada(update) {
+  const msg = update && (update.message || update.edited_message);
+  if (!msg || !msg.chat) return;
+  const cache = CacheService.getScriptCache();
+  if (cache.get('tg_up_' + update.update_id)) return;          // Telegram reenvia se demoramos; não responder 2x
+  cache.put('tg_up_' + update.update_id, '1', 3600);
+  const chatId = String(msg.chat.id);
+  const dono = prop('TELEGRAM_CHAT_ID');
+  let texto = String(msg.text || msg.caption || '').trim();
+
+  // primeira vez: só aceita quem mandar o PIN
+  if (!dono || dono !== chatId) {
+    if (texto && texto === String(prop('PIN'))) {
+      PropertiesService.getScriptProperties().setProperty('TELEGRAM_CHAT_ID', chatId);
+      tgEnviar(chatId, 'Pronto, Thiago. Agora é só falar comigo aqui. Áudio e foto também funcionam.');
+    } else if (!dono) {
+      tgEnviar(chatId, 'Oi. Me manda o PIN da ZicoAI pra eu te reconhecer.');
+    }
+    return;
+  }
+
+  let imagem = null;
+  if (msg.photo && msg.photo.length) {
+    try { const b = tgBaixarArquivo(msg.photo[msg.photo.length - 1].file_id); imagem = 'data:' + (b.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(b.getBytes()); } catch (e) { /* segue sem foto */ }
+    if (!texto) texto = 'O que tem nessa foto?';
+  }
+  if (msg.voice || msg.audio) {
+    try {
+      const b = tgBaixarArquivo((msg.voice || msg.audio).file_id);
+      const t = transcrever(Utilities.base64Encode(b.getBytes()), (msg.voice || msg.audio).mime_type || 'audio/ogg');
+      if (t.ok && t.texto) texto = (texto ? texto + '\n' : '') + t.texto;
+    } catch (e) { tgEnviar(chatId, 'Não consegui ouvir o áudio. Manda por texto?'); return; }
+  }
+  if (!texto) return;
+  if (/^\/start/.test(texto)) { tgEnviar(chatId, 'Tô aqui. Pode mandar.'); return; }
+  if (/^\/nova\b/.test(texto)) { PropertiesService.getScriptProperties().setProperty('TELEGRAM_CONVERSA', 'tg' + Date.now().toString(36)); tgEnviar(chatId, 'Conversa nova começada.'); return; }
+
+  // conversa contínua do Telegram (uma só; a compactação cuida do tamanho)
+  let conv = prop('TELEGRAM_CONVERSA');
+  if (!conv) { conv = 'tg' + Date.now().toString(36); PropertiesService.getScriptProperties().setProperty('TELEGRAM_CONVERSA', conv); aba('chats').appendRow([conv, '📨 Telegram', "'" + agora(), "'" + agora(), 'telegram']); }
+  const historico = abrirChat(conv).slice(-11).map(m => ({ role: m.role, content: String(m.content).slice(0, 6000) }));
+  historico.push({ role: 'user', content: texto });
+  const r = chat({ chatId: conv, mensagens: historico, imagem: imagem, modo: /^(pesquisa|procura)/i.test(texto) ? 'web' : /^(gera|cria|desenha|faz) (uma )?(imagem|foto|arte|logo)/i.test(texto) ? 'imagem' : 'auto', cerebro: 'auto' }, 'telegram');
+  tgEnviar(chatId, r.ok ? r.resposta + (r.aviso ? '\n\n' + r.aviso : '') : '⚠️ ' + r.erro);
+}
+
+/** Rode UMA vez depois de colocar TELEGRAM_TOKEN e TELEGRAM_SEGREDO nas Propriedades: aponta o bot pra este script. */
+function ligarTelegram() {
+  const segredo = prop('TELEGRAM_SEGREDO');
+  if (!segredo) throw new Error('Coloque TELEGRAM_SEGREDO (uma palavra qualquer) nas Propriedades');
+  const url = ScriptApp.getService().getUrl() + '?tg=' + encodeURIComponent(segredo);
+  const r = tgApi('setWebhook', { url: url, allowed_updates: ['message', 'edited_message'], drop_pending_updates: true });
+  Logger.log('Webhook do Telegram: ' + JSON.stringify(r) + ' → ' + url);
+  Logger.log('Agora abre o bot no Telegram e manda o PIN.');
+}
+
+/* ============================================================
+ *  PUBLICAR APP NO GITHUB PAGES (grátis). Propriedade GITHUB_TOKEN
+ *  (token fine-grained com "Contents: write" só nesse repositório).
+ *  O app vai pra /apps/<nome>/index.html do site.
+ * ============================================================ */
+
+const GITHUB_REPO = 'thiagogaldinozicao-source/thiagogaldinozicao-source.github.io';
+
+function publicarApp(nome, html) {
+  const token = prop('GITHUB_TOKEN');
+  if (!token) return { ok: false, erro: 'Falta GITHUB_TOKEN nas Propriedades (github.com/settings/tokens, fine-grained, Contents: write no repositório do site)' };
+  html = String(html || '');
+  if (html.length < 30 || !/<html|<!doctype/i.test(html)) return { ok: false, erro: 'Isso não parece um app HTML' };
+  const slug = normalizar(nome || 'app').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'app';
+  const caminho = 'apps/' + slug + '/index.html';
+  const base = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + caminho;
+  const cab = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  let sha = null;
+  const g = UrlFetchApp.fetch(base, { headers: cab, muteHttpExceptions: true });
+  if (g.getResponseCode() === 200) sha = JSON.parse(g.getContentText()).sha;
+  const corpo = { message: (sha ? 'Atualiza' : 'Publica') + ' app ' + slug + ' (ZicoAI)', content: Utilities.base64Encode(html, Utilities.Charset.UTF_8) };
+  if (sha) corpo.sha = sha;
+  const r = UrlFetchApp.fetch(base, { method: 'put', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200 && r.getResponseCode() !== 201) return { ok: false, erro: 'GitHub ' + r.getResponseCode() + ': ' + resumoErro(r.getContentText()) };
+  const url = 'https://' + GITHUB_REPO.split('/')[0] + '.github.io/apps/' + slug + '/';
+  passo((sha ? 'Atualizou' : 'Publicou') + ' o app no GitHub Pages');
+  try { aba('memoria').appendRow(["'" + hoje(), seguro('App "' + slug + '" publicado em ' + url), 'app']); } catch (e) { /* ok */ }
+  return { ok: true, url: url, novo: !sha, aviso: 'O GitHub leva de 1 a 3 minutos pra colocar no ar.' };
 }
 
 /* ============================================================
@@ -1263,6 +1524,8 @@ function bomDia() {
     partes.push('VENDAS DE ONTEM: ' + v.length + ' venda(s), R$ ' + moeda(tot) + (v.length ? ' (' + v.map(l => l[2]).filter(Boolean).join(', ') + ')' : '') + '\nVENDAS DO MÊS: R$ ' + moeda(r.mes) + ' em ' + r.qtdMes + ' venda(s)');
   } catch (e) { /* sem vendas */ }
   try { const em = listarEmails(8); partes.push('E-MAILS NOVOS (3 dias):\n' + (em.length ? em.join('\n') : '(nenhum)')); } catch (e) { partes.push('E-MAILS: indisponível'); }
+  try { const c = clima(); if (c) partes.push('CLIMA: ' + c.split('\n').slice(0, 2).join(' ')); } catch (e) { /* ok */ }
+  try { const d = cotacaoDolar(); if (d) partes.push('DÓLAR: comercial R$ ' + d.venda + ' (' + d.variacao + '% no dia); pra conta do Thiago R$ ' + d.thiago); } catch (e) { /* ok */ }
   try {
     const ap = linhas('aprendizados').slice(-3).map(l => '- ' + l[2]);
     if (ap.length) partes.push('ÚLTIMOS APRENDIZADOS:\n' + ap.join('\n'));
@@ -1286,6 +1549,7 @@ function bomDia() {
   PASSOS = ['Rotina das 7h: montou o resumo do dia'];
   gravarMensagem(chatId, 'zicoai', texto, cerebro || 'rotina', 'rotina');
   tocarChat(chatId);
+  try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, texto); } catch (e) { /* sem telegram */ }
   Logger.log('Bom dia criado: ' + chatId);
   return texto;
 }
@@ -1414,6 +1678,10 @@ function instalar() {
   try { log.push('Gmail: ok (' + listarEmails(3).length + ' e-mails recentes lidos)'); } catch (e) { log.push('Gmail: ERRO → ' + e.message); }
   try { DriveApp.getRootFolder().getName(); log.push('Drive: ok'); } catch (e) { log.push('Drive: ERRO → ' + e.message); }
   log.push('ComfyUI no PC: ' + (prop('COMFY_URL') && prop('COMFY_WORKFLOW') ? 'configurado' : 'não configurado (opcional: COMFY_URL + COMFY_WORKFLOW)'));
+  log.push('Telegram: ' + (prop('TELEGRAM_TOKEN') ? (prop('TELEGRAM_CHAT_ID') ? 'ligado' : 'token ok, falta mandar o PIN pro bot') : 'não configurado (opcional: TELEGRAM_TOKEN + TELEGRAM_SEGREDO, depois rodar ligarTelegram)'));
+  log.push('GitHub (publicar apps): ' + (prop('GITHUB_TOKEN') ? 'configurado' : 'não configurado (opcional: GITHUB_TOKEN)'));
+  const d = cotacaoDolar(); log.push('Dólar ao vivo: ' + (d ? 'ok (R$ ' + d.venda + ')' : 'indisponível'));
+  log.push('Clima: ' + (clima() ? 'ok' : 'indisponível'));
   try {
     const g = geminiComGoogle('Responda curto.', [{ role: 'user', content: 'Qual a cotação do dólar hoje?' }]);
     log.push('Pesquisa no Google: ' + (g ? 'funcionando' : 'sem cota no plano grátis (usa o Groq)'));

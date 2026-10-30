@@ -288,7 +288,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 
 <div class="modal" id="mPrevia">
   <div class="painel">
-    <div class="previa-top"><b>Testando o app</b><button class="baixar" id="pBaixar">⬇ Baixar .html</button><button class="fechar" id="pFechar">✕ Fechar</button></div>
+    <div class="previa-top"><b>Testando o app</b><button class="baixar" id="pBaixar">⬇ Baixar .html</button><button class="baixar" id="pPublicar">⬆ Publicar</button><button class="fechar" id="pFechar">✕ Fechar</button></div>
     <iframe id="pFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups" title="prévia"></iframe>
   </div>
 </div>
@@ -352,7 +352,7 @@ if(window.marked && window.DOMPurify){
     if(code && typeof code === 'object'){ lang = code.lang; code = code.text; }
     const l = String(lang || '').trim().split(/\s/)[0] || 'texto';
     const ehHtml = /^html?$/i.test(l) || /^\s*(<!doctype html|<html)/i.test(String(code || '').slice(0, 200));
-    const extras = ehHtml ? '<button class="testar" type="button">▶ Testar</button>' : '';
+    const extras = ehHtml ? '<button class="testar" type="button">▶ Testar</button><button class="testar publicar" type="button">⬆ Publicar</button>' : '';
     return '<div class="bloco"><div class="bloco-top"><span>' + esc(ehHtml ? 'html · app' : l) + '</span><div class="acts">' + extras + '<button class="copiar" type="button">Copiar</button></div></div><pre><code>' + esc(code) + '</code></pre></div>';
   };
   marked.setOptions({ renderer: r, gfm: true, breaks: true });
@@ -364,7 +364,7 @@ if(window.marked && window.DOMPurify){
     if(i % 3 === 0) return p.trim() ? '<p>' + esc(p.trim()).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>') + '</p>' : '';
     if(i % 3 === 1) return '';
     const ehHtml = /^\s*(<!doctype html|<html)/i.test(p.slice(0, 200));
-    return '<div class="bloco"><div class="bloco-top"><span>' + (ehHtml ? 'html · app' : 'texto') + '</span><div class="acts">' + (ehHtml ? '<button class="testar" type="button">▶ Testar</button>' : '') + '<button class="copiar" type="button">Copiar</button></div></div><pre><code>' + esc(p) + '</code></pre></div>';
+    return '<div class="bloco"><div class="bloco-top"><span>' + (ehHtml ? 'html · app' : 'texto') + '</span><div class="acts">' + (ehHtml ? '<button class="testar" type="button">▶ Testar</button><button class="testar publicar" type="button">⬆ Publicar</button>' : '') + '<button class="copiar" type="button">Copiar</button></div></div><pre><code>' + esc(p) + '</code></pre></div>';
   }).join('');
 }
 function trataImagens(el){
@@ -404,9 +404,28 @@ function copiar(txt, botao, rotulo){
 document.addEventListener('click', e => {
   const b = e.target.closest('.copiar');
   if(b) copiar(b.closest('.bloco').querySelector('pre').textContent, b);
+  const pb = e.target.closest('.publicar');
+  if(pb){ publicarApp(pb.closest('.bloco').querySelector('pre').textContent, pb); return; }
   const t = e.target.closest('.testar');
   if(t) testarApp(t.closest('.bloco').querySelector('pre').textContent);
 });
+
+/* ---------- publicar app no GitHub Pages (vira link na hora) ---------- */
+async function publicarApp(html, botao){
+  const m = html.match(/<title>([^<]{1,60})<\/title>/i);
+  const nome = prompt('Nome do app (vira o endereço):', m ? m[1].trim() : 'meu-app');
+  if(!nome) return;
+  const o = botao.textContent; botao.textContent = 'Publicando...'; botao.disabled = true;
+  try{
+    const j = await api({ acao:'publicar', nome, html });
+    botao.textContent = '✓ Publicado';
+    const bloco = botao.closest('.bloco');
+    const aviso = document.createElement('div');
+    aviso.style.cssText = 'padding:8px 12px;font-size:14px;border-top:1px solid var(--borda2)';
+    aviso.innerHTML = '🌐 No ar em <a href="' + esc(j.url) + '" target="_blank" rel="noopener">' + esc(j.url) + '</a> <span style="color:var(--cinza2)">(' + esc(j.aviso || '') + ')</span>';
+    bloco.appendChild(aviso);
+  }catch(e){ botao.textContent = o; botao.disabled = false; alert(e.message); }
+}
 
 /* ---------- testar app (abre o HTML que ela escreveu numa janela, sem salvar arquivo) ---------- */
 let previaHtml = '';
@@ -419,6 +438,7 @@ function testarApp(html){
   $('mPrevia').classList.add('aberto');
 }
 $('pFechar').onclick = () => { $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; };
+$('pPublicar').onclick = () => publicarApp(previaHtml, $('pPublicar'));
 $('pBaixar').onclick = () => {
   const m = previaHtml.match(/<title>([^<]{1,60})<\/title>/i);
   const nome = (m ? m[1].trim().replace(/[^\w\u00C0-\u017F -]+/g, '').replace(/\s+/g, '-').toLowerCase() : 'app') + '.html';
@@ -580,7 +600,36 @@ function falar(texto, botao){
 }
 if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices(); }
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-if(Rec){
+const temGravador = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+if(temGravador){
+  // grava um áudio curto e manda pro cérebro transcrever (Groq Whisper, grátis). Toca pra começar, toca de novo pra parar.
+  $('bMic').style.display = '';
+  let gravador = null, pedacos = [], fluxo = null;
+  $('bMic').onclick = async () => {
+    if(gravador){ gravador.stop(); return; }
+    try{ fluxo = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch(e){ alert('Não consegui usar o microfone. Libera o microfone pro app nos ajustes, ou usa o 🎤 do teclado.'); return; }
+    const tipo = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+    gravador = new MediaRecorder(fluxo, tipo ? { mimeType: tipo } : undefined);
+    pedacos = [];
+    gravador.ondataavailable = e => { if(e.data && e.data.size) pedacos.push(e.data); };
+    gravador.onstop = async () => {
+      fluxo.getTracks().forEach(t => t.stop());
+      $('bMic').classList.remove('on'); $('txt').placeholder = 'Transcrevendo...';
+      const blob = new Blob(pedacos, { type: gravador.mimeType || tipo || 'audio/webm' });
+      gravador = null;
+      if(blob.size < 1500){ $('txt').placeholder = 'Pergunta qualquer coisa pra ZicoAI'; return; }
+      const b64 = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+      try{
+        const j = await api({ acao:'transcrever', audio: b64, tipo: blob.type });
+        $('txt').value = ($('txt').value.trim() ? $('txt').value.trim() + ' ' : '') + j.texto; ajusta(); $('txt').focus();
+      }catch(e){ alert('Não consegui transcrever: ' + e.message); }
+      $('txt').placeholder = 'Pergunta qualquer coisa pra ZicoAI';
+    };
+    gravador.start();
+    $('bMic').classList.add('on'); $('txt').placeholder = 'Gravando... toca no 🎤 pra parar';
+  };
+} else if(Rec){
   $('bMic').style.display = '';
   let rec = null;
   $('bMic').onclick = () => {
