@@ -2680,16 +2680,28 @@ function ligarProva() {
 function diagnosticoGitHub() {
   const token = prop('GITHUB_TOKEN');
   if (!token) { Logger.log('Sem GITHUB_TOKEN'); return; }
+  Logger.log('token começa com: ' + token.slice(0, 11) + '… (' + token.length + ' chars)');
   const corpo = JSON.stringify({ model: 'openai/gpt-4.1', messages: [{ role: 'user', content: 'Responda só: ok' }], max_tokens: 5 });
-  [['novo', 'https://models.github.ai/inference/chat/completions', corpo], ['antigo', 'https://models.inference.ai.azure.com/chat/completions', corpo.replace('openai/gpt-4.1', 'gpt-4.1')]].forEach(t => {
+  const base = { Authorization: 'Bearer ' + token };
+  const tentativas = [
+    ['A: versão 2026-03-10 + UA', Object.assign({}, base, { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2026-03-10', 'User-Agent': 'ZicoAI/1.0' })],
+    ['B: versão 2022-11-28 + UA', Object.assign({}, base, { Accept: 'application/json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'ZicoAI/1.0' })],
+    ['C: só Authorization', base],
+    ['D: Authorization "token"', { Authorization: 'token ' + token, 'User-Agent': 'ZicoAI/1.0', Accept: 'application/vnd.github+json' }]
+  ];
+  tentativas.forEach(t => {
     try {
-      const r = UrlFetchApp.fetch(t[1], { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }, payload: t[2], muteHttpExceptions: true, followRedirects: false });
-      Logger.log(t[0] + ' → ' + r.getResponseCode() + ' | headers: ' + JSON.stringify(r.getAllHeaders()).slice(0, 400) + ' | body: ' + r.getContentText().slice(0, 300));
+      const r = UrlFetchApp.fetch('https://models.github.ai/inference/chat/completions', { method: 'post', contentType: 'application/json', headers: t[1], payload: corpo, muteHttpExceptions: true, followRedirects: false });
+      Logger.log(t[0] + ' → ' + r.getResponseCode() + ' | ' + JSON.stringify(r.getAllHeaders()).slice(0, 250) + ' | ' + r.getContentText().slice(0, 200));
     } catch (e) { Logger.log(t[0] + ' → ERRO ' + e.message); }
   });
   try {
-    const c = UrlFetchApp.fetch('https://models.github.ai/catalog/models', { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, muteHttpExceptions: true });
-    Logger.log('catálogo → ' + c.getResponseCode() + ' | ' + c.getContentText().slice(0, 300));
+    const c = UrlFetchApp.fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + token, 'User-Agent': 'ZicoAI/1.0', Accept: 'application/vnd.github+json' }, muteHttpExceptions: true });
+    Logger.log('api.github.com/user → ' + c.getResponseCode() + ' | ' + c.getContentText().slice(0, 120));
+  } catch (e) { Logger.log('api.github.com → ERRO ' + e.message); }
+  try {
+    const c = UrlFetchApp.fetch('https://models.github.ai/catalog/models', { headers: { Authorization: 'Bearer ' + token, 'User-Agent': 'ZicoAI/1.0', Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2026-03-10' }, muteHttpExceptions: true, followRedirects: false });
+    Logger.log('catálogo (UA+versão nova) → ' + c.getResponseCode() + ' | ' + JSON.stringify(c.getAllHeaders()).slice(0, 200) + ' | ' + c.getContentText().slice(0, 200));
   } catch (e) { Logger.log('catálogo → ERRO ' + e.message); }
 }
 
