@@ -1,0 +1,16 @@
+const H = require('./harness');
+const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) process.exitCode = 1; };
+const resp = t => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: t } }] }) });
+H.setFetch(() => resp('Beleza!'));
+H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'a karina agora folga às segundas, não mais quarta' }] });
+let chamada = null;
+H.setFetch((u, o) => { chamada = JSON.parse(o.payload); return resp('```json\n{"memorias":["Karina folga às segundas","O frete da Will agora é 15%"],"aprendizados":[],"esquecer":["Karina folga às quartas"]}\n```'); });
+H.ctx.aprenderSozinha();
+const mem = H.sheets.memoria.rows.map(r => r[1]);
+ok(mem.includes('Karina folga às segundas') && !mem.includes('Karina folga às quartas'), 'aprendeu e esqueceu o antigo: ' + JSON.stringify(mem));
+ok(mem.filter(m => /frete da Will/.test(m)).length === 1, 'não duplicou frete da Will');
+ok(/CONVERSAS NOVAS/.test(chamada.messages[1].content), 'mandou conversas');
+const antes = H.sheets.memoria.rows.length; chamada = null;
+H.ctx.aprenderSozinha();
+ok(chamada === null && H.sheets.memoria.rows.length === antes, 'não reprocessa o que já leu');
+H.ctx.ligarAprendizado();
