@@ -948,11 +948,22 @@ function processarTags(texto, aparelho) {
     const r = resumoVendas();
     return '\n\n💰 Venda anotada: R$ ' + moeda(valor) + '. Hoje: R$ ' + moeda(r.hoje) + ' · Mês: R$ ' + moeda(r.mes) + '\n';
   });
+  let criouTarefa = false;
   texto = texto.replace(/\[\[TAREFA:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     const r = criarTarefa(t.trim(), CHAT_ATUAL, aparelho);
-    if (r.ok) { salvou.push('tarefa'); passo('Mandou um agente fazer em segundo plano'); return '\n\n🧠 Agente trabalhando nisso em segundo plano. O resultado aparece aqui quando terminar.\n'; }
+    if (r.ok) { criouTarefa = true; salvou.push('tarefa'); passo('Mandou um agente fazer em segundo plano'); return '\n\n🧠 Agente trabalhando nisso em segundo plano. O resultado aparece aqui quando terminar.\n'; }
     return '';
   });
+  // Mandou pro agente mas também respondeu tudo? Fica só uma linha: o resultado vem pelo agente (evita resposta dobrada).
+  if (criouTarefa) {
+    const partes = texto.split(/\n\n🧠 Agente trabalhando/);
+    const antes = (partes[0] || '').trim();
+    if (antes.length > 160) {
+      const primeira = (antes.match(/^[^\n]*?[.!?](\s|$)/) || [antes.slice(0, 160)])[0].trim();
+      texto = primeira.slice(0, 200) + '\n\n🧠 Agente trabalhando' + (partes[1] || '');
+      passo('Resposta encurtada: o agente vai trazer o resultado completo');
+    }
+  }
   texto = texto.replace(/\[\[IMAGEM:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     const prompt = t.trim();
     // 1) PC de casa com ComfyUI (ilimitado, qualidade do Krea). 2) reserva: Pollinations.

@@ -60,3 +60,8 @@ r = H.post({ pin: '1234', acao: 'tarefa', pedido: 'me explica tabela price em 3 
 H.ctx.rodarTarefas();
 const f2 = H.sheets.tarefas.rows.find(x => x[0] === r.id);
 ok(f2[4] === 'concluída' && /Resposta direta em texto/.test(f2[6]), 'modelo que não usa JSON ainda entrega resposta');
+// resposta dobrada: respondeu tudo E criou tarefa → fica só 1 linha + aviso do agente
+H.setFetch((u, o) => { const b = JSON.parse(o.payload); const sys2 = b.messages[0].content; if (/AGENTE em segundo plano/.test(sys2)) return resp('ok'); return resp('Vou pesquisar isso pra vc. Analisei o código e aqui vão 5 melhorias detalhadas: 1) feedback visual com escala 2) estética dourada 3) responsividade 4) prevenção de erro 5) placar. Quer que eu aplique agora? Só pedir. [[TAREFA: Listar apps publicados e analisar o jogo da velha]]'); });
+let rd = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'lê o jogo da velha e me fala o que melhorar' }] });
+ok(rd.ok && rd.salvou.includes('tarefa') && /Agente trabalhando/.test(rd.resposta) && !/5 melhorias detalhadas/.test(rd.resposta) && rd.resposta.length < 320, 'resposta dobrada vira 1 linha + agente: ' + JSON.stringify(rd.resposta).slice(0, 120));
+ok(rd.passos.some(p => /Resposta encurtada/.test(p)), 'passo registra o corte');
