@@ -2680,6 +2680,19 @@ function ligarProva() {
   Logger.log('Prova semanal: LIGADA (segunda 4h)');
 }
 
+/** Diagnóstico do Telegram: mostra o que o Telegram diz sobre o webhook (erros, pendências). */
+function diagnosticoTelegram() {
+  try {
+    const info = tgApi('getWebhookInfo', {});
+    Logger.log('Webhook: ' + JSON.stringify(info));
+    if (info.last_error_message) Logger.log('ÚLTIMO ERRO do Telegram: ' + info.last_error_message + ' (em ' + new Date(info.last_error_date * 1000) + ')');
+    Logger.log('TELEGRAM_CHAT_ID: ' + (prop('TELEGRAM_CHAT_ID') || '(ainda vazio: ninguém mandou o PIN certo)'));
+    Logger.log('Segredo configurado: ' + (prop('TELEGRAM_SEGREDO') ? 'sim' : 'NÃO'));
+    const me = tgApi('getMe', {});
+    Logger.log('Bot: @' + me.username);
+  } catch (e) { Logger.log('ERRO: ' + e.message); }
+}
+
 /** Diagnóstico do GitHub Models: rode pelo editor e leia o Registro de execução. */
 function diagnosticoGitHub() {
   const token = prop('GITHUB_TOKEN');
