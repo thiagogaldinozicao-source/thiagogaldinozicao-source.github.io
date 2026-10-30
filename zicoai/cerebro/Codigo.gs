@@ -2676,6 +2676,23 @@ function ligarProva() {
   Logger.log('Prova semanal: LIGADA (segunda 4h)');
 }
 
+/** Diagnóstico do GitHub Models: rode pelo editor e leia o Registro de execução. */
+function diagnosticoGitHub() {
+  const token = prop('GITHUB_TOKEN');
+  if (!token) { Logger.log('Sem GITHUB_TOKEN'); return; }
+  const corpo = JSON.stringify({ model: 'openai/gpt-4.1', messages: [{ role: 'user', content: 'Responda só: ok' }], max_tokens: 5 });
+  [['novo', 'https://models.github.ai/inference/chat/completions', corpo], ['antigo', 'https://models.inference.ai.azure.com/chat/completions', corpo.replace('openai/gpt-4.1', 'gpt-4.1')]].forEach(t => {
+    try {
+      const r = UrlFetchApp.fetch(t[1], { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }, payload: t[2], muteHttpExceptions: true, followRedirects: false });
+      Logger.log(t[0] + ' → ' + r.getResponseCode() + ' | headers: ' + JSON.stringify(r.getAllHeaders()).slice(0, 400) + ' | body: ' + r.getContentText().slice(0, 300));
+    } catch (e) { Logger.log(t[0] + ' → ERRO ' + e.message); }
+  });
+  try {
+    const c = UrlFetchApp.fetch('https://models.github.ai/catalog/models', { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, muteHttpExceptions: true });
+    Logger.log('catálogo → ' + c.getResponseCode() + ' | ' + c.getContentText().slice(0, 300));
+  } catch (e) { Logger.log('catálogo → ERRO ' + e.message); }
+}
+
 /* ============================================================
  *  RODE ESTA FUNÇÃO UMA VEZ PELO EDITOR (botão Executar)
  *  Ela pede a autorização do Google e testa os cérebros.
