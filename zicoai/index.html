@@ -299,6 +299,8 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
             <button data-c="auto"><b>Auto</b><span>Nuvem primeiro (Gemini, Groq); PC de casa só como reserva</span></button>
             <button data-c="gemini"><b>Gemini</b><span>Textos grandes, fotos e conversa</span></button>
             <button data-c="groq"><b>Groq</b><span>Programação com raciocínio alto e pesquisa</span></button>
+            <button data-c="nvidia"><b>NVIDIA</b><span>Mesmo modelo do Groq, limite maior (precisa da chave)</span></button>
+            <button data-c="mistral"><b>Mistral</b><span>Texto e foto, reserva do Gemini (precisa da chave)</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
           </div>
         </div>
@@ -962,7 +964,7 @@ $('cImg').onclick = () => setModo('imagem');
 $('cAgente').onclick = () => setModo('agente');
 
 /* ---------- seletor de cérebro ---------- */
-const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', pc:'PC de casa' };
+const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', nvidia:'NVIDIA', mistral:'Mistral', pc:'PC de casa' };
 function mostraModelo(){
   $('nomeModelo').textContent = NOMES[cfg.cerebro] || 'Auto';
   document.querySelectorAll('#menuModelo button').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
