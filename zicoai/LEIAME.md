@@ -55,6 +55,12 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Roteador por feedback (`notaCerebros`/`reordenarPorNota`): últimos 40 👍/👎 por cérebro; cérebro com menos de 50% de aprovação (mínimo 3 votos) vai pro fim da fila no modo Auto. Cache 30 min, zerado a cada feedback. Escolha manual no seletor ignora isso.
 - Ensinar com arquivo (ação `aprenderTexto`, botão 📎 no painel Memória): texto de .txt/.md/.csv/.json (até 60k caracteres) → Gemini separa em até 60 fatos "assunto || conteúdo" → `gravarFato('base')` com origem `arquivo:<nome>`; itens com CPF/telefone são barrados.
 - `arrumarMemoria()` (domingo 4h): remove lembranças repetidas (`jaSabe`), mantendo a mais nova, e registra em `historico` (origem `arrumacao`).
+- Treino diário (aba `treino`: Data | Tipo | Nota | Detalhe), tudo na nuvem, PC pode estar desligado:
+  - `treinoDiario()` 3h: sorteia 4 perguntas da prova (peso maior pras nunca feitas ou com nota baixa), responde, corrige (`corrigirResposta`, temperatura 0), grava nota/data na prova; nota < 7,5 vira aprendizado (assunto `treino`).
+  - `revisarDia()` 23h: pega os pares pergunta/resposta do dia (até 25) e um revisor aponta só quebras de FORMA e HONESTIDADE (oferta no fim, fingir ação, inventar número, tom, bloco de código indevido, longo demais, não respondeu); cada problema vira aprendizado (assunto `revisão`, com o cérebro culpado no texto) e a contagem por cérebro vai pro detalhe.
+  - `perguntaDoDia()`: entra no bom dia; pergunta ao Thiago um item NÃO CONFIRMADO da base (ou pede a tabela de preços se vazia), sem repetir.
+  - `gerarPerguntasProva()` domingo 5h: até 3 perguntas novas a partir da base e das conversas (marcadas "gerada automaticamente"), pra prova não virar decoreba.
+  - `exportarTreino()` domingo 5h: exemplos aprovados + aprendizados viram JSONL (formato chat) na pasta "ZicoAI Treino" do Drive, pro dia de fazer fine-tuning do modelo do PC.
 - Rotinas (`ligarRotinas()` cria os gatilhos): `bomDia()` todo dia 7h monta o resumo (agenda de hoje, vendas de ontem e do mês, e-mails novos, últimos aprendizados, última prova), pede ao cérebro uma mensagem curta e grava como conversa `bomdiaAAAAMMDD` (aparece no app como "☀️ Bom dia dd/MM"; não duplica no mesmo dia). `backupPlanilha()` domingo 3h copia a planilha pra pasta "ZicoAI Backups" no Drive (se falhar, anota na memória). `avisoCota()` entra na resposta do chat (`aviso`) quando um cérebro passa de 80% da cota do dia; o app mostra em itálico no fim da mensagem.
 - Prova semanal: `rodarProva()` responde cada linha da aba `prova` (questão com `MSG 1 … || MSG 2 (mesma conversa): …` vira 2 turnos), um corretor (Gemini/Groq/Cerebras, temperatura 0) dá nota de 0 a 10 pelos critérios, grava `Última nota`/`Última data`, nota < 7,5 vira aprendizado (assunto `prova`) e a média vai pra memória. `ligarProva()` cria gatilho segunda 4h.
 - Bloqueia CPF e telefone na memória (`temDadoSensivel`).
@@ -78,6 +84,7 @@ Abas e colunas:
 - `vendas`: Data | Valor | Descrição | Origem (anotadas pela tag `[[VENDA]]`)
 - `precos`: Produto | Condição | Capacidade | Cor | Preço Pix | Preço 12x | Estoque | Obs. ÚNICA fonte de preço: entra no sistema quando a pergunta fala de preço/valor/estoque ou cita produto (filtra pelo número do modelo). Vazia → a IA é avisada pra não dar preço.
 - `exemplos`: Data | Pergunta | Resposta | Cérebro | Assunto (respostas aprovadas com 👍)
+- `treino`: Data | Tipo | Nota | Detalhe (prova rápida, revisão do dia, pergunta do dia, perguntas novas, exportação)
 - `vetores`: Aba | Texto | Vetor (cache dos embeddings `gemini-embedding-001`, 256 dimensões, arredondados). Preenchida sozinha, até 20 trechos novos por resposta.
 - `config`: Chave | Valor
 - `prova`: Nº | Grupo | Pergunta exata | Critérios nota 10 | Erro mais provável | Última nota | Última data | Observação (20 perguntas da prova semanal; gabarito feito em 30/10)
@@ -98,6 +105,7 @@ node t8.js   # rotinas: bom dia, backup, aviso de cota
 node t9.js   # APIs grátis, Whisper, Telegram, publicar no GitHub
 node t10.js  # exemplos aprovados, roteador por feedback, ensinar com arquivo, arrumar memória
 node t11.js  # calculadora exata, conversas antigas, trava de PIN, resposta vazia
+node t12.js  # treino diário, revisão do dia, pergunta do dia, perguntas novas, exportação
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

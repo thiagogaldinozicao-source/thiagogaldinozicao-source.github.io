@@ -145,6 +145,7 @@ const ABAS = {
   config:       ['Chave', 'Valor'],
   precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
   exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto'],
+  treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
   vetores:      ['Aba', 'Texto', 'Vetor']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
@@ -1739,6 +1740,173 @@ function arrumarMemoria() {
 }
 
 /* ============================================================
+ *  TREINO DIÁRIO (roda de madrugada, mesmo com o PC desligado)
+ *  - treinoDiario(): 4 perguntas da prova, sorteadas, com nota.
+ *  - revisarDia(): relê as respostas do dia e anota o que quebrou
+ *    regra de forma/honestidade (não inventa fato).
+ *  - perguntaDoDia(): o que falta na base vira pergunta pro Thiago.
+ *  - gerarPerguntasProva(): perguntas novas pra prova não virar decoreba.
+ *  - exportarTreino(): JSONL no Drive pra treinar o modelo do PC um dia.
+ * ============================================================ */
+
+function corrigirResposta(pergunta, criterios, erroProvavel, resposta) {
+  const msgs = [
+    { role: 'system', content: PROMPT_CORRETOR },
+    { role: 'user', content: 'PERGUNTA: ' + pergunta + '\n\nCRITÉRIOS: ' + criterios + '\n\nERRO PROVÁVEL: ' + erroProvavel + '\n\nRESPOSTA DELA:\n' + String(resposta).slice(0, 6000) }
+  ];
+  for (const nome of ['gemini', 'groq', 'cerebras']) {
+    if (!temCerebro(nome) || motivoNaoCabe(nome, CEREBROS[nome], estimarTokens(JSON.stringify(msgs)) + 300)) continue;
+    try {
+      const j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 300, { temperature: 0 }));
+      registrarUso(nome, estimarTokens(JSON.stringify(msgs)) + 100);
+      if (j && typeof j.nota !== 'undefined') return { nota: Math.max(0, Math.min(10, Number(j.nota) || 0)), faltou: String(j.faltou || '') };
+    } catch (e) { /* próximo corretor */ }
+  }
+  return null;
+}
+
+function treinoDiario() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    const todas = linhas('prova').map((l, i) => { l.linha = i + 2; return l; }).filter(l => l[2]);
+    if (!todas.length) return;
+    // sorteia 4, dando preferência às que nunca foram feitas ou tiveram nota baixa
+    const peso = l => (l[5] === '' || l[5] === undefined ? 3 : Number(l[5]) < 7.5 ? 2 : 1);
+    const bolsa = [];
+    todas.forEach(l => { for (let i = 0; i < peso(l); i++) bolsa.push(l); });
+    const escolhidas = [];
+    while (escolhidas.length < Math.min(4, todas.length) && bolsa.length) {
+      const l = bolsa.splice(Math.floor(Math.random() * bolsa.length), 1)[0];
+      if (escolhidas.indexOf(l) < 0) escolhidas.push(l);
+    }
+    let soma = 0, qtd = 0; const det = [];
+    escolhidas.forEach(l => {
+      PASSOS = [];
+      const partes = String(l[2]).split(/\|\|\s*MSG 2[^:]*:/i);
+      let hist = [{ role: 'user', content: partes[0].replace(/^MSG 1:\s*/i, '').trim() }];
+      let r = conversar(hist, hist[0].content, null, 'auto', '\n\n(Pergunta de treino. Responda como responderia ao Thiago.)');
+      if (r.ok && partes[1]) { hist = hist.concat([{ role: 'assistant', content: r.texto }, { role: 'user', content: partes[1].trim() }]); r = conversar(hist, partes[1].trim(), null, 'auto', ''); }
+      if (!r.ok) { det.push(l[0] + ': sem resposta'); return; }
+      const c = corrigirResposta(l[2], l[3], l[4], r.texto);
+      if (!c) { det.push(l[0] + ': sem corretor'); return; }
+      soma += c.nota; qtd++;
+      det.push(l[0] + ': ' + c.nota + (c.faltou ? ' (' + c.faltou.slice(0, 60) + ')' : ''));
+      aba('prova').getRange(l.linha, 6, 1, 2).setValues([[c.nota, "'" + hoje()]]);
+      if (c.nota < 7.5 && c.faltou) {
+        const erro = 'Treino ' + l[0] + ' (' + l[1] + '): ' + c.faltou;
+        if (!jaSabe(erro, linhas('aprendizados').map(x => x[1]))) aba('aprendizados').appendRow(["'" + hoje(), seguro(erro.slice(0, 400)), seguro(('Na pergunta "' + String(l[2]).slice(0, 80) + '…": ' + l[3]).slice(0, 400)), 'treino']);
+      }
+    });
+    const media = qtd ? Math.round(soma / qtd * 10) / 10 : 0;
+    aba('treino').appendRow(["'" + hoje(), 'prova rápida', media, seguro(det.join(' | ').slice(0, 1500))]);
+    Logger.log('Treino diário: média ' + media + ' | ' + det.join(' | '));
+  } finally { lock.releaseLock(); }
+}
+
+const PROMPT_REVISOR = [
+  'Você revisa as respostas de hoje de uma assistente (ZicoAI) do Thiago. Pra cada resposta, veja SÓ regras de FORMA e HONESTIDADE (não julgue fatos que você não conhece):',
+  '1) terminou com oferta/"só pedir"/"quer que eu…"; 2) disse que fez algo impossível (gerou, rodou, enviou, aguarde); 3) inventou número/preço/garantia/endereço sem estar no contexto; 4) usou "tu"/formal demais/sermão; 5) resposta inteira dentro de bloco de código; 6) longa demais pra pergunta simples; 7) não respondeu o que foi perguntado.',
+  'Devolva SÓ JSON: {"problemas":[{"indice":N,"regra":"1-7","erro":"o que ela fez (curto)","certo":"o jeito certo (curto, imperativo)"}],"nota":0 a 10 do dia}. Sem problemas: lista vazia e nota 10.'
+].join('\n');
+
+function revisarDia() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    const hojeStr = Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd');
+    const ms = linhas('mensagens').filter(l => String(l[1]).slice(0, 10) === hojeStr && l[5] !== 'rotina');
+    const pares = [];
+    for (let i = 0; i < ms.length - 1; i++) if (ms[i][2] === 'thiago' && ms[i + 1][2] === 'zicoai' && ms[i][0] === ms[i + 1][0]) pares.push([ms[i][3], ms[i + 1][3], ms[i + 1][4]]);
+    if (!pares.length) return;
+    const amostra = pares.slice(-25);
+    const texto = amostra.map((p, i) => '#' + i + ' [' + (p[2] || '?') + ']\nTHIAGO: ' + String(p[0]).slice(0, 500) + '\nZICOAI: ' + String(p[1]).slice(0, 1200)).join('\n\n');
+    const msgs = [{ role: 'system', content: PROMPT_REVISOR }, { role: 'user', content: texto }];
+    let j = null;
+    for (const nome of ['gemini', 'cerebras', 'groq']) {
+      if (!temCerebro(nome) || estimarTokens(JSON.stringify(msgs)) + 1500 > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], estimarTokens(JSON.stringify(msgs)) + 1500)) continue;
+      try { j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 1500, { temperature: 0 })); registrarUso(nome, estimarTokens(JSON.stringify(msgs)) + 500); if (j) break; } catch (e) { /* próximo */ }
+    }
+    if (!j) return;
+    let novos = 0;
+    const porCerebro = {};
+    (j.problemas || []).slice(0, 10).forEach(pb => {
+      if (!pb || !pb.erro || !pb.certo) return;
+      const cer = amostra[pb.indice] ? amostra[pb.indice][2] : '';
+      if (cer) porCerebro[cer] = (porCerebro[cer] || 0) + 1;
+      const erro = 'Revisão' + (cer ? ' [' + cer + ']' : '') + ': ' + pb.erro;
+      if (jaSabe(pb.certo, linhas('aprendizados').map(x => x[2]))) return;
+      aba('aprendizados').appendRow(["'" + hoje(), seguro(erro.slice(0, 400)), seguro(String(pb.certo).slice(0, 400)), 'revisão']);
+      novos++;
+    });
+    const nota = Math.max(0, Math.min(10, Number(j.nota) || 0));
+    aba('treino').appendRow(["'" + hoje(), 'revisão do dia', nota, seguro((amostra.length + ' respostas revisadas, ' + (j.problemas || []).length + ' problemas, ' + novos + ' aprendizados novos' + (Object.keys(porCerebro).length ? ' | por cérebro: ' + Object.keys(porCerebro).map(k => k + ' ' + porCerebro[k]).join(', ') : '')).slice(0, 1500))]);
+    Logger.log('Revisão do dia: nota ' + nota + ', ' + novos + ' aprendizados');
+  } finally { lock.releaseLock(); }
+}
+
+/** O que falta na base vira UMA pergunta pro Thiago (vai no bom dia). */
+function perguntaDoDia() {
+  const base = linhas('base');
+  const pend = base.filter(l => /N[ÃA]O CONFIRMAD/i.test(l[1]) && !/Regra geral|O que N/i.test(l[0]));
+  const feitas = linhas('treino').filter(l => l[1] === 'pergunta do dia').map(l => l[3]);
+  const cand = pend.filter(l => feitas.indexOf(l[0]) < 0);
+  let texto = null, chave = null;
+  if (!linhas('precos').length && feitas.indexOf('precos') < 0) { texto = 'A aba precos da planilha tá vazia. Me manda os 5 produtos que mais vendem com o preço no Pix, que eu já coloco na tabela.'; chave = 'precos'; }
+  else if (cand.length) {
+    const l = cand[Math.floor(Math.random() * cand.length)];
+    texto = 'Pra eu parar de responder "deixa eu confirmar": ' + l[0].replace(/^Promessa da loja:\s*/i, '').toLowerCase() + ', qual é a regra certa?';
+    chave = l[0];
+  }
+  if (!texto) return null;
+  aba('treino').appendRow(["'" + hoje(), 'pergunta do dia', '', seguro(chave)]);
+  return texto;
+}
+
+/** Cria até 3 perguntas novas pra prova a partir da base e das conversas (pra ela não decorar). */
+function gerarPerguntasProva() {
+  const base = linhas('base').slice(-40).map(l => '- ' + l[0] + ': ' + String(l[1]).slice(0, 150)).join('\n');
+  const conv = linhas('mensagens').filter(l => l[2] === 'thiago').slice(-30).map(l => '- ' + String(l[3]).slice(0, 120)).join('\n');
+  const atuais = linhas('prova').map(l => '- ' + String(l[2]).slice(0, 100)).join('\n');
+  const msgs = [
+    { role: 'system', content: 'Você cria perguntas de prova pra uma assistente de loja de iPhones (Itaú de Minas/MG) que também programa e faz contas. Crie 3 perguntas NOVAS, diferentes das atuais, realistas (como o Thiago falaria, informal), cobrindo assuntos diferentes (cliente, cálculo, código, produto, agenda). Pra cada: "grupo", "pergunta", "criterios" (4 critérios objetivos separados por " | "), "erro" (erro mais provável). Use [PREÇO]/[GARANTIA] onde tiver valor. Responda SÓ JSON: {"perguntas":[{"grupo":"...","pergunta":"...","criterios":"...","erro":"..."}]}' },
+    { role: 'user', content: 'BASE (amostra):\n' + base + '\n\nCOISAS QUE O THIAGO PERGUNTA:\n' + conv + '\n\nPERGUNTAS ATUAIS DA PROVA:\n' + atuais }
+  ];
+  let j = null;
+  for (const nome of ['gemini', 'cerebras', 'groq']) {
+    if (!temCerebro(nome) || estimarTokens(JSON.stringify(msgs)) + 1200 > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], estimarTokens(JSON.stringify(msgs)) + 1200)) continue;
+    try { j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 1200, { temperature: 0.7 })); registrarUso(nome, estimarTokens(JSON.stringify(msgs)) + 600); if (j) break; } catch (e) { /* próximo */ }
+  }
+  if (!j || !j.perguntas) return 0;
+  const a = aba('prova');
+  let n = linhas('prova').length;
+  let novas = 0;
+  j.perguntas.slice(0, 3).forEach(q => {
+    if (!q || !q.pergunta || !q.criterios) return;
+    if (jaSabe(q.pergunta, linhas('prova').map(l => l[2]))) return;
+    n++; novas++;
+    a.appendRow([n, seguro(String(q.grupo || 'auto').slice(0, 30)), seguro(String(q.pergunta).slice(0, 600)), seguro(String(q.criterios).slice(0, 600)), seguro(String(q.erro || '').slice(0, 200)), '', '', 'gerada automaticamente em ' + hoje()]);
+  });
+  if (novas) aba('treino').appendRow(["'" + hoje(), 'perguntas novas', '', novas + ' pergunta(s) nova(s) na prova']);
+  return novas;
+}
+
+/** Junta exemplos aprovados + aprendizados num JSONL (formato de treino de modelo) e salva no Drive. */
+function exportarTreino() {
+  const linhasJsonl = [];
+  linhas('exemplos').forEach(l => { linhasJsonl.push(JSON.stringify({ messages: [{ role: 'system', content: 'Você é a ZicoAI, assistente do Thiago (Zicão Store).' }, { role: 'user', content: l[1] }, { role: 'assistant', content: l[2] }] })); });
+  linhas('aprendizados').forEach(l => { if (l[1] && l[2]) linhasJsonl.push(JSON.stringify({ messages: [{ role: 'system', content: 'Você é a ZicoAI. Regra aprendida: ' + l[2] }, { role: 'user', content: 'Qual erro vc não pode repetir?' }, { role: 'assistant', content: l[1] + ' → o certo é: ' + l[2] }] })); });
+  if (!linhasJsonl.length) return null;
+  const nome = 'zicoai-treino-' + Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd') + '.jsonl';
+  const pastas = DriveApp.getFoldersByName('ZicoAI Treino');
+  const pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder('ZicoAI Treino');
+  const f = pasta.createFile(Utilities.newBlob(linhasJsonl.join('\n'), 'application/json', nome));
+  aba('treino').appendRow(["'" + hoje(), 'exportação', '', linhasJsonl.length + ' exemplos em ' + nome]);
+  Logger.log('Treino exportado: ' + nome + ' (' + linhasJsonl.length + ' linhas)');
+  return f.getId();
+}
+
+/* ============================================================
  *  ROTINAS SOZINHA
  *  bomDia(): todo dia 7h monta o resumo do dia (agenda, vendas,
  *  e-mails, cotas) e deixa como conversa nova no app.
@@ -1765,6 +1933,8 @@ function bomDia() {
     const pv = linhas('memoria').filter(l => /Prova semanal/.test(l[1])).slice(-1);
     if (pv.length) partes.push('ÚLTIMA PROVA: ' + pv[0][1]);
   } catch (e) { /* ok */ }
+  try { const pd = perguntaDoDia(); if (pd) partes.push('PERGUNTA DO DIA (faça exatamente esta pergunta pro Thiago no fim, em 1 linha, dizendo que é pra completar a base): ' + pd); } catch (e) { /* ok */ }
+  try { const ev = linhas('treino').slice(-7); if (ev.length) partes.push('TREINO DOS ÚLTIMOS DIAS: ' + ev.map(l => l[0] + ' ' + l[1] + ' nota ' + l[2]).join(' | ')); } catch (e) { /* ok */ }
   const msgs = [
     { role: 'system', content: montarSistema('bom dia resumo do dia agenda vendas', true) + '\n\nEscreva a mensagem de BOM DIA pro Thiago com o resumo abaixo. Curta (até 12 linhas), direta, no estilo dele. Primeiro o que ele precisa fazer hoje (agenda), depois vendas, depois e-mail que vale atenção (só se for de fornecedor, cliente ou dinheiro; ignore propaganda), e uma linha de sugestão prática se houver cliente pra chamar de volta ou pendência. Não invente nada que não esteja no resumo. Sem oferta no final.' },
     { role: 'user', content: 'RESUMO DE ' + Utilities.formatDate(hojeD, FUSO, 'EEEE, dd/MM/yyyy') + ':\n\n' + partes.join('\n\n') }
@@ -1806,10 +1976,14 @@ function ligarRotinas() {
   ScriptApp.getProjectTriggers().filter(t => ['bomDia', 'backupPlanilha'].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('bomDia').timeBased().everyDays(1).atHour(7).create();
   ScriptApp.newTrigger('backupPlanilha').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
-  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'arrumarMemoria').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.getProjectTriggers().filter(t => ['arrumarMemoria', 'treinoDiario', 'revisarDia', 'gerarPerguntasProva', 'exportarTreino'].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('arrumarMemoria').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(4).create();
+  ScriptApp.newTrigger('treinoDiario').timeBased().everyDays(1).atHour(3).create();
+  ScriptApp.newTrigger('revisarDia').timeBased().everyDays(1).atHour(23).create();
+  ScriptApp.newTrigger('gerarPerguntasProva').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(5).create();
+  ScriptApp.newTrigger('exportarTreino').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(5).create();
   bomDia();
-  Logger.log('Rotinas: LIGADAS (bom dia 7h, backup domingo 3h). Primeiro bom dia criado agora.');
+  Logger.log('Rotinas: LIGADAS (bom dia 7h, treino 3h, revisão 23h, backup dom 3h, arrumação dom 4h, perguntas novas e exportação dom 5h). Primeiro bom dia criado agora.');
 }
 
 /* ============================================================
