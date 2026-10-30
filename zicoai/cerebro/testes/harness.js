@@ -14,7 +14,8 @@ function makeSheet(name, rows){
     nr = nr || 1; nc = nc || 1;
     return {
       getDisplayValues: () => { const out=[]; for(let i=0;i<nr;i++){ const row=s.rows[r-1+i]||[]; const o=[]; for(let j=0;j<nc;j++) o.push(row[c-1+j]==null?'':disp(row[c-1+j])); out.push(o);} return out; },
-      setValue: v => { s.rows[r-1][c-1] = v; },
+      setValue: v => { while (s.rows.length < r) s.rows.push([]); s.rows[r-1][c-1] = v; },
+      setValues: vv => { vv.forEach((row, i) => { while (s.rows.length < r + i) s.rows.push([]); row.forEach((v, j) => { s.rows[r-1+i][c-1+j] = v; }); }); },
       setFontWeight(){ return this; }, setBackground(){ return this; }, setFontColor(){ return this; }
     };
   };
@@ -39,7 +40,7 @@ const ctx = {
   Utilities: { getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : '30/10/2026' },
   ContentService: { createTextOutput: t => ({ t, setMimeType(){ return this; } }), MimeType: { JSON: 'json' } },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
-  ScriptApp: { getProjectTriggers: () => [], deleteTrigger: () => {}, newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create: () => {} }) }) }) },
+  ScriptApp: { WeekDay: { MONDAY: 'MONDAY' }, getProjectTriggers: () => [], deleteTrigger: () => {}, newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create: () => {} }), onWeekDay: () => ({ atHour: () => ({ create: () => {} }) }) }) }) },
   Logger: { log: x => console.log('LOG:', x) }, console, JSON, Math, Date, String, Object, Array, RegExp, Error
 };
 vm.createContext(ctx); vm.runInContext(code, ctx);

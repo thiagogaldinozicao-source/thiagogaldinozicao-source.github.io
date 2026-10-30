@@ -24,6 +24,8 @@ const CEREBROS = {
   gemini: { url: GEMINI_COMPAT_URL, chave: 'GEMINI_KEY', modelo: 'gemini-3.1-flash-lite', nome: 'Gemini', limite: 200000, maxSaida: 8192 },
   groq:   { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'openai/gpt-oss-120b', nome: 'Groq GPT-OSS 120B', limite: 7800, maxSaida: 4096 },
   groq2:  { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'qwen/qwen3.8-27b', nome: 'Groq Qwen', limite: 7800, maxSaida: 4096 },
+  // Cerebras (grátis, rápido, modelos grandes). Só entra se existir CEREBRAS_KEY nas Propriedades.
+  cerebras: { url: 'https://api.cerebras.ai/v1/chat/completions', chave: 'CEREBRAS_KEY', modelo: 'gpt-oss-120b', nome: 'Cerebras GPT-OSS 120B', limite: 60000, maxSaida: 8192, opcional: true },
   // PC de casa (Ollama pelo Tailscale Funnel). Endereço e modelo vêm das Propriedades do script.
   pc:     { url: '', chave: null, modelo: '', nome: 'PC', limite: 16000, maxSaida: 4096, local: true }
 };
@@ -36,6 +38,18 @@ function cerebroPC() {
   const modelo = prop('PC_MODELO') || 'zicoai';
   return Object.assign({}, CEREBROS.pc, { url: base + '/v1/chat/completions', modelo: modelo, nome: 'PC (' + modelo + ')' });
 }
+/** PC com o modelo de programação (PC_MODELO_CODIGO, ex.: zicoai-dev). Se não tiver, usa o normal. */
+function cerebroPCcodigo() {
+  const pc = cerebroPC();
+  if (!pc) return null;
+  const m = prop('PC_MODELO_CODIGO');
+  return m ? Object.assign({}, pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000 }) : pc;
+}
+/** Cérebro de nuvem existe (tem chave)? Os opcionais só entram se a chave estiver configurada. */
+function temCerebro(nome) {
+  const c = CEREBROS[nome];
+  return !!c && (!c.opcional || !!prop(c.chave));
+}
 function marcarPCdesligado() { CacheService.getScriptCache().put('pc_off', '1', 180); }
 
 const ABAS = {
@@ -44,11 +58,17 @@ const ABAS = {
   perfil:       ['Tópico', 'Informação'],
   base:         ['Assunto', 'Conteúdo'],
   chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho'],
-  mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho']
+  mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho'],
+  historico:    ['Data', 'Aba', 'Assunto', 'Antes', 'Depois', 'Origem'],
+  feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
+  prova:        ['Nº', 'Grupo', 'Pergunta exata', 'Critérios nota 10 (2,5 pontos cada)', 'Erro mais provável', 'Última nota', 'Última data', 'Observação'],
+  vendas:       ['Data', 'Valor', 'Descrição', 'Origem']
 };
+// a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
+ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte'];
 
 const PERSONA = [
-  'Você é a ZicoAI, assistente pessoal do Thiago, dono da Zicão Store em Itaú de Minas/MG.',
+  'Você é a ZicoAI, assistente pessoal do Thiago (dono da Zicão Store em Itaú de Minas/MG) pra TUDO: loja, programação, imagens, contas, família, projetos e conhecimento geral. A loja é só um dos assuntos.',
   'Agora é {DATA} (horário de Brasília).',
   '',
   '### REGRAS',
@@ -85,6 +105,9 @@ const PERSONA = [
   '- Quando o Thiago corrigir um erro seu: [[APRENDIZADO: o que estava errado || o jeito certo]]',
   '- Quando o Thiago pedir pra esquecer algo ou um fato da memória mudar: [[ESQUECER: trecho exato da lembrança antiga]] (e, se for o caso, uma nova [[MEMORIA: ...]])',
   '- Quando o Thiago pedir pra criar/gerar/desenhar uma imagem: responda uma frase curta e coloque [[IMAGEM: descrição detalhada da imagem EM INGLÊS]]',
+  '- Quando o Thiago CORRIGIR ou INFORMAR um fato da loja (garantia, horário, endereço, política, preço fixo, ficha): [[BASE: assunto curto || conteúdo completo e correto]]. Se já existir linha com esse assunto na BASE, ela é substituída.',
+  '- Quando o Thiago corrigir ou informar algo sobre ELE (gostos, família, jeito de responder, projetos): [[PERFIL: tópico || informação]]. Tópico igual a um existente substitui.',
+  '- BASE e PERFIL só com o que o THIAGO disse. Nunca com o que vc deduziu ou com o que um cliente disse.',
   '- Não use essas linhas à toa. Não salve conversa fiada nem coisa passageira.'
 ].join('\n');
 
@@ -102,6 +125,7 @@ function doGet() {
 
 function doPost(e) {
   PASSOS = [];
+  const t0 = Date.now();
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (!req.pin || String(req.pin) !== String(prop('PIN'))) return saida({ ok: false, erro: 'PIN errado' });
@@ -109,7 +133,9 @@ function doPost(e) {
 
     switch (req.acao) {
       case 'teste':         return saida({ ok: true, msg: 'Conectado ✅' });
-      case 'chat':          return saida(chat(req, aparelho));
+      case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; return saida(r); }
+      case 'feedback':      return saida(feedback(req, aparelho));
+      case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
       case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS });
       case 'registrar':     return saida(registrar(req, aparelho));
       case 'chats':         return saida({ ok: true, chats: listarChats() });
@@ -161,9 +187,11 @@ function chat(req, aparelho) {
 
   let resultado = null;
   const querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && precisaPesquisar(pergunta));
-  const extraSistema = modo === 'imagem'
+  let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
+  const resumo = resumoDaConversa(chatId);
+  if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
 
   if (querPesquisa) resultado = pesquisar(historico, pergunta);
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema);
@@ -180,8 +208,70 @@ function chat(req, aparelho) {
 
   gravarMensagem(chatId, 'zicoai', textoFinal, resultado.cerebro, aparelho);
   tocarChat(chatId);
+  try { compactarSePrecisar(chatId); } catch (e) { /* compactação nunca derruba a resposta */ }
 
   return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS };
+}
+
+/* ---------- feedback (👍 / 👎 + reclamação) ---------- */
+
+function feedback(req, aparelho) {
+  const nota = req.nota === 'up' ? '👍' : req.nota === 'down' ? '👎' : '';
+  if (!nota) return { ok: false, erro: 'Nota inválida' };
+  const coment = String(req.comentario || '').trim().slice(0, 1000);
+  const resposta = String(req.resposta || '').slice(0, 300);
+  aba('feedback').appendRow(["'" + agora(), String(req.chatId || ''), nota, seguro(coment), String(req.cerebro || ''), seguro(resposta), aparelho]);
+  const salvou = ['feedback'];
+  // Reclamação escrita pelo Thiago vira aprendizado (é palavra dele, não dedução da IA). Curtida só registra.
+  if (nota === '👎' && coment.length >= 8 && !temDadoSensivel(coment)) {
+    const erro = resposta ? 'Resposta: "' + resposta.slice(0, 160).replace(/\s+/g, ' ') + (resposta.length > 160 ? '…' : '') + '"' : 'Resposta reprovada';
+    if (!jaSabe(coment, linhas('aprendizados').map(l => l[2]))) {
+      aba('aprendizados').appendRow(["'" + hoje(), seguro(erro), seguro(coment), 'feedback']);
+      salvou.push('aprendizado');
+    }
+  }
+  return { ok: true, salvou: salvou };
+}
+
+/* ---------- compactar conversa longa ---------- */
+/* Só as últimas 12 mensagens vão pro cérebro. Quando a conversa passa de 24 mensagens,
+   o que ficou pra trás vira um resumo guardado na aba chats, e esse resumo entra no
+   sistema junto com as mensagens recentes. A cada +20 mensagens o resumo é refeito. */
+
+function linhaDoChat(chatId) {
+  const a = aba('chats');
+  const achou = a.getRange('A:A').createTextFinder(chatId).matchEntireCell(true).findNext();
+  return achou ? achou.getRow() : 0;
+}
+function resumoDaConversa(chatId) {
+  if (!chatId) return '';
+  const r = linhaDoChat(chatId);
+  if (!r) return '';
+  return String(aba('chats').getRange(r, 6, 1, 1).getDisplayValues()[0][0] || '').trim();
+}
+function compactarSePrecisar(chatId) {
+  const r = linhaDoChat(chatId);
+  if (!r) return;
+  const a = aba('chats');
+  const resumidoAte = parseInt(a.getRange(r, 7, 1, 1).getDisplayValues()[0][0] || '0', 10) || 0;
+  const todas = linhas('mensagens').filter(l => l[0] === chatId);
+  if (todas.length < 24 || todas.length - resumidoAte < 20) return;
+  const antigas = todas.slice(0, todas.length - 10);   // deixa as 10 últimas fora do resumo
+  const resumoAtual = String(a.getRange(r, 6, 1, 1).getDisplayValues()[0][0] || '');
+  const texto = antigas.slice(resumidoAte > 10 ? resumidoAte - 10 : 0).map(l => (l[2] === 'thiago' ? 'THIAGO' : 'ZICOAI') + ': ' + String(l[3]).slice(0, 1500)).join('\n');
+  const msgs = [
+    { role: 'system', content: 'Resuma a conversa abaixo em até 12 linhas, em português, guardando: o que o Thiago pediu, decisões tomadas, nomes, números, códigos/arquivos entregues (só o nome e o que fazem) e o que ficou pendente. Sem floreio. Se houver RESUMO ANTERIOR, incorpore-o.' },
+    { role: 'user', content: (resumoAtual ? 'RESUMO ANTERIOR:\n' + resumoAtual + '\n\n' : '') + 'CONVERSA:\n' + texto }
+  ];
+  let novo = null;
+  for (const nome of ['gemini', 'groq', 'cerebras', 'groq2']) {
+    if (!temCerebro(nome)) continue;
+    try { novo = chamarCompat(CEREBROS[nome], msgs, 900, { temperature: 0.2 }); break; } catch (e) { /* próximo */ }
+  }
+  if (!novo) return;
+  a.getRange(r, 6, 1, 1).setValue(seguro(novo.slice(0, 4000)));
+  a.getRange(r, 7, 1, 1).setValue(antigas.length);
+  passo('Compactou o começo da conversa (' + antigas.length + ' mensagens viraram resumo)');
 }
 
 /* ---------- resposta feita pelo modelo do PC (offline) ---------- */
@@ -224,16 +314,17 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
 
   // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
   // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
-  const pc = cerebroPC();
+  const codigo = !imagem && ehProgramacao(pergunta);
+  const pc = codigo ? cerebroPCcodigo() : cerebroPC();
   let ordem;
   if (imagem) ordem = ['gemini', 'pc'];
-  else if (ehProgramacao(pergunta)) { ordem = ['groq', 'gemini', 'pc', 'groq2']; passo('Assunto de programação: chamou o cérebro de código'); }
-  else ordem = ['gemini', 'groq', 'pc', 'groq2'];
-  if (['groq', 'gemini', 'pc'].indexOf(preferido) >= 0 && !(imagem && preferido === 'groq')) {
+  else if (codigo) { ordem = ['groq', 'cerebras', 'gemini', 'pc', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
+  else ordem = ['gemini', 'groq', 'cerebras', 'pc', 'groq2'];
+  if (['groq', 'gemini', 'pc', 'cerebras'].indexOf(preferido) >= 0 && !(imagem && preferido !== 'gemini' && preferido !== 'pc')) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
   }
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
-  ordem = ordem.filter(n => n !== 'pc' || pc);
+  ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
 
   const tokens = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
   const erros = [];
@@ -242,7 +333,9 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
     const maxSaida = Math.min(c.maxSaida, c.limite - tokens);
     if (maxSaida < 1200) { erros.push(c.nome + ': conversa grande demais pro plano grátis'); continue; }
     try {
-      const texto = chamarCompat(c, msgs, maxSaida);
+      // gpt-oss pensa mais em código quando pedimos esforço alto (só os modelos que aceitam o parâmetro)
+      const extras = codigo && /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'high' } : null;
+      const texto = chamarCompat(c, msgs, maxSaida, extras);
       passo((c.local && erros.length ? 'Nuvem indisponível, respondeu com o ' : 'Respondeu com ') + c.nome);
       return { ok: true, texto: texto, cerebro: c.nome };
     } catch (err) {
@@ -444,6 +537,18 @@ function processarTags(texto, aparelho) {
     salvou.push('aprendizado'); passo('Anotou o erro pra não repetir');
     return '';
   });
+  texto = texto.replace(/\[\[BASE:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const p = t.split('||');
+    const r = gravarFato('base', (p[0] || '').trim(), (p[1] || '').trim(), aparelho);
+    if (r) { salvou.push(r); passo((r === 'base atualizada' ? 'Corrigiu' : 'Guardou') + ' na base: ' + (p[0] || '').trim().slice(0, 60)); }
+    return '';
+  });
+  texto = texto.replace(/\[\[PERFIL:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const p = t.split('||');
+    const r = gravarFato('perfil', (p[0] || '').trim(), (p[1] || '').trim(), aparelho);
+    if (r) { salvou.push(r); passo((r === 'perfil atualizado' ? 'Corrigiu' : 'Guardou') + ' no perfil: ' + (p[0] || '').trim().slice(0, 60)); }
+    return '';
+  });
   texto = texto.replace(/\[\[IMAGEM:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     const seed = Math.floor(Math.random() * 1e9);
     const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(t.trim()) + '?width=1024&height=1024&nologo=true&model=flux&seed=' + seed;
@@ -451,6 +556,29 @@ function processarTags(texto, aparelho) {
     return '\n\n![imagem gerada](' + url + ')\n';
   });
   return { texto: texto.replace(/\n{3,}/g, '\n\n').trim(), salvou: salvou };
+}
+
+/** Cria ou substitui uma linha da base/perfil pelo assunto. Toda mudança vai pra aba historico (dá pra desfazer). */
+function gravarFato(nomeAba, assunto, conteudo, origem) {
+  assunto = String(assunto || '').trim().slice(0, 120);
+  conteudo = String(conteudo || '').trim().slice(0, 2000);
+  if (assunto.length < 3 || conteudo.length < 3) return null;
+  if (temDadoSensivel(conteudo)) return null;
+  const a = aba(nomeAba);
+  const n = a.getLastRow();
+  const alvo = normalizar(assunto);
+  let linha = 0, antes = '';
+  if (n >= 2) {
+    const vals = a.getRange(2, 1, n - 1, 2).getDisplayValues();
+    for (let i = 0; i < vals.length; i++) {
+      if (normalizar(vals[i][0]) === alvo) { linha = i + 2; antes = vals[i][1]; break; }
+    }
+  }
+  if (linha && normalizar(antes) === normalizar(conteudo)) return null; // nada mudou
+  if (linha) a.getRange(linha, 2, 1, 1).setValue(seguro(conteudo));
+  else a.appendRow([seguro(assunto), seguro(conteudo)]);
+  aba('historico').appendRow(["'" + agora(), nomeAba, seguro(assunto), seguro(antes), seguro(conteudo), origem || '']);
+  return linha ? nomeAba + (nomeAba === 'perfil' ? ' atualizado' : ' atualizada') : nomeAba + (nomeAba === 'perfil' ? ' novo' : ' nova');
 }
 
 function temDadoSensivel(t) {
@@ -585,11 +713,14 @@ const PROMPT_APRENDER = [
   '- jeitos que ele quer que ela responda (formato, tom, o que evitar)',
   '- correções: quando ele disse que algo estava errado, guarde o erro e o jeito certo',
   '- quando ele disser que algo mudou ou pedir pra esquecer, coloque o trecho antigo em "esquecer"',
+  '- fato da LOJA dito pelo Thiago (garantia, horário, endereço, política, preço fixo, fornecedor, regra de venda): vai em "base" com um assunto curto; se corrigir um assunto que já existe na BASE ATUAL, use o MESMO assunto pra substituir',
+  '- fato sobre o THIAGO (gostos, família, jeito de responder, projetos, apps): vai em "perfil" com um tópico curto (use um tópico da lista PERFIL ATUAL quando for o mesmo assunto)',
+  '- "base" e "perfil" SÓ com o que o Thiago afirmou claramente. Dúvida, dedução ou fala de cliente: não entra',
   'NÃO guarde: conversa fiada, coisa passageira (o que tá fazendo agora, dúvida do momento), dados de cliente (nome, CPF, telefone, endereço), senhas, chaves, números de cartão.',
   'NÃO repita o que já está em MEMÓRIA ATUAL ou APRENDIZADOS ATUAIS. Se nada novo, devolva listas vazias.',
   'Cada lembrança: uma frase curta, completa, que faça sentido sozinha (ex.: "O frete da Will é 15% sobre o valor em dólar").',
   'Responda SÓ com JSON neste formato:',
-  '{"memorias":["..."],"aprendizados":[{"erro":"...","certo":"...","assunto":"..."}],"esquecer":["trecho exato da lembrança antiga"]}'
+  '{"memorias":["..."],"aprendizados":[{"erro":"...","certo":"...","assunto":"..."}],"esquecer":["trecho exato da lembrança antiga"],"base":[{"assunto":"...","conteudo":"..."}],"perfil":[{"topico":"...","informacao":"..."}]}'
 ].join('\n');
 
 function aprenderSozinha() {
@@ -609,14 +740,17 @@ function aprenderSozinha() {
     });
     const memAtual = linhas('memoria').map(l => '- ' + l[1]).join('\n').slice(-12000);
     const aprAtual = linhas('aprendizados').map(l => '- ' + l[1] + ' → ' + l[2]).join('\n').slice(-6000);
+    const baseAssuntos = linhas('base').map(l => l[0]).filter((v, i, arr) => arr.indexOf(v) === i).join(' | ').slice(-4000);
+    const perfilTopicos = linhas('perfil').map(l => l[0]).filter((v, i, arr) => arr.indexOf(v) === i).join(' | ');
 
     const msgs = [
       { role: 'system', content: PROMPT_APRENDER },
-      { role: 'user', content: 'MEMÓRIA ATUAL:\n' + (memAtual || '(vazia)') + '\n\nAPRENDIZADOS ATUAIS:\n' + (aprAtual || '(vazio)') + '\n\nCONVERSAS NOVAS:\n' + conversa }
+      { role: 'user', content: 'MEMÓRIA ATUAL:\n' + (memAtual || '(vazia)') + '\n\nAPRENDIZADOS ATUAIS:\n' + (aprAtual || '(vazio)') + '\n\nASSUNTOS JÁ NA BASE:\n' + (baseAssuntos || '(vazia)') + '\n\nTÓPICOS DO PERFIL ATUAL:\n' + (perfilTopicos || '(vazio)') + '\n\nCONVERSAS NOVAS:\n' + conversa }
     ];
     let txt = null;
-    for (const nome of ['gemini', 'groq2', 'groq']) {
-      try { txt = chamarCompat(CEREBROS[nome], msgs, 1500, { temperature: 0.1 }); break; } catch (e) { /* próximo */ }
+    for (const nome of ['gemini', 'groq2', 'groq', 'cerebras']) {
+      if (!temCerebro(nome)) continue;
+      try { txt = chamarCompat(CEREBROS[nome], msgs, 1800, { temperature: 0.1 }); break; } catch (e) { /* próximo */ }
     }
     if (!txt) return; // tenta de novo na próxima rodada, sem marcar como lido
 
@@ -657,6 +791,16 @@ function guardarAprendido(j, origem) {
     aprEx.push(junto);
     feito.push('aprendizado: ' + String(a.certo).slice(0, 60));
   });
+  (j.base || []).forEach(b => {
+    if (!b || !b.assunto || !b.conteudo) return;
+    const r = gravarFato('base', b.assunto, b.conteudo, origem);
+    if (r) feito.push(r + ': ' + String(b.assunto).slice(0, 50));
+  });
+  (j.perfil || []).forEach(pf => {
+    if (!pf || !pf.topico || !pf.informacao) return;
+    const r = gravarFato('perfil', pf.topico, pf.informacao, origem);
+    if (r) feito.push(r + ': ' + String(pf.topico).slice(0, 50));
+  });
   return feito.join(' | ');
 }
 
@@ -684,6 +828,81 @@ function ligarAprendizado() {
 }
 
 /* ============================================================
+ *  PROVA SEMANAL
+ *  Toda segunda de madrugada ela responde as perguntas da aba
+ *  "prova", um corretor (outro cérebro) dá nota de 0 a 10 pelos
+ *  critérios, e o que ficou abaixo de 7,5 vira aprendizado.
+ * ============================================================ */
+
+const PROMPT_CORRETOR = [
+  'Você corrige a prova de uma assistente de IA. Receberá a PERGUNTA, os CRITÉRIOS (4, separados por |), o ERRO PROVÁVEL e a RESPOSTA dela.',
+  'Dê 2,5 pontos por critério atendido. Seja rigoroso: inventar dado, prometer o que não está confirmado ou fingir que executou algo zera o critério correspondente.',
+  'Responda SÓ com JSON: {"nota": 0 a 10, "faltou": "o que faltou ou errou em 1 frase (vazio se nota 10)"}'
+].join('\n');
+
+function rodarProva() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    const a = aba('prova');
+    const n = a.getLastRow();
+    if (n < 2) { Logger.log('Aba prova vazia'); return; }
+    const vals = a.getRange(2, 1, n - 1, 8).getDisplayValues();
+    const notas = [];
+    let totalNota = 0, qtd = 0;
+    for (let i = 0; i < vals.length; i++) {
+      const l = vals[i];
+      if (!l[2]) continue;
+      // questão com 2 mensagens: "MSG 1: ... || MSG 2 (mesma conversa): ..."
+      const partes = String(l[2]).split(/\|\|\s*MSG 2[^:]*:/i);
+      let historico = [{ role: 'user', content: partes[0].replace(/^MSG 1:\s*/i, '').trim() }];
+      PASSOS = [];
+      let r = conversar(historico, historico[0].content, null, 'auto', '\n\n(Esta é uma pergunta de teste. Responda como responderia ao Thiago.)');
+      if (r.ok && partes[1]) {
+        historico = historico.concat([{ role: 'assistant', content: r.texto }, { role: 'user', content: partes[1].trim() }]);
+        r = conversar(historico, partes[1].trim(), null, 'auto', '');
+      }
+      const resposta = r.ok ? r.texto : 'ERRO: ' + r.erro;
+      let nota = 0, faltou = 'não respondeu';
+      if (r.ok) {
+        const msgs = [
+          { role: 'system', content: PROMPT_CORRETOR },
+          { role: 'user', content: 'PERGUNTA: ' + l[2] + '\n\nCRITÉRIOS: ' + l[3] + '\n\nERRO PROVÁVEL: ' + l[4] + '\n\nRESPOSTA DELA:\n' + resposta.slice(0, 6000) }
+        ];
+        for (const nome of ['gemini', 'groq', 'cerebras']) {
+          if (!temCerebro(nome)) continue;
+          try {
+            const j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 300, { temperature: 0 }));
+            if (j && typeof j.nota !== 'undefined') { nota = Math.max(0, Math.min(10, Number(j.nota) || 0)); faltou = String(j.faltou || ''); break; }
+          } catch (e) { /* próximo corretor */ }
+        }
+      }
+      a.getRange(i + 2, 6, 1, 2).setValues([[nota, "'" + hoje()]]);
+      notas.push(l[0] + ': ' + nota);
+      totalNota += nota; qtd++;
+      if (nota < 7.5 && faltou) {
+        const erro = 'Prova ' + l[0] + ' (' + l[1] + '): ' + faltou;
+        if (!jaSabe(erro, linhas('aprendizados').map(x => x[1]))) {
+          aba('aprendizados').appendRow(["'" + hoje(), seguro(erro.slice(0, 400)), seguro(('Na pergunta "' + String(l[2]).slice(0, 80) + '…": ' + l[3]).slice(0, 400)), 'prova']);
+        }
+      }
+    }
+    const media = qtd ? Math.round(totalNota / qtd * 10) / 10 : 0;
+    aba('memoria').appendRow(["'" + hoje(), seguro('Prova semanal de ' + hoje() + ': média ' + media + '/10 em ' + qtd + ' perguntas (' + notas.join(', ') + ')'), 'prova']);
+    Logger.log('Prova: média ' + media + ' | ' + notas.join(', '));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Rode UMA vez: prova toda segunda-feira às 4h da manhã. */
+function ligarProva() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rodarProva').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('rodarProva').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
+  Logger.log('Prova semanal: LIGADA (segunda 4h)');
+}
+
+/* ============================================================
  *  RODE ESTA FUNÇÃO UMA VEZ PELO EDITOR (botão Executar)
  *  Ela pede a autorização do Google e testa os cérebros.
  * ============================================================ */
@@ -692,7 +911,8 @@ function instalar() {
   Object.keys(ABAS).forEach(aba);
   const log = [];
   log.push('PIN: ' + (prop('PIN') ? 'ok' : 'FALTANDO'));
-  ['gemini', 'groq'].forEach(nome => {
+  ['gemini', 'groq', 'cerebras'].forEach(nome => {
+    if (!temCerebro(nome)) { if (CEREBROS[nome].opcional) log.push(CEREBROS[nome].nome + ': sem chave (opcional)'); return; }
     try {
       const r = chamarCompat(CEREBROS[nome], [{ role: 'user', content: 'Responda só: ok' }], 50);
       log.push(CEREBROS[nome].nome + ': funcionando (' + r.slice(0, 20) + ')');
