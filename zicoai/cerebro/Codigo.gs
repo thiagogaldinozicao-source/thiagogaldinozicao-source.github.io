@@ -27,6 +27,14 @@ const CEREBROS = {
   groq2:  { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'qwen/qwen3.8-27b', nome: 'Groq Qwen', limite: 7800, maxSaida: 4096, tpm: 7800, rpm: 28, rpd: 950 },
   // Cerebras (grátis, rápido, modelos grandes). Só entra se existir CEREBRAS_KEY nas Propriedades.
   cerebras: { url: 'https://api.cerebras.ai/v1/chat/completions', chave: 'CEREBRAS_KEY', modelo: 'gpt-oss-120b', nome: 'Cerebras GPT-OSS 120B', limite: 28000, maxSaida: 8192, tpm: 28000, rpm: 4, rpd: 900, opcional: true },
+  // GitHub Models (grátis com conta GitHub; token fine-grained com permissão "Models: read"). GPT-4.1 é forte em código.
+  github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true },
+  // Mistral "Experiment" (grátis, sem cartão)
+  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, opcional: true },
+  // NVIDIA NIM (grátis, ~40 pedidos/min)
+  nvidia:   { url: 'https://integrate.api.nvidia.com/v1/chat/completions', chave: 'NVIDIA_KEY', modelo: 'openai/gpt-oss-120b', nome: 'NVIDIA GPT-OSS 120B', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 30, rpd: 3000, opcional: true },
+  // Cloudflare Workers AI (10 mil "neurons" por dia grátis). Precisa de CF_ACCOUNT_ID e CF_TOKEN.
+  cloudflare: { url: '', chave: 'CF_TOKEN', modelo: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', nome: 'Cloudflare Llama 70B', limite: 20000, maxSaida: 2048, tpm: 60000, rpm: 20, rpd: 150, opcional: true },
   // PC de casa (Ollama pelo Tailscale Funnel). Endereço e modelo vêm das Propriedades do script.
   pc:     { url: '', chave: null, modelo: '', nome: 'PC', limite: 16000, maxSaida: 4096, local: true }
 };
@@ -127,7 +135,9 @@ function msgsEnxutas(msgs, pergunta, extraSistema, imagem) {
 /** Cérebro de nuvem existe (tem chave)? Os opcionais só entram se a chave estiver configurada. */
 function temCerebro(nome) {
   const c = CEREBROS[nome];
-  return !!c && (!c.opcional || !!prop(c.chave));
+  if (!c) return false;
+  if (nome === 'cloudflare') return !!prop('CF_TOKEN') && !!prop('CF_ACCOUNT_ID');
+  return !c.opcional || !!prop(c.chave);
 }
 function marcarPCdesligado() { CacheService.getScriptCache().put('pc_off', '1', 180); }
 
@@ -401,7 +411,7 @@ function compactarSePrecisar(chatId) {
     { role: 'user', content: (resumoAtual ? 'RESUMO ANTERIOR:\n' + resumoAtual + '\n\n' : '') + 'CONVERSA:\n' + texto }
   ];
   let novo = null;
-  for (const nome of ['gemini', 'groq', 'cerebras', 'groq2']) {
+  for (const nome of ['gemini', 'mistral', 'groq', 'cerebras', 'nvidia', 'groq2']) {
     if (!temCerebro(nome)) continue;
     try { novo = chamarCompat(CEREBROS[nome], msgs, 900, { temperature: 0.2 }); break; } catch (e) { /* próximo */ }
   }
@@ -454,10 +464,10 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
   const codigo = !imagem && ehProgramacao(pergunta);
   const pc = codigo ? cerebroPCcodigo() : cerebroPC();
   let ordem;
-  if (imagem) ordem = ['gemini', 'pc'];
-  else if (codigo) { ordem = ['groq', 'cerebras', 'gemini', 'pc', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
-  else ordem = ['gemini', 'groq', 'cerebras', 'pc', 'groq2'];
-  if (['groq', 'gemini', 'pc', 'cerebras'].indexOf(preferido) >= 0 && !(imagem && preferido !== 'gemini' && preferido !== 'pc')) {
+  if (imagem) ordem = ['gemini', 'mistral', 'pc'];
+  else if (codigo) { ordem = ['github', 'groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
+  else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'github', 'pc', 'cloudflare', 'groq2'];
+  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].indexOf(preferido) >= 0 && !(imagem && preferido !== 'gemini' && preferido !== 'pc' && preferido !== 'mistral')) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
   }
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
@@ -511,8 +521,11 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
 function chamarCompat(c, msgs, maxSaida, extras) {
   const chave = c.chave ? prop(c.chave) : 'ollama';
   if (!chave) throw new Error('Falta a chave ' + c.chave + ' nas Propriedades do script');
+  let url = c.url;
+  if (c.nome === 'Cloudflare Llama 70B') { const acc = prop('CF_ACCOUNT_ID'); if (!acc) throw new Error('Falta CF_ACCOUNT_ID'); url = 'https://api.cloudflare.com/client/v4/accounts/' + acc + '/ai/v1/chat/completions'; }
   const corpo = Object.assign({ model: c.modelo, messages: msgs, temperature: 0.6, max_tokens: maxSaida }, extras || {});
-  const r = UrlFetchApp.fetch(c.url, {
+  if (extras && extras.reasoning_effort && !/gpt-oss/.test(c.modelo)) delete corpo.reasoning_effort;
+  const r = UrlFetchApp.fetch(url, {
     method: 'post', contentType: 'application/json',
     headers: { Authorization: 'Bearer ' + chave },
     payload: JSON.stringify(corpo), muteHttpExceptions: true
@@ -1062,6 +1075,19 @@ function contextoConectores(pergunta) {
     extra += '\n\n### ARQUIVOS NO DRIVE (ligados à pergunta)\n' + (ar.length ? ar.join('\n') : '(nenhum encontrado)');
     passo('Procurou no Drive (' + ar.length + ' arquivos)');
   }
+  const link = String(pergunta).match(/https?:\/\/[^\s)]+/);
+  if (link && !/script\.google\.com|pollinations|drive\.google\.com\/thumbnail/.test(link[0])) {
+    const pg = lerPagina(link[0]);
+    if (pg) { extra += '\n\n### LEITURA DA PÁGINA ' + link[0] + ' (texto extraído, pode estar incompleto)\n' + pg; passo('Leu a página do link'); }
+  }
+  if (/(selic|cdi|ipca|inflacao|taxa basica|juros do banco|rendimento)/.test(s)) {
+    const t = taxasBR();
+    if (t) { extra += '\n\n### TAXAS (BrasilAPI, hoje)\n' + t; passo('Pegou Selic/CDI/IPCA'); }
+  }
+  if (/(bitcoin|\bbtc\b|ethereum|\beth\b|cripto)/.test(s)) {
+    const b = cotacaoCripto();
+    if (b) { extra += '\n\n### CRIPTO AGORA (AwesomeAPI)\n' + b; passo('Pegou a cotação de cripto'); }
+  }
   if (/(dolar|d[oó]lar|cotacao|cambio|usd)/.test(s)) {
     const d = cotacaoDolar();
     if (d) { extra += '\n\n### DÓLAR AGORA (AwesomeAPI, ' + d.quando + ')\nComercial: R$ ' + d.compra + ' (compra) / R$ ' + d.venda + ' (venda). Variação do dia: ' + d.variacao + '%. Regra do Thiago: dólar comercial + 10 pontos = R$ ' + d.thiago + '.'; passo('Pegou o dólar ao vivo'); }
@@ -1340,6 +1366,52 @@ function noticias(pergunta) {
   } catch (e) { return null; }
 }
 
+/** Lê uma página da web em texto limpo (Jina Reader, grátis, 20/min sem chave). */
+function lerPagina(url) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const k = 'pg_' + Utilities.base64EncodeWebSafe(url).slice(0, 200);
+    const c = cache.get(k);
+    if (c) return c;
+    const r = UrlFetchApp.fetch('https://r.jina.ai/' + url, { muteHttpExceptions: true, headers: { Accept: 'text/plain', 'X-Return-Format': 'text' }, followRedirects: true });
+    if (r.getResponseCode() !== 200) return null;
+    const txt = r.getContentText().replace(/\n{3,}/g, '\n\n').trim().slice(0, 9000);
+    if (txt.length > 40) cache.put(k, txt.slice(0, 95000), 3600);
+    return txt || null;
+  } catch (e) { return null; }
+}
+
+function taxasBR() {
+  try {
+    const j = pegarJSON('https://brasilapi.com.br/api/taxas/v1', 3600);
+    if (!j || !j.length) return null;
+    return j.map(t => '- ' + t.nome + ': ' + String(t.valor).replace('.', ',') + '%' + (/selic|cdi/i.test(t.nome) ? ' ao ano' : '')).join('\n');
+  } catch (e) { return null; }
+}
+
+function cotacaoCripto() {
+  try {
+    const j = pegarJSON('https://economia.awesomeapi.com.br/json/last/BTC-BRL,ETH-BRL', 300);
+    if (!j) return null;
+    return Object.keys(j).map(k => '- ' + j[k].name.replace('/Real Brasileiro', '') + ': R$ ' + Number(j[k].bid).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' (' + String(j[k].pctChange).replace('.', ',') + '% no dia)').join('\n');
+  } catch (e) { return null; }
+}
+
+/* ---------- push no celular sem Telegram: ntfy.sh (grátis). Propriedade NTFY_TOPICO (nome longo e aleatório). ---------- */
+function ntfy(titulo, texto, prioridade) {
+  const topico = prop('NTFY_TOPICO');
+  if (!topico) return false;
+  try {
+    // publicação em JSON (aceita acento e emoji no título; cabeçalho HTTP não aceita)
+    UrlFetchApp.fetch('https://ntfy.sh/', {
+      method: 'post', contentType: 'application/json',
+      payload: JSON.stringify({ topic: topico, title: String(titulo || 'ZicoAI').slice(0, 120), message: String(texto).slice(0, 3500), priority: prioridade === 'high' ? 4 : 3, tags: ['robot'], click: 'https://thiagogaldinozicao-source.github.io/zicoai/' }),
+      muteHttpExceptions: true
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
 /* ============================================================
  *  ÁUDIO → TEXTO (Groq Whisper, grátis, mesma GROQ_KEY)
  * ============================================================ */
@@ -1436,6 +1508,9 @@ function telegramEntrada(update) {
   }
   if (!texto) return;
   if (/^\/start/.test(texto)) { tgEnviar(chatId, 'Tô aqui. Pode mandar.'); return; }
+  if (/^\/ajuda/.test(texto)) { tgEnviar(chatId, 'Manda texto, áudio ou foto. Comandos: /nova (conversa nova), /cotas (uso do dia), /ajuda.'); return; }
+  if (/^\/cotas/.test(texto)) { const c = cotas(); tgEnviar(chatId, Object.keys(c).map(n => n + ': ' + c[n].hoje + (c[n].rpd ? '/' + c[n].rpd : '') + ' hoje' + (c[n].castigo ? ' (de castigo)' : '')).join('\n') || 'sem dados'); return; }
+  try { tgApi('sendChatAction', { chat_id: chatId, action: 'typing' }); } catch (e) { /* ok */ }
   if (/^\/nova\b/.test(texto)) { PropertiesService.getScriptProperties().setProperty('TELEGRAM_CONVERSA', 'tg' + Date.now().toString(36)); tgEnviar(chatId, 'Conversa nova começada.'); return; }
 
   // conversa contínua do Telegram (uma só; a compactação cuida do tamanho)
@@ -1453,6 +1528,7 @@ function ligarTelegram() {
   if (!segredo) throw new Error('Coloque TELEGRAM_SEGREDO (uma palavra qualquer) nas Propriedades');
   const url = ScriptApp.getService().getUrl() + '?tg=' + encodeURIComponent(segredo);
   const r = tgApi('setWebhook', { url: url, allowed_updates: ['message', 'edited_message'], drop_pending_updates: true });
+  try { tgApi('setMyCommands', { commands: [{ command: 'nova', description: 'Começar conversa nova' }, { command: 'cotas', description: 'Uso dos cérebros hoje' }, { command: 'ajuda', description: 'O que eu faço' }] }); } catch (e) { /* ok */ }
   Logger.log('Webhook do Telegram: ' + JSON.stringify(r) + ' → ' + url);
   Logger.log('Agora abre o bot no Telegram e manda o PIN.');
 }
@@ -1598,7 +1674,7 @@ function aprenderSozinha() {
       { role: 'user', content: 'MEMÓRIA ATUAL:\n' + (memAtual || '(vazia)') + '\n\nAPRENDIZADOS ATUAIS:\n' + (aprAtual || '(vazio)') + '\n\nASSUNTOS JÁ NA BASE:\n' + (baseAssuntos || '(vazia)') + '\n\nTÓPICOS DO PERFIL ATUAL:\n' + (perfilTopicos || '(vazio)') + '\n\nCONVERSAS NOVAS:\n' + conversa }
     ];
     let txt = null;
-    for (const nome of ['gemini', 'groq2', 'groq', 'cerebras']) {
+    for (const nome of ['gemini', 'mistral', 'nvidia', 'groq2', 'groq', 'cerebras']) {
       if (!temCerebro(nome)) continue;
       try { txt = chamarCompat(CEREBROS[nome], msgs, 1800, { temperature: 0.1 }); break; } catch (e) { /* próximo */ }
     }
@@ -1953,6 +2029,7 @@ function bomDia() {
   gravarMensagem(chatId, 'zicoai', texto, cerebro || 'rotina', 'rotina');
   tocarChat(chatId);
   try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, texto); } catch (e) { /* sem telegram */ }
+  try { ntfy('☀️ Bom dia, Thiago', texto.replace(/[*_`#]/g, ''), 'default'); } catch (e) { /* sem ntfy */ }
   Logger.log('Bom dia criado: ' + chatId);
   return texto;
 }
@@ -2070,7 +2147,7 @@ function instalar() {
   Object.keys(ABAS).forEach(aba);
   const log = [];
   log.push('PIN: ' + (prop('PIN') ? 'ok' : 'FALTANDO'));
-  ['gemini', 'groq', 'cerebras'].forEach(nome => {
+  ['gemini', 'groq', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].forEach(nome => {
     if (!temCerebro(nome)) { if (CEREBROS[nome].opcional) log.push(CEREBROS[nome].nome + ': sem chave (opcional)'); return; }
     try {
       const r = chamarCompat(CEREBROS[nome], [{ role: 'user', content: 'Responda só: ok' }], 50);
@@ -2089,6 +2166,7 @@ function instalar() {
   log.push('ComfyUI no PC: ' + (prop('COMFY_URL') && prop('COMFY_WORKFLOW') ? 'configurado' : 'não configurado (opcional: COMFY_URL + COMFY_WORKFLOW)'));
   log.push('Telegram: ' + (prop('TELEGRAM_TOKEN') ? (prop('TELEGRAM_CHAT_ID') ? 'ligado' : 'token ok, falta mandar o PIN pro bot') : 'não configurado (opcional: TELEGRAM_TOKEN + TELEGRAM_SEGREDO, depois rodar ligarTelegram)'));
   log.push('GitHub (publicar apps): ' + (prop('GITHUB_TOKEN') ? 'configurado' : 'não configurado (opcional: GITHUB_TOKEN)'));
+  log.push('Push ntfy: ' + (prop('NTFY_TOPICO') ? 'configurado' : 'não configurado (opcional: NTFY_TOPICO)'));
   const d = cotacaoDolar(); log.push('Dólar ao vivo: ' + (d ? 'ok (R$ ' + d.venda + ')' : 'indisponível'));
   log.push('Clima: ' + (clima() ? 'ok' : 'indisponível'));
   try {

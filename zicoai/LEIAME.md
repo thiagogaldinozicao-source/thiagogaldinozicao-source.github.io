@@ -42,6 +42,10 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Busca por significado (`semelhantes()`): além da busca por palavra (`relevantes()`), a BASE também é procurada por embedding (cosseno ≥ 0,62, até 4 trechos extras). Embedding fora do ar → `embed_off` 10 min e segue só por palavra.
 - Modo cliente (`ehModoCliente()`): pergunta do tipo "responde pro cliente…" esconde o perfil pessoal (fica só "Como responder" e "Loja"), força a tabela de preços e acrescenta a seção MODO CLIENTE (só informação confirmada).
 - Compactação: só as últimas 12 mensagens vão pro cérebro. Com 24+ mensagens na conversa, `compactarSePrecisar()` resume o que ficou pra trás (deixa as 10 últimas fora) e guarda em `chats` colunas Resumo/ResumidoAte; o resumo entra no sistema da próxima resposta. Refaz a cada +20 mensagens.
+- Cérebros opcionais (entram só com a chave nas Propriedades; todos grátis, formato OpenAI): `GITHUB_TOKEN` com permissão "Models: read" → `GitHub GPT-4.1` (`models.github.ai`, primeiro da fila em código; 15 RPM/150 RPD); `MISTRAL_KEY` → `Mistral` (`mistral-medium-latest`, também lê imagem); `NVIDIA_KEY` → `NVIDIA GPT-OSS 120B` (`integrate.api.nvidia.com`); `CF_TOKEN` + `CF_ACCOUNT_ID` → `Cloudflare Llama 70B` (URL montada com a conta). `reasoning_effort` só vai pros modelos gpt-oss.
+- Link colado na pergunta → `lerPagina()` busca o texto limpo em `r.jina.ai/<url>` (grátis, 20/min; cache 1 h) e entra como LEITURA DA PÁGINA. Também: Selic/CDI/IPCA (`brasilapi /taxas/v1`) e Bitcoin/Ethereum (AwesomeAPI BTC-BRL, ETH-BRL).
+- Push sem Telegram: `NTFY_TOPICO` (nome longo e aleatório; app ntfy no iPhone inscrito no mesmo tópico) → `ntfy()` publica em JSON em `https://ntfy.sh/` (bom dia e avisos).
+- Telegram: `sendChatAction typing` antes de responder, comandos `/nova`, `/cotas`, `/ajuda` (registrados por `setMyCommands` no `ligarTelegram`).
 - APIs grátis sem chave (`contextoConectores`, com cache `pegarJSON`): dólar (AwesomeAPI, + regra "comercial + 10 pontos"), clima de Itaú de Minas (Open-Meteo, 3 dias), CEP (ViaCEP), CNPJ (BrasilAPI), feriados (BrasilAPI), notícias (RSS do Google News via XmlService). Entram só quando a pergunta fala do assunto; quando um dado ao vivo entra, a pesquisa web automática é dispensada.
 - Áudio → texto: ação `transcrever` (base64 + tipo) usa Groq Whisper `whisper-large-v3-turbo` (mesma GROQ_KEY). O app grava com MediaRecorder (funciona no iPhone instalado) e manda; no Telegram, voice/audio é transcrito antes de responder.
 - Telegram (`telegramEntrada`): o bot chama o mesmo `/exec` com `?tg=<TELEGRAM_SEGREDO>` (sem PIN no corpo). Primeira pessoa que manda o PIN vira `TELEGRAM_CHAT_ID`; os outros são ignorados. Uma conversa contínua (`TELEGRAM_CONVERSA`, "/nova" começa outra), fotos viram imagem, áudio vira texto, resposta sai em texto simples (markdown limpo) e imagem gerada vai como foto. `update_id` repetido é ignorado (Telegram reenvia quando demora). `ligarTelegram()` registra o webhook. `bomDia()` também manda pro Telegram. Propriedades: `TELEGRAM_TOKEN`, `TELEGRAM_SEGREDO`, `TELEGRAM_CHAT_ID` (auto), `TELEGRAM_CONVERSA` (auto).
@@ -68,7 +72,7 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 
 Aba `config` (Chave | Valor) serve de reserva pra `COMFY_URL`, `COMFY_WORKFLOW`, `PC_MODELO`, `PC_MODELO_CODIGO` quando a propriedade não existe (valores grandes e configuração sem abrir o editor).
 
-Propriedades do script (nunca no código): `GEMINI_KEY`, `GROQ_KEY`, `PIN`, `PC_URL` (link do Funnel com caminho secreto), `PC_MODELO` (opcional, padrão `zicoai`), `PC_MODELO_CODIGO` (opcional, ex. `zicoai-dev`), `CEREBRAS_KEY` (opcional), `TELEGRAM_TOKEN`/`TELEGRAM_SEGREDO` (opcional), `GITHUB_TOKEN` (opcional), `COMFY_URL`/`COMFY_WORKFLOW` (opcional), `APRENDIDO_ATE`, `TELEGRAM_CHAT_ID`, `TELEGRAM_CONVERSA`, `rpd_*` (controle interno).
+Propriedades do script (nunca no código): `GEMINI_KEY`, `GROQ_KEY`, `PIN`, `PC_URL` (link do Funnel com caminho secreto), `PC_MODELO` (opcional, padrão `zicoai`), `PC_MODELO_CODIGO` (opcional, ex. `zicoai-dev`), `CEREBRAS_KEY`, `MISTRAL_KEY`, `NVIDIA_KEY`, `CF_TOKEN`+`CF_ACCOUNT_ID`, `NTFY_TOPICO` (opcionais), `TELEGRAM_TOKEN`/`TELEGRAM_SEGREDO` (opcional), `GITHUB_TOKEN` (opcional), `COMFY_URL`/`COMFY_WORKFLOW` (opcional), `APRENDIDO_ATE`, `TELEGRAM_CHAT_ID`, `TELEGRAM_CONVERSA`, `rpd_*` (controle interno).
 
 ### 3. Planilha "ZicoAI Memória"
 Abas e colunas:
@@ -106,6 +110,7 @@ node t9.js   # APIs grátis, Whisper, Telegram, publicar no GitHub
 node t10.js  # exemplos aprovados, roteador por feedback, ensinar com arquivo, arrumar memória
 node t11.js  # calculadora exata, conversas antigas, trava de PIN, resposta vazia
 node t12.js  # treino diário, revisão do dia, pergunta do dia, perguntas novas, exportação
+node t13.js  # cérebros extras, leitura de link, taxas, cripto, ntfy, comandos do Telegram
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.
