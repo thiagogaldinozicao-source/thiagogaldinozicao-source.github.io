@@ -58,7 +58,7 @@ const ABAS = {
   perfil:       ['Tópico', 'Informação'],
   base:         ['Assunto', 'Conteúdo'],
   chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho'],
-  mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho'],
+  mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho', 'Passos'],
   historico:    ['Data', 'Aba', 'Assunto', 'Antes', 'Depois', 'Origem'],
   feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
   prova:        ['Nº', 'Grupo', 'Pergunta exata', 'Critérios nota 10 (2,5 pontos cada)', 'Erro mais provável', 'Última nota', 'Última data', 'Observação'],
@@ -70,7 +70,7 @@ ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo
 
 const PERSONA = [
   'Você é a ZicoAI, assistente pessoal do Thiago (dono da Zicão Store em Itaú de Minas/MG) pra TUDO: loja, programação, imagens, contas, família, projetos e conhecimento geral. A loja é só um dos assuntos.',
-  'Agora é {DATA} (horário de Brasília).',
+  'Agora é {DATA} (horário de Brasília). Hoje é {HOJE_DIA}, amanhã é {AMANHA}. Use essas datas, não calcule de cabeça.',
   '',
   '### REGRAS',
   '1. Português do Brasil, direto, começando pela resposta. Sem preâmbulo, sem repetir a pergunta, sem resumo no final.',
@@ -483,7 +483,11 @@ function linhas(nome) {
 }
 
 function montarSistema(pergunta, enxuto) {
-  let s = PERSONA.replace('{DATA}', Utilities.formatDate(new Date(), FUSO, "dd/MM/yyyy 'às' HH:mm"));
+  const agoraD = new Date();
+  const amanhaD = new Date(agoraD.getTime() + 86400000);
+  let s = PERSONA.replace('{DATA}', Utilities.formatDate(agoraD, FUSO, "dd/MM/yyyy 'às' HH:mm"))
+    .replace('{HOJE_DIA}', Utilities.formatDate(agoraD, FUSO, 'EEEE, dd/MM/yyyy'))
+    .replace('{AMANHA}', Utilities.formatDate(amanhaD, FUSO, 'EEEE, dd/MM/yyyy') + ' (' + Utilities.formatDate(amanhaD, FUSO, 'yyyy-MM-dd') + ')');
 
   const perfil = linhas('perfil');
   const perfilUsado = enxuto ? perfil.filter(l => /como responder/i.test(l[0])) : perfil;
@@ -671,7 +675,7 @@ function listarMemorias() {
  * ============================================================ */
 
 function gravarMensagem(chatId, quem, texto, cerebro, aparelho) {
-  aba('mensagens').appendRow([chatId, "'" + agora(), quem, seguro(String(texto).slice(0, 45000)), cerebro || '', aparelho]);
+  aba('mensagens').appendRow([chatId, "'" + agora(), quem, seguro(String(texto).slice(0, 45000)), cerebro || '', aparelho, quem === 'zicoai' ? seguro(PASSOS.join(' | ').slice(0, 2000)) : '']);
 }
 
 function tocarChat(chatId) {

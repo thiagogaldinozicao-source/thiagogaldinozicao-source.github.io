@@ -54,7 +54,7 @@ Abas e colunas:
 - `perfil`: Tópico | Informação
 - `base`: Assunto | Conteúdo
 - `chats`: Conversa | Título | Criada | Atualizada | Aparelho
-- `mensagens`: Conversa | Data | Quem | Mensagem | Cérebro | Aparelho
+- `mensagens`: Conversa | Data | Quem | Mensagem | Cérebro | Aparelho | Passos (o "Como respondi", pra diagnóstico)
 - `chats` ganhou Resumo | ResumidoAte (compactação)
 - `historico`: Data | Aba | Assunto | Antes | Depois | Origem (toda mudança automática de base/perfil; pra desfazer, copie "Antes" de volta)
 - `feedback`: Data | Conversa | Nota | Comentário | Cérebro | Resposta (início) | Aparelho

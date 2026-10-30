@@ -100,3 +100,9 @@ H.ctx.ligarProva();
 // 11) histórico via API
 r = H.post({ pin: '1234', acao: 'historico' });
 ok(r.ok && r.historico.length >= 3, 'ação historico lista mudanças');
+// data de amanhã explícita no sistema + passos gravados na planilha
+let sysT = ''; H.setFetch((u, o) => { sysT = JSON.parse(o.payload).messages[0].content; return resp('ok'); });
+r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi' }] });
+ok(/amanhã é .*\(2026-10-30\)|amanhã é sexta-feira/.test(sysT) && /não calcule de cabeça/.test(sysT), 'sistema traz hoje e amanhã por extenso');
+const ult = H.sheets.mensagens.rows[H.sheets.mensagens.rows.length - 1];
+ok(ult[2] === 'zicoai' && /Respondeu com/.test(ult[6] || ''), 'passos gravados na coluna G da aba mensagens: ' + (ult[6] || '').slice(0, 60));
