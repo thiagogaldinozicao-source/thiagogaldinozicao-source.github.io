@@ -178,6 +178,7 @@ const PERSONA = [
   '7. Pergunta simples = resposta curta. Problema detalhado = aprofunda.',
   '8. Reclamação de cliente: a mensagem começa reconhecendo o problema, depois a solução.',
   '9. Sempre "vc", nunca "tu". Jeito mineiro, informal. Fale de igual pra igual: sem sermão, sem lição de moral, sem tom de professora.',
+  '9a. Quando o Thiago corrigir vc: responda em UMA linha começando com "Vc tem razão:" + o certo, e já entregue a versão corrigida. Sem desculpa, sem explicar por que errou, sem repetir o que ele disse.',
   '9b. Acompanhe o tom do Thiago: se ele escreve curto e casual, responda curto e casual; se vier técnico, seja técnica. Não finja sentimentos nem experiências pessoais.',
   '9c. O Thiago digita rápido, com erro de digitação, letra trocada e sem acento ("celuakr" = celular, "noa" = não, "oq" = o que, "pq" = por que, "tbm" = também, "msm" = mesmo, "ta" = tá, "vc" = você, "q" = que, "mt" = muito, "blz" = beleza). Entenda pelo contexto SEMPRE. Nunca corrija a escrita dele, nunca peça pra repetir por causa de erro de digitação, nunca comente o erro. Se a dúvida for real (duas leituras possíveis), pergunte em uma linha.',
   '10. Não ofereça extras que não foram pedidos. Se algo for difícil demais pra vc, diga que é melhor pedir pro Claude.',
@@ -210,6 +211,7 @@ const PERSONA = [
   '- Lembrete/compromisso pedido pelo Thiago (com data e hora claras): [[AGENDA: título || AAAA-MM-DD HH:MM || minutos de duração]]. Se faltar data ou hora, pergunte em vez de chutar.',
   '- E-mail que o Thiago pedir pra escrever: [[EMAIL_RASCUNHO: destinatário || assunto || corpo]]. Vira RASCUNHO no Gmail dele, nunca é enviado. Sem destinatário, deixe vazio.',
   '- Venda que o Thiago informar ("vendi um 13 por 2.500"): [[VENDA: valor em número || descrição curta]].',
+  '- Pedido pra MUDAR VC MESMA (seu código, seu jeito de funcionar, uma ferramenta nova, um bug seu): responda em 1 linha que vai fazer e coloque [[TAREFA: MELHORAR MEU CÓDIGO: o que mudar, exatamente como o Thiago pediu]]. O agente lê o próprio código, edita, testa e publica.',
   '- Pedido GRANDE que exige várias etapas (pesquisar em vários lugares e comparar, relatório, estudo, app com várias telas, levantamento de preços): NÃO tente responder tudo agora. Responda em 1 linha que vai fazer em segundo plano e coloque [[TAREFA: descrição completa do que fazer, com tudo que o Thiago pediu]]. Um agente faz e o resultado aparece nesta conversa.',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
   '- Quando a seção CÁLCULO EXATO aparecer, use exatamente esses números (foram calculados por código, não por vc). Mostre a conta e o resultado deles.',
@@ -292,7 +294,7 @@ function prop(nome) {
   const v = PropertiesService.getScriptProperties().getProperty(nome);
   if (v !== null && v !== undefined && v !== '') return v;
   // reserva: aba "config" da planilha (Chave | Valor). Serve pra valores grandes (ex.: workflow do ComfyUI) e pra configurar sem abrir o editor.
-  if (/^(COMFY_URL|COMFY_WORKFLOW|PC_MODELO|PC_MODELO_CODIGO)$/.test(nome)) {
+  if (/^(COMFY_URL|COMFY_WORKFLOW|PC_MODELO|PC_MODELO_CODIGO|DEPLOY_ID|URL_TESTE)$/.test(nome)) {
     try {
       const l = linhas('config').find(x => String(x[0]).trim() === nome);
       if (l && String(l[1]).trim()) return String(l[1]).trim();
@@ -2255,7 +2257,10 @@ const FERRAMENTAS = {
   ler_app: { desc: 'Código atual de um app publicado. args: {slug}', run: a => codigoDoApp(a.slug) || '(não achei)' },
   publicar_app: { desc: 'Publica/atualiza um app HTML no site. args: {nome, html}', run: a => { const r = publicarApp(a.nome, a.html); return r.ok ? 'publicado em ' + r.url : 'ERRO: ' + r.erro; } },
   telegram: { desc: 'Manda mensagem pro Thiago no Telegram. args: {texto}', run: a => tgEnviar(null, String(a.texto)) ? 'enviado' : '(Telegram não configurado)' },
-  gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() }
+  gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() },
+  ler_meu_codigo: { desc: 'Lê trechos do MEU PRÓPRIO código (Apps Script) ligados a um termo: funções inteiras, com nome. Use antes de editar. args: {termo}', run: a => trechosDoCodigo(String(a.termo || '')) },
+  editar_meu_codigo: { desc: 'Edita o MEU PRÓPRIO código e publica: faz backup, aplica as trocas (cada "procurar" tem que existir UMA vez, copiado exato), confere sintaxe, testa a versão nova e só então publica; se falhar, volta sozinho. args: {edicoes: [{procurar, trocar}], motivo}', run: (a, ctx) => { const r = autoMelhorar(a.edicoes || [], String(a.motivo || ''), ctx); return r.ok ? 'PUBLICADO: versão ' + r.versao + ' (backup ' + r.backup + ')' + (r.github ? ', salvo no GitHub' : '') : 'ERRO: ' + r.erro; } },
+  desfazer_meu_codigo: { desc: 'Volta meu código pro último backup e publica. args: {}', run: () => { const r = desfazerCodigo(); return r.ok ? 'restaurado e publicado: versão ' + r.versao : 'ERRO: ' + r.erro; } }
 };
 
 const PROMPT_AGENTE = [
@@ -2265,6 +2270,7 @@ const PROMPT_AGENTE = [
   'Responda SEMPRE com UM JSON por vez, sem texto fora dele:',
   '  pra usar ferramenta: {"ferramenta":"nome","args":{...},"porque":"motivo curto"}',
   '  pra terminar: {"resposta":"texto final completo pro Thiago (markdown; código em bloco ```html completo)"}',
+  'Pedido que começa com "MELHORAR MEU CÓDIGO": 1) ler_meu_codigo com o termo certo (pode ler 2 ou 3 trechos); 2) editar_meu_codigo com o MÍNIMO de trocas, "procurar" copiado EXATAMENTE do trecho lido (com espaços e aspas) e único; 3) na resposta final, explique pro Thiago em linguagem de leigo o que mudou e a versão publicada. Se a edição falhar, leia de novo e tente uma troca menor. Nunca mexa em doPost, PIN, chaves ou nas funções de auto-melhoria.',
   'Regras: máximo 12 ferramentas; nunca invente resultado de ferramenta; se uma falhar, tente outro caminho ou explique; não apague nada (pra neutralizar uma linha, escreva "[IGNORAR] ..." nela); dado de cliente (CPF, telefone) não entra na planilha; preço só da aba precos; termine com {"resposta"} assim que tiver o suficiente.'
 ].join('\n');
 
@@ -2337,6 +2343,163 @@ function agente(id, pedido, chatId, aparelho) {
   msgs.push({ role: 'user', content: 'Acabou o tempo. Termine agora com {"resposta": ...} usando o que já tem.' });
   try { const r = chamar(msgs, 4000, 0.2); const j = lerJSON(r.texto); finalizar(j && j.resposta !== undefined ? String(j.resposta) : r.texto); }
   catch (e) { atualizarTarefa(id, { status: 'erro', resultado: '⚠️ ' + e.message }); }
+}
+
+/* ============================================================
+ *  AUTO-MELHORIA: a ZicoAI edita o PRÓPRIO código
+ *  Usa a API do Apps Script no próprio projeto (token do script).
+ *  Fluxo: backup no Drive → aplica trocas exatas → confere sintaxe
+ *  → salva no projeto (HEAD) → testa pela URL_TESTE (implantação
+ *  @HEAD) → cria versão → aponta a implantação oficial (DEPLOY_ID)
+ *  → salva no GitHub. Qualquer falha: volta o código anterior.
+ *  Precisa dos escopos script.projects e script.deployments.
+ * ============================================================ */
+
+function apiScript(metodo, caminho, corpo) {
+  const r = UrlFetchApp.fetch('https://script.googleapis.com/v1/projects/' + ScriptApp.getScriptId() + caminho, {
+    method: metodo, contentType: 'application/json', headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    payload: corpo ? JSON.stringify(corpo) : undefined, muteHttpExceptions: true
+  });
+  if (r.getResponseCode() >= 300) throw new Error('API do Apps Script ' + r.getResponseCode() + ': ' + resumoErro(r.getContentText()));
+  return r.getContentText() ? JSON.parse(r.getContentText()) : {};
+}
+function meuCodigo() {
+  const j = apiScript('get', '/content');
+  const arq = (j.files || []).find(f => f.type === 'SERVER_JS');
+  if (!arq) throw new Error('não achei o arquivo de código do projeto');
+  return { files: j.files, source: arq.source, nome: arq.name };
+}
+/** Divide o código em pedaços (função a função) e devolve os mais ligados ao termo. */
+function trechosDoCodigo(termo) {
+  const src = meuCodigo().source;
+  const partes = src.split(/\n(?=(?:function |const [A-Z_]+ = |\/\* ={10,}))/);
+  const pontuadas = partes.map((t, i) => {
+    const nome = (t.match(/^function (\w+)/) || t.match(/^const (\w+)/) || [, 'trecho ' + i])[1];
+    let p = 0;
+    normalizar(termo).split(/[^a-z0-9_]+/).filter(w => w.length >= 3).forEach(w => { const n = normalizar(t); if (n.indexOf(w) >= 0) p += 2; if (normalizar(nome).indexOf(w) >= 0) p += 5; });
+    return { nome: nome, t: t, p: p };
+  }).filter(x => x.p > 0).sort((a, b) => b.p - a.p);
+  if (!pontuadas.length) return 'Nada achado pra "' + termo + '". Funções existentes: ' + partes.map(t => (t.match(/^function (\w+)/) || [])[1]).filter(Boolean).join(', ').slice(0, 3000);
+  let out = '', total = 0;
+  for (const x of pontuadas) { if (total + x.t.length > 14000) break; out += '===== ' + x.nome + ' =====\n' + x.t + '\n\n'; total += x.t.length; }
+  return out;
+}
+function aplicarEdicoes(src, edicoes) {
+  if (!edicoes || !edicoes.length) return { erro: 'nenhuma edição' };
+  if (edicoes.length > 10) return { erro: 'muitas edições de uma vez (máx. 10)' };
+  let novo = src;
+  for (const e of edicoes) {
+    const proc = String(e.procurar || ''), troca = String(e.trocar === undefined ? '' : e.trocar);
+    if (proc.length < 12) return { erro: '"procurar" curto demais (mín. 12 caracteres): ' + proc };
+    const vezes = novo.split(proc).length - 1;
+    if (vezes !== 1) return { erro: '"procurar" aparece ' + vezes + ' vez(es), precisa ser exatamente 1: ' + proc.slice(0, 80) };
+    novo = novo.replace(proc, () => troca);
+  }
+  return { novo: novo };
+}
+function conferirCodigo(novo, antigo) {
+  try { new Function(novo); } catch (e) { return 'erro de sintaxe: ' + e.message; }
+  if (novo.length < antigo.length * 0.6) return 'o código encolheu demais (' + novo.length + ' de ' + antigo.length + '), parece que apagou coisa';
+  // declarações de verdade (início de linha), pra não confundir com este próprio texto
+  const obrigatorios = [
+    [/^function doPost\(e\) \{/m, 'doPost'],
+    [/^\s+if \(!req\.pin \|\| String\(req\.pin\) !== String\(prop\('PIN'\)\)\)/m, 'checagem do PIN'],
+    [/^function autoMelhorar\(/m, 'autoMelhorar'],
+    [/^function desfazerCodigo\(/m, 'desfazerCodigo'],
+    [/^function apiScript\(/m, 'apiScript'],
+    [/^function conferirCodigo\(/m, 'conferirCodigo']
+  ];
+  for (const [re, nome] of obrigatorios) if (!re.test(novo)) return 'trecho obrigatório sumiu: ' + nome;
+  return '';
+}
+function salvarConteudo(files, source) {
+  const novos = files.map(f => f.type === 'SERVER_JS' ? Object.assign({}, f, { source: source }) : f).map(f => ({ name: f.name, type: f.type, source: f.source }));
+  apiScript('put', '/content', { files: novos });
+}
+function testarVersaoNova() {
+  const url = prop('URL_TESTE');
+  if (!url) return 'sem URL_TESTE configurada';
+  const chamar = corpo => {
+    const r = UrlFetchApp.fetch(url, { method: 'post', payload: JSON.stringify(Object.assign({ pin: prop('PIN'), aparelho: 'autoteste' }, corpo)), muteHttpExceptions: true, followRedirects: true });
+    const t = r.getContentText();
+    let j; try { j = JSON.parse(t); } catch (e) { return 'resposta inválida: ' + t.slice(0, 120); }
+    return j.ok ? '' : 'falhou: ' + (j.erro || '?');
+  };
+  return chamar({ acao: 'teste' }) || chamar({ acao: 'contexto', pergunta: 'teste de versão nova' }) || chamar({ acao: 'cotas' });
+}
+function publicarVersao(descricao) {
+  const v = apiScript('post', '/versions', { description: String(descricao || 'ZicoAI auto').slice(0, 200) });
+  const dep = prop('DEPLOY_ID');
+  if (!dep) throw new Error('sem DEPLOY_ID configurado');
+  apiScript('put', '/deployments/' + dep, { deploymentConfig: { scriptId: ScriptApp.getScriptId(), versionNumber: v.versionNumber, manifestFileName: 'appsscript', description: String(descricao || '').slice(0, 200) } });
+  return v.versionNumber;
+}
+function backupCodigo(source, rotulo) {
+  const pastas = DriveApp.getFoldersByName('ZicoAI Código');
+  const pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder('ZicoAI Código');
+  const f = pasta.createFile(Utilities.newBlob(source, 'text/plain', 'Codigo-' + Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd-HHmmss') + (rotulo ? '-' + rotulo : '') + '.js'));
+  return f.getId();
+}
+function salvarNoGitHub(caminho, conteudo, mensagem) {
+  const token = prop('GITHUB_TOKEN');
+  if (!token) return false;
+  const base = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + caminho;
+  const cab = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  let sha = null;
+  const g = UrlFetchApp.fetch(base, { headers: cab, muteHttpExceptions: true });
+  if (g.getResponseCode() === 200) sha = JSON.parse(g.getContentText()).sha;
+  const corpo = { message: mensagem, content: Utilities.base64Encode(conteudo, Utilities.Charset.UTF_8) };
+  if (sha) corpo.sha = sha;
+  const r = UrlFetchApp.fetch(base, { method: 'put', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true });
+  return r.getResponseCode() === 200 || r.getResponseCode() === 201;
+}
+
+function autoMelhorar(edicoes, motivo, ctx) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return { ok: false, erro: 'outra alteração em andamento' };
+  let atual = null;
+  try {
+    atual = meuCodigo();
+    const ap = aplicarEdicoes(atual.source, edicoes);
+    if (ap.erro) return { ok: false, erro: ap.erro };
+    const problema = conferirCodigo(ap.novo, atual.source);
+    if (problema) return { ok: false, erro: problema };
+    const backup = backupCodigo(atual.source, 'antes');
+    salvarConteudo(atual.files, ap.novo);
+    const falha = testarVersaoNova();
+    if (falha) {
+      salvarConteudo(atual.files, atual.source);
+      aba('historico').appendRow(["'" + agora(), 'codigo', 'tentativa desfeita', seguro(String(motivo).slice(0, 300)), seguro('falhou no teste: ' + falha), 'agente:' + (ctx && ctx.id || '')]);
+      return { ok: false, erro: 'a versão nova falhou no teste (' + falha + '); voltei o código anterior' };
+    }
+    const versao = publicarVersao('ZicoAI auto: ' + motivo);
+    PropertiesService.getScriptProperties().setProperty('ULTIMO_BACKUP', backup);   // só vira "último backup" quando a mudança foi publicada
+    const github = salvarNoGitHub('zicoai/cerebro/Codigo.gs', ap.novo, 'ZicoAI (auto-melhoria v' + versao + '): ' + String(motivo).slice(0, 120));
+    aba('historico').appendRow(["'" + agora(), 'codigo', 'versão ' + versao, 'backup ' + backup, seguro(String(motivo).slice(0, 500) + ' | ' + edicoes.length + ' troca(s)'), 'agente:' + (ctx && ctx.id || '')]);
+    aba('memoria').appendRow(["'" + hoje(), seguro('Mudei meu próprio código (versão ' + versao + '): ' + String(motivo).slice(0, 200)), 'auto']);
+    return { ok: true, versao: versao, backup: backup, github: github };
+  } catch (e) {
+    try { if (atual) salvarConteudo(atual.files, atual.source); } catch (e2) { /* já era o original */ }
+    return { ok: false, erro: String(e.message || e) };
+  } finally { lock.releaseLock(); }
+}
+
+function desfazerCodigo() {
+  try {
+    const id = prop('ULTIMO_BACKUP');
+    if (!id) return { ok: false, erro: 'não tem backup' };
+    const antigo = DriveApp.getFileById(id).getBlob().getDataAsString();
+    const atual = meuCodigo();
+    const problema = conferirCodigo(antigo, antigo);
+    if (problema) return { ok: false, erro: 'backup inválido: ' + problema };
+    salvarConteudo(atual.files, antigo);
+    const falha = testarVersaoNova();
+    if (falha) { salvarConteudo(atual.files, atual.source); return { ok: false, erro: 'o backup falhou no teste: ' + falha }; }
+    const versao = publicarVersao('ZicoAI auto: desfez a última alteração');
+    salvarNoGitHub('zicoai/cerebro/Codigo.gs', antigo, 'ZicoAI (auto-melhoria): desfez, versão ' + versao);
+    aba('historico').appendRow(["'" + agora(), 'codigo', 'desfeito', 'versão anterior', 'versão ' + versao + ' (restaurada do backup)', 'agente']);
+    return { ok: true, versao: versao };
+  } catch (e) { return { ok: false, erro: String(e.message || e) }; }
 }
 
 /* ============================================================
@@ -2524,6 +2687,7 @@ function instalar() {
   log.push('Telegram: ' + (prop('TELEGRAM_TOKEN') ? (prop('TELEGRAM_CHAT_ID') ? 'ligado' : 'token ok, falta mandar o PIN pro bot') : 'não configurado (opcional: TELEGRAM_TOKEN + TELEGRAM_SEGREDO, depois rodar ligarTelegram)'));
   log.push('GitHub (publicar apps): ' + (prop('GITHUB_TOKEN') ? 'configurado' : 'não configurado (opcional: GITHUB_TOKEN)'));
   log.push('Push ntfy: ' + (prop('NTFY_TOPICO') ? 'configurado' : 'não configurado (opcional: NTFY_TOPICO)'));
+  try { const c = meuCodigo(); log.push('Auto-melhoria: ok (li meu código, ' + c.source.length + ' caracteres; DEPLOY_ID ' + (prop('DEPLOY_ID') ? 'ok' : 'FALTA') + ', URL_TESTE ' + (prop('URL_TESTE') ? 'ok' : 'FALTA') + ')'); } catch (e) { log.push('Auto-melhoria: ERRO → ' + e.message); }
   const d = cotacaoDolar(); log.push('Dólar ao vivo: ' + (d ? 'ok (R$ ' + d.venda + ')' : 'indisponível'));
   log.push('Clima: ' + (clima() ? 'ok' : 'indisponível'));
   try {
