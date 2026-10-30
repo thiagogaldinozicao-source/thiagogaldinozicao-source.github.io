@@ -35,7 +35,11 @@ let fetchImpl = (url, opt) => ({ getResponseCode: () => 200, getContentText: () 
 let SEQ = 0; const PROPS = { PIN: '1234', GROQ_KEY: 'g', GEMINI_KEY: 'm' }; const CACHE = {};
 const ctx = {
   SpreadsheetApp: { openById: () => ss },
-  UrlFetchApp: { fetch: (u, o) => { o = o || {}; fetchLog.push({ u, body: o.payload ? JSON.parse(o.payload) : null, h: o.headers }); return fetchImpl(u, o); } },
+  UrlFetchApp: { fetch: (u, o) => {
+    o = o || {};
+    // embeddings: só contam se o teste devolver embeddings de verdade; senão 500 e o código segue por palavra
+    if (/batchEmbedContents/.test(u)) { try { const r = fetchImpl(u, o); const j = JSON.parse(r.getContentText()); if (r.getResponseCode() === 200 && j.embeddings) return r; } catch (e) {} return { getResponseCode: () => 500, getContentText: () => 'sem embedding no teste' }; }
+    fetchLog.push({ u, body: o.payload ? JSON.parse(o.payload) : null, h: o.headers }); return fetchImpl(u, o); } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => PROPS[k], setProperty: (k, v) => { PROPS[k] = v; } }) },
   CacheService: { getScriptCache: () => ({ get: k => CACHE[k] || null, put: (k, v) => { CACHE[k] = v; }, remove: k => { delete CACHE[k]; } }) },
   Utilities: { sleep: ms => { OFFSET += ms; }, getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : f === 'yyyy-MM-dd' ? '2026-10-30' : f === 'yyyyMMdd' ? '20261030' : f.includes('yyyyMMdd') ? '20261030-113000' : f.includes('HH:mm') ? '02/11 14:00' : f.includes('dd/MM/yyyy') ? (f.includes('EEEE') ? 'sexta-feira, 30/10/2026' : '30/10/2026') : '30/10' },

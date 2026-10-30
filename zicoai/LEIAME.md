@@ -39,6 +39,8 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
   - tags que o modelo escreve: `[[MEMORIA: ...]]`, `[[APRENDIZADO: erro || certo]]`, `[[ESQUECER: trecho]]`, `[[IMAGEM: prompt em inglês]]`, `[[BASE: assunto || conteúdo]]` e `[[PERFIL: tópico || informação]]` (criam ou SUBSTITUEM a linha pelo assunto/tópico, ignorando maiúsculas e acentos; toda mudança vai pra aba `historico` com antes/depois; só com o que o Thiago disse);
   - `aprenderSozinha()` roda a cada 10 min (gatilho criado por `ligarAprendizado()`), relê a aba `mensagens` desde a propriedade `APRENDIDO_ATE` e extrai fatos e correções com o Gemini, sem duplicar (`jaSabe()`). Também propõe `base` e `perfil` (passam por `gravarFato`, com histórico).
 - Controle de cota (`motivoNaoCabe`, `registrarUso`, `castigo`): cada cérebro tem `tpm` (tokens/min), `rpm` (pedidos/min) e `rpd` (pedidos/dia) com folga abaixo do plano grátis. Uso do minuto fica no CacheService (`tk_*`, `rq_*`), uso do dia nas Propriedades (`rpd_<nome>_<yyyyMMdd>`). Antes de chamar, pula quem não cabe (aparece em "Como respondi": "X pulado: limite de tokens do minuto"). 429 que escapa → `off_<nome>` pelo tempo que a API pediu ("castigo"). Cérebro pequeno (limite < 50k) recebe `msgsEnxutas()` (sistema enxuto, 6 últimas mensagens, cortadas) quando a conversa cheia não cabe. Se todos estiverem no limite DO MINUTO, espera o minuto virar (≤ 61 s) e tenta de novo. Ação `cotas` (e o `teste`) devolve o uso do dia por cérebro; o app mostra em Configurar → Testar.
+- Busca por significado (`semelhantes()`): além da busca por palavra (`relevantes()`), a BASE também é procurada por embedding (cosseno ≥ 0,62, até 4 trechos extras). Embedding fora do ar → `embed_off` 10 min e segue só por palavra.
+- Modo cliente (`ehModoCliente()`): pergunta do tipo "responde pro cliente…" esconde o perfil pessoal (fica só "Como responder" e "Loja"), força a tabela de preços e acrescenta a seção MODO CLIENTE (só informação confirmada).
 - Compactação: só as últimas 12 mensagens vão pro cérebro. Com 24+ mensagens na conversa, `compactarSePrecisar()` resume o que ficou pra trás (deixa as 10 últimas fora) e guarda em `chats` colunas Resumo/ResumidoAte; o resumo entra no sistema da próxima resposta. Refaz a cada +20 mensagens.
 - Prova semanal: `rodarProva()` responde cada linha da aba `prova` (questão com `MSG 1 … || MSG 2 (mesma conversa): …` vira 2 turnos), um corretor (Gemini/Groq/Cerebras, temperatura 0) dá nota de 0 a 10 pelos critérios, grava `Última nota`/`Última data`, nota < 7,5 vira aprendizado (assunto `prova`) e a média vai pra memória. `ligarProva()` cria gatilho segunda 4h.
 - Bloqueia CPF e telefone na memória (`temDadoSensivel`).
@@ -59,7 +61,10 @@ Abas e colunas:
 - `chats` ganhou Resumo | ResumidoAte (compactação)
 - `historico`: Data | Aba | Assunto | Antes | Depois | Origem (toda mudança automática de base/perfil; pra desfazer, copie "Antes" de volta)
 - `feedback`: Data | Conversa | Nota | Comentário | Cérebro | Resposta (início) | Aparelho
-- `vendas`: Data | Valor | Descrição | Origem (reservada pros conectores)
+- `vendas`: Data | Valor | Descrição | Origem (anotadas pela tag `[[VENDA]]`)
+- `precos`: Produto | Condição | Capacidade | Cor | Preço Pix | Preço 12x | Estoque | Obs. ÚNICA fonte de preço: entra no sistema quando a pergunta fala de preço/valor/estoque ou cita produto (filtra pelo número do modelo). Vazia → a IA é avisada pra não dar preço.
+- `vetores`: Aba | Texto | Vetor (cache dos embeddings `gemini-embedding-001`, 256 dimensões, arredondados). Preenchida sozinha, até 20 trechos novos por resposta.
+- `config`: Chave | Valor
 - `prova`: Nº | Grupo | Pergunta exata | Critérios nota 10 | Erro mais provável | Última nota | Última data | Observação (20 perguntas da prova semanal; gabarito feito em 30/10)
 
 Datas com `'` na frente pra não virarem número. Texto começando com `= + - @` leva `'` (função `seguro`).
@@ -73,6 +78,7 @@ node t3.js   # aprender sozinha
 node t4.js   # BASE/PERFIL+historico, feedback, compactação, Cerebras, PC de código, prova
 node t5.js   # conectores Google (Agenda, Gmail, Drive, vendas) + imagem no PC (ComfyUI) + config pela planilha
 node t6.js   # controle de cota: tokens/min, pedidos/dia, castigo 429, contexto enxuto, espera o minuto
+node t7.js   # tabela de preços, busca por significado, modo cliente
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

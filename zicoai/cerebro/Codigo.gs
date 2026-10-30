@@ -136,7 +136,9 @@ const ABAS = {
   feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
   prova:        ['Nº', 'Grupo', 'Pergunta exata', 'Critérios nota 10 (2,5 pontos cada)', 'Erro mais provável', 'Última nota', 'Última data', 'Observação'],
   vendas:       ['Data', 'Valor', 'Descrição', 'Origem'],
-  config:       ['Chave', 'Valor']
+  config:       ['Chave', 'Valor'],
+  precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
+  vetores:      ['Aba', 'Texto', 'Vetor']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
 ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte'];
@@ -187,6 +189,8 @@ const PERSONA = [
   '- E-mail que o Thiago pedir pra escrever: [[EMAIL_RASCUNHO: destinatário || assunto || corpo]]. Vira RASCUNHO no Gmail dele, nunca é enviado. Sem destinatário, deixe vazio.',
   '- Venda que o Thiago informar ("vendi um 13 por 2.500"): [[VENDA: valor em número || descrição curta]].',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
+  '- PREÇO de produto só sai da seção TABELA DE PREÇOS. Se o produto não estiver lá (ou a tabela estiver vazia), diga que precisa confirmar o preço. Nunca estime.',
+  '- MODO CLIENTE (quando a seção aparecer): a resposta é uma mensagem pro cliente da loja. Use só BASE, PROMESSAS e TABELA DE PREÇOS. Nada da vida pessoal do Thiago, dos projetos, da família ou de custo/lucro. O que estiver NÃO CONFIRMADO vira "deixa eu confirmar e te falo".',
   '- Não use essas linhas à toa. Não salve conversa fiada nem coisa passageira.'
 ].join('\n');
 
@@ -582,7 +586,14 @@ function linhas(nome) {
   return a.getRange(2, 1, n - 1, ABAS[nome].length).getDisplayValues().filter(l => l.join('').trim());
 }
 
+/** A pergunta é pra responder um cliente da loja? */
+function ehModoCliente(pergunta) {
+  const s = normalizar(pergunta);
+  return /(pro cliente|pra cliente|para o cliente|para a cliente|cliente (perguntou|pediu|quer|mandou|falou|disse|ta|esta)|responde (ele|ela|esse|essa|isso)|manda pra ele|manda pra ela|mensagem pra|resposta pra|o cliente|a cliente|um cliente|uma cliente|cliente:)/.test(s);
+}
+
 function montarSistema(pergunta, enxuto) {
+  const modoCliente = ehModoCliente(pergunta);
   const agoraD = new Date();
   const amanhaD = new Date(agoraD.getTime() + 86400000);
   let s = PERSONA.replace('{DATA}', Utilities.formatDate(agoraD, FUSO, "dd/MM/yyyy 'às' HH:mm"))
@@ -590,7 +601,7 @@ function montarSistema(pergunta, enxuto) {
     .replace('{AMANHA}', Utilities.formatDate(amanhaD, FUSO, 'EEEE, dd/MM/yyyy') + ' (' + Utilities.formatDate(amanhaD, FUSO, 'yyyy-MM-dd') + ')');
 
   const perfil = linhas('perfil');
-  const perfilUsado = enxuto ? perfil.filter(l => /como responder/i.test(l[0])) : perfil;
+  const perfilUsado = (enxuto || modoCliente) ? perfil.filter(l => /como responder|^loja$/i.test(l[0])) : perfil;
   if (perfilUsado.length) s += '\n\n### PERFIL DO THIAGO\n' + perfilUsado.map(l => '- [' + l[0] + '] ' + l[1]).join('\n');
 
   const apr = linhas('aprendizados');
@@ -603,13 +614,108 @@ function montarSistema(pergunta, enxuto) {
   const memUsada = relevantes(antigas, pergunta, enxuto ? 8 : 35, l => l[1]).concat(recentes);
   if (memUsada.length) s += '\n\n### MEMÓRIA (o que o Thiago já ensinou)\n' + memUsada.map(l => '- (' + l[0] + ') ' + l[1]).join('\n');
 
-  const base = relevantes(linhas('base'), pergunta, enxuto ? 4 : 10, l => l[0] + ' ' + l[1], l => l[0]);
+  let base = relevantes(linhas('base'), pergunta, enxuto ? 4 : 10, l => l[0] + ' ' + l[1], l => l[0]);
+  // busca por significado (embeddings do Gemini): acha trechos que a busca por palavra não acha
+  try {
+    const extraBase = semelhantes('base', pergunta, enxuto ? 2 : 4, base);
+    if (extraBase.length) { base = base.concat(extraBase); passo('Achou ' + extraBase.length + ' trecho(s) por significado'); }
+  } catch (e) { /* sem embeddings, segue só por palavra */ }
   if (base.length) s += '\n\n### BASE DA LOJA (trechos ligados à pergunta)\n' + base.map(l => '- ' + l[0] + ': ' + l[1]).join('\n');
+
+  // tabela de preços: entra quando a pergunta fala de preço/valor/estoque ou cita um produto da tabela
+  const tp = tabelaPrecos(pergunta, modoCliente);
+  if (tp) s += tp;
+
+  if (modoCliente) {
+    s += '\n\n### MODO CLIENTE\nA resposta vai pro cliente da loja. Bloco de código, estilo do Thiago, só informação confirmada (BASE, PROMESSAS, TABELA DE PREÇOS). Nada pessoal do Thiago.';
+    passo('Modo cliente: só informação confirmada da loja');
+  }
 
   const pl = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
   passo('Leu o perfil e ' + pl(aprUsado.length, 'aprendizado', 'aprendizados'));
   passo('Consultou ' + pl(memUsada.length, 'lembrança', 'lembranças') + (base.length ? ' e ' + pl(base.length, 'trecho', 'trechos') + ' da base' : ''));
   return s;
+}
+
+/** Linhas da aba precos ligadas à pergunta (ou aviso de tabela vazia quando perguntam preço). */
+function tabelaPrecos(pergunta, modoCliente) {
+  const s = normalizar(pergunta);
+  const falaPreco = /(preco|preço|quanto|valor|custa|tabela|estoque|tem o |tem um |vcs tem|voces tem|a vista|pix|parcel|12x|promo)/.test(s);
+  const tabela = linhas('precos');
+  if (!tabela.length) {
+    return (falaPreco || modoCliente) ? '\n\n### TABELA DE PREÇOS\n(VAZIA. Não informe nenhum preço. Diga que precisa confirmar.)' : '';
+  }
+  const citaProduto = tabela.some(l => { const n = normalizar(l[0]); return n && s.indexOf(n) >= 0; }) || /iphone|tv ?box|xiaomi|realme|ipad|capinha|pelicula|carregador|fone|cabo/.test(s);
+  if (!falaPreco && !citaProduto && !modoCliente) return '';
+  let sel = relevantes(tabela, pergunta, 15, l => l.join(' '), l => l[0] + ' ' + l[2]);
+  const nums = s.match(/\b\d{2}\b/g) || [];
+  if (nums.length) {
+    const soNum = sel.filter(l => nums.some(n => new RegExp('\\b' + n + '\\b').test(normalizar(l[0]))));
+    if (soNum.length) sel = soNum;
+  }
+  if (!sel.length && falaPreco) sel = tabela.slice(0, 15);
+  if (!sel.length) return '';
+  const linha = l => '- ' + [l[0], l[1], l[2], l[3]].filter(Boolean).join(' ') + ': Pix R$ ' + l[4] + (l[5] ? ' | 12x R$ ' + l[5] : '') + (l[6] !== '' && l[6] !== undefined ? ' | estoque ' + l[6] : '') + (l[7] ? ' | ' + l[7] : '');
+  passo('Consultou a tabela de preços (' + sel.length + ' itens)');
+  return '\n\n### TABELA DE PREÇOS (única fonte de preço; atualizada pelo Thiago)\n' + sel.map(linha).join('\n') + '\nProduto que não está aqui: não tem preço confirmado.';
+}
+
+/* ---------- busca por significado (embeddings grátis do Gemini) ---------- */
+const EMBED_MODELO = 'gemini-embedding-001';
+const EMBED_DIM = 256;
+
+function embutir(textos) {
+  const chave = prop('GEMINI_KEY');
+  if (!chave || !textos.length) return null;
+  if (CacheService.getScriptCache().get('embed_off')) return null;
+  const corpo = { requests: textos.map(t => ({ model: 'models/' + EMBED_MODELO, content: { parts: [{ text: String(t).slice(0, 2000) }] }, outputDimensionality: EMBED_DIM })) };
+  const r = UrlFetchApp.fetch(GEMINI_NATIVO_URL + EMBED_MODELO + ':batchEmbedContents', {
+    method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': chave },
+    payload: JSON.stringify(corpo), muteHttpExceptions: true
+  });
+  if (r.getResponseCode() !== 200) { CacheService.getScriptCache().put('embed_off', '1', 600); throw new Error('embedding ' + r.getResponseCode()); }
+  const j = JSON.parse(r.getContentText());
+  if (!j.embeddings) { CacheService.getScriptCache().put('embed_off', '1', 600); throw new Error('embedding sem resposta'); }
+  return j.embeddings.map(e => e.values);
+}
+function cosseno(a, b) {
+  let p = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length && i < b.length; i++) { p += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? p / Math.sqrt(na * nb) : 0;
+}
+/** Vetores guardados da aba (texto → vetor). Embute o que ainda não tem, até 20 por vez. */
+function vetoresDe(nomeAba, textos) {
+  const guardados = {};
+  linhas('vetores').forEach(l => { if (l[0] === nomeAba) guardados[l[1]] = l[2]; });
+  const faltam = textos.filter(t => !guardados[t]).slice(0, 20);
+  if (faltam.length) {
+    const novos = embutir(faltam);
+    if (novos) {
+      const a = aba('vetores');
+      faltam.forEach((t, i) => { if (novos[i]) { const v = JSON.stringify(novos[i].map(x => Math.round(x * 10000) / 10000)); a.appendRow([nomeAba, seguro(t), v]); guardados[t] = v; } });
+      passo('Memorizou o significado de ' + faltam.length + ' trecho(s) novo(s)');
+    }
+  }
+  return guardados;
+}
+/** Linhas da aba parecidas em significado com a pergunta, fora as que já entraram por palavra. */
+function semelhantes(nomeAba, pergunta, limite, jaTem) {
+  if (!prop('GEMINI_KEY')) return [];
+  const todas = linhas(nomeAba);
+  if (todas.length < 3) return [];
+  const chaveDe = l => String(l[0] + ' | ' + l[1]).slice(0, 500);
+  const guard = vetoresDe(nomeAba, todas.map(chaveDe));
+  const q = embutir([pergunta]);
+  if (!q || !q[0]) return [];
+  const jaSet = {};
+  (jaTem || []).forEach(l => { jaSet[chaveDe(l)] = 1; });
+  return todas
+    .filter(l => guard[chaveDe(l)] && !jaSet[chaveDe(l)])
+    .map(l => ({ l: l, p: cosseno(q[0], JSON.parse(guard[chaveDe(l)])) }))
+    .filter(x => x.p >= 0.62)
+    .sort((a, b) => b.p - a.p)
+    .slice(0, limite)
+    .map(x => x.l);
 }
 
 /** Escolhe as linhas que têm mais palavras em comum com a pergunta. */
