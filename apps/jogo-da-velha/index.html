@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo da Velha</title>
+  <style>
+    body { background-color: #111827; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: sans-serif; }
+    #board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 300px; }
+    .cell { width: 90px; height: 90px; background-color: #1f2937; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; cursor: pointer; }
+    .cell:hover { background-color: #374151; }
+    #status { margin-bottom: 20px; font-size: 1.2rem; }
+    button { margin-top: 20px; padding: 10px 20px; background-color: #4f46e5; color: white; border: none; border-radius: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="status">Sua vez: X</div>
+  <div id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+  <button onclick="resetGame()">Reiniciar</button>
+
+  <script>
+    let board = Array(9).fill('');
+    let currentPlayer = 'X';
+    let gameActive = true;
+    const cells = document.querySelectorAll('.cell');
+    const statusDiv = document.getElementById('status');
+
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const idx = cell.getAttribute('data-index');
+        if (board[idx] === '' && gameActive) {
+          board[idx] = currentPlayer;
+          cell.textContent = currentPlayer;
+          if (checkWin()) {
+            statusDiv.textContent = `Vitória do ${currentPlayer}!`;
+            gameActive = false;
+          } else if (board.every(c => c !== '')) {
+            statusDiv.textContent = 'Empate!';
+            gameActive = false;
+          } else {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            statusDiv.textContent = `Sua vez: ${currentPlayer}`;
+          }
+        }
+      });
+    });
+
+    function checkWin() {
+      const patterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      return patterns.some(p => board[p[0]] && board[p[0]] === board[p[1]] && board[p[0]] === board[p[2]]);
+    }
+
+    function resetGame() {
+      board = Array(9).fill('');
+      currentPlayer = 'X';
+      gameActive = true;
+      cells.forEach(c => c.textContent = '');
+      statusDiv.textContent = 'Sua vez: X';
+    }
+  </script>
+</body>
+</html>
