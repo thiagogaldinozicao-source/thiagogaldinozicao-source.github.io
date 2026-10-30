@@ -52,6 +52,7 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Áudio → texto: ação `transcrever` (base64 + tipo) usa Groq Whisper `whisper-large-v3-turbo` (mesma GROQ_KEY). O app grava com MediaRecorder (funciona no iPhone instalado) e manda; no Telegram, voice/audio é transcrito antes de responder.
 - Telegram (`telegramEntrada`): o bot chama o mesmo `/exec` com `?tg=<TELEGRAM_SEGREDO>` (sem PIN no corpo). Primeira pessoa que manda o PIN vira `TELEGRAM_CHAT_ID`; os outros são ignorados. Uma conversa contínua (`TELEGRAM_CONVERSA`, "/nova" começa outra), fotos viram imagem, áudio vira texto, resposta sai em texto simples (markdown limpo) e imagem gerada vai como foto. `update_id` repetido é ignorado (Telegram reenvia quando demora). `ligarTelegram()` registra o webhook. `bomDia()` também manda pro Telegram. Propriedades: `TELEGRAM_TOKEN`, `TELEGRAM_SEGREDO`, `TELEGRAM_CHAT_ID` (auto), `TELEGRAM_CONVERSA` (auto).
 - Publicar app (`publicarApp`, ação `publicar`): grava o HTML em `apps/<slug>/index.html` deste repositório pela API do GitHub (propriedade `GITHUB_TOKEN`, fine-grained, Contents: write só neste repositório) e devolve `https://thiagogaldinozicao-source.github.io/apps/<slug>/`. No app: botão ⬆ Publicar nos blocos HTML e na prévia.
+- Erros de digitação do Thiago: regra 9c na PERSONA (entender pelo contexto, nunca corrigir nem pedir pra repetir) + linha no perfil. Na busca por palavra, `relevantes()` usa `expandir()` (abreviações: oq, pq, tbm, msm, vc, hj, cel…) e `parecida()` (mesmo começo, tamanho parecido, 75% das letras em comum) pra "garnatia" achar "garantia".
 - Calculadora exata (`calculadora()`, seção CÁLCULO EXATO): tabela Price ("1000 a 2,99% em 12x"), taxa de maquininha PagBank/PicPay (constante `TAXAS`, do perfil; atualizar lá se mudar), regra de repasse (+20% em 12x), importação em dólar (US$ → +20% frete → × (comercial + 0,10), e a versão com 15%), e contas soltas ("quanto é 1250*1,2", "2500 - 15%"). O modelo recebe o número pronto e só explica.
 - Memória episódica (`buscarConversas()`, seção CONVERSAS ANTIGAS): com gatilho tipo "lembra o que a gente falou sobre…", procura por palavra nas mensagens antigas do Thiago e traz até 6 trechos com data e título da conversa.
 - Trava de PIN: 10 PINs errados em 10 min → bloqueia tudo por 10 min (CacheService `pin_erros`/`pin_bloqueado`).
@@ -120,6 +121,7 @@ node t13.js  # cérebros extras, leitura de link, taxas, cripto, ntfy, comandos 
 node t14.js  # agentes em segundo plano
 node t15.js  # meus apps: listar, código no contexto, versões, restaurar
 node t16.js  # blindagem do aprender sozinha, perfil não sobrescrito, [IGNORAR]
+node t17.js  # erros de digitação: busca tolerante, abreviações, regra
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

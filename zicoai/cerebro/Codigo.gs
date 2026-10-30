@@ -179,6 +179,7 @@ const PERSONA = [
   '8. Reclamação de cliente: a mensagem começa reconhecendo o problema, depois a solução.',
   '9. Sempre "vc", nunca "tu". Jeito mineiro, informal. Fale de igual pra igual: sem sermão, sem lição de moral, sem tom de professora.',
   '9b. Acompanhe o tom do Thiago: se ele escreve curto e casual, responda curto e casual; se vier técnico, seja técnica. Não finja sentimentos nem experiências pessoais.',
+  '9c. O Thiago digita rápido, com erro de digitação, letra trocada e sem acento ("celuakr" = celular, "noa" = não, "oq" = o que, "pq" = por que, "tbm" = também, "msm" = mesmo, "ta" = tá, "vc" = você, "q" = que, "mt" = muito, "blz" = beleza). Entenda pelo contexto SEMPRE. Nunca corrija a escrita dele, nunca peça pra repetir por causa de erro de digitação, nunca comente o erro. Se a dúvida for real (duas leituras possíveis), pergunte em uma linha.',
   '10. Não ofereça extras que não foram pedidos. Se algo for difícil demais pra vc, diga que é melhor pedir pro Claude.',
   '11. CARD DE COPIAR: tudo que o Thiago vai copiar e colar (mensagem pra cliente ou família, lista de preço, MAC e key, comparativo, código) vai SEMPRE dentro de um bloco de código markdown (três crases). Explicação fica fora do bloco.',
   '12. Programação: o Thiago NÃO sabe programar. Entregue o arquivo COMPLETO e funcionando e explique como leigo (nome do arquivo, onde salvar, como abrir). Modo escuro, mobile-first.',
@@ -847,9 +848,25 @@ function semelhantes(nomeAba, pergunta, limite, jaTem) {
     .map(x => x.l);
 }
 
-/** Escolhe as linhas que têm mais palavras em comum com a pergunta. */
+/** Palavra parecida (erro de digitação): mesmo começo, tamanho quase igual, maioria das letras em comum. */
+function parecida(w, alvo) {
+  if (w.length < 5) return false;
+  const re = new RegExp('\\b' + w.slice(0, 3) + '[a-z0-9]{' + Math.max(0, w.length - 5) + ',' + (w.length - 1) + '}\\b', 'g');
+  const cands = alvo.match(re) || [];
+  return cands.some(c => {
+    if (c === w) return true;
+    let comum = 0; const letras = c.split('');
+    w.split('').forEach(ch => { const i = letras.indexOf(ch); if (i >= 0) { comum++; letras.splice(i, 1); } });
+    return comum / Math.max(w.length, c.length) >= 0.75;
+  });
+}
+const ABREV = { oq: 'o que', pq: 'por que', tbm: 'tambem', msm: 'mesmo', vc: 'voce', vcs: 'voces', q: 'que', mt: 'muito', mto: 'muito', blz: 'beleza', noa: 'nao', nao: 'nao', ta: 'ta', td: 'tudo', tds: 'todos', hj: 'hoje', amanha: 'amanha', cel: 'celular', celuakr: 'celular', fds: 'fim de semana' };
+/** Troca abreviações e gírias de digitação pela forma cheia (só pra busca). */
+function expandir(t) { return normalizar(t).replace(/\b([a-z0-9]+)\b/g, m => ABREV[m] || m); }
+
+/** Escolhe as linhas que têm mais palavras em comum com a pergunta (tolerante a erro de digitação). */
 function relevantes(lista, pergunta, limite, textoDe, tituloDe) {
-  const pn = normalizar(pergunta);
+  const pn = expandir(pergunta);
   const palavras = pn.split(/[^a-z0-9]+/).filter(p => p.length >= 3 && PARADAS.indexOf(p) < 0);
   const numeros = pn.match(/\b\d{2}\b/g) || [];
   if ((!palavras.length && !numeros.length) || !lista.length) return [];
@@ -858,8 +875,8 @@ function relevantes(lista, pergunta, limite, textoDe, tituloDe) {
     const tit = tituloDe ? normalizar(tituloDe(l)) : '';
     let p = 0;
     palavras.forEach(w => {
-      if (alvo.indexOf(' ' + w + ' ') >= 0) p += 2; else if (alvo.indexOf(w) >= 0) p += 1;
-      if (tit && tit.indexOf(w) >= 0) p += 2;
+      if (alvo.indexOf(' ' + w + ' ') >= 0) p += 2; else if (alvo.indexOf(w) >= 0) p += 1; else if (parecida(w, alvo)) p += 2;
+      if (tit && (tit.indexOf(w) >= 0 || parecida(w, tit))) p += 2;
     });
     // números (ex.: 15, 17) pesam mais pra acertar o modelo do iPhone
     numeros.forEach(n => { if (tit && new RegExp('\\b' + n + '\\b').test(tit)) p += 4; });
