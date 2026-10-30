@@ -1187,7 +1187,8 @@ function contextoConectores(pergunta) {
   }
   if (/(dolar|d[oó]lar|cotacao|cambio|usd)/.test(s)) {
     const d = cotacaoDolar();
-    if (d) { extra += '\n\n### DÓLAR AGORA (AwesomeAPI, ' + d.quando + ')\nComercial: R$ ' + d.compra + ' (compra) / R$ ' + d.venda + ' (venda). Variação do dia: ' + d.variacao + '%. Regra do Thiago: dólar comercial + 10 pontos = R$ ' + d.thiago + '.'; passo('Pegou o dólar ao vivo'); }
+    if (d) { extra += '\n\n### DÓLAR AGORA (' + d.fonte + ', ' + d.quando + ')\nComercial: R$ ' + d.compra + ' (compra) / R$ ' + d.venda + ' (venda). Variação do dia: ' + d.variacao + '%. Regra do Thiago: dólar comercial + 10 pontos = R$ ' + d.thiago + '.'; passo('Pegou o dólar ao vivo (' + d.fonte + ')'); }
+    else passo('Dólar ao vivo indisponível agora (3 fontes falharam)');
   }
   if (/(clima|tempo (hoje|amanha|em)|vai chover|previsao|temperatura|calor|frio)/.test(s)) {
     const c = clima();
@@ -1404,13 +1405,30 @@ function pegarJSON(url, segCache) {
 }
 
 function cotacaoDolar() {
+  const fmt = v => v.toFixed(2).replace('.', ',');
+  // 1) AwesomeAPI (tempo real)
   try {
     const j = pegarJSON('https://economia.awesomeapi.com.br/json/last/USD-BRL', 300);
     const d = j && j.USDBRL;
-    if (!d) return null;
-    const venda = parseFloat(d.ask), compra = parseFloat(d.bid);
-    return { compra: compra.toFixed(2).replace('.', ','), venda: venda.toFixed(2).replace('.', ','), variacao: String(d.pctChange).replace('.', ','), thiago: (venda + 0.10).toFixed(2).replace('.', ','), quando: String(d.create_date || '').slice(11, 16) };
-  } catch (e) { return null; }
+    if (d && d.ask) {
+      const venda = parseFloat(d.ask), compra = parseFloat(d.bid);
+      return { compra: fmt(compra), venda: fmt(venda), variacao: String(d.pctChange).replace('.', ','), thiago: fmt(venda + 0.10), quando: String(d.create_date || '').slice(11, 16), fonte: 'AwesomeAPI' };
+    }
+  } catch (e) { /* tenta a próxima */ }
+  // 2) BrasilAPI (PTAX do dia, Banco Central)
+  try {
+    const hojeStr = Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd');
+    const j = pegarJSON('https://brasilapi.com.br/api/cambio/v1/cotacao/USD/' + hojeStr, 1800);
+    const c = j && j.cotacoes && j.cotacoes.length ? j.cotacoes[j.cotacoes.length - 1] : null;
+    if (c && c.cotacao_venda) return { compra: fmt(c.cotacao_compra), venda: fmt(c.cotacao_venda), variacao: '?', thiago: fmt(c.cotacao_venda + 0.10), quando: String(c.data_hora_cotacao || '').slice(11, 16) + ' (PTAX)', fonte: 'Banco Central' };
+  } catch (e) { /* tenta a próxima */ }
+  // 3) open.er-api.com (taxa do dia, sem chave)
+  try {
+    const j = pegarJSON('https://open.er-api.com/v6/latest/USD', 3600);
+    const v = j && j.rates && j.rates.BRL;
+    if (v) return { compra: fmt(v), venda: fmt(v), variacao: '?', thiago: fmt(v + 0.10), quando: 'taxa do dia', fonte: 'ER-API' };
+  } catch (e) { /* sem fonte */ }
+  return null;
 }
 
 function clima() {
