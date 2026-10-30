@@ -65,3 +65,11 @@ H.ctx.doPost({ parameter: { tg: 'seg' }, postData: { contents: JSON.stringify({ 
 ok(chamadas.some(c => /sendMessage/.test(c.u) && /Gemini: \d+\/480 hoje/.test(JSON.parse(c.o.payload).text)), '/cotas responde o uso');
 chamadas.length = 0; H.ctx.ligarTelegram();
 ok(chamadas.some(c => /setMyCommands/.test(c.u)), 'comandos registrados no bot');
+// GitHub Models: endpoint novo responde "OK" em texto → tenta o antigo (Azure) e usa se vier JSON
+H.PROPS.GITHUB_TOKEN = 'ghp'; H.fetchLog.length = 0;
+H.setFetch((u, o) => { if (/models\.github\.ai/.test(u)) return { getResponseCode: () => 200, getContentText: () => 'OK\r\n' }; if (/models\.inference\.ai\.azure\.com/.test(u)) return resp('do endpoint antigo'); return mock(u, o); });
+r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
+ok(r.cerebro === 'GitHub GPT-4.1' && /do endpoint antigo/.test(r.resposta) && H.fetchLog.some(f => /azure\.com/.test(f.u) && f.body.model === 'gpt-4.1') && H.fetchLog.some(f => /models\.github\.ai/.test(f.u) && f.h['X-GitHub-Api-Version']), 'GitHub "OK" → endpoint antigo responde: ' + r.cerebro);
+H.setFetch((u, o) => { if (/models\.github\.ai/.test(u)) return { getResponseCode: () => 200, getContentText: () => 'OK\r\n' }; if (/azure\.com/.test(u)) return cai(401, '{"error":{"message":"bad token"}}'); return mock(u, o); });
+r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
+ok(r.cerebro === 'Groq GPT-OSS 120B' && r.passos.some(p => /GitHub GPT-4\.1 falhou \(.*endpoint antigo: 401/.test(p)), 'os dois falham → passo explica, Groq responde');

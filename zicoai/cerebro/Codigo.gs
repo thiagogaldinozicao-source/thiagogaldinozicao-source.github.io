@@ -555,16 +555,22 @@ function chamarCompat(c, msgs, maxSaida, extras) {
   if (c.nome === 'Cloudflare Llama 70B') { const acc = prop('CF_ACCOUNT_ID'); if (!acc) throw new Error('Falta CF_ACCOUNT_ID'); url = 'https://api.cloudflare.com/client/v4/accounts/' + acc + '/ai/v1/chat/completions'; }
   const corpo = Object.assign({ model: c.modelo, messages: msgs, temperature: 0.6, max_tokens: maxSaida }, extras || {});
   if (extras && extras.reasoning_effort && !/gpt-oss/.test(c.modelo)) delete corpo.reasoning_effort;
-  const r = UrlFetchApp.fetch(url, {
-    method: 'post', contentType: 'application/json',
-    headers: { Authorization: 'Bearer ' + chave },
-    payload: JSON.stringify(corpo), muteHttpExceptions: true
-  });
+  const cab = { Authorization: 'Bearer ' + chave, Accept: 'application/json' };
+  if (/models\.github\.ai/.test(url)) { cab['X-GitHub-Api-Version'] = '2022-11-28'; }
+  let r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true, followRedirects: true });
   if (c.local && /<html/i.test(r.getContentText().slice(0, 200))) throw new Error(c.nome + ' fora do ar');
-  const cod = r.getResponseCode();
-  const txt = r.getContentText();
+  let cod = r.getResponseCode();
+  let txt = r.getContentText();
+  // GitHub Models: se o endpoint novo não devolver JSON, tenta o endpoint antigo (Azure) com o id sem "openai/"
+  if (/models\.github\.ai/.test(url) && (cod !== 200 || !/^\s*\{/.test(txt))) {
+    const corpo2 = Object.assign({}, corpo, { model: String(c.modelo).replace(/^openai\//, '') });
+    const r2 = UrlFetchApp.fetch('https://models.inference.ai.azure.com/chat/completions', { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + chave, Accept: 'application/json' }, payload: JSON.stringify(corpo2), muteHttpExceptions: true });
+    if (r2.getResponseCode() === 200 && /^\s*\{/.test(r2.getContentText())) { r = r2; cod = 200; txt = r2.getContentText(); }
+    else if (cod === 200) throw new Error(c.nome + ' respondeu fora do formato: ' + txt.slice(0, 80).replace(/\s+/g, ' ') + ' | endpoint antigo: ' + r2.getResponseCode() + ' ' + resumoErro(r2.getContentText()).slice(0, 80));
+  }
   if (cod !== 200) throw new Error(c.nome + ' ' + cod + ': ' + resumoErro(txt));
-  const j = JSON.parse(txt);
+  let j;
+  try { j = JSON.parse(txt); } catch (e) { throw new Error(c.nome + ' respondeu fora do formato: ' + txt.slice(0, 80).replace(/\s+/g, ' ')); }
   const conteudo = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   if (!conteudo) throw new Error(c.nome + ' respondeu vazio');
   return String(conteudo).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
