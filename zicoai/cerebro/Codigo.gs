@@ -2176,73 +2176,139 @@ function rodarTarefas() {
   }
 }
 
-const PROMPT_PLANO = [
-  'Você planeja o trabalho de um agente que vai cumprir um pedido do Thiago (dono da Zicão Store). Ferramentas disponíveis:',
-  '- pesquisar: busca na web (uma pergunta curta por vez)',
-  '- ler_link: lê uma página (URL completa)',
-  '- consultar_base: procura na base de conhecimento da loja (termo)',
-  '- calcular: conta exata (ex.: "2500 em 12x com 2,99%", "US$ 500")',
-  '- escrever: redige o resultado final usando tudo que foi coletado (sempre o ÚLTIMO passo; o detalhe diz o formato: relatório, tabela, mensagem, código completo em 1 HTML...)',
-  'Monte de 2 a 6 passos, objetivos e sem repetição. Responda SÓ JSON: {"passos":[{"acao":"pesquisar|ler_link|consultar_base|calcular|escrever","detalhe":"..."}]}'
+/* ---------- FERRAMENTAS DO AGENTE (ela escolhe uma por vez, vê o resultado e decide a próxima) ---------- */
+
+const ABAS_ESCRITA = ['base', 'perfil', 'memoria', 'precos', 'config', 'exemplos', 'aprendizados', 'vendas', 'prova'];
+
+const FERRAMENTAS = {
+  ler_planilha: { desc: 'Lê um intervalo da planilha da ZicoAI. args: {aba, intervalo (ex. "A1:D20", opcional)}', run: a => {
+    const nome = String(a.aba || '').trim();
+    if (!ABAS[nome]) return 'ERRO: aba desconhecida. Abas: ' + Object.keys(ABAS).join(', ');
+    const sh = aba(nome);
+    const n = sh.getLastRow(); if (n < 1) return '(aba vazia)';
+    const vals = a.intervalo ? sh.getRange(String(a.intervalo)).getDisplayValues() : sh.getRange(1, 1, Math.min(n, 60), ABAS[nome].length).getDisplayValues();
+    return vals.map((l, i) => (i + 1) + ': ' + l.join(' | ')).join('\n').slice(0, 8000) + (vals.length >= 60 ? '\n(…mais linhas; peça outro intervalo)' : '');
+  } },
+  escrever_planilha: { desc: 'Escreve em UMA célula (não apaga; pra neutralizar uma linha, escreva "[IGNORAR] ..." nela). args: {aba, celula (ex. "B5"), valor}', run: (a, ctx) => {
+    const nome = String(a.aba || '').trim();
+    if (ABAS_ESCRITA.indexOf(nome) < 0) return 'ERRO: só posso escrever em ' + ABAS_ESCRITA.join(', ');
+    if (!/^[A-Z]{1,2}\d{1,5}$/i.test(String(a.celula || ''))) return 'ERRO: celula deve ser tipo "B5"';
+    const sh = aba(nome); const r = sh.getRange(String(a.celula)); const antes = r.getDisplayValues()[0][0];
+    r.setValue(seguro(String(a.valor)));
+    aba('historico').appendRow(["'" + agora(), nome, String(a.celula), seguro(antes), seguro(String(a.valor).slice(0, 2000)), 'agente:' + ctx.id]);
+    return 'ok (antes: "' + String(antes).slice(0, 80) + '")';
+  } },
+  acrescentar_planilha: { desc: 'Acrescenta uma linha no fim de uma aba. args: {aba, valores: [..]}', run: (a, ctx) => {
+    const nome = String(a.aba || '').trim();
+    if (ABAS_ESCRITA.indexOf(nome) < 0) return 'ERRO: só posso escrever em ' + ABAS_ESCRITA.join(', ');
+    const vals = (a.valores || []).map(v => seguro(String(v)));
+    if (vals.some(v => temDadoSensivel(v))) return 'ERRO: tem CPF ou telefone; dado de cliente não entra';
+    if (nome === 'base' || nome === 'perfil') { const r = gravarFato(nome, vals[0], vals[1], 'agente:' + ctx.id); return r || 'já existia igual'; }
+    aba(nome).appendRow(vals); aba('historico').appendRow(["'" + agora(), nome, 'nova linha', '', seguro(vals.join(' | ').slice(0, 2000)), 'agente:' + ctx.id]);
+    return 'ok';
+  } },
+  buscar_memoria: { desc: 'Procura na memória, base, aprendizados e conversas antigas. args: {termo}', run: a => {
+    const t = String(a.termo || '');
+    const m = relevantes(linhas('memoria'), t, 8, l => l[1]).map(l => 'memória: ' + l[1]);
+    const b = relevantes(linhas('base'), t, 8, l => l[0] + ' ' + l[1], l => l[0]).map(l => 'base: ' + l[0] + ': ' + l[1]);
+    const ap = relevantes(linhas('aprendizados'), t, 5, l => l[1] + ' ' + l[2]).map(l => 'aprendizado: ' + l[1] + ' → ' + l[2]);
+    const cv = buscarConversas(t, 5);
+    return (m.concat(b, ap).join('\n') + (cv ? '\nconversas:\n' + cv : '')) || '(nada encontrado)';
+  } },
+  pesquisar_web: { desc: 'Pesquisa na internet. args: {pergunta}', run: a => { const r = pesquisar([{ role: 'user', content: String(a.pergunta) }], String(a.pergunta), ''); return r && r.ok ? r.texto : '(pesquisa indisponível agora)'; } },
+  ler_pagina: { desc: 'Lê o texto de uma página. args: {url}', run: a => lerPagina(String(a.url)) || '(não consegui ler)' },
+  calcular: { desc: 'Conta exata (parcelas Price, maquininha, dólar, expressão). args: {conta}', run: a => calculadora(String(a.conta)) || '(não entendi a conta; escreva ex. "2500 em 12x com 2,99%" ou "1250*1,2")' },
+  dolar: { desc: 'Cotação do dólar agora. args: {}', run: () => { const d = cotacaoDolar(); return d ? 'compra ' + d.compra + ', venda ' + d.venda + ', regra do Thiago ' + d.thiago : '(indisponível)'; } },
+  agenda_listar: { desc: 'Compromissos dos próximos dias. args: {dias}', run: a => listarAgenda(Math.min(30, parseInt(a.dias, 10) || 7)).join('\n') || '(nada marcado)' },
+  agenda_criar: { desc: 'Cria evento. args: {titulo, quando "AAAA-MM-DD HH:MM", minutos}', run: a => 'agendado: ' + criarEvento(a.titulo, a.quando, a.minutos).quando },
+  email_rascunho: { desc: 'Cria rascunho no Gmail (nunca envia). args: {para, assunto, corpo}', run: a => { criarRascunho(a.para, a.assunto, a.corpo); return 'rascunho criado'; } },
+  emails_recentes: { desc: 'Lê os e-mails recentes da caixa de entrada. args: {quantos}', run: a => listarEmails(Math.min(20, parseInt(a.quantos, 10) || 10)).join('\n') || '(nenhum)' },
+  listar_apps: { desc: 'Lista os apps publicados no site. args: {}', run: () => listarApps().map(x => x.slug + ' → ' + x.url).join('\n') || '(nenhum)' },
+  ler_app: { desc: 'Código atual de um app publicado. args: {slug}', run: a => codigoDoApp(a.slug) || '(não achei)' },
+  publicar_app: { desc: 'Publica/atualiza um app HTML no site. args: {nome, html}', run: a => { const r = publicarApp(a.nome, a.html); return r.ok ? 'publicado em ' + r.url : 'ERRO: ' + r.erro; } },
+  telegram: { desc: 'Manda mensagem pro Thiago no Telegram. args: {texto}', run: a => tgEnviar(null, String(a.texto)) ? 'enviado' : '(Telegram não configurado)' },
+  gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() }
+};
+
+const PROMPT_AGENTE = [
+  'Você é a ZicoAI trabalhando como AGENTE em segundo plano pro Thiago. Você resolve o pedido usando FERRAMENTAS, uma por vez: escolhe, vê o resultado, decide a próxima. Pense como um técnico: confira antes de afirmar, leia antes de escrever, teste o que der.',
+  'FERRAMENTAS (nome: o que faz e args):',
+  Object.keys(FERRAMENTAS).map(k => '- ' + k + ': ' + FERRAMENTAS[k].desc).join('\n'),
+  'Responda SEMPRE com UM JSON por vez, sem texto fora dele:',
+  '  pra usar ferramenta: {"ferramenta":"nome","args":{...},"porque":"motivo curto"}',
+  '  pra terminar: {"resposta":"texto final completo pro Thiago (markdown; código em bloco ```html completo)"}',
+  'Regras: máximo 12 ferramentas; nunca invente resultado de ferramenta; se uma falhar, tente outro caminho ou explique; não apague nada (pra neutralizar uma linha, escreva "[IGNORAR] ..." nela); dado de cliente (CPF, telefone) não entra na planilha; preço só da aba precos; termine com {"resposta"} assim que tiver o suficiente.'
 ].join('\n');
 
 function agente(id, pedido, chatId, aparelho) {
   const log = [];
   const anota = t => { log.push(t); atualizarTarefa(id, { passos: log.join(' | ') }); };
+  // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo
   const chamar = (msgs, maxSaida, temp) => {
-    for (const nome of ['gemini', 'github', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
-      if (!temCerebro(nome)) continue;
-      const tk = estimarTokens(JSON.stringify(msgs));
-      if (tk + maxSaida > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk + maxSaida)) continue;
-      try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome }; } catch (e) { /* próximo */ }
+    for (let rodada = 0; rodada < 3; rodada++) {
+      let soMinuto = true, tentou = false;
+      for (const nome of ['gemini', 'github', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
+        if (!temCerebro(nome)) continue;
+        const tk = estimarTokens(JSON.stringify(msgs));
+        if (tk + maxSaida > CEREBROS[nome].limite) continue;
+        const motivo = motivoNaoCabe(nome, CEREBROS[nome], tk + maxSaida);
+        if (motivo) { if (!/do minuto|castigo/.test(motivo)) soMinuto = false; tentou = true; continue; }
+        tentou = true;
+        try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome }; }
+        catch (e) { if (/\b429\b|rate limit|quota/i.test(String(e.message))) castigo(nome, e.message); }
+      }
+      if (!tentou || !soMinuto || rodada === 2) break;
+      const espera = 60000 - (Date.now() % 60000) + 800;
+      anota('Esperou ' + Math.ceil(espera / 1000) + 's pelo limite do minuto');
+      Utilities.sleep(espera);
     }
     throw new Error('nenhum cérebro disponível agora');
   };
-
-  anota('Planejando');
-  const plano = lerJSON(chamar([{ role: 'system', content: PROMPT_PLANO }, { role: 'user', content: 'PEDIDO: ' + pedido }], 800, 0.2).texto);
-  let passos = (plano && plano.passos) ? plano.passos.slice(0, 6) : [{ acao: 'escrever', detalhe: 'responder o pedido' }];
-  if (!passos.some(p => p.acao === 'escrever')) passos.push({ acao: 'escrever', detalhe: 'resultado final' });
-  anota('Plano: ' + passos.map(p => p.acao).join(' → '));
-
-  const material = [];
-  for (let i = 0; i < passos.length; i++) {
-    const p = passos[i];
+  const ctx = { id: id, chatId: chatId, aparelho: aparelho };
+  const sistema = montarSistema(pedido, true) + '\n\n' + PROMPT_AGENTE;
+  const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
+  let usadas = 0, erroJson = 0, cerebro = '';
+  const finalizar = texto => {
+    const final = processarTags(texto, aparelho || 'agente').texto;
+    atualizarTarefa(id, { status: 'concluída', resultado: final, passos: log.concat(['Concluída com ' + cerebro + ' (' + usadas + ' ferramenta' + (usadas === 1 ? '' : 's') + ')']).join(' | ') });
+    if (chatId) {
+      PASSOS = ['Agente em segundo plano (' + usadas + ' ferramentas): ' + log.join(' → ')];
+      gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedido.slice(0, 80) + (pedido.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + cerebro, aparelho || 'agente');
+      tocarChat(chatId);
+    }
+    try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, '🧠 Tarefa pronta: ' + pedido.slice(0, 80) + '\n\n' + final.slice(0, 3500)); } catch (e) { /* ok */ }
+    try { ntfy('🧠 Tarefa pronta', pedido.slice(0, 200), 'default'); } catch (e) { /* ok */ }
+  };
+  anota('Começou a trabalhar');
+  for (let i = 0; i < 14; i++) {
     if (tarefaCancelada(id)) { anota('Parou: cancelada'); return; }
-    const det = String(p.detalhe || '').slice(0, 500);
-    try {
-      if (p.acao === 'pesquisar') {
-        anota('Pesquisando: ' + det.slice(0, 60));
-        const r = pesquisar([{ role: 'user', content: det }], det, '');
-        material.push('PESQUISA "' + det + '":\n' + (r && r.ok ? r.texto : '(sem resultado)'));
-      } else if (p.acao === 'ler_link') {
-        anota('Lendo: ' + det.slice(0, 60));
-        const u = (det.match(/https?:\/\/\S+/) || [det])[0];
-        material.push('PÁGINA ' + u + ':\n' + (lerPagina(u) || '(não consegui ler)'));
-      } else if (p.acao === 'consultar_base') {
-        anota('Consultando a base: ' + det.slice(0, 60));
-        const b = relevantes(linhas('base'), det, 8, l => l[0] + ' ' + l[1], l => l[0]);
-        material.push('BASE sobre "' + det + '":\n' + (b.length ? b.map(l => '- ' + l[0] + ': ' + l[1]).join('\n') : '(nada na base)') + (tabelaPrecos(det, false) || ''));
-      } else if (p.acao === 'calcular') {
-        anota('Calculando: ' + det.slice(0, 60));
-        material.push('CÁLCULO "' + det + '":\n' + (calculadora(det) || '(não entendi a conta)'));
-      } else if (p.acao === 'escrever') {
-        anota('Escrevendo o resultado');
-        const sistema = montarSistema(pedido, true) + '\n\nVocê é um agente que trabalhou em segundo plano. Entregue o RESULTADO FINAL do pedido, completo, usando o MATERIAL coletado (cite de onde veio quando for dado externo). Formato pedido: ' + det + '. Se for código, arquivo COMPLETO em bloco html. Não diga "como pedido"; vá direto ao resultado.';
-        const r = chamar([{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO: ' + pedido + '\n\nMATERIAL COLETADO:\n' + (material.join('\n\n') || '(nenhum)').slice(0, 60000) }], 6000, 0.4);
-        const final = processarTags(r.texto, aparelho || 'agente').texto;
-        atualizarTarefa(id, { status: 'concluída', resultado: final, passos: log.concat(['Concluída com ' + r.cerebro]).join(' | ') });
-        if (chatId) {
-          PASSOS = ['Agente em segundo plano: ' + log.join(' → ')];
-          gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedido.slice(0, 80) + (pedido.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + r.cerebro, aparelho || 'agente');
-          tocarChat(chatId);
-        }
-        try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, '🧠 Tarefa pronta: ' + pedido.slice(0, 80) + '\n\n' + final.slice(0, 3500)); } catch (e) { /* ok */ }
-        try { ntfy('🧠 Tarefa pronta', pedido.slice(0, 200), 'default'); } catch (e) { /* ok */ }
-        return;
-      }
-    } catch (e) { anota('Falhou ' + p.acao + ': ' + String(e.message || e).slice(0, 60)); material.push('(' + p.acao + ' falhou)'); }
+    const r = chamar(msgs, 4000, 0.2);
+    cerebro = r.cerebro;
+    const j = lerJSON(r.texto);
+    if (!j) {
+      erroJson++;
+      if (erroJson >= 2) { finalizar(r.texto); return; }
+      msgs.push({ role: 'assistant', content: r.texto }, { role: 'user', content: 'Responda só com o JSON pedido ({"ferramenta":…} ou {"resposta":…}).' });
+      continue;
+    }
+    if (j.resposta !== undefined) { finalizar(String(j.resposta)); return; }
+    const nome = String(j.ferramenta || '');
+    const f = FERRAMENTAS[nome];
+    let obs;
+    if (!f) obs = 'ERRO: ferramenta "' + nome + '" não existe. Use uma da lista.';
+    else if (usadas >= 12) obs = 'LIMITE: 12 ferramentas usadas. Termine com {"resposta"}.';
+    else {
+      usadas++;
+      const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
+      try { obs = String(f.run(j.args || {}, ctx) || '(sem retorno)'); }
+      catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
+      anota('🔧 ' + nome + ' ' + argsTxt + (j.porque ? ' · ' + String(j.porque).slice(0, 50) : '') + ' → ' + obs.replace(/\s+/g, ' ').slice(0, 60));
+    }
+    msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: 'RESULTADO de ' + nome + ':\n' + obs.slice(0, 6000) });
   }
+  msgs.push({ role: 'user', content: 'Acabou o tempo. Termine agora com {"resposta": ...} usando o que já tem.' });
+  try { const r = chamar(msgs, 4000, 0.2); const j = lerJSON(r.texto); finalizar(j && j.resposta !== undefined ? String(j.resposta) : r.texto); }
+  catch (e) { atualizarTarefa(id, { status: 'erro', resultado: '⚠️ ' + e.message }); }
 }
 
 /* ============================================================
