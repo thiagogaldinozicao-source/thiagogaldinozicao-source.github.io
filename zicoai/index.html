@@ -428,6 +428,41 @@ async function publicarApp(html, botao){
   }catch(e){ botao.textContent = o; botao.disabled = false; alert(e.message); }
 }
 
+/* ---------- auto-teste: todo app HTML que ela entrega é aberto escondido; se der erro, aparece o botão Corrigir ---------- */
+const ERRO_SHIM = '<script>window.onerror=function(m,s,l){parent.postMessage({zicoaiErro:String(m)+(l?" (linha "+l+")":"")},"*")};window.addEventListener("unhandledrejection",function(e){parent.postMessage({zicoaiErro:String(e.reason)},"*")});setTimeout(function(){parent.postMessage({zicoaiOk:1},"*")},1200);<\/script>';
+function autoTesta(bloco){
+  if(bloco._testado) return; bloco._testado = true;
+  const html = bloco.querySelector('pre').textContent;
+  const fr = document.createElement('iframe');
+  fr.setAttribute('sandbox', 'allow-scripts'); fr.style.cssText = 'position:fixed;width:360px;height:640px;left:-9999px;top:0;opacity:0;pointer-events:none';
+  const id = 't' + Math.random().toString(36).slice(2);
+  const sel = document.createElement('div'); sel.className = 'auto-teste'; sel.textContent = '⏳ testando...';
+  sel.style.cssText = 'padding:6px 12px;font-size:13px;color:var(--cinza2);border-top:1px solid var(--borda2)';
+  bloco.appendChild(sel);
+  const erros = [];
+  const ouve = e => {
+    if(e.source !== fr.contentWindow) return;
+    if(e.data && e.data.zicoaiErro) erros.push(e.data.zicoaiErro);
+    if(e.data && e.data.zicoaiOk){ fim(); }
+  };
+  const fim = () => {
+    window.removeEventListener('message', ouve); fr.remove();
+    if(!erros.length){ sel.textContent = '✓ abriu sem erro'; sel.style.color = 'var(--verde)'; return; }
+    sel.style.color = 'var(--erro)';
+    sel.innerHTML = '⚠️ deu erro ao abrir: <code></code> <button type="button" class="testar corrigir" style="margin-left:8px">Pedir correção</button>';
+    sel.querySelector('code').textContent = erros[0].slice(0, 160);
+    sel.querySelector('.corrigir').onclick = () => {
+      $('txt').value = 'O app que vc mandou deu esse erro ao abrir: ' + erros.slice(0, 2).join(' | ') + '. Corrige e devolve o arquivo completo.';
+      envia();
+    };
+  };
+  window.addEventListener('message', ouve);
+  const inj = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + ERRO_SHIM + SHIM) : ERRO_SHIM + SHIM + html;
+  fr.srcdoc = inj;
+  document.body.appendChild(fr);
+  setTimeout(() => { if(document.body.contains(fr)) fim(); }, 4000);
+}
+
 /* ---------- testar app (abre o HTML que ela escreveu numa janela, sem salvar arquivo) ---------- */
 let previaHtml = '';
 // dentro da prévia o localStorage é de mentira (só na memória), pra o app testado não mexer nos dados da ZicoAI
@@ -539,6 +574,7 @@ function balao(m, ultima){
   md.innerHTML = renderMd(m.content);
   corpo.appendChild(md);
   trataImagens(corpo);
+  if(ultima && !m.erro) setTimeout(() => md.querySelectorAll('.bloco').forEach(b => { if(b.querySelector('.testar')) autoTesta(b); }), 50);
 
   const ac = document.createElement('div');
   ac.className = 'acoes-msg';

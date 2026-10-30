@@ -46,6 +46,11 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Áudio → texto: ação `transcrever` (base64 + tipo) usa Groq Whisper `whisper-large-v3-turbo` (mesma GROQ_KEY). O app grava com MediaRecorder (funciona no iPhone instalado) e manda; no Telegram, voice/audio é transcrito antes de responder.
 - Telegram (`telegramEntrada`): o bot chama o mesmo `/exec` com `?tg=<TELEGRAM_SEGREDO>` (sem PIN no corpo). Primeira pessoa que manda o PIN vira `TELEGRAM_CHAT_ID`; os outros são ignorados. Uma conversa contínua (`TELEGRAM_CONVERSA`, "/nova" começa outra), fotos viram imagem, áudio vira texto, resposta sai em texto simples (markdown limpo) e imagem gerada vai como foto. `update_id` repetido é ignorado (Telegram reenvia quando demora). `ligarTelegram()` registra o webhook. `bomDia()` também manda pro Telegram. Propriedades: `TELEGRAM_TOKEN`, `TELEGRAM_SEGREDO`, `TELEGRAM_CHAT_ID` (auto), `TELEGRAM_CONVERSA` (auto).
 - Publicar app (`publicarApp`, ação `publicar`): grava o HTML em `apps/<slug>/index.html` deste repositório pela API do GitHub (propriedade `GITHUB_TOKEN`, fine-grained, Contents: write só neste repositório) e devolve `https://thiagogaldinozicao-source.github.io/apps/<slug>/`. No app: botão ⬆ Publicar nos blocos HTML e na prévia.
+- Calculadora exata (`calculadora()`, seção CÁLCULO EXATO): tabela Price ("1000 a 2,99% em 12x"), taxa de maquininha PagBank/PicPay (constante `TAXAS`, do perfil; atualizar lá se mudar), regra de repasse (+20% em 12x), importação em dólar (US$ → +20% frete → × (comercial + 0,10), e a versão com 15%), e contas soltas ("quanto é 1250*1,2", "2500 - 15%"). O modelo recebe o número pronto e só explica.
+- Memória episódica (`buscarConversas()`, seção CONVERSAS ANTIGAS): com gatilho tipo "lembra o que a gente falou sobre…", procura por palavra nas mensagens antigas do Thiago e traz até 6 trechos com data e título da conversa.
+- Trava de PIN: 10 PINs errados em 10 min → bloqueia tudo por 10 min (CacheService `pin_erros`/`pin_bloqueado`).
+- Resposta vazia de um cérebro conta como falha e passa pro próximo.
+- App: todo bloco HTML da última resposta é aberto escondido num iframe sandbox com `window.onerror`; se der erro aparece "⚠️ deu erro ao abrir: … [Pedir correção]", que manda o erro de volta pra ela corrigir. Sem erro: "✓ abriu sem erro".
 - Aprender com todos os cérebros (destilação): 👍 numa resposta grava pergunta+resposta+cérebro na aba `exemplos` (com assunto: código, cliente, cálculo, produto, geral). `exemplosPara()` põe no sistema até 2 exemplos ligados à pergunta (1 no modo enxuto), então o PC e os cérebros pequenos aprendem o nível das respostas boas do Gemini/Groq.
 - Roteador por feedback (`notaCerebros`/`reordenarPorNota`): últimos 40 👍/👎 por cérebro; cérebro com menos de 50% de aprovação (mínimo 3 votos) vai pro fim da fila no modo Auto. Cache 30 min, zerado a cada feedback. Escolha manual no seletor ignora isso.
 - Ensinar com arquivo (ação `aprenderTexto`, botão 📎 no painel Memória): texto de .txt/.md/.csv/.json (até 60k caracteres) → Gemini separa em até 60 fatos "assunto || conteúdo" → `gravarFato('base')` com origem `arquivo:<nome>`; itens com CPF/telefone são barrados.
@@ -92,6 +97,7 @@ node t7.js   # tabela de preços, busca por significado, modo cliente
 node t8.js   # rotinas: bom dia, backup, aviso de cota
 node t9.js   # APIs grátis, Whisper, Telegram, publicar no GitHub
 node t10.js  # exemplos aprovados, roteador por feedback, ensinar com arquivo, arrumar memória
+node t11.js  # calculadora exata, conversas antigas, trava de PIN, resposta vazia
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

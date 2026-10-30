@@ -196,6 +196,8 @@ const PERSONA = [
   '- E-mail que o Thiago pedir pra escrever: [[EMAIL_RASCUNHO: destinatário || assunto || corpo]]. Vira RASCUNHO no Gmail dele, nunca é enviado. Sem destinatário, deixe vazio.',
   '- Venda que o Thiago informar ("vendi um 13 por 2.500"): [[VENDA: valor em número || descrição curta]].',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
+  '- Quando a seção CÁLCULO EXATO aparecer, use exatamente esses números (foram calculados por código, não por vc). Mostre a conta e o resultado deles.',
+  '- Quando a seção CONVERSAS ANTIGAS aparecer, é o que o Thiago falou em outras conversas. Use pra responder "o que a gente combinou/falou sobre X".',
   '- PREÇO de produto só sai da seção TABELA DE PREÇOS. Se o produto não estiver lá (ou a tabela estiver vazia), diga que precisa confirmar o preço. Nunca estime.',
   '- MODO CLIENTE (quando a seção aparecer): a resposta é uma mensagem pro cliente da loja. Use só BASE, PROMESSAS e TABELA DE PREÇOS. Nada da vida pessoal do Thiago, dos projetos, da família ou de custo/lucro. O que estiver NÃO CONFIRMADO vira "deixa eu confirmar e te falo".',
   '- Não use essas linhas à toa. Não salve conversa fiada nem coisa passageira.'
@@ -224,7 +226,14 @@ function doPost(e) {
       return saida({ ok: true });
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    if (!req.pin || String(req.pin) !== String(prop('PIN'))) return saida({ ok: false, erro: 'PIN errado' });
+    const cache = CacheService.getScriptCache();
+    if (cache.get('pin_bloqueado')) return saida({ ok: false, erro: 'Muitas tentativas de PIN. Espera 10 minutos.' });
+    if (!req.pin || String(req.pin) !== String(prop('PIN'))) {
+      const erros = parseInt(cache.get('pin_erros') || '0', 10) + 1;
+      cache.put('pin_erros', String(erros), 600);
+      if (erros >= 10) cache.put('pin_bloqueado', '1', 600);
+      return saida({ ok: false, erro: 'PIN errado' });
+    }
     const aparelho = String(req.aparelho || 'app').slice(0, 40);
 
     switch (req.acao) {
@@ -483,6 +492,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
       const extras = codigo && /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'high' } : null;
       const texto = chamarCompat(c, usar, maxSaida, extras);
       if (!c.local) registrarUso(nome, tokens + estimarTokens(texto));
+      if (!texto.trim()) throw new Error(c.nome + ' respondeu vazio');
       passo((c.local && erros.length ? 'Nuvem indisponível, respondeu com o ' : 'Respondeu com ') + c.nome);
       return { ok: true, texto: texto, cerebro: c.nome };
     } catch (err) {
@@ -1031,6 +1041,11 @@ function criarTitulo(t) {
 function contextoConectores(pergunta) {
   const s = normalizar(pergunta);
   let extra = '';
+  try { const c = calculadora(pergunta); if (c) { extra += '\n\n### CÁLCULO EXATO (feito por código)\n' + c; passo('Fez a conta por código'); } } catch (e) { /* sem conta */ }
+  if (/(a gente (falou|combinou|conversou|decidiu)|o que (eu|vc|voce) (falou|falei|disse|combinou|mandou)|lembra (quando|daquela|da conversa|do que)|naquela conversa|outra conversa|semana passada|ontem (eu|vc|a gente)|conversa sobre|ja te (falei|mandei|pedi))/.test(s)) {
+    const cv = buscarConversas(pergunta, 6);
+    if (cv) { extra += '\n\n### CONVERSAS ANTIGAS (trechos do que o Thiago falou)\n' + cv; passo('Procurou nas conversas antigas'); }
+  }
   if (/(agenda|compromisso|lembrete|me lembra|lembra de|reuniao|marcad|hoje tem|amanha|semana que vem|que horas)/.test(s)) {
     const ev = listarAgenda(7);
     extra += '\n\n### AGENDA (hoje + 7 dias)\n' + (ev.length ? ev.join('\n') : '(nada marcado)');
@@ -1149,6 +1164,102 @@ function resumoVendas() {
   });
   const ultimas = todas.slice(-5).reverse().map(l => String(l[0]).slice(5, 16) + ' R$ ' + moeda(lerValor(l[1])) + (l[2] ? ' ' + l[2] : ''));
   return { hoje: hoje, mes: mes, qtdHoje: qtdHoje, qtdMes: qtdMes, ultimas: ultimas };
+}
+
+/* ============================================================
+ *  CALCULADORA EXATA (IA erra conta; código não)
+ *  Parcelamento Price, taxa de maquininha (perfil do Thiago),
+ *  importação em dólar com a regra dele e contas soltas.
+ * ============================================================ */
+
+const TAXAS = {   // % sobre o total, do perfil do Thiago (atualizar aqui se mudar)
+  pagbank: { 1: 4.99, 6: 8.39, 12: 12.25, 18: 16.53 },
+  picpay:  { 1: 5.34, 6: 9.11, 12: 13.37, 18: 17.93 }
+};
+function num(t) { return parseFloat(String(t).replace(/\./g, '').replace(',', '.')); }
+function brl(v) { return 'R$ ' + moeda(v); }
+function price(valor, jurosPct, n) {
+  const i = jurosPct / 100;
+  if (!i) return valor / n;
+  return valor * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+}
+function taxaMaq(maq, n) {
+  const t = TAXAS[maq]; if (!t) return null;
+  const chaves = Object.keys(t).map(Number).sort((a, b) => a - b);
+  let esc = chaves[0];
+  chaves.forEach(k => { if (n >= k) esc = k; });
+  return t[esc];
+}
+
+function calculadora(pergunta) {
+  const s = normalizar(pergunta).replace(/r\$\s*/g, '');
+  const out = [];
+  const dinheiro = '(\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+(?:,\\d+)?)';
+
+  // 1) Price: "1000 a 2,99% em 12x" / "2500 em 12x com 2,99% ao mês"
+  let m = s.match(new RegExp(dinheiro + '\\s*(?:a|em|com)?\\s*(\\d+(?:,\\d+)?)\\s*%\\s*(?:a\\.?m\\.?|ao mes|por mes)?\\s*(?:em|,)?\\s*(\\d{1,2})\\s*x')) ||
+          s.match(new RegExp(dinheiro + '\\s*em\\s*(\\d{1,2})\\s*x\\s*(?:com|a)\\s*(\\d+(?:,\\d+)?)\\s*%'));
+  if (m) {
+    const valor = num(m[1]);
+    const juros = m[0].indexOf('%') < m[0].indexOf('x') ? num(m[2]) : num(m[3]);
+    const n = m[0].indexOf('%') < m[0].indexOf('x') ? parseInt(m[3], 10) : parseInt(m[2], 10);
+    if (valor > 0 && n > 0 && n <= 60) {
+      const p = price(valor, juros, n);
+      out.push('Tabela Price: ' + brl(valor) + ' a ' + String(juros).replace('.', ',') + '% ao mês em ' + n + 'x = parcela de ' + brl(p) + ', total ' + brl(p * n) + ' (juros ' + brl(p * n - valor) + ').');
+    }
+  }
+  // 2) Maquininha: "12x de 2500 no pagbank" / "2500 em 6x picpay" / "quanto recebo de 3000 em 12x"
+  m = s.match(new RegExp('(\\d{1,2})\\s*x\\s*(?:de\\s*)?' + dinheiro)) || s.match(new RegExp(dinheiro + '\\s*em\\s*(\\d{1,2})\\s*x'));
+  if (m && /pagbank|picpay|maquininha|maquina|cartao|recebo|liquido|taxa/.test(s)) {
+    const n = parseInt(/^\d{1,2}\s*x/.test(m[0]) ? m[1] : m[2], 10);
+    const valor = num(/^\d{1,2}\s*x/.test(m[0]) ? m[2] : m[1]);
+    const maqs = /picpay/.test(s) ? ['picpay'] : /pagbank/.test(s) ? ['pagbank'] : ['pagbank', 'picpay'];
+    maqs.forEach(maq => {
+      const tx = taxaMaq(maq, n);
+      if (tx !== null && valor > 0) out.push(maq[0].toUpperCase() + maq.slice(1) + ' ' + n + 'x de ' + brl(valor) + ': taxa ' + String(tx).replace('.', ',') + '% = ' + brl(valor * tx / 100) + ' de taxa, vc recebe ' + brl(valor * (1 - tx / 100)) + '. Pra receber ' + brl(valor) + ' limpo, cobra ' + brl(valor / (1 - tx / 100)) + '.');
+    });
+    if (/repass|cobro|passar (o )?cartao|cliente (paga|vai pagar)/.test(s) && valor > 0) out.push('Regra do Thiago pra passar cartão pro cliente (20% a mais em 12x): ' + brl(valor * 1.2) + ' = 12x de ' + brl(valor * 1.2 / 12) + '.');
+  }
+  // 3) Importação em dólar: "us$ 500", "500 dolares", "500 usd"
+  m = s.match(/(?:us\$|u\$s|usd)\s*(\d+(?:[.,]\d+)?)/) || s.match(/(\d+(?:[.,]\d+)?)\s*(?:dolares|dolar|usd)/);
+  if (m) {
+    const usd = parseFloat(m[1].replace(',', '.'));
+    const d = cotacaoDolar();
+    if (usd > 0 && d) {
+      const dolarThiago = parseFloat(d.venda.replace(',', '.')) + 0.10;
+      const comFrete = usd * 1.2;
+      out.push('Importação (regra do Thiago): US$ ' + usd.toFixed(2).replace('.', ',') + ' + 20% frete = US$ ' + comFrete.toFixed(2).replace('.', ',') + ' × dólar ' + dolarThiago.toFixed(2).replace('.', ',') + ' (comercial ' + d.venda + ' + 10 pontos) = ' + brl(comFrete * dolarThiago) + '. Com frete de 15%: ' + brl(usd * 1.15 * dolarThiago) + '.');
+    }
+  }
+  // 4) Conta solta: "quanto é 1250*1,2", "2500 - 15%", "3 x 189,90"
+  m = s.match(/(?:quanto (?:e|da|fica)|calcula|some|soma|multiplica)\s*[:=]?\s*([\d.,\s+\-*x×\/()%]+)$/) || (/^[\d.,\s+\-*x×\/()%]+$/.test(s.trim()) ? [s, s] : null);
+  if (m) {
+    let expr = m[1].replace(/x|×/g, '*').replace(/\s+/g, '');
+    const pct = expr.match(/^([\d.,]+)([+\-])([\d.,]+)%$/);
+    if (pct) { const base = num(pct[1]), p = num(pct[3]); const r = pct[2] === '+' ? base * (1 + p / 100) : base * (1 - p / 100); out.push(pct[1] + ' ' + pct[2] + ' ' + pct[3] + '% = ' + moeda(r)); }
+    else if (/^[\d.,+\-*\/()]+$/.test(expr) && /[+\-*\/]/.test(expr)) {
+      try {
+        const js = expr.replace(/\.(?=\d{3}(\D|$))/g, '').replace(/,/g, '.');
+        const r = Function('"use strict"; return (' + js + ')')();
+        if (isFinite(r)) out.push(expr + ' = ' + moeda(r));
+      } catch (e) { /* expressão inválida */ }
+    }
+  }
+  return out.length ? out.join('\n') : '';
+}
+
+/* ============================================================
+ *  MEMÓRIA EPISÓDICA: procura nas conversas antigas
+ * ============================================================ */
+
+function buscarConversas(pergunta, limite) {
+  const todas = linhas('mensagens').filter(l => l[2] === 'thiago' && String(l[3]).length > 15);
+  if (!todas.length) return '';
+  const sel = relevantes(todas, pergunta, limite, l => l[3]);
+  if (!sel.length) return '';
+  const titulos = {};
+  linhas('chats').forEach(c => { titulos[c[0]] = c[1]; });
+  return sel.map(l => '- ' + String(l[1]).slice(0, 16) + ' (' + (titulos[l[0]] || 'conversa') + '): ' + String(l[3]).replace(/\s+/g, ' ').slice(0, 300)).join('\n');
 }
 
 /* ============================================================
