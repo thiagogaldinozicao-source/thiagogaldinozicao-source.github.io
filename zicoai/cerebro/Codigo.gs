@@ -214,6 +214,7 @@ const PERSONA = [
   '- Pedido pra MUDAR VC MESMA (seu código, seu jeito de funcionar, uma ferramenta nova, um bug seu): responda em 1 linha que vai fazer e coloque [[TAREFA: MELHORAR MEU CÓDIGO: o que mudar, exatamente como o Thiago pediu]]. O agente lê o próprio código, edita, testa e publica.',
   '- Pedido GRANDE que exige várias etapas (pesquisar em vários lugares e comparar, relatório, estudo, app com várias telas, levantamento de preços): NÃO tente responder tudo agora. Responda em 1 linha que vai fazer em segundo plano e coloque [[TAREFA: descrição completa do que fazer, com tudo que o Thiago pediu]]. Um agente faz e o resultado aparece nesta conversa.',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
+  '- Quando a seção JÁ EXISTE PARECIDO aparecer (apps publicados ou pedidos antigos parecidos com o pedido atual), diga em 1 linha que já existe, com o link, e pergunte se é pra melhorar o que existe ou fazer um novo. Não faça do zero sem perguntar.',
   '- Quando a seção CÁLCULO EXATO aparecer, use exatamente esses números (foram calculados por código, não por vc). Mostre a conta e o resultado deles.',
   '- Quando a seção CONVERSAS ANTIGAS aparecer, é o que o Thiago falou em outras conversas. Use pra responder "o que a gente combinou/falou sobre X".',
   '- PREÇO de produto só sai da seção TABELA DE PREÇOS. Se o produto não estiver lá (ou a tabela estiver vazia), diga que precisa confirmar o preço. Nunca estime.',
@@ -1132,6 +1133,17 @@ function contextoConectores(pergunta) {
   const s = normalizar(pergunta);
   let extra = '';
   try { const c = calculadora(pergunta); if (c) { extra += '\n\n### CÁLCULO EXATO (feito por código)\n' + c; passo('Fez a conta por código'); } } catch (e) { /* sem conta */ }
+  if (ehProgramacao(pergunta) && /(faz|faca|cria|crie|monta|monte|gera|gere|quero|preciso)\b/.test(s)) {
+    try {
+      const palavras = s.split(/[^a-z0-9]+/).filter(w => w.length >= 4 && PARADAS.indexOf(w) < 0 && ['html', 'arquivo', 'codigo', 'modo', 'escuro', 'mobile', 'celular', 'unico', 'biblioteca', 'bibliotecas', 'pagina', 'completo'].indexOf(w) < 0);
+      const apps = (palavras.length && prop('GITHUB_TOKEN')) ? listarApps().filter(a => palavras.some(w => normalizar(a.slug).replace(/-/g, ' ').split(' ').some(parte => parte === w || (w.length >= 5 && parecida(parte, w))))) : [];
+      const antigos = palavras.length ? relevantes(linhas('mensagens').filter(l => l[2] === 'thiago' && ehProgramacao(l[3]) && normalizar(l[3]) !== s), palavras.join(' '), 3, l => l[3]).filter(l => palavras.filter(w => normalizar(l[3]).indexOf(w) >= 0).length >= Math.min(2, palavras.length)) : [];
+      if (apps.length || antigos.length) {
+        extra += '\n\n### JÁ EXISTE PARECIDO\n' + apps.map(a => '- App publicado: ' + a.slug + ' → ' + a.url).join('\n') + (antigos.length ? (apps.length ? '\n' : '') + antigos.map(l => '- Pedido antigo (' + String(l[1]).slice(0, 10) + '): ' + String(l[3]).replace(/\s+/g, ' ').slice(0, 120)).join('\n') : '');
+        passo('Achou ' + (apps.length + antigos.length) + ' coisa(s) parecida(s) já feita(s)');
+      }
+    } catch (e) { /* sem GitHub ou sem histórico */ }
+  }
   if (/(a gente (falou|combinou|conversou|decidiu)|o que (eu|vc|voce) (falou|falei|disse|combinou|mandou)|lembra (quando|daquela|da conversa|do que)|naquela conversa|outra conversa|semana passada|ontem (eu|vc|a gente)|conversa sobre|ja te (falei|mandei|pedi))/.test(s)) {
     const cv = buscarConversas(pergunta, 6);
     if (cv) { extra += '\n\n### CONVERSAS ANTIGAS (trechos do que o Thiago falou)\n' + cv; passo('Procurou nas conversas antigas'); }

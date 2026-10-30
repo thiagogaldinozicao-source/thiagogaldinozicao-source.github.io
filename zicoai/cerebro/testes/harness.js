@@ -39,6 +39,7 @@ const ctx = {
     o = o || {};
     // embeddings: só contam se o teste devolver embeddings de verdade; senão 500 e o código segue por palavra
     if (/batchEmbedContents/.test(u)) { try { const r = fetchImpl(u, o); const j = JSON.parse(r.getContentText()); if (r.getResponseCode() === 200 && j.embeddings) return r; } catch (e) {} return { getResponseCode: () => 500, getContentText: () => 'sem embedding no teste' }; }
+    if (/api\.github\.com\/repos\/[^/]+\/[^/]+\/contents\/apps$/.test(u)) return fetchImpl(u, o);   // listagem de apps (leitura) não entra no log dos testes
     fetchLog.push({ u, body: typeof o.payload === 'string' ? JSON.parse(o.payload) : (o.payload || null), h: o.headers }); return fetchImpl(u, o); } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => PROPS[k], setProperty: (k, v) => { PROPS[k] = v; } }) },
   CacheService: { getScriptCache: () => ({ get: k => CACHE[k] || null, put: (k, v) => { CACHE[k] = v; }, remove: k => { delete CACHE[k]; } }) },
