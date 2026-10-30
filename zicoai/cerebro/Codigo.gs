@@ -666,7 +666,7 @@ function linhas(nome) {
   const a = aba(nome);
   const n = a.getLastRow();
   if (n < 2) return [];
-  return a.getRange(2, 1, n - 1, ABAS[nome].length).getDisplayValues().filter(l => l.join('').trim());
+  return a.getRange(2, 1, n - 1, ABAS[nome].length).getDisplayValues().filter(l => l.join('').trim() && !l.some(c => /^\[IGNORAR\]/i.test(String(c))));
 }
 
 /** A pergunta é pra responder um cliente da loja? */
@@ -960,11 +960,18 @@ function gravarFato(nomeAba, assunto, conteudo, origem) {
   const a = aba(nomeAba);
   const n = a.getLastRow();
   const alvo = normalizar(assunto);
+  const GENERICOS = ['outros', 'geral', 'loja', 'apps', 'familia', 'como responder', 'calculo', 'regra de programacao', 'resposta pronta', 'ficha tecnica'];
+  const generico = nomeAba === 'perfil' || GENERICOS.some(g => alvo === g || alvo.indexOf(g) === 0);
   let linha = 0, antes = '';
   if (n >= 2) {
     const vals = a.getRange(2, 1, n - 1, 2).getDisplayValues();
-    for (let i = 0; i < vals.length; i++) {
-      if (normalizar(vals[i][0]) === alvo) { linha = i + 2; antes = vals[i][1]; break; }
+    const iguais = [];
+    for (let i = 0; i < vals.length; i++) if (normalizar(vals[i][0]) === alvo) iguais.push(i);
+    // perfil e assuntos genéricos têm várias linhas com o mesmo tópico: nunca substituir, só acrescentar
+    if (iguais.length === 1 && !generico) { linha = iguais[0] + 2; antes = vals[iguais[0]][1]; }
+    else if (iguais.length && (generico || iguais.length > 1)) {
+      // já existe linha com esse conteúdo? então não repete
+      if (iguais.some(i => jaSabe(conteudo, [vals[i][1]]))) return null;
     }
   }
   if (linha && normalizar(antes) === normalizar(conteudo)) return null; // nada mudou
@@ -1705,7 +1712,8 @@ function resumoErro(txt) {
 
 const PROMPT_APRENDER = [
   'Você é o sistema de memória da ZicoAI, assistente do Thiago (dono da Zicão Store).',
-  'Leia as conversas abaixo e extraia SÓ o que vale lembrar pra sempre, dito pelo THIAGO (nunca o que a ZicoAI disse sozinha):',
+  'Leia as conversas abaixo e extraia SÓ o que vale lembrar pra sempre, dito pelo THIAGO. As linhas ZICOAI estão cortadas e servem só pra entender o contexto: NADA que apareça só em linha ZICOAI pode virar fato (ela inventa). Formulário preenchido pela ZICOAI não é resposta do Thiago.',
+  'NÃO grave regras sobre o funcionamento da própria ZicoAI (o que ela consegue ou não, segundo plano, compactação, acesso a sistemas): isso é código, o Thiago muda pelo feedback.',
   '- fatos duradouros sobre ele, a família, a loja, preços fixos, regras, fornecedores, projetos, gostos',
   '- jeitos que ele quer que ela responda (formato, tom, o que evitar)',
   '- correções: quando ele disse que algo estava errado, guarde o erro e o jeito certo',
@@ -1730,10 +1738,11 @@ function aprenderSozinha() {
     if (!novas.length) return;
     if (!novas.some(l => l[2] === 'thiago')) { props.setProperty('APRENDIDO_ATE', novas[novas.length - 1][1]); return; }
 
-    let conversa = '';
+    let conversa = '', falaThiago = '';
     novas.forEach(l => {
       const quem = l[2] === 'thiago' ? 'THIAGO' : 'ZICOAI';
-      conversa += quem + ': ' + String(l[3]).slice(0, quem === 'THIAGO' ? 2500 : 1200) + '\n';
+      if (quem === 'THIAGO') falaThiago += ' ' + String(l[3]).slice(0, 2500);
+      conversa += quem + ': ' + String(l[3]).slice(0, quem === 'THIAGO' ? 2500 : 400) + '\n';
     });
     const memAtual = linhas('memoria').map(l => '- ' + l[1]).join('\n').slice(-12000);
     const aprAtual = linhas('aprendizados').map(l => '- ' + l[1] + ' → ' + l[2]).join('\n').slice(-6000);
@@ -1753,7 +1762,7 @@ function aprenderSozinha() {
 
     const j = lerJSON(txt);
     if (!j) { props.setProperty('APRENDIDO_ATE', novas[novas.length - 1][1]); return; }
-    const resumo = guardarAprendido(j, 'auto');
+    const resumo = guardarAprendido(j, 'auto', falaThiago);
     props.setProperty('APRENDIDO_ATE', novas[novas.length - 1][1]);
     if (resumo) Logger.log('Aprendeu sozinha: ' + resumo);
   } finally {
@@ -1767,14 +1776,29 @@ function lerJSON(txt) {
   try { return JSON.parse(m[0]); } catch (e) { return null; }
 }
 
+/** O fato tem apoio no que o Thiago escreveu? (metade das palavras importantes precisa aparecer na fala dele) */
+function apoiado(texto, falaThiago) {
+  if (!falaThiago) return true;
+  const pal = normalizar(texto).split(/[^a-z0-9]+/).filter(p => p.length >= 4 && PARADAS.indexOf(p) < 0);
+  if (!pal.length) return false;
+  const nums = normalizar(texto).match(/\d+/g) || [];
+  const base = ' ' + normalizar(falaThiago) + ' ';
+  const temNum = nums.every(n => base.indexOf(n) >= 0);
+  const comum = pal.filter(p => base.indexOf(p) >= 0).length;
+  return temNum && comum / pal.length >= 0.5;
+}
+
 /** Grava o que foi aprendido sem duplicar o que já existe. */
-function guardarAprendido(j, origem) {
+function guardarAprendido(j, origem, falaThiago) {
   const feito = [];
+  const ok = t => { if (origem !== 'auto') return true; if (apoiado(t, falaThiago)) return true; feito.push('ignorou (não foi o Thiago que disse): ' + String(t).slice(0, 50)); return false; };
   (j.esquecer || []).forEach(t => { const n = esquecer(String(t), false); if (n) feito.push('esqueceu ' + n); });
   const existentes = linhas('memoria').map(l => l[1]);
   (j.memorias || []).forEach(m => {
     m = String(m || '').trim();
     if (m.length < 6 || temDadoSensivel(m) || jaSabe(m, existentes)) return;
+    if (/n[ãa]o confirmad|deixa eu confirmar|segundo plano|compacta|n[ãa]o possui permiss|n[ãa]o consegue|n[ãa]o tem acesso/i.test(m)) return;   // ruído sobre o próprio sistema
+    if (!ok(m)) return;
     aba('memoria').appendRow(["'" + hoje(), seguro(m.slice(0, 500)), origem]);
     existentes.push(m);
     feito.push('memória: ' + m.slice(0, 60));
@@ -1784,17 +1808,23 @@ function guardarAprendido(j, origem) {
     if (!a || !a.erro || !a.certo) return;
     const junto = a.erro + ' ' + a.certo;
     if (jaSabe(junto, aprEx)) return;
+    if (/segundo plano|compacta|script|c[óo]digo da zicoai|acesso a dados externos|n[ãa]o tem acesso|n[ãa]o consegue acessar/i.test(junto)) return;   // regra sobre o sistema: só o Thiago muda isso, pelo feedback
+    if (!ok(a.certo)) return;
     aba('aprendizados').appendRow(["'" + hoje(), seguro(String(a.erro).slice(0, 400)), seguro(String(a.certo).slice(0, 400)), seguro(String(a.assunto || origem).slice(0, 40))]);
     aprEx.push(junto);
     feito.push('aprendizado: ' + String(a.certo).slice(0, 60));
   });
   (j.base || []).forEach(b => {
     if (!b || !b.assunto || !b.conteudo) return;
+    if (!ok(b.assunto + ' ' + b.conteudo)) return;
+    if (/agenda|compromisso|lembrete/i.test(b.assunto)) return;   // agenda é da Agenda, não da base
     const r = gravarFato('base', b.assunto, b.conteudo, origem);
     if (r) feito.push(r + ': ' + String(b.assunto).slice(0, 50));
   });
   (j.perfil || []).forEach(pf => {
     if (!pf || !pf.topico || !pf.informacao) return;
+    if (!ok(pf.informacao)) return;
+    if (/utiliza o sistema|tem interesse|perguntou|pediu/i.test(pf.informacao)) return;   // uso momentâneo não é perfil
     const r = gravarFato('perfil', pf.topico, pf.informacao, origem);
     if (r) feito.push(r + ': ' + String(pf.topico).slice(0, 50));
   });
@@ -1865,10 +1895,29 @@ function aprenderTexto(texto, nome, aparelho) {
  *  mantendo a mais nova. Tudo registrado no histórico.
  * ============================================================ */
 
+function apagarIgnoradas() {
+  let total = 0;
+  ['memoria', 'aprendizados', 'base', 'perfil'].forEach(nome => {
+    const a = aba(nome);
+    const n = a.getLastRow();
+    if (n < 2) return;
+    const vals = a.getRange(2, 1, n - 1, ABAS[nome].length).getDisplayValues();
+    for (let i = vals.length - 1; i >= 0; i--) {
+      if (vals[i].some(c => /^\[IGNORAR\]/i.test(String(c)))) {
+        aba('historico').appendRow(["'" + agora(), nome, 'ignorada', seguro(vals[i].join(' | ').slice(0, 1500)), '(removida na arrumação)', 'arrumacao']);
+        a.deleteRow(i + 2); total++;
+      }
+    }
+  });
+  return total;
+}
+
 function arrumarMemoria() {
+  const ign = apagarIgnoradas();
+  if (ign) Logger.log('Removeu ' + ign + ' linha(s) marcadas [IGNORAR]');
   const a = aba('memoria');
   const n = a.getLastRow();
-  if (n < 3) return 0;
+  if (n < 3) return ign;
   const vals = a.getRange(2, 1, n - 1, 3).getDisplayValues();
   const apagar = [];
   for (let i = 0; i < vals.length; i++) {
