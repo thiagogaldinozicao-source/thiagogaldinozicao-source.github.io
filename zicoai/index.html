@@ -746,6 +746,17 @@ $('mFechar').onclick = () => $('mMem').classList.remove('aberto');
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) m.classList.remove('aberto'); }));
 
 /* ---------- início ---------- */
+// link de instalação: ...zicoai/#script=URL_DO_SCRIPT (preenche o link sozinho, só falta o PIN)
+(function(){
+  const m = location.hash.match(/script=([^&]+)/);
+  if(!m) return;
+  try{
+    const u = decodeURIComponent(m[1]);
+    if(/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u)){ cfg.url = u; LS.set('cfg', cfg); }
+  }catch(e){}
+  history.replaceState(null, '', location.pathname);
+  if(!cfg.pin) setTimeout(() => { $('bCfg').onclick(); $('cPin').focus(); }, 350);
+})();
 status();
 mostraModelo();
 desenhaLista();
