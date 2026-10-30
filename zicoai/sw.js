@@ -1,6 +1,6 @@
 // ZicoAI - guarda a "casca" do app pra abrir rápido. Conversa sempre vai pela internet.
-const CACHE = 'zicoai-v1';
-const ARQUIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-180.png'];
+const CACHE = 'zicoai-v2';
+const ARQUIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-180.png', './ava.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));

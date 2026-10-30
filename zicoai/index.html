@@ -75,7 +75,7 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .msg-eu img{display:block;max-width:230px;width:100%;border-radius:12px;margin-bottom:8px}
 
 .msg-ia{display:flex;gap:10px;align-items:flex-start}
-.ava{width:30px;height:30px;border-radius:9px;background:var(--ouro-fundo);border:1px solid var(--ouro);color:var(--ouro);font-family:'Bebas Neue';font-size:18px;display:grid;place-items:center;flex-shrink:0;margin-top:2px}
+.ava{width:30px;height:30px;border-radius:9px;background:#0a0a0a url(ava.png) center/cover;border:1px solid #3a2f0d;flex-shrink:0;margin-top:2px}
 .corpo{flex:1;min-width:0;line-height:1.6;overflow-wrap:anywhere}
 .corpo.erro .md{color:var(--erro)}
 
@@ -457,7 +457,7 @@ function balao(m, ultima){
   }
   const d = document.createElement('div');
   d.className = 'msg-ia';
-  d.innerHTML = '<div class="ava">Z</div><div class="corpo' + (m.erro ? ' erro' : '') + '"></div>';
+  d.innerHTML = '<div class="ava"></div><div class="corpo' + (m.erro ? ' erro' : '') + '"></div>';
   const corpo = d.querySelector('.corpo');
   if(m.passos && m.passos.length){
     const det = document.createElement('details');
@@ -494,7 +494,7 @@ function rola(){ const c = $('chat'); requestAnimationFrame(() => c.scrollTop = 
 function mostraTrabalhando(etapas){
   const d = document.createElement('div');
   d.className = 'msg-ia trab';
-  d.innerHTML = '<div class="ava">Z</div><div class="corpo"><ol>' + etapas.map(e => '<li>' + esc(e) + '</li>').join('') + '</ol></div>';
+  d.innerHTML = '<div class="ava"></div><div class="corpo"><ol>' + etapas.map(e => '<li>' + esc(e) + '</li>').join('') + '</ol></div>';
   $('trilho').appendChild(d); rola();
   const itens = d.querySelectorAll('li');
   let i = 0;
