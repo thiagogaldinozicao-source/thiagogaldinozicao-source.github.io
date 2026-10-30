@@ -538,7 +538,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
       erros.push(msg);
       if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
       else if (/\b429\b|rate limit|quota|RESOURCE_EXHAUSTED/i.test(msg)) { const seg = castigo(nome, msg); passo(c.nome + ' deu limite, fica ' + seg + 's de castigo, trocou de cérebro'); }
-      else passo(c.nome + ' falhou, trocou de cérebro');
+      else passo(c.nome + ' falhou (' + msg.replace(/^[^:]*:\s*/, '').slice(0, 70) + '), trocou de cérebro');
     }
   }
   }
@@ -1110,7 +1110,7 @@ function contextoConectores(pergunta) {
     extra += '\n\n### E-MAILS RECENTES (3 dias, caixa de entrada)\n' + (em.length ? em.join('\n') : '(nenhum)');
     passo('Leu a caixa de entrada (' + em.length + ' e-mails)');
   }
-  if (/(arquivo|planilha|documento|\bpdf\b|no drive|nota fiscal|comprovante|foto da|pasta)/.test(s)) {
+  if (/(no drive|meu drive|do drive|planilha|documento|\bpdf\b|nota fiscal|comprovante|(acha|procura|busca|manda|abre|mostra|cade|cad[êe]) (o |a |um |uma )?(arquivo|foto|pasta))/.test(s) && !ehProgramacao(pergunta)) {
     const ar = procurarArquivos(pergunta, 10);
     extra += '\n\n### ARQUIVOS NO DRIVE (ligados à pergunta)\n' + (ar.length ? ar.join('\n') : '(nenhum encontrado)');
     passo('Procurou no Drive (' + ar.length + ' arquivos)');
@@ -1931,8 +1931,8 @@ function arrumarMemoria() {
     aba('historico').appendRow(["'" + agora(), 'memoria', 'repetida', seguro(vals[i][1]), '(removida: existe versão mais nova)', 'arrumacao']);
     a.deleteRow(i + 2);
   });
-  Logger.log('Arrumou a memória: ' + apagar.length + ' repetida(s) removida(s)');
-  return apagar.length;
+  Logger.log('Arrumou a memória: ' + apagar.length + ' repetida(s) removida(s), ' + ign + ' ignorada(s)');
+  return ign + apagar.length;
 }
 
 /* ============================================================

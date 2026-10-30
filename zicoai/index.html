@@ -500,7 +500,8 @@ function autoTesta(bloco){
   const erros = [];
   const ouve = e => {
     if(e.source !== fr.contentWindow) return;
-    if(e.data && e.data.zicoaiErro) erros.push(e.data.zicoaiErro);
+    // "Script error." é erro genérico de script externo (ex.: CDN do Tailwind no sandbox), não é bug do app
+    if(e.data && e.data.zicoaiErro && !/^Script error\.?/.test(e.data.zicoaiErro)) erros.push(e.data.zicoaiErro);
     if(e.data && e.data.zicoaiOk){ fim(); }
   };
   const fim = () => {
