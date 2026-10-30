@@ -155,6 +155,19 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .hist-item small{color:var(--cinza2);display:block;font-size:12px}
 .hist-item .antes{color:var(--erro);text-decoration:line-through;opacity:.8}
 .hist-item .depois{color:var(--verde)}
+/* meus apps */
+.app-item{border:1px solid var(--borda2);border-radius:14px;padding:12px;margin:8px 0;background:var(--card2)}
+.app-item .nome{font-weight:600;font-size:15px;margin-bottom:6px}
+.app-item .acts{display:flex;gap:6px;flex-wrap:wrap}
+.app-item .acts a,.app-item .acts button{font-size:13px;padding:7px 11px;border-radius:9px;border:1px solid var(--borda2);color:var(--txt);text-decoration:none;background:var(--card)}
+.app-item .acts .ouro{border-color:var(--ouro);color:var(--ouro)}
+.app-item .vers{display:none;margin-top:8px;font-size:13px;color:var(--cinza)}
+.app-item .vers.aberto{display:block}
+.app-item .vers div{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--borda)}
+.app-item .vers button{font-size:12px;padding:4px 8px}
+#editando{display:none;align-items:center;gap:8px;padding:6px 10px;margin:0 4px 6px;border:1px dashed var(--ouro);border-radius:12px;font-size:13px;color:var(--ouro2)}
+#editando.on{display:flex}
+#editando button{margin-left:auto;color:var(--erro);font-size:13px}
 /* tarefas em segundo plano */
 #linhaTarefas{display:none;max-width:820px;margin:6px auto 0;align-items:center;gap:8px;font-size:13px;color:var(--ouro2);cursor:pointer;padding:0 4px}
 #linhaTarefas.on{display:flex}
@@ -251,6 +264,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
   <div id="lista"><div class="lado-vazio">Carregando...</div></div>
   <div class="lado-pe">
     <button id="bMem">🧠 Memória</button>
+    <button id="bApps">🧩 Meus apps</button>
     <button id="bTarefas2">⧉ Tarefas em segundo plano <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
     <button id="bCfg">⚙️ Configurar <span class="status" id="status" style="margin-left:auto"><i></i><span>—</span></span></button>
   </div>
@@ -269,6 +283,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 
   <footer>
     <div class="caixa">
+      <div id="editando">🧩 Editando o app <b id="editandoNome"></b> (ela devolve o arquivo inteiro alterado)<button id="pararEdicao">✕ sair</button></div>
       <div id="previa"><img id="previaImg" alt=""><button id="tiraFoto">✕ remover foto</button></div>
       <textarea id="txt" rows="1" placeholder="Pergunta qualquer coisa pra ZicoAI"></textarea>
       <div class="caixa-pe">
@@ -309,6 +324,15 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
       <button class="btn cinza" id="cTestar">Testar</button>
       <button class="btn ouro" id="cSalvar">Salvar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="mApps">
+  <div class="painel">
+    <h3>Meus apps</h3>
+    <p class="aviso">Tudo que vc publicou pelo botão ⬆ Publicar. Edita conversando: ela recebe o código atual e devolve o arquivo inteiro.</p>
+    <div id="aLista"><p class="aviso">Carregando...</p></div>
+    <div class="linha-btn"><button class="btn cinza" id="aFechar">Fechar</button></div>
   </div>
 </div>
 
@@ -448,7 +472,7 @@ document.addEventListener('click', e => {
 /* ---------- publicar app no GitHub Pages (vira link na hora) ---------- */
 async function publicarApp(html, botao){
   const m = html.match(/<title>([^<]{1,60})<\/title>/i);
-  const nome = prompt('Nome do app (vira o endereço):', m ? m[1].trim() : 'meu-app');
+  const nome = appAtual || prompt('Nome do app (vira o endereço):', m ? m[1].trim() : 'meu-app');
   if(!nome) return;
   const o = botao.textContent; botao.textContent = 'Publicando...'; botao.disabled = true;
   try{
@@ -573,11 +597,11 @@ function desenha(){
   const c = chats.find(x => x.id === atual);
   $('tituloTopo').textContent = c ? c.titulo : 'ZicoAI';
   if(!mensagens.length){
-    t.innerHTML = '<div class="boas"><h2>E aí, Thiago</h2><p>Pergunta, programa, manda foto, pede pesquisa ou imagem. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
-      [['Programar','Faz um app de lista de compras em 1 arquivo HTML, modo escuro'],
-       ['Cálculo','12x de 2.500 no PagBank, quanto fica?'],
-       ['Cliente','Resposta pra cliente pedindo desconto à vista'],
-       ['Pesquisa','Pesquisa a cotação do dólar hoje']]
+    t.innerHTML = '<div class="boas"><h2>E aí, Thiago</h2><p>Bora criar? App, jogo, imagem, ideia nova. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
+      [['Criar app','Faz um jogo da cobrinha em 1 arquivo HTML, modo escuro, pra celular'],
+       ['Imagem','Gera um sprite de personagem estilo pixel art, fundo transparente'],
+       ['Agente','Pesquisa as 5 melhores ideias de app simples pra loja e monta um plano'],
+       ['Loja','Resposta pra cliente pedindo desconto à vista']]
       .map(s => '<button class="sug"><b>' + s[0] + '</b>' + s[1] + '</button>').join('') + '</div></div>';
     t.querySelectorAll('.sug').forEach(b => b.onclick = () => { $('txt').value = b.childNodes[1].textContent; envia(); });
     return;
@@ -782,7 +806,7 @@ async function envia(refazendo){
     const hist = mensagens.filter(m => !m.erro).slice(-12).map(m => ({ role: m.role, content: m.content }));
     const j = await api({
       acao:'chat', chatId: atual || undefined, mensagens: hist,
-      imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, refazer: !!refazendo
+      imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
     if(novo && j.chatId){
@@ -807,6 +831,58 @@ async function envia(refazendo){
   guarda(); desenha(); desenhaLista();
   setTimeout(atualizaTarefas, 1500);
 }
+
+/* ---------- meus apps (estilo artefatos: abrir, editar conversando, versões) ---------- */
+let appAtual = LS.get('appAtual', null);
+function mostraEdicao(){
+  $('editando').classList.toggle('on', !!appAtual);
+  if(appAtual) $('editandoNome').textContent = appAtual;
+}
+$('pararEdicao').onclick = () => { appAtual = null; LS.set('appAtual', null); mostraEdicao(); };
+function editarApp(slug){
+  appAtual = slug; LS.set('appAtual', slug); mostraEdicao();
+  $('mApps').classList.remove('aberto');
+  if(!$('txt').value) $('txt').value = 'No app ' + slug + ', ';
+  $('txt').focus(); ajusta();
+}
+async function abreApps(){
+  fechaLado(); $('mApps').classList.add('aberto');
+  const l = $('aLista'); l.innerHTML = '<p class="aviso">Carregando...</p>';
+  try{
+    const j = await api({ acao:'apps' });
+    l.innerHTML = '';
+    if(!j.apps.length){ l.innerHTML = '<p class="aviso">Nenhum app publicado ainda. Pede um app pra ela e clica em ⬆ Publicar no código.</p>'; return; }
+    j.apps.forEach(a => {
+      const d = document.createElement('div'); d.className = 'app-item';
+      d.innerHTML = '<div class="nome"></div><div class="acts"><a target="_blank" rel="noopener">↗ Abrir</a><button class="ouro ed">✎ Editar com a ZicoAI</button><button class="ver">▶ Testar</button><button class="vs">⏱ Versões</button></div><div class="vers"></div>';
+      d.querySelector('.nome').textContent = a.slug;
+      d.querySelector('a').href = a.url;
+      d.querySelector('.ed').onclick = () => editarApp(a.slug);
+      d.querySelector('.ver').onclick = async () => { try{ const c = await api({ acao:'appCodigo', slug: a.slug }); testarApp(c.html); }catch(e){ alert(e.message); } };
+      d.querySelector('.vs').onclick = async () => {
+        const v = d.querySelector('.vers'); v.classList.toggle('aberto');
+        if(!v.innerHTML){
+          v.textContent = 'Carregando...';
+          try{
+            const r = await api({ acao:'appVersoes', slug: a.slug });
+            v.innerHTML = '';
+            r.versoes.forEach((x, i) => {
+              const row = document.createElement('div');
+              row.innerHTML = '<span>' + esc(x.quando) + (i === 0 ? ' (atual)' : '') + '</span>' + (i > 0 ? '<button>↩ voltar pra esta</button>' : '');
+              const b = row.querySelector('button'); if(b) b.onclick = async () => { if(!confirm('Voltar o app ' + a.slug + ' pra versão de ' + x.quando + '?')) return; b.disabled = true; try{ const rr = await api({ acao:'appRestaurar', slug: a.slug, sha: x.sha }); b.textContent = '✓ restaurada'; alert('Pronto. ' + (rr.aviso || '')); }catch(e){ alert(e.message); b.disabled = false; } };
+              v.appendChild(row);
+            });
+            if(!r.versoes.length) v.textContent = 'Sem histórico ainda.';
+          }catch(e){ v.textContent = e.message; }
+        }
+      };
+      l.appendChild(d);
+    });
+  }catch(e){ l.innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
+}
+$('bApps').onclick = abreApps;
+$('aFechar').onclick = () => $('mApps').classList.remove('aberto');
+mostraEdicao();
 
 /* ---------- tarefas em segundo plano (agentes) ---------- */
 let tarefas = [], tmrTarefas = null, vistas = LS.get('tarefas_vistas', {});

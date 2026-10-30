@@ -163,7 +163,9 @@ const ABAS = {
 ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte'];
 
 const PERSONA = [
-  'Você é a ZicoAI, assistente pessoal do Thiago (dono da Zicão Store em Itaú de Minas/MG) pra TUDO: loja, programação, imagens, contas, família, projetos e conhecimento geral. A loja é só um dos assuntos.',
+  'Você é a ZicoAI, parceira de criação e assistente pessoal do Thiago. O que ele mais faz com vc: criar apps e jogos (HTML em 1 arquivo, PWA, Supabase), criar a própria IA, gerar imagens (logos, sprites, fundos, posts), e organizar a vida. Ele também é dono da Zicão Store (iPhones, Itaú de Minas/MG): a loja é UM dos assuntos, não o centro. Só fale de loja quando ele falar.',
+  'Em programação vc é a dupla dele: ele tem a ideia, vc escolhe o melhor caminho técnico e entrega pronto. Quando ele pedir ajuste num app, devolva o ARQUIVO COMPLETO alterado, nunca um trecho.',
+  'Em imagem pra jogo ou app (sprite, personagem, fundo, ícone, tile), escreva o prompt em inglês com estilo, ângulo, fundo (transparente ou cor chapada), resolução e "no text".',
   'Agora é {DATA} (horário de Brasília). Hoje é {HOJE_DIA}, amanhã é {AMANHA}. Use essas datas, não calcule de cabeça.',
   '',
   '### REGRAS',
@@ -258,6 +260,10 @@ function doPost(e) {
       case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
       case 'aprenderTexto': return saida(aprenderTexto(req.texto, req.nome, aparelho));
       case 'tarefa':        return saida(criarTarefa(String(req.pedido || ''), req.chatId, aparelho));
+      case 'apps':          return saida({ ok: true, apps: listarApps() });
+      case 'appCodigo':     { const c = codigoDoApp(String(req.slug || '')); return saida(c ? { ok: true, html: c } : { ok: false, erro: 'App não encontrado' }); }
+      case 'appVersoes':    return saida({ ok: true, versoes: versoesDoApp(String(req.slug || '')) });
+      case 'appRestaurar':  return saida(restaurarApp(String(req.slug || ''), String(req.sha || '')));
       case 'tarefas':       return saida({ ok: true, tarefas: listarTarefas() });
       case 'cancelarTarefa': return saida({ ok: true, cancelada: cancelarTarefa(req.id) });
       case 'publicar':      return saida(publicarApp(req.nome, req.html));
@@ -340,6 +346,10 @@ function chat(req, aparelho) {
     : '';
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
+  if (req.appSlug) {
+    const codigo = codigoDoApp(String(req.appSlug));
+    if (codigo) { extraSistema += '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app; devolva o arquivo COMPLETO alterado num bloco ```html, mantendo tudo que não foi pedido pra mudar)\n```html\n' + codigo.slice(0, 60000) + '\n```'; passo('Abriu o código do app ' + req.appSlug); }
+  }
   try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
   // já tem dado ao vivo (dólar, clima, notícias)? então não precisa pesquisar na web
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
@@ -718,6 +728,7 @@ function assuntoDe(t) {
   if (ehModoCliente(t) || /cliente|whatsapp/.test(s)) return 'cliente';
   if (/(quanto|calcul|conta|parcel|lucro|custo|%)/.test(s)) return 'cálculo';
   if (/(compara|diferenca|melhor|ficha|iphone|xiaomi|tv ?box)/.test(s)) return 'produto';
+  if (/(imagem|logo|sprite|desenh|arte|icone)/.test(s)) return 'imagem';
   return 'geral';
 }
 
@@ -1580,9 +1591,47 @@ function publicarApp(nome, html) {
   const r = UrlFetchApp.fetch(base, { method: 'put', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true });
   if (r.getResponseCode() !== 200 && r.getResponseCode() !== 201) return { ok: false, erro: 'GitHub ' + r.getResponseCode() + ': ' + resumoErro(r.getContentText()) };
   const url = 'https://' + GITHUB_REPO.split('/')[0] + '.github.io/apps/' + slug + '/';
+  CacheService.getScriptCache().remove('apps_lista');
   passo((sha ? 'Atualizou' : 'Publicou') + ' o app no GitHub Pages');
   try { aba('memoria').appendRow(["'" + hoje(), seguro('App "' + slug + '" publicado em ' + url), 'app']); } catch (e) { /* ok */ }
   return { ok: true, url: url, novo: !sha, aviso: 'O GitHub leva de 1 a 3 minutos pra colocar no ar.' };
+}
+
+/** Lista os apps publicados em /apps do site (API pública do GitHub; com token aumenta o limite). */
+function cabGitHub() {
+  const cab = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  if (prop('GITHUB_TOKEN')) cab.Authorization = 'Bearer ' + prop('GITHUB_TOKEN');
+  return cab;
+}
+function listarApps() {
+  const cache = CacheService.getScriptCache();
+  const c = cache.get('apps_lista');
+  if (c) return JSON.parse(c);
+  const r = UrlFetchApp.fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/apps', { headers: cabGitHub(), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return [];
+  const dono = GITHUB_REPO.split('/')[0];
+  const apps = JSON.parse(r.getContentText()).filter(x => x.type === 'dir').map(x => ({ slug: x.name, url: 'https://' + dono + '.github.io/apps/' + x.name + '/' }));
+  cache.put('apps_lista', JSON.stringify(apps), 300);
+  return apps;
+}
+function codigoDoApp(slug) {
+  slug = String(slug || '').replace(/[^a-z0-9-]/g, '');
+  if (!slug) return null;
+  const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/apps/' + slug + '/index.html', { muteHttpExceptions: true });
+  return r.getResponseCode() === 200 ? r.getContentText() : null;
+}
+function versoesDoApp(slug) {
+  slug = String(slug || '').replace(/[^a-z0-9-]/g, '');
+  const r = UrlFetchApp.fetch('https://api.github.com/repos/' + GITHUB_REPO + '/commits?path=apps/' + slug + '/index.html&per_page=10', { headers: cabGitHub(), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return [];
+  return JSON.parse(r.getContentText()).map(c => ({ sha: c.sha, quando: String(c.commit.author.date).slice(0, 16).replace('T', ' '), msg: c.commit.message.split('\n')[0] }));
+}
+function restaurarApp(slug, sha) {
+  slug = String(slug || '').replace(/[^a-z0-9-]/g, '');
+  if (!slug || !/^[0-9a-f]{7,40}$/.test(sha)) return { ok: false, erro: 'Versão inválida' };
+  const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/' + sha + '/apps/' + slug + '/index.html', { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return { ok: false, erro: 'Não achei essa versão' };
+  return publicarApp(slug, r.getContentText());
 }
 
 /* ============================================================
