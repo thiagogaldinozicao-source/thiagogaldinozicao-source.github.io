@@ -135,6 +135,26 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .acoes-msg button:hover{background:var(--card);color:var(--txt)}
 .acoes-msg .info{font-size:12px;color:var(--cinza2);margin-left:4px}
 .acoes-msg .tag{font-size:12px;color:var(--ouro);margin-left:4px}
+.acoes-msg button.on{color:var(--ouro)}
+.fb-caixa{display:none;margin-top:8px;gap:8px;align-items:flex-start}
+.fb-caixa.aberta{display:flex}
+.fb-caixa textarea{flex:1;background:var(--card);border:1px solid var(--borda2);border-radius:12px;padding:10px;min-height:44px;font-size:15px}
+.fb-caixa textarea:focus{border-color:var(--ouro)}
+.fb-caixa button{background:var(--ouro);color:#111;font-weight:700;padding:10px 14px;border-radius:10px;font-size:14px}
+.bloco-top .acts{display:flex;gap:6px}
+.testar,.baixar{background:transparent;color:var(--ouro);border:1px solid var(--ouro);font-weight:600;font-size:13px;padding:6px 12px;border-radius:9px}
+.testar:active,.baixar:active{background:var(--ouro-fundo)}
+#mPrevia .painel{max-width:1100px;height:92dvh;max-height:92dvh;padding:0;display:flex;flex-direction:column;overflow:hidden}
+#mPrevia .previa-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--borda2)}
+#mPrevia .previa-top b{flex:1;font-family:'Bebas Neue';font-weight:400;font-size:22px;color:var(--ouro);letter-spacing:1px}
+#mPrevia iframe{flex:1;width:100%;border:none;background:#fff}
+#mPrevia .previa-top button{font-size:14px;padding:7px 12px;border-radius:9px;border:1px solid var(--borda2)}
+#mPrevia .previa-top .fechar{background:var(--card2)}
+.chip-ic.on{border-color:var(--erro);color:var(--erro);animation:pisca 1s infinite}
+.hist-item{padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px;line-height:1.4}
+.hist-item small{color:var(--cinza2);display:block;font-size:12px}
+.hist-item .antes{color:var(--erro);text-decoration:line-through;opacity:.8}
+.hist-item .depois{color:var(--verde)}
 
 /* ---------- caixa de mensagem ---------- */
 footer{padding:8px 12px calc(env(safe-area-inset-bottom) + 10px)}
@@ -229,15 +249,16 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
       <textarea id="txt" rows="1" placeholder="Pergunta qualquer coisa pra ZicoAI"></textarea>
       <div class="caixa-pe">
         <button class="chip-ic" id="bFoto" title="Foto">📷</button>
+        <button class="chip-ic" id="bMic" title="Falar" style="display:none">🎤</button>
         <input type="file" id="arquivo" accept="image/*" hidden>
         <button class="chip" id="cWeb" title="Pesquisar na web">🌐<span class="rot"> Pesquisar</span></button>
         <button class="chip" id="cImg" title="Gerar imagem">🎨<span class="rot"> Imagem</span></button>
         <div class="sel-wrap">
           <button class="sel" id="bModelo"><b id="nomeModelo">Auto</b> ▾</button>
           <div class="menu" id="menuModelo">
-            <button data-c="auto"><b>Auto</b><span>PC quando tiver ligado, senão a nuvem</span></button>
-            <button data-c="gemini"><b>Gemini</b><span>Textos grandes, fotos e pesquisa no Google</span></button>
-            <button data-c="groq"><b>Groq</b><span>Muito rápido, forte em programação</span></button>
+            <button data-c="auto"><b>Auto</b><span>Nuvem primeiro (Gemini, Groq); PC de casa só como reserva</span></button>
+            <button data-c="gemini"><b>Gemini</b><span>Textos grandes, fotos e conversa</span></button>
+            <button data-c="groq"><b>Groq</b><span>Programação com raciocínio alto e pesquisa</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
           </div>
         </div>
@@ -262,6 +283,13 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
       <button class="btn cinza" id="cTestar">Testar</button>
       <button class="btn ouro" id="cSalvar">Salvar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="mPrevia">
+  <div class="painel">
+    <div class="previa-top"><b>Testando o app</b><button class="baixar" id="pBaixar">⬇ Baixar .html</button><button class="fechar" id="pFechar">✕ Fechar</button></div>
+    <iframe id="pFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups" title="prévia"></iframe>
   </div>
 </div>
 
@@ -323,7 +351,9 @@ if(window.marked && window.DOMPurify){
   r.code = function(code, lang){
     if(code && typeof code === 'object'){ lang = code.lang; code = code.text; }
     const l = String(lang || '').trim().split(/\s/)[0] || 'texto';
-    return '<div class="bloco"><div class="bloco-top"><span>' + esc(l) + '</span><button class="copiar" type="button">Copiar</button></div><pre><code>' + esc(code) + '</code></pre></div>';
+    const ehHtml = /^html?$/i.test(l) || /^\s*(<!doctype html|<html)/i.test(String(code || '').slice(0, 200));
+    const extras = ehHtml ? '<button class="testar" type="button">▶ Testar</button>' : '';
+    return '<div class="bloco"><div class="bloco-top"><span>' + esc(ehHtml ? 'html · app' : l) + '</span><div class="acts">' + extras + '<button class="copiar" type="button">Copiar</button></div></div><pre><code>' + esc(code) + '</code></pre></div>';
   };
   marked.setOptions({ renderer: r, gfm: true, breaks: true });
   DOMPurify.addHook('afterSanitizeAttributes', n => { if(n.tagName === 'A'){ n.setAttribute('target','_blank'); n.setAttribute('rel','noopener'); } });
@@ -333,7 +363,8 @@ if(window.marked && window.DOMPurify){
   renderMd = t => t.split(/```([^\n`]*)\n?([\s\S]*?)```/g).map((p, i) => {
     if(i % 3 === 0) return p.trim() ? '<p>' + esc(p.trim()).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>') + '</p>' : '';
     if(i % 3 === 1) return '';
-    return '<div class="bloco"><div class="bloco-top"><span>texto</span><button class="copiar" type="button">Copiar</button></div><pre><code>' + esc(p) + '</code></pre></div>';
+    const ehHtml = /^\s*(<!doctype html|<html)/i.test(p.slice(0, 200));
+    return '<div class="bloco"><div class="bloco-top"><span>' + (ehHtml ? 'html · app' : 'texto') + '</span><div class="acts">' + (ehHtml ? '<button class="testar" type="button">▶ Testar</button>' : '') + '<button class="copiar" type="button">Copiar</button></div></div><pre><code>' + esc(p) + '</code></pre></div>';
   }).join('');
 }
 function trataImagens(el){
@@ -373,7 +404,28 @@ function copiar(txt, botao, rotulo){
 document.addEventListener('click', e => {
   const b = e.target.closest('.copiar');
   if(b) copiar(b.closest('.bloco').querySelector('pre').textContent, b);
+  const t = e.target.closest('.testar');
+  if(t) testarApp(t.closest('.bloco').querySelector('pre').textContent);
 });
+
+/* ---------- testar app (abre o HTML que ela escreveu numa janela, sem salvar arquivo) ---------- */
+let previaHtml = '';
+// dentro da prévia o localStorage é de mentira (só na memória), pra o app testado não mexer nos dados da ZicoAI
+const SHIM = '<script>(function(){function faz(){var m={};return{getItem:function(k){return k in m?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}}try{Object.defineProperty(window,"localStorage",{value:faz(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:faz(),configurable:true})}catch(e){}})();<\/script>';
+function testarApp(html){
+  previaHtml = html;
+  const comShim = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + SHIM) : SHIM + html;
+  $('pFrame').srcdoc = comShim;
+  $('mPrevia').classList.add('aberto');
+}
+$('pFechar').onclick = () => { $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; };
+$('pBaixar').onclick = () => {
+  const m = previaHtml.match(/<title>([^<]{1,60})<\/title>/i);
+  const nome = (m ? m[1].trim().replace(/[^\w\u00C0-\u017F -]+/g, '').replace(/\s+/g, '-').toLowerCase() : 'app') + '.html';
+  const blob = new Blob([previaHtml], { type: 'text/html' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
 
 /* ---------- conversas (lateral) ---------- */
 function desenhaLista(){
@@ -431,8 +483,8 @@ function desenha(){
   const c = chats.find(x => x.id === atual);
   $('tituloTopo').textContent = c ? c.titulo : 'ZicoAI';
   if(!mensagens.length){
-    t.innerHTML = '<div class="boas"><h2>E aí, Thiago</h2><p>Pergunta, manda foto, pede pesquisa ou imagem. Tudo que eu aprender fica salvo no cel e no PC.</p><div class="sugs">' +
-      [['Ficha técnica','Compara iPhone 15 Pro com 16 Pro pra cliente'],
+    t.innerHTML = '<div class="boas"><h2>E aí, Thiago</h2><p>Pergunta, programa, manda foto, pede pesquisa ou imagem. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
+      [['Programar','Faz um app de lista de compras em 1 arquivo HTML, modo escuro'],
        ['Cálculo','12x de 2.500 no PagBank, quanto fica?'],
        ['Cliente','Resposta pra cliente pedindo desconto à vista'],
        ['Pesquisa','Pesquisa a cotação do dólar hoje']]
@@ -479,10 +531,74 @@ function balao(m, ultima){
     br.onclick = () => refazer();
     ac.appendChild(br);
   }
-  if(m.cerebro){ const s = document.createElement('span'); s.className = 'info'; s.textContent = m.cerebro; ac.appendChild(s); }
+  if(!m.erro && 'speechSynthesis' in window){
+    const bf = document.createElement('button'); bf.innerHTML = '🔊'; bf.title = 'Ouvir';
+    bf.onclick = () => falar(m.content, bf);
+    ac.appendChild(bf);
+  }
+  if(!m.erro){
+    const up = document.createElement('button'); up.innerHTML = '👍'; up.title = 'Boa resposta';
+    const down = document.createElement('button'); down.innerHTML = '👎'; down.title = 'Resposta ruim (me fala o porquê)';
+    if(m.fb === 'up') up.classList.add('on'); if(m.fb === 'down') down.classList.add('on');
+    const caixa = document.createElement('div'); caixa.className = 'fb-caixa';
+    caixa.innerHTML = '<textarea placeholder="O que ela errou? Isso vira aprendizado e ela não repete."></textarea><button>Enviar</button>';
+    up.onclick = () => enviaFeedback(m, 'up', '', up, down, caixa);
+    down.onclick = () => { caixa.classList.toggle('aberta'); if(caixa.classList.contains('aberta')) caixa.querySelector('textarea').focus(); };
+    caixa.querySelector('button').onclick = () => enviaFeedback(m, 'down', caixa.querySelector('textarea').value.trim(), up, down, caixa);
+    ac.appendChild(up); ac.appendChild(down);
+    corpo._fb = caixa;
+  }
+  if(m.cerebro){ const s = document.createElement('span'); s.className = 'info'; s.textContent = m.cerebro + (m.ms ? ' · ' + (m.ms / 1000).toFixed(1).replace('.', ',') + ' s' : ''); ac.appendChild(s); }
   if(m.salvou && m.salvou.length){ const s = document.createElement('span'); s.className = 'tag'; s.textContent = '🧠 ' + m.salvou.join(', '); ac.appendChild(s); }
   corpo.appendChild(ac);
+  if(corpo._fb) corpo.appendChild(corpo._fb);
   return d;
+}
+async function enviaFeedback(m, nota, comentario, up, down, caixa){
+  up.classList.toggle('on', nota === 'up'); down.classList.toggle('on', nota === 'down');
+  m.fb = nota; guarda();
+  try{
+    const j = await api({ acao:'feedback', nota, comentario, chatId: atual, cerebro: m.cerebro || '', resposta: String(m.content || '').slice(0, 300) });
+    caixa.classList.remove('aberta');
+    if(j.salvou && j.salvou.includes('aprendizado')){
+      m.salvou = (m.salvou || []).concat(['aprendizado (sua reclamação)']); guarda(); desenha();
+    }
+  }catch(e){ alert(e.message); }
+}
+
+/* ---------- voz: ouvir a resposta e falar a pergunta ---------- */
+function falar(texto, botao){
+  const synth = window.speechSynthesis;
+  if(synth.speaking){ synth.cancel(); if(botao) botao.classList.remove('on'); return; }
+  const limpo = String(texto).replace(/```[\s\S]*?```/g, ' (código na tela) ').replace(/!\[[^\]]*\]\([^)]*\)/g, ' (imagem) ').replace(/\[[^\]]*\]\(([^)]*)\)/g, '$1').replace(/[*_#>`|]/g, '').replace(/\n{2,}/g, '. ');
+  const u = new SpeechSynthesisUtterance(limpo.slice(0, 4000));
+  u.lang = 'pt-BR'; u.rate = 1.05;
+  const voz = synth.getVoices().find(v => /pt[-_]BR/i.test(v.lang) && /Luciana|Francisca|Google|Camila|Neural/i.test(v.name)) || synth.getVoices().find(v => /pt[-_]BR/i.test(v.lang));
+  if(voz) u.voice = voz;
+  if(botao){ botao.classList.add('on'); u.onend = u.onerror = () => botao.classList.remove('on'); }
+  synth.cancel(); synth.speak(u);
+}
+if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices(); }
+const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(Rec){
+  $('bMic').style.display = '';
+  let rec = null;
+  $('bMic').onclick = () => {
+    if(rec){ rec.stop(); return; }
+    rec = new Rec(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.continuous = false;
+    const antes = $('txt').value ? $('txt').value.trim() + ' ' : '';
+    $('bMic').classList.add('on'); $('txt').placeholder = 'Pode falar...';
+    rec.onresult = e => { let t = ''; for(const r of e.results) t += r[0].transcript; $('txt').value = antes + t; ajusta(); };
+    rec.onerror = e => {
+      // iPhone com o app instalado na tela inicial não deixa o site ouvir o microfone: usa o ditado do teclado
+      if(e && (e.error === 'service-not-allowed' || e.error === 'not-allowed')){
+        $('bMic').style.display = 'none';
+        alert('Aqui o microfone do site não funciona. Usa o 🎤 do teclado do iPhone (ditado) que dá no mesmo.');
+      }
+    };
+    rec.onend = () => { $('bMic').classList.remove('on'); $('txt').placeholder = 'Pergunta qualquer coisa pra ZicoAI'; rec = null; ajusta(); $('txt').focus(); };
+    try{ rec.start(); }catch(e){ rec = null; $('bMic').classList.remove('on'); }
+  };
 }
 function rola(){ const c = $('chat'); requestAnimationFrame(() => c.scrollTop = c.scrollHeight); }
 
@@ -513,7 +629,8 @@ function etapasPara(texto, temFoto){
   if(modo === 'web' || /pesquis|cota[cç][aã]o|d[oó]lar hoje|not[ií]cia|na internet|no google|pre[cç]o atual/i.test(texto)) e.push('Pesquisando na web', 'Conferindo as fontes');
   if(modo === 'imagem' || /(cri|ger|faz|desenh)\w* (uma )?(imagem|foto|arte|logo|desenho)/i.test(texto)) e.push('Montando a imagem');
   if(/c[oó]digo|html|python|unreal|script|programa|\bapp\b/i.test(texto)) e.push('Escrevendo o código');
-  if(cfg.cerebro !== 'gemini' && cfg.cerebro !== 'groq' && modo === 'auto') e.push('Vendo se o PC tá ligado');
+  if(cfg.cerebro === 'pc') e.push('Chamando o PC de casa');
+  else if(modo === 'auto') e.push('Escolhendo o melhor cérebro');
   e.push('Escrevendo a resposta');
   return e;
 }
@@ -552,7 +669,7 @@ async function envia(refazendo){
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    mensagens.push({ role:'assistant', content: j.resposta, cerebro: j.cerebro, salvou: j.salvou, passos: j.passos });
+    mensagens.push({ role:'assistant', content: j.resposta, cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms });
     status(true);
   }catch(e){
     para();
@@ -696,7 +813,14 @@ async function abreMemoria(){
     });
     const s2 = document.createElement('div'); s2.className = 'sec'; s2.textContent = 'Erros que ela não repete mais (' + j.aprendizados.length + ')'; lista.appendChild(s2);
     j.aprendizados.forEach(l => lista.insertAdjacentHTML('beforeend',
-      '<div class="mem-item"><div><small>' + esc(l[0]) + '</small><span class="errado">✗ ' + esc(l[1]) + '</span><br><span class="certo">✓ ' + esc(l[2]) + '</span></div></div>'));
+      '<div class="mem-item"><div><small>' + esc(l[0]) + (l[3] ? ' · ' + esc(l[3]) : '') + '</small><span class="errado">✗ ' + esc(l[1]) + '</span><br><span class="certo">✓ ' + esc(l[2]) + '</span></div></div>'));
+    try{
+      const h = await api({ acao:'historico' });
+      const s3 = document.createElement('div'); s3.className = 'sec'; s3.textContent = 'Correções que ela fez sozinha na base e no perfil (' + h.historico.length + ')'; lista.appendChild(s3);
+      if(!h.historico.length) lista.insertAdjacentHTML('beforeend', '<p class="aviso">Nenhuma ainda. Quando vc corrigir um fato da loja ou sobre vc, ela atualiza a planilha e aparece aqui.</p>');
+      h.historico.forEach(l => lista.insertAdjacentHTML('beforeend',
+        '<div class="hist-item"><small>' + esc(l[0]) + ' · ' + esc(l[1]) + ' · ' + esc(l[2]) + '</small>' + (l[3] ? '<span class="antes">' + esc(l[3]) + '</span><br>' : '') + '<span class="depois">' + esc(l[4]) + '</span></div>'));
+    }catch(e){}
   }catch(e){ $('mLista').innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
 }
 $('bMem').onclick = abreMemoria;
