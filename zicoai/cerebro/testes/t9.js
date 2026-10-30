@@ -90,3 +90,10 @@ ok(TG[0].m === 'setWebhook' && TG[0].b.url === 'https://script.google.com/macros
 // bom dia vai pro telegram
 TG.length = 0; H.setFetch(mockBase); H.ctx.bomDia();
 ok(TG.some(t => t.m === 'sendMessage'), 'bom dia chega no Telegram');
+// com PROXY_URL o webhook vai pro /tg do Worker com secret_token; segredo com @ é recusado
+H.PROPS.PROXY_URL = 'https://zicoai.x.workers.dev'; H.PROPS.TELEGRAM_SEGREDO = '@ruim';
+let deuErro = ''; try { H.ctx.ligarTelegram(); } catch (e) { deuErro = e.message; }
+ok(/só pode ter letras/.test(deuErro), 'segredo com @ é recusado quando usa o Worker');
+H.PROPS.TELEGRAM_SEGREDO = 'seg_bom-1'; H.PROPS.DEPLOY_ID = 'DEPX'; TG.length = 0; H.ctx.ligarTelegram();
+const hook = TG.find(t => t.m === 'setWebhook');
+ok(hook && hook.b.url === 'https://zicoai.x.workers.dev/tg' && hook.b.secret_token === 'seg_bom-1', 'webhook aponta pro Worker com secret_token: ' + JSON.stringify(hook && hook.b.url));

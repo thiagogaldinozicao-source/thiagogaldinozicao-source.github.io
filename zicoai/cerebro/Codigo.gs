@@ -1615,11 +1615,17 @@ function telegramEntrada(update) {
 function ligarTelegram() {
   const segredo = prop('TELEGRAM_SEGREDO');
   if (!segredo) throw new Error('Coloque TELEGRAM_SEGREDO (uma palavra qualquer) nas Propriedades');
+  if (prop('PROXY_URL') && !/^[A-Za-z0-9_-]{1,256}$/.test(segredo)) throw new Error('Com o Worker, TELEGRAM_SEGREDO só pode ter letras, números, _ e - (sem @ ou espaço). Troque a propriedade e rode de novo.');
   // link OFICIAL (/exec) da implantação, nunca o /dev (que exige login e o Telegram não consegue abrir)
   const dep = prop('DEPLOY_ID');
   const base = dep ? 'https://script.google.com/macros/s/' + dep + '/exec' : String(ScriptApp.getService().getUrl()).replace(/\/dev$/, '/exec');
-  const url = base + '?tg=' + encodeURIComponent(segredo);
-  const r = tgApi('setWebhook', { url: url, allowed_updates: ['message', 'edited_message'], drop_pending_updates: true });
+  let url = base + '?tg=' + encodeURIComponent(segredo);
+  const corpoHook = { allowed_updates: ['message', 'edited_message'], drop_pending_updates: true };
+  // O Telegram não aceita o redirecionamento 302 do Apps Script. Com o Worker do Cloudflare (PROXY_URL), o webhook vai pra /tg do Worker,
+  // que repassa pra cá. O Worker precisa das variáveis SEGREDO (= TELEGRAM_SEGREDO) e ZICO_EXEC (= este link /exec).
+  if (prop('PROXY_URL')) { url = String(prop('PROXY_URL')).replace(/\/+$/, '') + '/tg'; corpoHook.secret_token = segredo; Logger.log('Via Worker do Cloudflare. No Worker, SEGREDO tem que ser "' + segredo + '" e ZICO_EXEC tem que ser ' + base); }
+  corpoHook.url = url;
+  const r = tgApi('setWebhook', corpoHook);
   try { tgApi('setMyCommands', { commands: [{ command: 'nova', description: 'Começar conversa nova' }, { command: 'cotas', description: 'Uso dos cérebros hoje' }, { command: 'ajuda', description: 'O que eu faço' }] }); } catch (e) { /* ok */ }
   Logger.log('Webhook do Telegram: ' + JSON.stringify(r) + ' → ' + url);
   Logger.log('Agora abre o bot no Telegram e manda o PIN.');
