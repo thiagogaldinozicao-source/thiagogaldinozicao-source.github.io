@@ -28,6 +28,7 @@ Assistente pessoal do Thiago (Zicão Store). O Thiago **não programa**: expliqu
 Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão que vale é a do Apps Script**; mantenha os dois iguais.
 
 - `doPost` com PIN. Ações: `teste`, `chat`, `chats`, `abrir`, `apagarChat`, `memorias`, `salvar`, `apagarMemoria`, `contexto`, `registrar`.
+- `PERSONA` tem as regras 1–13 e um bloco HONESTIDADE (12 regras curtas: não fingir que fez, campo em branco em vez de inventar, NÃO CONFIRMADO = "deixa eu confirmar", não fechar com ofertas).
 - `montarSistema()`: persona + regras + perfil inteiro + aprendizados + memória (25 recentes + 35 relevantes por palavra-chave) + até 10 trechos da base.
 - Ordem dos cérebros em `conversar()`: normal = Gemini → Groq → PC → Groq Qwen; foto = Gemini → PC; programação = Groq → Gemini → PC → Groq Qwen. O PC de casa (modelo 8B) é reserva: só responde quando a nuvem falha/estoura o limite ou quando o Thiago escolhe "PC" no seletor. PC que falha fica "desligado" 3 min (CacheService).
 - Pesquisa (`pesquisar()`): Groq `browser_search` (funciona no grátis). Google Search do Gemini dá 429 no plano grátis.
@@ -47,6 +48,7 @@ Abas e colunas:
 - `base`: Assunto | Conteúdo
 - `chats`: Conversa | Título | Criada | Atualizada | Aparelho
 - `mensagens`: Conversa | Data | Quem | Mensagem | Cérebro | Aparelho
+- `prova`: Nº | Grupo | Pergunta exata | Critérios nota 10 | Erro mais provável | Última nota | Última data | Observação (20 perguntas da prova semanal; gabarito feito em 30/10)
 
 Datas com `'` na frente pra não virarem número. Texto começando com `= + - @` leva `'` (função `seguro`).
 
