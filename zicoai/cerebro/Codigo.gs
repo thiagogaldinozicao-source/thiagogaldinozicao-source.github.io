@@ -244,8 +244,14 @@ function doPost(e) {
     if (e && e.parameter && e.parameter.tg) {
       // aceita o segredo do Telegram ou o do Worker (o Worker repassa com o dele)
       const okSeg = (prop('TELEGRAM_SEGREDO') && e.parameter.tg === prop('TELEGRAM_SEGREDO')) || (prop('PROXY_SEGREDO') && e.parameter.tg === prop('PROXY_SEGREDO'));
-      if (!okSeg) return saida({ ok: false });
-      try { telegramEntrada(JSON.parse(e.postData.contents)); } catch (err) { Logger.log('telegram: ' + err.message); }
+      const rastro = CacheService.getScriptCache();
+      if (!okSeg) { rastro.put('tg_ultimo', agora() + ' | segredo NÃO bate: recebi "' + String(e.parameter.tg).slice(0, 40) + '"', 21600); return saida({ ok: false }); }
+      try {
+        const up = JSON.parse((e.postData && e.postData.contents) || '{}');
+        const m = up.message || up.edited_message || {};
+        rastro.put('tg_ultimo', agora() + ' | aceito | chat ' + (m.chat && m.chat.id) + ' | texto "' + String(m.text || '').slice(0, 30) + '"', 21600);
+        telegramEntrada(up);
+      } catch (err) { rastro.put('tg_ultimo', agora() + ' | ERRO ao processar: ' + String(err.message).slice(0, 120), 21600); Logger.log('telegram: ' + err.message); }
       return saida({ ok: true });
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -2696,6 +2702,8 @@ function diagnosticoTelegram() {
     Logger.log('Webhook: ' + JSON.stringify(info));
     if (info.last_error_message) Logger.log('ÚLTIMO ERRO do Telegram: ' + info.last_error_message + ' (em ' + new Date(info.last_error_date * 1000) + ')');
     Logger.log('TELEGRAM_CHAT_ID: ' + (prop('TELEGRAM_CHAT_ID') || '(ainda vazio: ninguém mandou o PIN certo)'));
+    Logger.log('Última chamada que chegou aqui: ' + (CacheService.getScriptCache().get('tg_ultimo') || '(nenhuma nas últimas 6 horas)'));
+    Logger.log('PROXY_URL: ' + (prop('PROXY_URL') || '(vazio)') + ' | PROXY_SEGREDO: ' + (prop('PROXY_SEGREDO') ? 'definido (' + String(prop('PROXY_SEGREDO')).length + ' letras, começa com ' + String(prop('PROXY_SEGREDO')).slice(0, 2) + ')' : 'VAZIO'));
     Logger.log('Segredo configurado: ' + (prop('TELEGRAM_SEGREDO') ? 'sim' : 'NÃO'));
     const me = tgApi('getMe', {});
     Logger.log('Bot: @' + me.username);
