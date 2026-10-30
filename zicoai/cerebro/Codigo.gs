@@ -1615,7 +1615,10 @@ function telegramEntrada(update) {
 function ligarTelegram() {
   const segredo = prop('TELEGRAM_SEGREDO');
   if (!segredo) throw new Error('Coloque TELEGRAM_SEGREDO (uma palavra qualquer) nas Propriedades');
-  const url = ScriptApp.getService().getUrl() + '?tg=' + encodeURIComponent(segredo);
+  // link OFICIAL (/exec) da implantação, nunca o /dev (que exige login e o Telegram não consegue abrir)
+  const dep = prop('DEPLOY_ID');
+  const base = dep ? 'https://script.google.com/macros/s/' + dep + '/exec' : String(ScriptApp.getService().getUrl()).replace(/\/dev$/, '/exec');
+  const url = base + '?tg=' + encodeURIComponent(segredo);
   const r = tgApi('setWebhook', { url: url, allowed_updates: ['message', 'edited_message'], drop_pending_updates: true });
   try { tgApi('setMyCommands', { commands: [{ command: 'nova', description: 'Começar conversa nova' }, { command: 'cotas', description: 'Uso dos cérebros hoje' }, { command: 'ajuda', description: 'O que eu faço' }] }); } catch (e) { /* ok */ }
   Logger.log('Webhook do Telegram: ' + JSON.stringify(r) + ' → ' + url);
