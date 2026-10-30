@@ -29,20 +29,27 @@ const sheets = {
   perfil: makeSheet('perfil', perfil), base: makeSheet('base', base),
 };
 const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = makeSheet(n)) };
-let fetchLog = [];
+let fetchLog = []; const EVENTOS = []; const RASCUNHOS = [];
 let fetchImpl = (url, opt) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Resposta teste [[MEMORIA: Thiago gosta de café]] fim' } }] }) });
 let SEQ = 0; const PROPS = { PIN: '1234', GROQ_KEY: 'g', GEMINI_KEY: 'm' }; const CACHE = {};
 const ctx = {
   SpreadsheetApp: { openById: () => ss },
-  UrlFetchApp: { fetch: (u, o) => { fetchLog.push({ u, body: JSON.parse(o.payload), h: o.headers }); return fetchImpl(u, o); } },
+  UrlFetchApp: { fetch: (u, o) => { o = o || {}; fetchLog.push({ u, body: o.payload ? JSON.parse(o.payload) : null, h: o.headers }); return fetchImpl(u, o); } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => PROPS[k], setProperty: (k, v) => { PROPS[k] = v; } }) },
   CacheService: { getScriptCache: () => ({ get: k => CACHE[k] || null, put: (k, v) => { CACHE[k] = v; }, remove: k => { delete CACHE[k]; } }) },
-  Utilities: { getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : '30/10/2026' },
+  Utilities: { sleep: () => {}, getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : f === 'yyyy-MM-dd' ? '2026-10-30' : f.includes('yyyyMMdd') ? '20261030-113000' : f.includes('HH:mm') ? '02/11 14:00' : f.includes('dd/MM/yyyy') ? '30/10/2026' : '30/10' },
   ContentService: { createTextOutput: t => ({ t, setMimeType(){ return this; } }), MimeType: { JSON: 'json' } },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
   ScriptApp: { WeekDay: { MONDAY: 'MONDAY' }, getProjectTriggers: () => [], deleteTrigger: () => {}, newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create: () => {} }), onWeekDay: () => ({ atHour: () => ({ create: () => {} }) }) }) }) },
+  CalendarApp: { getDefaultCalendar: () => ({
+      getEvents: () => [{ getStartTime: () => new Date(2026, 10, 2, 14, 0), isAllDayEvent: () => false, getTitle: () => 'Entregar iPhone do João', getLocation: () => 'Loja' }],
+      createEvent: (t, i, f) => { EVENTOS.push({ t, i, f }); return { addPopupReminder: () => {} }; } }) },
+  GmailApp: { search: () => [{ getMessages: () => [{ getFrom: () => 'Will <will@x.com>', getDate: () => new Date(2026, 9, 30, 9, 0), getPlainBody: () => 'Segue a lista de preços atualizada do iPhone 17.' }], getFirstMessageSubject: () => 'Lista de preços' }],
+      createDraft: (p, a, c) => { RASCUNHOS.push({ p, a, c }); } },
+  DriveApp: { searchFiles: () => { let i = 0; const fs = [{ getName: () => 'Nota fiscal Devia set.pdf', getMimeType: () => 'application/pdf', getLastUpdated: () => new Date(2026, 8, 3), getUrl: () => 'https://drive.google.com/file/d/abc' }]; return { hasNext: () => i < fs.length, next: () => fs[i++] }; },
+      getFoldersByName: () => ({ hasNext: () => false }), createFolder: () => ({ createFile: b => ({ setSharing: () => {}, getId: () => 'IMGID' }) }), getRootFolder: () => ({ getName: () => 'root' }), Access: { ANYONE_WITH_LINK: 1 }, Permission: { VIEW: 1 } },
   Logger: { log: x => console.log('LOG:', x) }, console, JSON, Math, Date, String, Object, Array, RegExp, Error
 };
 vm.createContext(ctx); vm.runInContext(code, ctx);
 const post = b => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(b) } }).t);
-module.exports = { PROPS, CACHE, ctx, post, sheets, fetchLog, setFetch: f => fetchImpl = f };
+module.exports = { PROPS, CACHE, ctx, post, sheets, fetchLog, EVENTOS, RASCUNHOS, setFetch: f => fetchImpl = f };

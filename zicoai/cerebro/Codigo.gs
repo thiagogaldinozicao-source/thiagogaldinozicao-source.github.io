@@ -108,6 +108,10 @@ const PERSONA = [
   '- Quando o Thiago CORRIGIR ou INFORMAR um fato da loja (garantia, horário, endereço, política, preço fixo, ficha): [[BASE: assunto curto || conteúdo completo e correto]]. Se já existir linha com esse assunto na BASE, ela é substituída.',
   '- Quando o Thiago corrigir ou informar algo sobre ELE (gostos, família, jeito de responder, projetos): [[PERFIL: tópico || informação]]. Tópico igual a um existente substitui.',
   '- BASE e PERFIL só com o que o THIAGO disse. Nunca com o que vc deduziu ou com o que um cliente disse.',
+  '- Lembrete/compromisso pedido pelo Thiago (com data e hora claras): [[AGENDA: título || AAAA-MM-DD HH:MM || minutos de duração]]. Se faltar data ou hora, pergunte em vez de chutar.',
+  '- E-mail que o Thiago pedir pra escrever: [[EMAIL_RASCUNHO: destinatário || assunto || corpo]]. Vira RASCUNHO no Gmail dele, nunca é enviado. Sem destinatário, deixe vazio.',
+  '- Venda que o Thiago informar ("vendi um 13 por 2.500"): [[VENDA: valor em número || descrição curta]].',
+  '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
   '- Não use essas linhas à toa. Não salve conversa fiada nem coisa passageira.'
 ].join('\n');
 
@@ -192,6 +196,7 @@ function chat(req, aparelho) {
     : '';
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
+  try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
 
   if (querPesquisa) resultado = pesquisar(historico, pergunta);
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema);
@@ -549,10 +554,41 @@ function processarTags(texto, aparelho) {
     if (r) { salvou.push(r); passo((r === 'perfil atualizado' ? 'Corrigiu' : 'Guardou') + ' no perfil: ' + (p[0] || '').trim().slice(0, 60)); }
     return '';
   });
+  texto = texto.replace(/\[\[AGENDA:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const p = t.split('||').map(x => x.trim());
+    try {
+      const r = criarEvento(p[0], p[1], p[2]);
+      salvou.push('agenda'); passo('Criou na Agenda: ' + p[0].slice(0, 60));
+      return '\n\n📅 Agendado: **' + p[0] + '** em ' + r.quando + (r.link ? ' ([abrir](' + r.link + '))' : '') + '\n';
+    } catch (e) { passo('Agenda falhou: ' + String(e.message || e).slice(0, 80)); return '\n\n⚠️ Não consegui agendar: ' + String(e.message || e).slice(0, 120) + '\n'; }
+  });
+  texto = texto.replace(/\[\[EMAIL_RASCUNHO:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const p = t.split('||').map(x => x.trim());
+    try {
+      criarRascunho(p[0], p[1], p.slice(2).join('||'));
+      salvou.push('rascunho'); passo('Criou rascunho no Gmail: ' + (p[1] || '').slice(0, 60));
+      return '\n\n✉️ Rascunho salvo no Gmail' + (p[0] ? ' pra ' + p[0] : '') + ': **' + (p[1] || '(sem assunto)') + '**. Nada foi enviado, confere lá e manda.\n';
+    } catch (e) { passo('Gmail falhou: ' + String(e.message || e).slice(0, 80)); return '\n\n⚠️ Não consegui criar o rascunho: ' + String(e.message || e).slice(0, 120) + '\n'; }
+  });
+  texto = texto.replace(/\[\[VENDA:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const p = t.split('||').map(x => x.trim());
+    const valor = lerValor(p[0]);
+    if (!valor) return '';
+    aba('vendas').appendRow(["'" + agora(), valor, seguro((p[1] || '').slice(0, 200)), aparelho]);
+    salvou.push('venda'); passo('Anotou a venda: ' + valor);
+    const r = resumoVendas();
+    return '\n\n💰 Venda anotada: R$ ' + moeda(valor) + '. Hoje: R$ ' + moeda(r.hoje) + ' · Mês: R$ ' + moeda(r.mes) + '\n';
+  });
   texto = texto.replace(/\[\[IMAGEM:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const prompt = t.trim();
+    // 1) PC de casa com ComfyUI (ilimitado, qualidade do Krea). 2) reserva: Pollinations.
+    try {
+      const url = gerarImagemPC(prompt);
+      if (url) { passo('Gerou a imagem no PC de casa (ComfyUI)'); return '\n\n![imagem gerada](' + url + ')\n'; }
+    } catch (e) { passo('ComfyUI do PC falhou (' + String(e.message || e).slice(0, 60) + '), usou o gerador da nuvem'); }
     const seed = Math.floor(Math.random() * 1e9);
-    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(t.trim()) + '?width=1024&height=1024&nologo=true&model=flux&seed=' + seed;
-    passo('Mandou gerar a imagem');
+    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=1024&height=1024&nologo=true&model=flux&seed=' + seed;
+    passo('Mandou gerar a imagem (nuvem)');
     return '\n\n![imagem gerada](' + url + ')\n';
   });
   return { texto: texto.replace(/\n{3,}/g, '\n\n').trim(), salvou: salvou };
@@ -683,6 +719,158 @@ function apagarChat(chatId) {
 function criarTitulo(t) {
   t = String(t).replace(/\s+/g, ' ').trim();
   return t.length > 42 ? t.slice(0, 40).replace(/\s\S*$/, '') + '…' : t;
+}
+
+/* ============================================================
+ *  CONECTORES GOOGLE (sem API paga: Apps Script já tem acesso)
+ *  Agenda: lê os próximos dias e cria evento. Gmail: lê a caixa
+ *  recente e só cria RASCUNHO. Drive: procura arquivo. Vendas: aba.
+ *  Tudo só entra no sistema quando a pergunta fala do assunto.
+ * ============================================================ */
+
+function contextoConectores(pergunta) {
+  const s = normalizar(pergunta);
+  let extra = '';
+  if (/(agenda|compromisso|lembrete|me lembra|lembra de|reuniao|marcad|hoje tem|amanha|semana que vem|que horas)/.test(s)) {
+    const ev = listarAgenda(7);
+    extra += '\n\n### AGENDA (hoje + 7 dias)\n' + (ev.length ? ev.join('\n') : '(nada marcado)');
+    passo('Olhou a Agenda (' + ev.length + ' compromissos)');
+  }
+  if (/(e-?mail|gmail|caixa de entrada|chegou mensagem do|recebi do|fornecedor mandou)/.test(s)) {
+    const em = listarEmails(12);
+    extra += '\n\n### E-MAILS RECENTES (3 dias, caixa de entrada)\n' + (em.length ? em.join('\n') : '(nenhum)');
+    passo('Leu a caixa de entrada (' + em.length + ' e-mails)');
+  }
+  if (/(arquivo|planilha|documento|\bpdf\b|no drive|nota fiscal|comprovante|foto da|pasta)/.test(s)) {
+    const ar = procurarArquivos(pergunta, 10);
+    extra += '\n\n### ARQUIVOS NO DRIVE (ligados à pergunta)\n' + (ar.length ? ar.join('\n') : '(nenhum encontrado)');
+    passo('Procurou no Drive (' + ar.length + ' arquivos)');
+  }
+  if (/(venda|vendi|vendeu|faturamento|faturei|caixa do dia|quanto fiz hoje|quanto fiz no mes)/.test(s)) {
+    const r = resumoVendas();
+    extra += '\n\n### VENDAS ANOTADAS\nHoje: R$ ' + moeda(r.hoje) + ' (' + r.qtdHoje + ')\nMês: R$ ' + moeda(r.mes) + ' (' + r.qtdMes + ')\nÚltimas: ' + (r.ultimas.join(' | ') || '(nenhuma)');
+    passo('Somou as vendas');
+  }
+  return extra;
+}
+
+function listarAgenda(dias) {
+  const cal = CalendarApp.getDefaultCalendar();
+  const ini = new Date(); ini.setHours(0, 0, 0, 0);
+  const fim = new Date(ini.getTime() + dias * 86400000);
+  return cal.getEvents(ini, fim).slice(0, 20).map(e => {
+    const d = e.getStartTime();
+    const q = e.isAllDayEvent() ? Utilities.formatDate(d, FUSO, 'dd/MM') + ' (dia todo)' : Utilities.formatDate(d, FUSO, 'dd/MM HH:mm');
+    return '- ' + q + ': ' + e.getTitle() + (e.getLocation() ? ' @ ' + e.getLocation() : '');
+  });
+}
+
+function criarEvento(titulo, quando, minutos) {
+  titulo = String(titulo || '').trim();
+  const m = String(quando || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/);
+  if (!titulo || !m) throw new Error('faltou título ou data/hora no formato AAAA-MM-DD HH:MM');
+  const ini = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const dur = Math.max(5, parseInt(minutos, 10) || 30);
+  const fim = new Date(ini.getTime() + dur * 60000);
+  const ev = CalendarApp.getDefaultCalendar().createEvent(titulo, ini, fim);
+  try { ev.addPopupReminder(30); } catch (e) { /* ok */ }
+  return { quando: Utilities.formatDate(ini, FUSO, "dd/MM 'às' HH:mm"), link: '' };
+}
+
+function listarEmails(max) {
+  const threads = GmailApp.search('in:inbox newer_than:3d', 0, max);
+  return threads.map(t => {
+    const msg = t.getMessages().slice(-1)[0];
+    const de = String(msg.getFrom()).replace(/<[^>]+>/, '').trim();
+    return '- ' + Utilities.formatDate(msg.getDate(), FUSO, 'dd/MM HH:mm') + ' | ' + de + ' | ' + t.getFirstMessageSubject() + ' | ' + String(msg.getPlainBody()).replace(/\s+/g, ' ').slice(0, 200);
+  });
+}
+
+function criarRascunho(para, assunto, corpo) {
+  assunto = String(assunto || '').trim(); corpo = String(corpo || '').trim();
+  if (!assunto && !corpo) throw new Error('faltou assunto e corpo');
+  GmailApp.createDraft(String(para || '').trim(), assunto || '(sem assunto)', corpo);
+}
+
+function procurarArquivos(pergunta, max) {
+  const palavras = normalizar(pergunta).split(/[^a-z0-9]+/).filter(p => p.length >= 4 && PARADAS.indexOf(p) < 0
+    && ['arquivo', 'planilha', 'documento', 'drive', 'acha', 'achar', 'procura', 'procurar', 'busca', 'buscar', 'manda', 'mostra'].indexOf(p) < 0).slice(0, 4);
+  if (!palavras.length) return [];
+  const q = palavras.map(p => "title contains '" + p.replace(/'/g, "\\'") + "'").join(' or ') + ' and trashed = false';
+  const it = DriveApp.searchFiles(q);
+  const out = [];
+  while (it.hasNext() && out.length < max) {
+    const f = it.next();
+    out.push('- ' + f.getName() + ' (' + String(f.getMimeType()).split('/').pop().replace('vnd.google-apps.', '') + ', ' + Utilities.formatDate(f.getLastUpdated(), FUSO, 'dd/MM/yyyy') + '): ' + f.getUrl());
+  }
+  return out;
+}
+
+function lerValor(t) {
+  const m = String(t || '').replace(/[R$\s]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.').match(/\d+(\.\d+)?/);
+  return m ? Math.round(parseFloat(m[0]) * 100) / 100 : 0;
+}
+function moeda(v) { return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function resumoVendas() {
+  const hojeStr = Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd');
+  const mesStr = hojeStr.slice(0, 7);
+  let hoje = 0, mes = 0, qtdHoje = 0, qtdMes = 0;
+  const todas = linhas('vendas');
+  todas.forEach(l => {
+    const v = lerValor(l[1]);
+    if (String(l[0]).slice(0, 10) === hojeStr) { hoje += v; qtdHoje++; }
+    if (String(l[0]).slice(0, 7) === mesStr) { mes += v; qtdMes++; }
+  });
+  const ultimas = todas.slice(-5).reverse().map(l => String(l[0]).slice(5, 16) + ' R$ ' + moeda(lerValor(l[1])) + (l[2] ? ' ' + l[2] : ''));
+  return { hoje: hoje, mes: mes, qtdHoje: qtdHoje, qtdMes: qtdMes, ultimas: ultimas };
+}
+
+/* ============================================================
+ *  IMAGEM NO PC DE CASA (ComfyUI pelo Tailscale Funnel)
+ *  Propriedades: COMFY_URL (ex.: https://pc.tailnet.ts.net:8443)
+ *  COMFY_WORKFLOW: o workflow exportado em formato API (File →
+ *  Export (API)), com o texto do prompt trocado por {{PROMPT}} e,
+ *  se quiser, o seed por {{SEED}}. A imagem pronta vai pro Drive
+ *  (pasta "ZicoAI Imagens") e volta como link.
+ * ============================================================ */
+
+function gerarImagemPC(prompt) {
+  const base = String(prop('COMFY_URL') || '').trim().replace(/\/+$/, '');
+  const wf = prop('COMFY_WORKFLOW');
+  if (!base || !wf) return null;
+  if (CacheService.getScriptCache().get('comfy_off')) return null;
+  const seed = Math.floor(Math.random() * 1e12);
+  const corpo = wf.replace(/"\{\{SEED\}\}"|\{\{SEED\}\}/g, String(seed)).replace(/\{\{PROMPT\}\}/g, JSON.stringify(prompt).slice(1, -1));
+  let r;
+  try {
+    r = UrlFetchApp.fetch(base + '/prompt', { method: 'post', contentType: 'application/json', payload: JSON.stringify({ prompt: JSON.parse(corpo), client_id: 'zicoai' }), muteHttpExceptions: true });
+  } catch (e) { CacheService.getScriptCache().put('comfy_off', '1', 180); throw new Error('PC fora do ar'); }
+  if (r.getResponseCode() !== 200) { if (r.getResponseCode() >= 500) CacheService.getScriptCache().put('comfy_off', '1', 180); throw new Error('ComfyUI ' + r.getResponseCode() + ': ' + resumoErro(r.getContentText())); }
+  const id = JSON.parse(r.getContentText()).prompt_id;
+  if (!id) throw new Error('ComfyUI não devolveu prompt_id');
+  let img = null;
+  for (let i = 0; i < 40 && !img; i++) {          // até ~2 minutos
+    Utilities.sleep(3000);
+    const h = UrlFetchApp.fetch(base + '/history/' + id, { muteHttpExceptions: true });
+    if (h.getResponseCode() !== 200) continue;
+    const j = JSON.parse(h.getContentText())[id];
+    if (!j || !j.outputs) continue;
+    if (j.status && j.status.status_str === 'error') throw new Error('ComfyUI deu erro no workflow');
+    Object.keys(j.outputs).forEach(n => { const im = j.outputs[n].images; if (!img && im && im.length) img = im[0]; });
+  }
+  if (!img) throw new Error('ComfyUI demorou demais');
+  const v = UrlFetchApp.fetch(base + '/view?filename=' + encodeURIComponent(img.filename) + '&subfolder=' + encodeURIComponent(img.subfolder || '') + '&type=' + encodeURIComponent(img.type || 'output'), { muteHttpExceptions: true });
+  if (v.getResponseCode() !== 200) throw new Error('não consegui baixar a imagem do PC');
+  return salvarImagemDrive(v.getBlob().setName('zicoai-' + Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd-HHmmss') + '.png'));
+}
+
+function salvarImagemDrive(blob) {
+  const nome = 'ZicoAI Imagens';
+  const pastas = DriveApp.getFoldersByName(nome);
+  const pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder(nome);
+  const f = pasta.createFile(blob);
+  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w1024';
 }
 
 /* ============================================================
@@ -924,6 +1112,10 @@ function instalar() {
     try { log.push('PC: funcionando (' + chamarCompat(pc, [{ role: 'user', content: 'Responda só: ok' }], 20).slice(0, 20) + ')'); }
     catch (e) { log.push('PC: ERRO → ' + e.message); }
   } else log.push('PC: não configurado (opcional)');
+  try { log.push('Agenda: ok (' + listarAgenda(7).length + ' compromissos nos próximos 7 dias)'); } catch (e) { log.push('Agenda: ERRO → ' + e.message); }
+  try { log.push('Gmail: ok (' + listarEmails(3).length + ' e-mails recentes lidos)'); } catch (e) { log.push('Gmail: ERRO → ' + e.message); }
+  try { DriveApp.getRootFolder().getName(); log.push('Drive: ok'); } catch (e) { log.push('Drive: ERRO → ' + e.message); }
+  log.push('ComfyUI no PC: ' + (prop('COMFY_URL') && prop('COMFY_WORKFLOW') ? 'configurado' : 'não configurado (opcional: COMFY_URL + COMFY_WORKFLOW)'));
   try {
     const g = geminiComGoogle('Responda curto.', [{ role: 'user', content: 'Qual a cotação do dólar hoje?' }]);
     log.push('Pesquisa no Google: ' + (g ? 'funcionando' : 'sem cota no plano grátis (usa o Groq)'));
