@@ -43,6 +43,8 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Bloqueia CPF e telefone na memória (`temDadoSensivel`).
 - `instalar()` testa PIN, Gemini, Groq, PC e pesquisa (rodar pelo editor e ler o Registro de execução).
 
+Aba `config` (Chave | Valor) serve de reserva pra `COMFY_URL`, `COMFY_WORKFLOW`, `PC_MODELO`, `PC_MODELO_CODIGO` quando a propriedade não existe (valores grandes e configuração sem abrir o editor).
+
 Propriedades do script (nunca no código): `GEMINI_KEY`, `GROQ_KEY`, `PIN`, `PC_URL` (link do Funnel com caminho secreto), `PC_MODELO` (opcional, padrão `zicoai`), `PC_MODELO_CODIGO` (opcional, ex. `zicoai-dev`), `CEREBRAS_KEY` (opcional), `APRENDIDO_ATE` (controle interno).
 
 ### 3. Planilha "ZicoAI Memória"

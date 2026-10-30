@@ -58,3 +58,10 @@ H.setFetch((u) => { if (/groq|generativelanguage/.test(u)) return resp('[[IMAGEM
 r = H.post({ pin: '1234', acao: 'chat', modo: 'imagem', mensagens: [{ role: 'user', content: 'gera' }] });
 ok(/pollinations/.test(r.resposta) && H.CACHE.comfy_off, 'ComfyUI 502 → Pollinations e marca comfy_off');
 H.ctx.instalar();
+// config pela planilha: COMFY_URL/WORKFLOW na aba config valem quando a propriedade não existe
+delete H.PROPS.COMFY_URL; delete H.PROPS.COMFY_WORKFLOW; delete H.CACHE.comfy_off;
+const cfg = H.ctx.aba('config'); cfg.appendRow(['COMFY_URL', 'https://cfg.ts.net:8443']); cfg.appendRow(['COMFY_WORKFLOW', JSON.stringify({ "6": { inputs: { text: "{{PROMPT}}" }, class_type: "X" } })]);
+let urlUsada = '';
+H.setFetch((u) => { if (/groq|generativelanguage/.test(u)) return resp('[[IMAGEM: y]]'); if (/\/prompt$/.test(u)) { urlUsada = u; return { getResponseCode: () => 200, getContentText: () => '{"prompt_id":"p2"}' }; } if (/\/history/.test(u)) return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ p2: { outputs: { "9": { images: [{ filename: 'b.png', subfolder: '', type: 'output' }] } } } }) }; if (/\/view/.test(u)) return { getResponseCode: () => 200, getContentText: () => 'png', getBlob: () => ({ setName: () => ({}) }) }; return resp('?'); });
+r = H.post({ pin: '1234', acao: 'chat', modo: 'imagem', mensagens: [{ role: 'user', content: 'gera' }] });
+ok(urlUsada === 'https://cfg.ts.net:8443/prompt' && /drive\.google\.com/.test(r.resposta), 'config da planilha vale pro ComfyUI');

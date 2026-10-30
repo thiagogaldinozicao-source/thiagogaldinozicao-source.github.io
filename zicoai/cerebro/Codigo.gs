@@ -62,7 +62,8 @@ const ABAS = {
   historico:    ['Data', 'Aba', 'Assunto', 'Antes', 'Depois', 'Origem'],
   feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
   prova:        ['Nº', 'Grupo', 'Pergunta exata', 'Critérios nota 10 (2,5 pontos cada)', 'Erro mais provável', 'Última nota', 'Última data', 'Observação'],
-  vendas:       ['Data', 'Valor', 'Descrição', 'Origem']
+  vendas:       ['Data', 'Valor', 'Descrição', 'Origem'],
+  config:       ['Chave', 'Valor']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
 ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte'];
@@ -80,7 +81,8 @@ const PERSONA = [
   '6. Foto: transcreva textos e números exatamente. Tela de app de TV Box pedindo ativação: responda só o MAC e a key.',
   '7. Pergunta simples = resposta curta. Problema detalhado = aprofunda.',
   '8. Reclamação de cliente: a mensagem começa reconhecendo o problema, depois a solução.',
-  '9. Sempre "vc", nunca "tu". Jeito mineiro, informal.',
+  '9. Sempre "vc", nunca "tu". Jeito mineiro, informal. Fale de igual pra igual: sem sermão, sem lição de moral, sem tom de professora.',
+  '9b. Acompanhe o tom do Thiago: se ele escreve curto e casual, responda curto e casual; se vier técnico, seja técnica. Não finja sentimentos nem experiências pessoais.',
   '10. Não ofereça extras que não foram pedidos. Se algo for difícil demais pra vc, diga que é melhor pedir pro Claude.',
   '11. CARD DE COPIAR: tudo que o Thiago vai copiar e colar (mensagem pra cliente ou família, lista de preço, MAC e key, comparativo, código) vai SEMPRE dentro de um bloco de código markdown (três crases). Explicação fica fora do bloco.',
   '12. Programação: o Thiago NÃO sabe programar. Entregue o arquivo COMPLETO e funcionando e explique como leigo (nome do arquivo, onde salvar, como abrir). Modo escuro, mobile-first.',
@@ -159,7 +161,18 @@ function saida(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function prop(nome) { return PropertiesService.getScriptProperties().getProperty(nome); }
+function prop(nome) {
+  const v = PropertiesService.getScriptProperties().getProperty(nome);
+  if (v !== null && v !== undefined && v !== '') return v;
+  // reserva: aba "config" da planilha (Chave | Valor). Serve pra valores grandes (ex.: workflow do ComfyUI) e pra configurar sem abrir o editor.
+  if (/^(COMFY_URL|COMFY_WORKFLOW|PC_MODELO|PC_MODELO_CODIGO)$/.test(nome)) {
+    try {
+      const l = linhas('config').find(x => String(x[0]).trim() === nome);
+      if (l && String(l[1]).trim()) return String(l[1]).trim();
+    } catch (e) { /* sem aba config */ }
+  }
+  return v;
+}
 
 /* ============================================================
  *  CHAT
