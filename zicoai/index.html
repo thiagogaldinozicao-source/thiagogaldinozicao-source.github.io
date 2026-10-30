@@ -155,6 +155,28 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .hist-item small{color:var(--cinza2);display:block;font-size:12px}
 .hist-item .antes{color:var(--erro);text-decoration:line-through;opacity:.8}
 .hist-item .depois{color:var(--verde)}
+/* tarefas em segundo plano */
+#linhaTarefas{display:none;max-width:820px;margin:6px auto 0;align-items:center;gap:8px;font-size:13px;color:var(--ouro2);cursor:pointer;padding:0 4px}
+#linhaTarefas.on{display:flex}
+#linhaTarefas .pontos{display:inline-flex;gap:3px}
+#linhaTarefas .pontos i{width:5px;height:5px;border-radius:50%;background:var(--ouro);animation:pisca 1s infinite}
+#linhaTarefas .pontos i:nth-child(2){animation-delay:.2s}#linhaTarefas .pontos i:nth-child(3){animation-delay:.4s}
+.tarefa{border:1px solid var(--borda2);border-radius:14px;padding:12px;margin:8px 0;background:var(--card2)}
+.tarefa .tit{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.tarefa .tit .ic{width:10px;height:10px;border-radius:50%;background:var(--cinza2);flex-shrink:0}
+.tarefa.rodando .tit .ic{background:var(--ouro);box-shadow:0 0 0 4px rgba(235,181,51,.2);animation:pisca 1s infinite}
+.tarefa.concluída .tit .ic{background:var(--verde)}
+.tarefa.erro .tit .ic,.tarefa.cancelada .tit .ic{background:var(--erro)}
+.tarefa .tit .parar{margin-left:auto;width:28px;height:28px;border-radius:8px;border:1px solid var(--borda2);display:grid;place-items:center;font-size:12px}
+.tarefa .tit .parar:hover{color:var(--erro);border-color:var(--erro)}
+.tarefa .meta{font-size:12px;color:var(--cinza2);margin:4px 0 6px}
+.tarefa ol{list-style:none;border-left:2px solid var(--borda2);padding-left:12px;margin:4px 0 0 4px}
+.tarefa li{position:relative;font-size:13px;color:var(--cinza);padding:2px 0}
+.tarefa li::before{content:'';position:absolute;left:-17px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--borda2)}
+.tarefa li:last-child::before{background:var(--ouro)}
+.tarefa .ver{font-size:13px;color:var(--ouro2);margin-top:6px;display:inline-block}
+.tarefa .res{display:none;margin-top:8px;border-top:1px solid var(--borda2);padding-top:8px;font-size:14px}
+.tarefa .res.aberto{display:block}
 
 /* ---------- caixa de mensagem ---------- */
 footer{padding:8px 12px calc(env(safe-area-inset-bottom) + 10px)}
@@ -229,6 +251,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
   <div id="lista"><div class="lado-vazio">Carregando...</div></div>
   <div class="lado-pe">
     <button id="bMem">🧠 Memória</button>
+    <button id="bTarefas2">⧉ Tarefas em segundo plano <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
     <button id="bCfg">⚙️ Configurar <span class="status" id="status" style="margin-left:auto"><i></i><span>—</span></span></button>
   </div>
 </aside>
@@ -238,6 +261,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
   <header>
     <button class="btn-ic" id="bMenu" aria-label="Conversas">☰</button>
     <div class="titulo" id="tituloTopo">ZicoAI</div>
+    <button class="btn-ic" id="bTarefas" aria-label="Tarefas em segundo plano" title="Tarefas em segundo plano">⧉</button>
     <button class="btn-ic" id="bNovo2" aria-label="Nova conversa">✎</button>
   </header>
 
@@ -253,6 +277,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
         <input type="file" id="arquivo" accept="image/*" hidden>
         <button class="chip" id="cWeb" title="Pesquisar na web">🌐<span class="rot"> Pesquisar</span></button>
         <button class="chip" id="cImg" title="Gerar imagem">🎨<span class="rot"> Imagem</span></button>
+        <button class="chip" id="cAgente" title="Mandar um agente fazer em segundo plano">🧠<span class="rot"> Agente</span></button>
         <div class="sel-wrap">
           <button class="sel" id="bModelo"><b id="nomeModelo">Auto</b> ▾</button>
           <div class="menu" id="menuModelo">
@@ -265,6 +290,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
       </div>
     </div>
+    <div id="linhaTarefas"><span class="pontos"><i></i><i></i><i></i></span><span id="txtTarefas">1 tarefa em execução</span><span style="margin-left:auto">ver ›</span></div>
     <div class="dica">A ZicoAI aprende com vc. Não mande CPF nem telefone de cliente aqui.</div>
   </footer>
 </div>
@@ -283,6 +309,14 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
       <button class="btn cinza" id="cTestar">Testar</button>
       <button class="btn ouro" id="cSalvar">Salvar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="mTarefas">
+  <div class="painel">
+    <h3>Tarefas em segundo plano</h3>
+    <div id="tLista"><p class="aviso">Carregando...</p></div>
+    <div class="linha-btn"><button class="btn cinza" id="tFechar">Fechar</button></div>
   </div>
 </div>
 
@@ -718,6 +752,7 @@ function etapasPara(texto, temFoto){
   if(modo === 'web' || /pesquis|cota[cç][aã]o|d[oó]lar hoje|not[ií]cia|na internet|no google|pre[cç]o atual/i.test(texto)) e.push('Pesquisando na web', 'Conferindo as fontes');
   if(modo === 'imagem' || /(cri|ger|faz|desenh)\w* (uma )?(imagem|foto|arte|logo|desenho)/i.test(texto)) e.push('Montando a imagem');
   if(/c[oó]digo|html|python|unreal|script|programa|\bapp\b/i.test(texto)) e.push('Escrevendo o código');
+  if(modo === 'agente') return ['Criando a tarefa', 'Chamando um agente'];
   if(cfg.cerebro === 'pc') e.push('Chamando o PC de casa');
   else if(modo === 'auto') e.push('Escolhendo o melhor cérebro');
   e.push('Escrevendo a resposta');
@@ -768,9 +803,56 @@ async function envia(refazendo){
     if(!parou) status(false);
   }
   modoEnviando(false);
-  if(modo === 'imagem') setModo('auto');
+  if(modo === 'imagem' || modo === 'agente') setModo('auto');
   guarda(); desenha(); desenhaLista();
+  setTimeout(atualizaTarefas, 1500);
 }
+
+/* ---------- tarefas em segundo plano (agentes) ---------- */
+let tarefas = [], tmrTarefas = null, vistas = LS.get('tarefas_vistas', {});
+function desenhaTarefas(){
+  const rodando = tarefas.filter(t => t.status === 'pendente' || t.status === 'rodando');
+  const linha = $('linhaTarefas');
+  linha.classList.toggle('on', rodando.length > 0);
+  $('txtTarefas').textContent = rodando.length + (rodando.length === 1 ? ' tarefa em execução' : ' tarefas em execução') + (rodando[0] && rodando[0].passos.length ? ' · ' + rodando[0].passos[rodando[0].passos.length - 1] : '');
+  $('badgeTarefas').querySelector('span').textContent = rodando.length ? rodando.length + ' rodando' : (tarefas.length ? tarefas.length : '');
+  $('badgeTarefas').className = 'status' + (rodando.length ? ' on' : '');
+  if(!$('mTarefas').classList.contains('aberto')) return;
+  const l = $('tLista'); l.innerHTML = '';
+  if(!tarefas.length){ l.innerHTML = '<p class="aviso">Nenhuma tarefa ainda. Pede algo grande (relatório, levantamento, app completo) ou usa o chip 🧠 Agente.</p>'; return; }
+  const grupos = [['Em execução', rodando], ['Concluídas', tarefas.filter(t => rodando.indexOf(t) < 0)]];
+  grupos.forEach(g => {
+    if(!g[1].length) return;
+    const sec = document.createElement('div'); sec.className = 'sec'; sec.textContent = g[0] + ' (' + g[1].length + ')'; l.appendChild(sec);
+    g[1].forEach(t => {
+      const d = document.createElement('div'); d.className = 'tarefa ' + t.status;
+      d.innerHTML = '<div class="tit"><span class="ic"></span><span class="nome"></span>' + (t.status === 'pendente' || t.status === 'rodando' ? '<button class="parar" title="Parar">■</button>' : '') + '</div><div class="meta"></div><ol></ol>' + (t.resultado ? '<a class="ver" href="#">Ver resultado</a><div class="res md"></div>' : '');
+      d.querySelector('.nome').textContent = t.pedido.length > 70 ? t.pedido.slice(0, 68) + '…' : t.pedido;
+      d.querySelector('.meta').textContent = 'Agente · ' + t.status + ' · ' + (t.atualizada || t.criada).slice(5, 16).replace(' ', ' às ');
+      d.querySelector('ol').innerHTML = t.passos.map(p => '<li>' + esc(p) + '</li>').join('');
+      const parar = d.querySelector('.parar'); if(parar) parar.onclick = async () => { parar.disabled = true; try{ await api({ acao:'cancelarTarefa', id: t.id }); }catch(e){} atualizaTarefas(); };
+      const ver = d.querySelector('.ver'); if(ver){ ver.onclick = e => { e.preventDefault(); const r = d.querySelector('.res'); if(!r.innerHTML) { r.innerHTML = renderMd(t.resultado); trataImagens(r); } r.classList.toggle('aberto'); ver.textContent = r.classList.contains('aberto') ? 'Esconder' : 'Ver resultado'; }; }
+      l.appendChild(d);
+    });
+  });
+}
+async function atualizaTarefas(){
+  try{
+    const j = await api({ acao:'tarefas' });
+    const antes = tarefas; tarefas = j.tarefas || [];
+    // tarefa que acabou de concluir na conversa aberta: recarrega a conversa pra mostrar o resultado
+    tarefas.forEach(t => {
+      if(t.status === 'concluída' && !vistas[t.id]){ vistas[t.id] = 1; LS.set('tarefas_vistas', vistas); if(t.chatId && t.chatId === atual && !controle) abrir(atual); }
+    });
+    desenhaTarefas();
+  }catch(e){}
+  const rodando = tarefas.some(t => t.status === 'pendente' || t.status === 'rodando');
+  clearTimeout(tmrTarefas);
+  if(rodando) tmrTarefas = setTimeout(atualizaTarefas, 8000);
+}
+function abreTarefas(){ fechaLado(); $('mTarefas').classList.add('aberto'); desenhaTarefas(); atualizaTarefas(); }
+$('bTarefas').onclick = abreTarefas; $('bTarefas2').onclick = abreTarefas; $('linhaTarefas').onclick = abreTarefas;
+$('tFechar').onclick = () => $('mTarefas').classList.remove('aberto');
 function refazer(){
   if(controle) return;
   while(mensagens.length && mensagens[mensagens.length - 1].role === 'assistant') mensagens.pop();
@@ -794,11 +876,13 @@ function setModo(m){
   modo = modo === m ? 'auto' : m;
   $('cWeb').classList.toggle('on', modo === 'web');
   $('cImg').classList.toggle('on', modo === 'imagem');
-  $('txt').placeholder = modo === 'web' ? 'O que vc quer pesquisar?' : modo === 'imagem' ? 'Descreve a imagem que vc quer' : 'Pergunta qualquer coisa pra ZicoAI';
+  $('cAgente').classList.toggle('on', modo === 'agente');
+  $('txt').placeholder = modo === 'web' ? 'O que vc quer pesquisar?' : modo === 'imagem' ? 'Descreve a imagem que vc quer' : modo === 'agente' ? 'Descreve a tarefa grande (ela faz em segundo plano)' : 'Pergunta qualquer coisa pra ZicoAI';
   $('txt').focus();
 }
 $('cWeb').onclick = () => setModo('web');
 $('cImg').onclick = () => setModo('imagem');
+$('cAgente').onclick = () => setModo('agente');
 
 /* ---------- seletor de cérebro ---------- */
 const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', pc:'PC de casa' };
@@ -958,7 +1042,7 @@ status();
 mostraModelo();
 desenhaLista();
 desenha();
-if(cfg.url){ carregaLista(); if(atual) abrir(atual); }
+if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); }
 else setTimeout(() => $('bCfg').onclick(), 300);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>

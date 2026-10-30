@@ -29,7 +29,7 @@ const sheets = {
   perfil: makeSheet('perfil', perfil), base: makeSheet('base', base),
 };
 const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = makeSheet(n)), copy: nome => ({ getId: () => 'COPIA_' + nome }) };
-let fetchLog = []; const EVENTOS = []; const RASCUNHOS = []; let OFFSET = 0;
+let fetchLog = []; const EVENTOS = []; const RASCUNHOS = []; let OFFSET = 0; const TRIGGERS = [];
 class FakeDate extends Date { static now() { return Date.now() + OFFSET; } }
 let fetchImpl = (url, opt) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Resposta teste [[MEMORIA: Thiago gosta de café]] fim' } }] }) });
 let SEQ = 0; const PROPS = { PIN: '1234', GROQ_KEY: 'g', GEMINI_KEY: 'm' }; const CACHE = {};
@@ -46,7 +46,7 @@ const ctx = {
   Utilities: { sleep: ms => { OFFSET += ms; }, newBlob: (bytes, mime, nome) => ({ getBytes: () => (typeof bytes === 'string' ? Buffer.from(bytes) : bytes), getContentType: () => mime, getName: () => nome, setName(){ return this; } }), base64Decode: s => Buffer.from(s, 'base64'), base64Encode: (x) => Buffer.from(typeof x === 'string' ? x : x).toString('base64'), base64EncodeWebSafe: s => Buffer.from(s).toString('base64url'), Charset: { UTF_8: 'utf8' }, getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : f === 'yyyy-MM-dd' ? (d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')) : f === 'yyyyMMdd' ? '20261030' : f.includes('yyyyMMdd') ? '20261030-113000' : f.includes('HH:mm') ? '02/11 14:00' : f.includes('dd/MM/yyyy') ? (f.includes('EEEE') ? 'sexta-feira, 30/10/2026' : '30/10/2026') : '30/10' },
   ContentService: { createTextOutput: t => ({ t, setMimeType(){ return this; } }), MimeType: { JSON: 'json' } },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
-  ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/X/exec' }), WeekDay: { MONDAY: 'MONDAY', SUNDAY: 'SUNDAY' }, getProjectTriggers: () => [], deleteTrigger: () => {}, newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create: () => {} }), everyDays: () => ({ atHour: () => ({ create: () => {} }) }), onWeekDay: () => ({ atHour: () => ({ create: () => {} }) }) }) }) },
+  ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/X/exec' }), WeekDay: { MONDAY: 'MONDAY', SUNDAY: 'SUNDAY' }, getProjectTriggers: () => TRIGGERS.map(f => ({ getHandlerFunction: () => f })), deleteTrigger: t => { const i = TRIGGERS.indexOf(t.getHandlerFunction()); if (i >= 0) TRIGGERS.splice(i, 1); }, newTrigger: fn => ({ timeBased: () => ({ after: () => ({ create: () => { TRIGGERS.push(fn); } }), everyMinutes: () => ({ create: () => {} }), everyDays: () => ({ atHour: () => ({ create: () => {} }) }), onWeekDay: () => ({ atHour: () => ({ create: () => {} }) }) }) }) },
   CalendarApp: { getDefaultCalendar: () => ({
       getEvents: () => [{ getStartTime: () => new Date(2026, 10, 2, 14, 0), isAllDayEvent: () => false, getTitle: () => 'Entregar iPhone do João', getLocation: () => 'Loja' }],
       createEvent: (t, i, f) => { EVENTOS.push({ t, i, f }); return { addPopupReminder: () => {} }; } }) },
@@ -58,4 +58,4 @@ const ctx = {
 };
 vm.createContext(ctx); vm.runInContext(code, ctx);
 const post = b => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(b) } }).t);
-module.exports = { PROPS, CACHE, ctx, post, sheets, fetchLog, EVENTOS, RASCUNHOS, setFetch: f => fetchImpl = f };
+module.exports = { PROPS, CACHE, ctx, post, sheets, fetchLog, EVENTOS, RASCUNHOS, TRIGGERS, setFetch: f => fetchImpl = f };

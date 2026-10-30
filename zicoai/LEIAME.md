@@ -59,6 +59,7 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Roteador por feedback (`notaCerebros`/`reordenarPorNota`): últimos 40 👍/👎 por cérebro; cérebro com menos de 50% de aprovação (mínimo 3 votos) vai pro fim da fila no modo Auto. Cache 30 min, zerado a cada feedback. Escolha manual no seletor ignora isso.
 - Ensinar com arquivo (ação `aprenderTexto`, botão 📎 no painel Memória): texto de .txt/.md/.csv/.json (até 60k caracteres) → Gemini separa em até 60 fatos "assunto || conteúdo" → `gravarFato('base')` com origem `arquivo:<nome>`; itens com CPF/telefone são barrados.
 - `arrumarMemoria()` (domingo 4h): remove lembranças repetidas (`jaSabe`), mantendo a mais nova, e registra em `historico` (origem `arrumacao`).
+- Agentes em segundo plano (aba `tarefas`: Id | Criada | Conversa | Pedido | Status | Passos | Resultado | Atualizada | Aparelho): pedido grande vira tarefa por `[[TAREFA: …]]` (o modelo decide), pelo chip 🧠 Agente do app (`modo: 'agente'`) ou pela ação `tarefa`. `criarTarefa` grava `pendente` e `agendarRodada()` cria UM gatilho `after(1000)` (cache `rodada_agendada` evita acumular). `rodarTarefas()` apaga seus gatilhos, pega as pendentes (lock), roda `agente()` em cada uma (para em 4 min e reagenda o resto). `agente()`: planeja (JSON de 2–6 passos: pesquisar, ler_link, consultar_base, calcular, escrever), executa cada um gravando os passos ao vivo (coluna Passos, lida pelo app a cada 8 s), confere cancelamento entre passos, e no `escrever` monta o resultado com o material coletado, grava, posta na conversa de origem ("🧠 Resultado da tarefa", cérebro `agente · X`) e avisa no Telegram/ntfy. Ações: `tarefas` (lista), `cancelarTarefa`. App: botão ⧉ no topo e na lateral abre o painel (Em execução/Concluídas, passos, ■ parar, Ver resultado); linha "N tarefas em execução · último passo" acima da dica; quando uma tarefa da conversa aberta conclui, a conversa é recarregada.
 - Treino diário (aba `treino`: Data | Tipo | Nota | Detalhe), tudo na nuvem, PC pode estar desligado:
   - `treinoDiario()` 3h: sorteia 4 perguntas da prova (peso maior pras nunca feitas ou com nota baixa), responde, corrige (`corrigirResposta`, temperatura 0), grava nota/data na prova; nota < 7,5 vira aprendizado (assunto `treino`).
   - `revisarDia()` 23h: pega os pares pergunta/resposta do dia (até 25) e um revisor aponta só quebras de FORMA e HONESTIDADE (oferta no fim, fingir ação, inventar número, tom, bloco de código indevido, longo demais, não respondeu); cada problema vira aprendizado (assunto `revisão`, com o cérebro culpado no texto) e a contagem por cérebro vai pro detalhe.
@@ -89,6 +90,7 @@ Abas e colunas:
 - `precos`: Produto | Condição | Capacidade | Cor | Preço Pix | Preço 12x | Estoque | Obs. ÚNICA fonte de preço: entra no sistema quando a pergunta fala de preço/valor/estoque ou cita produto (filtra pelo número do modelo). Vazia → a IA é avisada pra não dar preço.
 - `exemplos`: Data | Pergunta | Resposta | Cérebro | Assunto (respostas aprovadas com 👍)
 - `treino`: Data | Tipo | Nota | Detalhe (prova rápida, revisão do dia, pergunta do dia, perguntas novas, exportação)
+- `tarefas`: Id | Criada | Conversa | Pedido | Status (pendente/rodando/concluída/erro/cancelada) | Passos | Resultado | Atualizada | Aparelho
 - `vetores`: Aba | Texto | Vetor (cache dos embeddings `gemini-embedding-001`, 256 dimensões, arredondados). Preenchida sozinha, até 20 trechos novos por resposta.
 - `config`: Chave | Valor
 - `prova`: Nº | Grupo | Pergunta exata | Critérios nota 10 | Erro mais provável | Última nota | Última data | Observação (20 perguntas da prova semanal; gabarito feito em 30/10)
@@ -111,6 +113,7 @@ node t10.js  # exemplos aprovados, roteador por feedback, ensinar com arquivo, a
 node t11.js  # calculadora exata, conversas antigas, trava de PIN, resposta vazia
 node t12.js  # treino diário, revisão do dia, pergunta do dia, perguntas novas, exportação
 node t13.js  # cérebros extras, leitura de link, taxas, cripto, ntfy, comandos do Telegram
+node t14.js  # agentes em segundo plano
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

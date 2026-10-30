@@ -156,6 +156,7 @@ const ABAS = {
   precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
   exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
+  tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho'],
   vetores:      ['Aba', 'Texto', 'Vetor']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
@@ -206,6 +207,7 @@ const PERSONA = [
   '- Lembrete/compromisso pedido pelo Thiago (com data e hora claras): [[AGENDA: título || AAAA-MM-DD HH:MM || minutos de duração]]. Se faltar data ou hora, pergunte em vez de chutar.',
   '- E-mail que o Thiago pedir pra escrever: [[EMAIL_RASCUNHO: destinatário || assunto || corpo]]. Vira RASCUNHO no Gmail dele, nunca é enviado. Sem destinatário, deixe vazio.',
   '- Venda que o Thiago informar ("vendi um 13 por 2.500"): [[VENDA: valor em número || descrição curta]].',
+  '- Pedido GRANDE que exige várias etapas (pesquisar em vários lugares e comparar, relatório, estudo, app com várias telas, levantamento de preços): NÃO tente responder tudo agora. Responda em 1 linha que vai fazer em segundo plano e coloque [[TAREFA: descrição completa do que fazer, com tudo que o Thiago pediu]]. Um agente faz e o resultado aparece nesta conversa.',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
   '- Quando a seção CÁLCULO EXATO aparecer, use exatamente esses números (foram calculados por código, não por vc). Mostre a conta e o resultado deles.',
   '- Quando a seção CONVERSAS ANTIGAS aparecer, é o que o Thiago falou em outras conversas. Use pra responder "o que a gente combinou/falou sobre X".',
@@ -216,6 +218,7 @@ const PERSONA = [
 
 /** Lista do que a ZicoAI fez em cada resposta (aparece no app em "Como respondi"). */
 let PASSOS = [];
+let CHAT_ATUAL = null;
 function passo(t) { PASSOS.push(t); }
 
 /* ============================================================
@@ -254,6 +257,9 @@ function doPost(e) {
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
       case 'aprenderTexto': return saida(aprenderTexto(req.texto, req.nome, aparelho));
+      case 'tarefa':        return saida(criarTarefa(String(req.pedido || ''), req.chatId, aparelho));
+      case 'tarefas':       return saida({ ok: true, tarefas: listarTarefas() });
+      case 'cancelarTarefa': return saida({ ok: true, cancelada: cancelarTarefa(req.id) });
       case 'publicar':      return saida(publicarApp(req.nome, req.html));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
       case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS });
@@ -313,6 +319,17 @@ function chat(req, aparelho) {
   }
   if (req.refazer) apagarUltimaResposta(chatId);
   else gravarMensagem(chatId, 'thiago', pergunta + (temFoto ? '\n[📷 foto enviada]' : ''), '', aparelho);
+  CHAT_ATUAL = chatId;
+
+  // modo agente: o Thiago pediu explicitamente segundo plano
+  if (modo === 'agente') {
+    const t = criarTarefa(pergunta, chatId, aparelho);
+    const txt = t.ok ? '🧠 Agente trabalhando nisso em segundo plano (tarefa ' + t.id + '). O resultado aparece aqui quando terminar.' : '⚠️ ' + t.erro;
+    passo('Criou uma tarefa em segundo plano');
+    gravarMensagem(chatId, 'zicoai', txt, 'agente', aparelho);
+    tocarChat(chatId);
+    return { ok: true, chatId: chatId, titulo: titulo, resposta: txt, cerebro: 'agente', salvou: ['tarefa'], passos: PASSOS, tarefaId: t.id };
+  }
 
   if (temFoto) passo('Analisou a foto');
 
@@ -902,6 +919,11 @@ function processarTags(texto, aparelho) {
     salvou.push('venda'); passo('Anotou a venda: ' + valor);
     const r = resumoVendas();
     return '\n\n💰 Venda anotada: R$ ' + moeda(valor) + '. Hoje: R$ ' + moeda(r.hoje) + ' · Mês: R$ ' + moeda(r.mes) + '\n';
+  });
+  texto = texto.replace(/\[\[TAREFA:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    const r = criarTarefa(t.trim(), CHAT_ATUAL, aparelho);
+    if (r.ok) { salvou.push('tarefa'); passo('Mandou um agente fazer em segundo plano'); return '\n\n🧠 Agente trabalhando nisso em segundo plano. O resultado aparece aqui quando terminar.\n'; }
+    return '';
   });
   texto = texto.replace(/\[\[IMAGEM:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     const prompt = t.trim();
@@ -1980,6 +2002,149 @@ function exportarTreino() {
   aba('treino').appendRow(["'" + hoje(), 'exportação', '', linhasJsonl.length + ' exemplos em ' + nome]);
   Logger.log('Treino exportado: ' + nome + ' (' + linhasJsonl.length + ' linhas)');
   return f.getId();
+}
+
+/* ============================================================
+ *  AGENTES EM SEGUNDO PLANO
+ *  Pedido grande vira linha na aba "tarefas". Um gatilho dispara
+ *  ~1 min depois e roda o agente: planeja, executa etapas
+ *  (pesquisar, ler link, consultar base, calcular, escrever),
+ *  grava os passos ao vivo (o app mostra), e no fim posta o
+ *  resultado na conversa e avisa no Telegram/ntfy.
+ * ============================================================ */
+
+function criarTarefa(pedido, chatId, aparelho) {
+  pedido = String(pedido || '').trim().slice(0, 4000);
+  if (pedido.length < 8) return { ok: false, erro: 'Pedido curto demais' };
+  const id = 'tf' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+  aba('tarefas').appendRow([id, "'" + agora(), String(chatId || ''), seguro(pedido), 'pendente', 'Na fila', '', "'" + agora(), aparelho || '']);
+  agendarRodada();
+  return { ok: true, id: id };
+}
+function linhaTarefa(id) {
+  const a = aba('tarefas');
+  const achou = a.getRange('A:A').createTextFinder(id).matchEntireCell(true).findNext();
+  return achou ? achou.getRow() : 0;
+}
+function atualizarTarefa(id, campos) {
+  const r = linhaTarefa(id);
+  if (!r) return;
+  const a = aba('tarefas');
+  Object.keys(campos).forEach(k => { const col = { status: 5, passos: 6, resultado: 7 }[k]; if (col) a.getRange(r, col, 1, 1).setValue(seguro(String(campos[k]).slice(0, k === 'resultado' ? 45000 : 4000))); });
+  a.getRange(r, 8, 1, 1).setValue("'" + agora());
+}
+function tarefaCancelada(id) {
+  const r = linhaTarefa(id);
+  return r ? aba('tarefas').getRange(r, 5, 1, 1).getDisplayValues()[0][0] === 'cancelada' : true;
+}
+function listarTarefas() {
+  return linhas('tarefas').slice(-40).reverse().map(l => ({ id: l[0], criada: l[1], chatId: l[2], pedido: l[3], status: l[4], passos: String(l[5] || '').split(' | ').filter(Boolean), resultado: l[6], atualizada: l[7] }));
+}
+function cancelarTarefa(id) {
+  const r = linhaTarefa(id);
+  if (!r) return false;
+  const st = aba('tarefas').getRange(r, 5, 1, 1).getDisplayValues()[0][0];
+  if (st === 'concluída' || st === 'erro') return false;
+  atualizarTarefa(id, { status: 'cancelada', passos: 'Cancelada pelo Thiago' });
+  return true;
+}
+
+/** Garante um gatilho pra rodar a fila daqui a ~1 minuto (sem acumular gatilhos). */
+function agendarRodada() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('rodada_agendada')) return;
+  try {
+    ScriptApp.newTrigger('rodarTarefas').timeBased().after(1000).create();
+    cache.put('rodada_agendada', '1', 90);
+  } catch (e) { Logger.log('não agendou rodada: ' + e.message); }
+}
+
+function rodarTarefas() {
+  // limpa os gatilhos desta função (já dispararam) e libera nova agenda
+  try { ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rodarTarefas').forEach(t => ScriptApp.deleteTrigger(t)); } catch (e) { /* ok */ }
+  CacheService.getScriptCache().remove('rodada_agendada');
+  const inicio = Date.now();
+  const pendentes = linhas('tarefas').filter(l => l[4] === 'pendente');
+  for (const l of pendentes) {
+    if (Date.now() - inicio > 240000) { agendarRodada(); break; }   // deixa o resto pra próxima rodada (limite de 6 min)
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(2000)) continue;
+    try {
+      if (aba('tarefas').getRange(linhaTarefa(l[0]), 5, 1, 1).getDisplayValues()[0][0] !== 'pendente') continue;
+      atualizarTarefa(l[0], { status: 'rodando', passos: 'Começou' });
+    } finally { lock.releaseLock(); }
+    try { agente(l[0], l[3], l[2], l[8]); }
+    catch (e) { atualizarTarefa(l[0], { status: 'erro', resultado: '⚠️ ' + String(e.message || e).slice(0, 500) }); }
+  }
+}
+
+const PROMPT_PLANO = [
+  'Você planeja o trabalho de um agente que vai cumprir um pedido do Thiago (dono da Zicão Store). Ferramentas disponíveis:',
+  '- pesquisar: busca na web (uma pergunta curta por vez)',
+  '- ler_link: lê uma página (URL completa)',
+  '- consultar_base: procura na base de conhecimento da loja (termo)',
+  '- calcular: conta exata (ex.: "2500 em 12x com 2,99%", "US$ 500")',
+  '- escrever: redige o resultado final usando tudo que foi coletado (sempre o ÚLTIMO passo; o detalhe diz o formato: relatório, tabela, mensagem, código completo em 1 HTML...)',
+  'Monte de 2 a 6 passos, objetivos e sem repetição. Responda SÓ JSON: {"passos":[{"acao":"pesquisar|ler_link|consultar_base|calcular|escrever","detalhe":"..."}]}'
+].join('\n');
+
+function agente(id, pedido, chatId, aparelho) {
+  const log = [];
+  const anota = t => { log.push(t); atualizarTarefa(id, { passos: log.join(' | ') }); };
+  const chamar = (msgs, maxSaida, temp) => {
+    for (const nome of ['gemini', 'github', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
+      if (!temCerebro(nome)) continue;
+      const tk = estimarTokens(JSON.stringify(msgs));
+      if (tk + maxSaida > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk + maxSaida)) continue;
+      try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome }; } catch (e) { /* próximo */ }
+    }
+    throw new Error('nenhum cérebro disponível agora');
+  };
+
+  anota('Planejando');
+  const plano = lerJSON(chamar([{ role: 'system', content: PROMPT_PLANO }, { role: 'user', content: 'PEDIDO: ' + pedido }], 800, 0.2).texto);
+  let passos = (plano && plano.passos) ? plano.passos.slice(0, 6) : [{ acao: 'escrever', detalhe: 'responder o pedido' }];
+  if (!passos.some(p => p.acao === 'escrever')) passos.push({ acao: 'escrever', detalhe: 'resultado final' });
+  anota('Plano: ' + passos.map(p => p.acao).join(' → '));
+
+  const material = [];
+  for (let i = 0; i < passos.length; i++) {
+    const p = passos[i];
+    if (tarefaCancelada(id)) { anota('Parou: cancelada'); return; }
+    const det = String(p.detalhe || '').slice(0, 500);
+    try {
+      if (p.acao === 'pesquisar') {
+        anota('Pesquisando: ' + det.slice(0, 60));
+        const r = pesquisar([{ role: 'user', content: det }], det, '');
+        material.push('PESQUISA "' + det + '":\n' + (r && r.ok ? r.texto : '(sem resultado)'));
+      } else if (p.acao === 'ler_link') {
+        anota('Lendo: ' + det.slice(0, 60));
+        const u = (det.match(/https?:\/\/\S+/) || [det])[0];
+        material.push('PÁGINA ' + u + ':\n' + (lerPagina(u) || '(não consegui ler)'));
+      } else if (p.acao === 'consultar_base') {
+        anota('Consultando a base: ' + det.slice(0, 60));
+        const b = relevantes(linhas('base'), det, 8, l => l[0] + ' ' + l[1], l => l[0]);
+        material.push('BASE sobre "' + det + '":\n' + (b.length ? b.map(l => '- ' + l[0] + ': ' + l[1]).join('\n') : '(nada na base)') + (tabelaPrecos(det, false) || ''));
+      } else if (p.acao === 'calcular') {
+        anota('Calculando: ' + det.slice(0, 60));
+        material.push('CÁLCULO "' + det + '":\n' + (calculadora(det) || '(não entendi a conta)'));
+      } else if (p.acao === 'escrever') {
+        anota('Escrevendo o resultado');
+        const sistema = montarSistema(pedido, true) + '\n\nVocê é um agente que trabalhou em segundo plano. Entregue o RESULTADO FINAL do pedido, completo, usando o MATERIAL coletado (cite de onde veio quando for dado externo). Formato pedido: ' + det + '. Se for código, arquivo COMPLETO em bloco html. Não diga "como pedido"; vá direto ao resultado.';
+        const r = chamar([{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO: ' + pedido + '\n\nMATERIAL COLETADO:\n' + (material.join('\n\n') || '(nenhum)').slice(0, 60000) }], 6000, 0.4);
+        const final = processarTags(r.texto, aparelho || 'agente').texto;
+        atualizarTarefa(id, { status: 'concluída', resultado: final, passos: log.concat(['Concluída com ' + r.cerebro]).join(' | ') });
+        if (chatId) {
+          PASSOS = ['Agente em segundo plano: ' + log.join(' → ')];
+          gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedido.slice(0, 80) + (pedido.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + r.cerebro, aparelho || 'agente');
+          tocarChat(chatId);
+        }
+        try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, '🧠 Tarefa pronta: ' + pedido.slice(0, 80) + '\n\n' + final.slice(0, 3500)); } catch (e) { /* ok */ }
+        try { ntfy('🧠 Tarefa pronta', pedido.slice(0, 200), 'default'); } catch (e) { /* ok */ }
+        return;
+      }
+    } catch (e) { anota('Falhou ' + p.acao + ': ' + String(e.message || e).slice(0, 60)); material.push('(' + p.acao + ' falhou)'); }
+  }
 }
 
 /* ============================================================
