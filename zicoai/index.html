@@ -785,7 +785,13 @@ const lerCfg = () => Object.assign({}, cfg, {
 $('cTestar').onclick = async () => {
   const antes = cfg; cfg = lerCfg();
   $('cAviso').style.color = 'var(--cinza)'; $('cAviso').textContent = 'Testando...';
-  try{ const j = await api({ acao:'teste' }); $('cAviso').style.color = 'var(--verde)'; $('cAviso').textContent = j.msg; }
+  try{
+    const j = await api({ acao:'teste' });
+    $('cAviso').style.color = 'var(--verde)';
+    const c = j.cotas || {};
+    const linhas = Object.keys(c).map(n => n.replace(' GPT-OSS 120B','') + ': ' + c[n].hoje + (c[n].rpd ? '/' + c[n].rpd : '') + ' hoje' + (c[n].castigo ? ' (de castigo)' : ''));
+    $('cAviso').textContent = j.msg + (linhas.length ? ' · Cotas grátis: ' + linhas.join(' · ') : '');
+  }
   catch(e){ $('cAviso').style.color = 'var(--erro)'; $('cAviso').textContent = e.message; }
   cfg = antes;
 };

@@ -21,11 +21,12 @@ const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/open
 const GEMINI_NATIVO_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
 const CEREBROS = {
-  gemini: { url: GEMINI_COMPAT_URL, chave: 'GEMINI_KEY', modelo: 'gemini-3.1-flash-lite', nome: 'Gemini', limite: 200000, maxSaida: 8192 },
-  groq:   { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'openai/gpt-oss-120b', nome: 'Groq GPT-OSS 120B', limite: 7800, maxSaida: 4096 },
-  groq2:  { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'qwen/qwen3.8-27b', nome: 'Groq Qwen', limite: 7800, maxSaida: 4096 },
+  // limite = tokens por chamada (entrada+saída) | tpm = tokens por minuto | rpm = pedidos por minuto | rpd = pedidos por dia (plano grátis, com folga)
+  gemini: { url: GEMINI_COMPAT_URL, chave: 'GEMINI_KEY', modelo: 'gemini-3.1-flash-lite', nome: 'Gemini', limite: 200000, maxSaida: 8192, tpm: 200000, rpm: 9, rpd: 480 },
+  groq:   { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'openai/gpt-oss-120b', nome: 'Groq GPT-OSS 120B', limite: 7800, maxSaida: 4096, tpm: 7800, rpm: 28, rpd: 950 },
+  groq2:  { url: GROQ_URL, chave: 'GROQ_KEY', modelo: 'qwen/qwen3.8-27b', nome: 'Groq Qwen', limite: 7800, maxSaida: 4096, tpm: 7800, rpm: 28, rpd: 950 },
   // Cerebras (grátis, rápido, modelos grandes). Só entra se existir CEREBRAS_KEY nas Propriedades.
-  cerebras: { url: 'https://api.cerebras.ai/v1/chat/completions', chave: 'CEREBRAS_KEY', modelo: 'gpt-oss-120b', nome: 'Cerebras GPT-OSS 120B', limite: 60000, maxSaida: 8192, opcional: true },
+  cerebras: { url: 'https://api.cerebras.ai/v1/chat/completions', chave: 'CEREBRAS_KEY', modelo: 'gpt-oss-120b', nome: 'Cerebras GPT-OSS 120B', limite: 28000, maxSaida: 8192, tpm: 28000, rpm: 4, rpd: 900, opcional: true },
   // PC de casa (Ollama pelo Tailscale Funnel). Endereço e modelo vêm das Propriedades do script.
   pc:     { url: '', chave: null, modelo: '', nome: 'PC', limite: 16000, maxSaida: 4096, local: true }
 };
@@ -45,6 +46,78 @@ function cerebroPCcodigo() {
   const m = prop('PC_MODELO_CODIGO');
   return m ? Object.assign({}, pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000 }) : pc;
 }
+/* ============================================================
+ *  CONTROLE DE COTA (pra não estourar o plano grátis)
+ *  Conta tokens e pedidos por minuto (CacheService) e pedidos por
+ *  dia (Propriedades). Antes de chamar um cérebro, confere se cabe;
+ *  se não cabe, pula pro próximo sem gastar tempo com erro 429.
+ *  Quando um 429 escapa, o cérebro fica "de castigo" pelo tempo
+ *  que a API pediu.
+ * ============================================================ */
+
+function minutoAtual() { return Math.floor(Date.now() / 60000); }
+function chaveDia() { return Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd'); }
+
+function usoMinuto(nome) {
+  const c = CacheService.getScriptCache();
+  const m = minutoAtual();
+  return { tokens: parseInt(c.get('tk_' + nome + '_' + m) || '0', 10), pedidos: parseInt(c.get('rq_' + nome + '_' + m) || '0', 10) };
+}
+function usoDia(nome) {
+  return parseInt(PropertiesService.getScriptProperties().getProperty('rpd_' + nome + '_' + chaveDia()) || '0', 10);
+}
+function registrarUso(nome, tokens) {
+  const c = CacheService.getScriptCache();
+  const m = minutoAtual();
+  const u = usoMinuto(nome);
+  c.put('tk_' + nome + '_' + m, String(u.tokens + tokens), 120);
+  c.put('rq_' + nome + '_' + m, String(u.pedidos + 1), 120);
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('rpd_' + nome + '_' + chaveDia(), String(usoDia(nome) + 1));
+}
+/** Cabe mais uma chamada desse tamanho agora? Devolve '' se cabe, ou o motivo. */
+function motivoNaoCabe(nome, c, tokens) {
+  if (c.local) return '';
+  if (CacheService.getScriptCache().get('off_' + nome)) return 'de castigo (deu limite há pouco)';
+  if (c.rpd && usoDia(nome) >= c.rpd) return 'cota do dia acabou';
+  const u = usoMinuto(nome);
+  if (c.rpm && u.pedidos >= c.rpm) return 'limite de pedidos do minuto';
+  if (c.tpm && u.tokens + tokens > c.tpm) return 'limite de tokens do minuto';
+  return '';
+}
+/** Deu 429: descobre quanto tempo esperar e deixa o cérebro de castigo. */
+function castigo(nome, msgErro) {
+  let seg = 20;
+  const m = String(msgErro || '').match(/(\d+(?:\.\d+)?)\s*(s|seconds?|segundos?)\b/i) || String(msgErro || '').match(/retry[^0-9]{0,20}(\d+)/i);
+  if (m) seg = Math.ceil(parseFloat(m[1]));
+  if (/(\d+)\s*m(in)?\b/i.test(String(msgErro)) && !m) seg = parseInt(RegExp.$1, 10) * 60;
+  if (/per day|daily|do dia|RPD/i.test(String(msgErro))) seg = 3600;
+  seg = Math.max(10, Math.min(seg, 3600));
+  CacheService.getScriptCache().put('off_' + nome, '1', seg);
+  return seg;
+}
+/** Quanto cada cérebro já usou hoje (pro app mostrar). */
+function cotas() {
+  const out = {};
+  Object.keys(CEREBROS).forEach(n => {
+    const c = CEREBROS[n];
+    if (c.local || !temCerebro(n)) return;
+    out[c.nome] = { hoje: usoDia(n), rpd: c.rpd || 0, minuto: usoMinuto(n).tokens, tpm: c.tpm || 0, castigo: !!CacheService.getScriptCache().get('off_' + n) };
+  });
+  return out;
+}
+
+/** Versão da conversa que cabe num cérebro pequeno: sistema enxuto, menos histórico, mensagens cortadas. */
+function msgsEnxutas(msgs, pergunta, extraSistema, imagem) {
+  const sistema = montarSistema(pergunta, true) + (extraSistema || '');
+  const hist = msgs.slice(1).slice(-6).map((m, i, arr) => {
+    const ultima = i === arr.length - 1;
+    if (typeof m.content !== 'string') return m;
+    return { role: m.role, content: m.content.length > (ultima ? 9000 : 1500) ? m.content.slice(0, ultima ? 9000 : 1500) + '\n[...cortado]' : m.content };
+  });
+  return [{ role: 'system', content: sistema }].concat(hist);
+}
+
 /** Cérebro de nuvem existe (tem chave)? Os opcionais só entram se a chave estiver configurada. */
 function temCerebro(nome) {
   const c = CEREBROS[nome];
@@ -138,7 +211,8 @@ function doPost(e) {
     const aparelho = String(req.aparelho || 'app').slice(0, 40);
 
     switch (req.acao) {
-      case 'teste':         return saida({ ok: true, msg: 'Conectado ✅' });
+      case 'teste':         return saida({ ok: true, msg: 'Conectado ✅', cotas: cotas() });
+      case 'cotas':         return saida({ ok: true, cotas: cotas() });
       case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
@@ -344,23 +418,45 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
   ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
 
-  const tokens = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
-  const erros = [];
+  const tokensCheio = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
+  let enxutas = null;
+  let erros = [];
+  // 2 rodadas: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo (em vez de falhar)
+  for (let rodada = 0; rodada < 2; rodada++) {
+  if (rodada === 1) {
+    if (!erros.some(e => /do minuto/.test(e))) break;
+    const espera = 60000 - (Date.now() % 60000) + 800;
+    passo('Todos os cérebros no limite do minuto, esperou ' + Math.ceil(espera / 1000) + 's pra tentar de novo');
+    Utilities.sleep(espera);
+    erros = [];
+  }
   for (const nome of ordem) {
     const c = nome === 'pc' ? pc : CEREBROS[nome];
+    // cérebro pequeno (Groq, Cerebras) recebe a versão enxuta da conversa
+    let usar = msgs, tokens = tokensCheio;
+    if (!c.local && c.limite < 50000 && tokensCheio + 1200 > c.limite * 0.8) {
+      if (!enxutas) { enxutas = msgsEnxutas(msgs, pergunta, extraSistema, imagem); passo('Resumiu o contexto pra caber no ' + c.nome); }
+      usar = enxutas; tokens = estimarTokens(JSON.stringify(usar));
+    }
     const maxSaida = Math.min(c.maxSaida, c.limite - tokens);
-    if (maxSaida < 1200) { erros.push(c.nome + ': conversa grande demais pro plano grátis'); continue; }
+    if (maxSaida < 1200) { erros.push(c.nome + ': conversa grande demais pro plano grátis'); passo(c.nome + ' pulado: conversa grande demais'); continue; }
+    const motivo = motivoNaoCabe(nome, c, tokens + Math.min(maxSaida, 1500));
+    if (motivo) { erros.push(c.nome + ': ' + motivo); passo(c.nome + ' pulado: ' + motivo); continue; }
     try {
       // gpt-oss pensa mais em código quando pedimos esforço alto (só os modelos que aceitam o parâmetro)
       const extras = codigo && /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'high' } : null;
-      const texto = chamarCompat(c, msgs, maxSaida, extras);
+      const texto = chamarCompat(c, usar, maxSaida, extras);
+      if (!c.local) registrarUso(nome, tokens + estimarTokens(texto));
       passo((c.local && erros.length ? 'Nuvem indisponível, respondeu com o ' : 'Respondeu com ') + c.nome);
       return { ok: true, texto: texto, cerebro: c.nome };
     } catch (err) {
-      erros.push(String(err.message || err));
+      const msg = String(err.message || err);
+      erros.push(msg);
       if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
+      else if (/\b429\b|rate limit|quota|RESOURCE_EXHAUSTED/i.test(msg)) { const seg = castigo(nome, msg); passo(c.nome + ' deu limite, fica ' + seg + 's de castigo, trocou de cérebro'); }
       else passo(c.nome + ' falhou, trocou de cérebro');
     }
+  }
   }
   return { ok: false, erro: 'Nenhum cérebro respondeu agora. ' + erros.join(' | ') };
 }
@@ -392,16 +488,20 @@ function pesquisar(historico, pergunta) {
 
   // 1) Groq com navegador (funciona no plano grátis)
   try {
-    const msgs = [{ role: 'system', content: sistema }].concat(historico.slice(-4));
+    const msgs = [{ role: 'system', content: sistema }].concat(historico.slice(-4).map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) })));
     const c = CEREBROS.groq;
-    const maxSaida = Math.min(2048, c.limite - estimarTokens(JSON.stringify(msgs)));
-    if (maxSaida >= 800) {
+    const tokens = estimarTokens(JSON.stringify(msgs));
+    const maxSaida = Math.min(2048, c.limite - tokens);
+    const motivo = motivoNaoCabe('groq', c, tokens + 1500);
+    if (motivo) passo('Groq pulado na pesquisa: ' + motivo);
+    else if (maxSaida >= 800) {
       const texto = chamarCompat(c, msgs, maxSaida, { tools: [{ type: 'browser_search' }], tool_choice: 'required', reasoning_effort: 'low' })
         .replace(/【[^】]*】/g, '').trim();
+      registrarUso('groq', tokens + estimarTokens(texto) + 1500);
       passo('Pesquisou na web (Groq)');
       return { ok: true, texto: texto, cerebro: c.nome + ' + web', fontes: [], pesquisou: true };
     }
-  } catch (e) { passo('Pesquisa pelo Groq falhou, tentou o Google'); }
+  } catch (e) { if (/429|rate limit/i.test(String(e.message))) castigo('groq', e.message); passo('Pesquisa pelo Groq falhou, tentou o Google'); }
 
   // 2) Gemini com Google Search (no plano grátis pode estar sem cota)
   try {

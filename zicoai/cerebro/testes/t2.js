@@ -24,6 +24,7 @@ H.fetchLog.length = 0;
 H.setFetch(u => u.includes('ts.net') ? resp('do pc') : cai(429, '{"error":{"message":"rate limit"}}'));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi de novo' }] });
 ok(r.ok && r.cerebro === 'PC (zicoai)' && H.fetchLog[0].body.model !== 'zicoai' && H.fetchLog.some(f => f.u === 'https://desk.ts.net/zz/v1/chat/completions' && f.body.model === 'zicoai'), 'nuvem estourou → PC responde: ' + r.passos.join(' | '));
+Object.keys(H.CACHE).forEach(k => { if (/^off_/.test(k)) delete H.CACHE[k]; }); // tira o castigo do teste anterior
 // Thiago escolhe PC no seletor → PC primeiro
 H.fetchLog.length = 0; H.setFetch(u => resp(u.includes('ts.net') ? 'do pc' : 'nuvem'));
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user', content: 'x' }] });

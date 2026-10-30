@@ -38,6 +38,7 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Aprendizado:
   - tags que o modelo escreve: `[[MEMORIA: ...]]`, `[[APRENDIZADO: erro || certo]]`, `[[ESQUECER: trecho]]`, `[[IMAGEM: prompt em inglês]]`, `[[BASE: assunto || conteúdo]]` e `[[PERFIL: tópico || informação]]` (criam ou SUBSTITUEM a linha pelo assunto/tópico, ignorando maiúsculas e acentos; toda mudança vai pra aba `historico` com antes/depois; só com o que o Thiago disse);
   - `aprenderSozinha()` roda a cada 10 min (gatilho criado por `ligarAprendizado()`), relê a aba `mensagens` desde a propriedade `APRENDIDO_ATE` e extrai fatos e correções com o Gemini, sem duplicar (`jaSabe()`). Também propõe `base` e `perfil` (passam por `gravarFato`, com histórico).
+- Controle de cota (`motivoNaoCabe`, `registrarUso`, `castigo`): cada cérebro tem `tpm` (tokens/min), `rpm` (pedidos/min) e `rpd` (pedidos/dia) com folga abaixo do plano grátis. Uso do minuto fica no CacheService (`tk_*`, `rq_*`), uso do dia nas Propriedades (`rpd_<nome>_<yyyyMMdd>`). Antes de chamar, pula quem não cabe (aparece em "Como respondi": "X pulado: limite de tokens do minuto"). 429 que escapa → `off_<nome>` pelo tempo que a API pediu ("castigo"). Cérebro pequeno (limite < 50k) recebe `msgsEnxutas()` (sistema enxuto, 6 últimas mensagens, cortadas) quando a conversa cheia não cabe. Se todos estiverem no limite DO MINUTO, espera o minuto virar (≤ 61 s) e tenta de novo. Ação `cotas` (e o `teste`) devolve o uso do dia por cérebro; o app mostra em Configurar → Testar.
 - Compactação: só as últimas 12 mensagens vão pro cérebro. Com 24+ mensagens na conversa, `compactarSePrecisar()` resume o que ficou pra trás (deixa as 10 últimas fora) e guarda em `chats` colunas Resumo/ResumidoAte; o resumo entra no sistema da próxima resposta. Refaz a cada +20 mensagens.
 - Prova semanal: `rodarProva()` responde cada linha da aba `prova` (questão com `MSG 1 … || MSG 2 (mesma conversa): …` vira 2 turnos), um corretor (Gemini/Groq/Cerebras, temperatura 0) dá nota de 0 a 10 pelos critérios, grava `Última nota`/`Última data`, nota < 7,5 vira aprendizado (assunto `prova`) e a média vai pra memória. `ligarProva()` cria gatilho segunda 4h.
 - Bloqueia CPF e telefone na memória (`temDadoSensivel`).
@@ -70,6 +71,8 @@ node t1.js   # chat, memória, pesquisa, imagem, conversas, foto
 node t2.js   # PC de casa: ordem, queda, cache
 node t3.js   # aprender sozinha
 node t4.js   # BASE/PERFIL+historico, feedback, compactação, Cerebras, PC de código, prova
+node t5.js   # conectores Google (Agenda, Gmail, Drive, vendas) + imagem no PC (ComfyUI) + config pela planilha
+node t6.js   # controle de cota: tokens/min, pedidos/dia, castigo 429, contexto enxuto, espera o minuto
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.
