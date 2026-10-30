@@ -298,7 +298,8 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
     <h3>Memória da ZicoAI</h3>
     <label>Ensinar algo novo</label>
     <input id="mNovo" placeholder="Ex.: o frete da Will agora é 15%">
-    <div class="linha-btn"><button class="btn ouro" id="mSalvar">Salvar na memória</button></div>
+    <div class="linha-btn"><button class="btn ouro" id="mSalvar">Salvar na memória</button><button class="btn cinza" id="mArquivo">📎 Ensinar com arquivo</button></div>
+    <input type="file" id="mArq" accept=".txt,.md,.csv,.json,.tsv,text/plain" hidden>
     <div class="aviso" id="mAviso"></div>
     <div id="mLista"></div>
     <div class="linha-btn"><button class="btn cinza" id="mFechar">Fechar</button></div>
@@ -578,11 +579,14 @@ async function enviaFeedback(m, nota, comentario, up, down, caixa){
   up.classList.toggle('on', nota === 'up'); down.classList.toggle('on', nota === 'down');
   m.fb = nota; guarda();
   try{
-    const j = await api({ acao:'feedback', nota, comentario, chatId: atual, cerebro: m.cerebro || '', resposta: String(m.content || '').slice(0, 300) });
+    const idx = mensagens.indexOf(m);
+    const perg = [...mensagens.slice(0, idx < 0 ? mensagens.length : idx)].reverse().find(x => x.role === 'user');
+    const j = await api({ acao:'feedback', nota, comentario, chatId: atual, cerebro: m.cerebro || '', resposta: nota === 'up' ? String(m.content || '').slice(0, 4000) : String(m.content || '').slice(0, 300), pergunta: perg ? String(perg.content).slice(0, 1500) : '' });
     caixa.classList.remove('aberta');
-    if(j.salvou && j.salvou.includes('aprendizado')){
-      m.salvou = (m.salvou || []).concat(['aprendizado (sua reclamação)']); guarda(); desenha();
-    }
+    const novos = [];
+    if(j.salvou && j.salvou.includes('aprendizado')) novos.push('aprendizado (sua reclamação)');
+    if(j.salvou && j.salvou.includes('exemplo')) novos.push('virou exemplo pros outros cérebros');
+    if(novos.length){ m.salvou = (m.salvou || []).concat(novos); guarda(); desenha(); }
   }catch(e){ alert(e.message); }
 }
 
@@ -886,6 +890,20 @@ $('mSalvar').onclick = async () => {
   catch(e){ $('mAviso').style.color = 'var(--erro)'; $('mAviso').textContent = e.message; }
 };
 $('mFechar').onclick = () => $('mMem').classList.remove('aberto');
+// ensinar com arquivo (.txt, .md, .csv, .json): o cérebro separa em fatos e grava na base
+$('mArquivo').onclick = () => $('mArq').click();
+$('mArq').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  if(f.size > 300000){ alert('Arquivo grande demais (máx. 300 KB). Divide em partes.'); return; }
+  const texto = await f.text();
+  $('mAviso').style.color = 'var(--cinza)'; $('mAviso').textContent = 'Lendo ' + f.name + '... (pode levar uns 20 s)';
+  try{
+    const j = await api({ acao:'aprenderTexto', texto, nome: f.name });
+    $('mAviso').style.color = 'var(--verde)';
+    $('mAviso').textContent = 'Aprendi ' + j.novos + ' fato(s) novo(s)' + (j.atualizados ? ', atualizei ' + j.atualizados : '') + (j.barrados ? ', barrei ' + j.barrados + ' com dado de cliente' : '') + '.';
+  }catch(er){ $('mAviso').style.color = 'var(--erro)'; $('mAviso').textContent = er.message; }
+};
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) m.classList.remove('aberto'); }));
 
 /* ---------- início ---------- */

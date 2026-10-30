@@ -144,6 +144,7 @@ const ABAS = {
   vendas:       ['Data', 'Valor', 'Descrição', 'Origem'],
   config:       ['Chave', 'Valor'],
   precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
+  exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto'],
   vetores:      ['Aba', 'Texto', 'Vetor']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
@@ -232,6 +233,7 @@ function doPost(e) {
       case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
+      case 'aprenderTexto': return saida(aprenderTexto(req.texto, req.nome, aparelho));
       case 'publicar':      return saida(publicarApp(req.nome, req.html));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
       case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS });
@@ -333,8 +335,20 @@ function feedback(req, aparelho) {
   if (!nota) return { ok: false, erro: 'Nota inválida' };
   const coment = String(req.comentario || '').trim().slice(0, 1000);
   const resposta = String(req.resposta || '').slice(0, 300);
-  aba('feedback').appendRow(["'" + agora(), String(req.chatId || ''), nota, seguro(coment), String(req.cerebro || ''), seguro(resposta), aparelho]);
+  const cerebroFb = String(req.cerebro || '');
+  aba('feedback').appendRow(["'" + agora(), String(req.chatId || ''), nota, seguro(coment), cerebroFb, seguro(resposta), aparelho]);
+  if (cerebroFb) CacheService.getScriptCache().remove('nota_cerebros');   // roteador recalcula as notas
   const salvou = ['feedback'];
+  // 👍 numa resposta vira EXEMPLO: os cérebros mais fracos recebem esses exemplos como modelo do jeito certo (destilação).
+  const pergunta = String(req.pergunta || '').trim().slice(0, 1500);
+  const respostaCheia = String(req.resposta || '').trim();
+  if (nota === '👍' && pergunta && respostaCheia.length >= 20 && !temDadoSensivel(pergunta + ' ' + respostaCheia)) {
+    const ex = linhas('exemplos');
+    if (!ex.some(l => normalizar(l[1]) === normalizar(pergunta))) {
+      aba('exemplos').appendRow(["'" + hoje(), seguro(pergunta), seguro(respostaCheia.slice(0, 4000)), String(req.cerebro || ''), assuntoDe(pergunta)]);
+      salvou.push('exemplo');
+    }
+  }
   // Reclamação escrita pelo Thiago vira aprendizado (é palavra dele, não dedução da IA). Curtida só registra.
   if (nota === '👎' && coment.length >= 8 && !temDadoSensivel(coment)) {
     const erro = resposta ? 'Resposta: "' + resposta.slice(0, 160).replace(/\s+/g, ' ') + (resposta.length > 160 ? '…' : '') + '"' : 'Resposta reprovada';
@@ -438,6 +452,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
   }
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
   ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
+  if (preferido === 'auto' || !preferido) { try { ordem = reordenarPorNota(ordem, pc); } catch (e) { /* segue a ordem padrão */ } }
 
   const tokensCheio = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
   let enxutas = null;
@@ -643,6 +658,8 @@ function montarSistema(pergunta, enxuto) {
   const tp = tabelaPrecos(pergunta, modoCliente);
   if (tp) s += tp;
 
+  try { s += exemplosPara(pergunta, enxuto ? 1 : 2); } catch (e) { /* sem exemplos */ }
+
   if (modoCliente) {
     s += '\n\n### MODO CLIENTE\nA resposta vai pro cliente da loja. Bloco de código, estilo do Thiago, só informação confirmada (BASE, PROMESSAS, TABELA DE PREÇOS). Nada pessoal do Thiago.';
     passo('Modo cliente: só informação confirmada da loja');
@@ -652,6 +669,49 @@ function montarSistema(pergunta, enxuto) {
   passo('Leu o perfil e ' + pl(aprUsado.length, 'aprendizado', 'aprendizados'));
   passo('Consultou ' + pl(memUsada.length, 'lembrança', 'lembranças') + (base.length ? ' e ' + pl(base.length, 'trecho', 'trechos') + ' da base' : ''));
   return s;
+}
+
+function assuntoDe(t) {
+  const s = normalizar(t);
+  if (ehProgramacao(t)) return 'código';
+  if (ehModoCliente(t) || /cliente|whatsapp/.test(s)) return 'cliente';
+  if (/(quanto|calcul|conta|parcel|lucro|custo|%)/.test(s)) return 'cálculo';
+  if (/(compara|diferenca|melhor|ficha|iphone|xiaomi|tv ?box)/.test(s)) return 'produto';
+  return 'geral';
+}
+
+/** Exemplos de respostas que o Thiago aprovou (👍), ligados à pergunta. Servem de modelo pros cérebros. */
+function exemplosPara(pergunta, limite) {
+  const ex = linhas('exemplos');
+  if (!ex.length) return '';
+  const assunto = assuntoDe(pergunta);
+  let sel = relevantes(ex, pergunta, limite, l => l[1] + ' ' + l[4], l => l[1]);
+  if (!sel.length) sel = ex.filter(l => l[4] === assunto).slice(-limite);
+  if (!sel.length) return '';
+  passo('Usou ' + sel.length + ' exemplo(s) de resposta aprovada');
+  return '\n\n### EXEMPLOS DE RESPOSTAS QUE O THIAGO APROVOU (siga o estilo e o nível)\n' + sel.map(l => 'PERGUNTA: ' + String(l[1]).slice(0, 300) + '\nRESPOSTA: ' + String(l[2]).slice(0, 1200)).join('\n---\n');
+}
+
+/** Nota de cada cérebro pelos 👍/👎 recentes (últimos 40). Cérebro com muita reprovação vai pro fim da fila. */
+function notaCerebros() {
+  const cache = CacheService.getScriptCache();
+  const c = cache.get('nota_cerebros');
+  if (c) return JSON.parse(c);
+  const fb = linhas('feedback').slice(-40);
+  const por = {};
+  fb.forEach(l => { const n = l[4] || ''; if (!n) return; por[n] = por[n] || { up: 0, down: 0 }; if (l[2] === '👍') por[n].up++; else if (l[2] === '👎') por[n].down++; });
+  const notas = {};
+  Object.keys(por).forEach(n => { const t = por[n].up + por[n].down; notas[n] = t >= 3 ? por[n].up / t : null; });
+  cache.put('nota_cerebros', JSON.stringify(notas), 1800);
+  return notas;
+}
+function reordenarPorNota(ordem, pc) {
+  const notas = notaCerebros();
+  const nomeDe = n => (n === 'pc' ? (pc ? pc.nome : 'PC') : CEREBROS[n].nome);
+  const ruins = ordem.filter(n => { const v = notas[nomeDe(n)]; return v !== null && v !== undefined && v < 0.5; });
+  if (!ruins.length) return ordem;
+  passo('Roteador: ' + ruins.map(nomeDe).join(', ') + ' com muita reprovação, foi pro fim da fila');
+  return ordem.filter(n => ruins.indexOf(n) < 0).concat(ruins);
 }
 
 /** Linhas da aba precos ligadas à pergunta (ou aviso de tabela vazia quando perguntam preço). */
@@ -1506,6 +1566,68 @@ function ligarAprendizado() {
 }
 
 /* ============================================================
+ *  ENSINAR COM ARQUIVO OU TEXTO COLADO
+ *  O app manda o conteúdo (.txt, .md, .csv, .json ou texto); o
+ *  Gemini separa em fatos "assunto || conteúdo" e cada um entra na
+ *  BASE por gravarFato (com histórico). Dados de cliente são barrados.
+ * ============================================================ */
+
+function aprenderTexto(texto, nome, aparelho) {
+  texto = String(texto || '').trim();
+  if (texto.length < 20) return { ok: false, erro: 'Texto curto demais' };
+  if (texto.length > 60000) texto = texto.slice(0, 60000);
+  const msgs = [
+    { role: 'system', content: 'Você organiza conhecimento pra base de uma assistente. Leia o material e extraia fatos úteis e duradouros em itens curtos. Cada item: "assunto" (3 a 8 palavras, específico) e "conteudo" (1 a 3 frases completas, com números e nomes exatos do material). NÃO inclua: dados de clientes (nome, CPF, telefone, endereço), senhas, opiniões vagas, repetições. Se for uma tabela de preços, cada produto vira um item com o preço. Máximo 60 itens. Responda SÓ com JSON: {"itens":[{"assunto":"...","conteudo":"..."}]}' },
+    { role: 'user', content: 'MATERIAL' + (nome ? ' (' + nome + ')' : '') + ':\n\n' + texto }
+  ];
+  let txt = null;
+  for (const n of ['gemini', 'cerebras', 'groq']) {
+    if (!temCerebro(n)) continue;
+    if (estimarTokens(JSON.stringify(msgs)) + 4000 > CEREBROS[n].limite) continue;
+    if (motivoNaoCabe(n, CEREBROS[n], estimarTokens(JSON.stringify(msgs)) + 4000)) continue;
+    try { txt = chamarCompat(CEREBROS[n], msgs, 4000, { temperature: 0.1 }); registrarUso(n, estimarTokens(JSON.stringify(msgs)) + estimarTokens(txt)); break; } catch (e) { /* próximo */ }
+  }
+  if (!txt) return { ok: false, erro: 'Nenhum cérebro conseguiu ler o material agora' };
+  const j = lerJSON(txt);
+  if (!j || !j.itens) return { ok: false, erro: 'Não consegui separar o material em fatos' };
+  let novos = 0, atualizados = 0, barrados = 0;
+  j.itens.slice(0, 60).forEach(it => {
+    if (!it || !it.assunto || !it.conteudo) return;
+    if (temDadoSensivel(it.assunto + ' ' + it.conteudo)) { barrados++; return; }
+    const r = gravarFato('base', it.assunto, it.conteudo, 'arquivo' + (nome ? ':' + String(nome).slice(0, 30) : ''));
+    if (r && /nova/.test(r)) novos++; else if (r) atualizados++;
+  });
+  passo('Aprendeu com o material: ' + novos + ' novos, ' + atualizados + ' atualizados');
+  return { ok: true, novos: novos, atualizados: atualizados, barrados: barrados, total: j.itens.length };
+}
+
+/* ============================================================
+ *  ARRUMAR A MEMÓRIA (domingo): junta lembranças repetidas,
+ *  mantendo a mais nova. Tudo registrado no histórico.
+ * ============================================================ */
+
+function arrumarMemoria() {
+  const a = aba('memoria');
+  const n = a.getLastRow();
+  if (n < 3) return 0;
+  const vals = a.getRange(2, 1, n - 1, 3).getDisplayValues();
+  const apagar = [];
+  for (let i = 0; i < vals.length; i++) {
+    if (!vals[i][1] || apagar.indexOf(i) >= 0) continue;
+    for (let j = i + 1; j < vals.length; j++) {
+      if (apagar.indexOf(j) >= 0 || !vals[j][1]) continue;
+      if (jaSabe(vals[i][1], [vals[j][1]])) { apagar.push(i); break; }   // i é a mais antiga: sai
+    }
+  }
+  apagar.sort((x, y) => y - x).forEach(i => {
+    aba('historico').appendRow(["'" + agora(), 'memoria', 'repetida', seguro(vals[i][1]), '(removida: existe versão mais nova)', 'arrumacao']);
+    a.deleteRow(i + 2);
+  });
+  Logger.log('Arrumou a memória: ' + apagar.length + ' repetida(s) removida(s)');
+  return apagar.length;
+}
+
+/* ============================================================
  *  ROTINAS SOZINHA
  *  bomDia(): todo dia 7h monta o resumo do dia (agenda, vendas,
  *  e-mails, cotas) e deixa como conversa nova no app.
@@ -1573,6 +1695,8 @@ function ligarRotinas() {
   ScriptApp.getProjectTriggers().filter(t => ['bomDia', 'backupPlanilha'].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('bomDia').timeBased().everyDays(1).atHour(7).create();
   ScriptApp.newTrigger('backupPlanilha').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'arrumarMemoria').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('arrumarMemoria').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(4).create();
   bomDia();
   Logger.log('Rotinas: LIGADAS (bom dia 7h, backup domingo 3h). Primeiro bom dia criado agora.');
 }
