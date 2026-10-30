@@ -669,7 +669,7 @@ async function envia(refazendo){
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    mensagens.push({ role:'assistant', content: j.resposta, cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms });
+    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms });
     status(true);
   }catch(e){
     para();

@@ -42,6 +42,7 @@ Cópia do código que roda no projeto Apps Script "ZicoAI Cérebro". **A versão
 - Busca por significado (`semelhantes()`): além da busca por palavra (`relevantes()`), a BASE também é procurada por embedding (cosseno ≥ 0,62, até 4 trechos extras). Embedding fora do ar → `embed_off` 10 min e segue só por palavra.
 - Modo cliente (`ehModoCliente()`): pergunta do tipo "responde pro cliente…" esconde o perfil pessoal (fica só "Como responder" e "Loja"), força a tabela de preços e acrescenta a seção MODO CLIENTE (só informação confirmada).
 - Compactação: só as últimas 12 mensagens vão pro cérebro. Com 24+ mensagens na conversa, `compactarSePrecisar()` resume o que ficou pra trás (deixa as 10 últimas fora) e guarda em `chats` colunas Resumo/ResumidoAte; o resumo entra no sistema da próxima resposta. Refaz a cada +20 mensagens.
+- Rotinas (`ligarRotinas()` cria os gatilhos): `bomDia()` todo dia 7h monta o resumo (agenda de hoje, vendas de ontem e do mês, e-mails novos, últimos aprendizados, última prova), pede ao cérebro uma mensagem curta e grava como conversa `bomdiaAAAAMMDD` (aparece no app como "☀️ Bom dia dd/MM"; não duplica no mesmo dia). `backupPlanilha()` domingo 3h copia a planilha pra pasta "ZicoAI Backups" no Drive (se falhar, anota na memória). `avisoCota()` entra na resposta do chat (`aviso`) quando um cérebro passa de 80% da cota do dia; o app mostra em itálico no fim da mensagem.
 - Prova semanal: `rodarProva()` responde cada linha da aba `prova` (questão com `MSG 1 … || MSG 2 (mesma conversa): …` vira 2 turnos), um corretor (Gemini/Groq/Cerebras, temperatura 0) dá nota de 0 a 10 pelos critérios, grava `Última nota`/`Última data`, nota < 7,5 vira aprendizado (assunto `prova`) e a média vai pra memória. `ligarProva()` cria gatilho segunda 4h.
 - Bloqueia CPF e telefone na memória (`temDadoSensivel`).
 - `instalar()` testa PIN, Gemini, Groq, PC e pesquisa (rodar pelo editor e ler o Registro de execução).
@@ -79,6 +80,7 @@ node t4.js   # BASE/PERFIL+historico, feedback, compactação, Cerebras, PC de c
 node t5.js   # conectores Google (Agenda, Gmail, Drive, vendas) + imagem no PC (ComfyUI) + config pela planilha
 node t6.js   # controle de cota: tokens/min, pedidos/dia, castigo 429, contexto enxuto, espera o minuto
 node t7.js   # tabela de preços, busca por significado, modo cliente
+node t8.js   # rotinas: bom dia, backup, aviso de cota
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

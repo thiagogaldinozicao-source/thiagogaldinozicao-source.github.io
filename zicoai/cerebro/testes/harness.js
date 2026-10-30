@@ -28,7 +28,7 @@ const sheets = {
   aprendizados: makeSheet('aprendizados', [['Data','Erro','Certo','Assunto'], ["'01/10/2026",'fundo branco','modo escuro','Programação']]),
   perfil: makeSheet('perfil', perfil), base: makeSheet('base', base),
 };
-const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = makeSheet(n)) };
+const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = makeSheet(n)), copy: nome => ({ getId: () => 'COPIA_' + nome }) };
 let fetchLog = []; const EVENTOS = []; const RASCUNHOS = []; let OFFSET = 0;
 class FakeDate extends Date { static now() { return Date.now() + OFFSET; } }
 let fetchImpl = (url, opt) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Resposta teste [[MEMORIA: Thiago gosta de café]] fim' } }] }) });
@@ -42,17 +42,17 @@ const ctx = {
     fetchLog.push({ u, body: o.payload ? JSON.parse(o.payload) : null, h: o.headers }); return fetchImpl(u, o); } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => PROPS[k], setProperty: (k, v) => { PROPS[k] = v; } }) },
   CacheService: { getScriptCache: () => ({ get: k => CACHE[k] || null, put: (k, v) => { CACHE[k] = v; }, remove: k => { delete CACHE[k]; } }) },
-  Utilities: { sleep: ms => { OFFSET += ms; }, getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : f === 'yyyy-MM-dd' ? '2026-10-30' : f === 'yyyyMMdd' ? '20261030' : f.includes('yyyyMMdd') ? '20261030-113000' : f.includes('HH:mm') ? '02/11 14:00' : f.includes('dd/MM/yyyy') ? (f.includes('EEEE') ? 'sexta-feira, 30/10/2026' : '30/10/2026') : '30/10' },
+  Utilities: { sleep: ms => { OFFSET += ms; }, getUuid: () => 'abcdef1234567890', formatDate: (d, tz, f) => f.includes('yyyy-MM-dd HH') ? '2026-10-30 11:30:' + String(++SEQ).padStart(2,'0') : f === 'yyyy-MM-dd' ? (d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')) : f === 'yyyyMMdd' ? '20261030' : f.includes('yyyyMMdd') ? '20261030-113000' : f.includes('HH:mm') ? '02/11 14:00' : f.includes('dd/MM/yyyy') ? (f.includes('EEEE') ? 'sexta-feira, 30/10/2026' : '30/10/2026') : '30/10' },
   ContentService: { createTextOutput: t => ({ t, setMimeType(){ return this; } }), MimeType: { JSON: 'json' } },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
-  ScriptApp: { WeekDay: { MONDAY: 'MONDAY' }, getProjectTriggers: () => [], deleteTrigger: () => {}, newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create: () => {} }), onWeekDay: () => ({ atHour: () => ({ create: () => {} }) }) }) }) },
+  ScriptApp: { WeekDay: { MONDAY: 'MONDAY', SUNDAY: 'SUNDAY' }, getProjectTriggers: () => [], deleteTrigger: () => {}, newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create: () => {} }), everyDays: () => ({ atHour: () => ({ create: () => {} }) }), onWeekDay: () => ({ atHour: () => ({ create: () => {} }) }) }) }) },
   CalendarApp: { getDefaultCalendar: () => ({
       getEvents: () => [{ getStartTime: () => new Date(2026, 10, 2, 14, 0), isAllDayEvent: () => false, getTitle: () => 'Entregar iPhone do João', getLocation: () => 'Loja' }],
       createEvent: (t, i, f) => { EVENTOS.push({ t, i, f }); return { addPopupReminder: () => {} }; } }) },
   GmailApp: { search: () => [{ getMessages: () => [{ getFrom: () => 'Will <will@x.com>', getDate: () => new Date(2026, 9, 30, 9, 0), getPlainBody: () => 'Segue a lista de preços atualizada do iPhone 17.' }], getFirstMessageSubject: () => 'Lista de preços' }],
       createDraft: (p, a, c) => { RASCUNHOS.push({ p, a, c }); } },
   DriveApp: { searchFiles: () => { let i = 0; const fs = [{ getName: () => 'Nota fiscal Devia set.pdf', getMimeType: () => 'application/pdf', getLastUpdated: () => new Date(2026, 8, 3), getUrl: () => 'https://drive.google.com/file/d/abc' }]; return { hasNext: () => i < fs.length, next: () => fs[i++] }; },
-      getFoldersByName: () => ({ hasNext: () => false }), createFolder: () => ({ createFile: b => ({ setSharing: () => {}, getId: () => 'IMGID' }) }), getRootFolder: () => ({ getName: () => 'root' }), Access: { ANYONE_WITH_LINK: 1 }, Permission: { VIEW: 1 } },
+      getFoldersByName: () => ({ hasNext: () => false }), createFolder: () => ({ createFile: b => ({ setSharing: () => {}, getId: () => 'IMGID' }) }), getRootFolder: () => ({ getName: () => 'root' }), getFileById: id => ({ moveTo: () => {} }), Access: { ANYONE_WITH_LINK: 1 }, Permission: { VIEW: 1 } },
   Logger: { log: x => console.log('LOG:', x) }, console, JSON, Math, Date: FakeDate, String, Object, Array, RegExp, Error
 };
 vm.createContext(ctx); vm.runInContext(code, ctx);

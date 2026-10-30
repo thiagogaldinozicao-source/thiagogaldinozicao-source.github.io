@@ -96,6 +96,12 @@ function castigo(nome, msgErro) {
   CacheService.getScriptCache().put('off_' + nome, '1', seg);
   return seg;
 }
+/** Aviso curto quando algum cérebro passou de 80% da cota grátis do dia. */
+function avisoCota() {
+  const c = cotas();
+  const quase = Object.keys(c).filter(n => c[n].rpd && c[n].hoje >= c[n].rpd * 0.8).map(n => n.replace(' GPT-OSS 120B', '') + ' ' + c[n].hoje + '/' + c[n].rpd);
+  return quase.length ? '⚠️ Cota grátis quase no fim hoje: ' + quase.join(', ') : '';
+}
 /** Quanto cada cérebro já usou hoje (pro app mostrar). */
 function cotas() {
   const out = {};
@@ -217,7 +223,7 @@ function doPost(e) {
     switch (req.acao) {
       case 'teste':         return saida({ ok: true, msg: 'Conectado ✅', cotas: cotas() });
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
-      case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; return saida(r); }
+      case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
       case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS });
@@ -1236,6 +1242,75 @@ function ligarAprendizado() {
   ScriptApp.newTrigger('aprenderSozinha').timeBased().everyMinutes(10).create();
   aprenderSozinha();
   Logger.log('Aprender sozinha: LIGADO (roda a cada 10 minutos)');
+}
+
+/* ============================================================
+ *  ROTINAS SOZINHA
+ *  bomDia(): todo dia 7h monta o resumo do dia (agenda, vendas,
+ *  e-mails, cotas) e deixa como conversa nova no app.
+ *  backupPlanilha(): cópia semanal da planilha no Drive.
+ * ============================================================ */
+
+function bomDia() {
+  const hojeD = new Date();
+  const partes = [];
+  try { const ev = listarAgenda(1); partes.push('AGENDA DE HOJE:\n' + (ev.length ? ev.join('\n') : '(nada marcado)')); } catch (e) { partes.push('AGENDA: indisponível'); }
+  try {
+    const ontem = Utilities.formatDate(new Date(hojeD.getTime() - 86400000), FUSO, 'yyyy-MM-dd');
+    const v = linhas('vendas').filter(l => String(l[0]).slice(0, 10) === ontem);
+    const tot = v.reduce((a, l) => a + lerValor(l[1]), 0);
+    const r = resumoVendas();
+    partes.push('VENDAS DE ONTEM: ' + v.length + ' venda(s), R$ ' + moeda(tot) + (v.length ? ' (' + v.map(l => l[2]).filter(Boolean).join(', ') + ')' : '') + '\nVENDAS DO MÊS: R$ ' + moeda(r.mes) + ' em ' + r.qtdMes + ' venda(s)');
+  } catch (e) { /* sem vendas */ }
+  try { const em = listarEmails(8); partes.push('E-MAILS NOVOS (3 dias):\n' + (em.length ? em.join('\n') : '(nenhum)')); } catch (e) { partes.push('E-MAILS: indisponível'); }
+  try {
+    const ap = linhas('aprendizados').slice(-3).map(l => '- ' + l[2]);
+    if (ap.length) partes.push('ÚLTIMOS APRENDIZADOS:\n' + ap.join('\n'));
+    const pv = linhas('memoria').filter(l => /Prova semanal/.test(l[1])).slice(-1);
+    if (pv.length) partes.push('ÚLTIMA PROVA: ' + pv[0][1]);
+  } catch (e) { /* ok */ }
+  const msgs = [
+    { role: 'system', content: montarSistema('bom dia resumo do dia agenda vendas', true) + '\n\nEscreva a mensagem de BOM DIA pro Thiago com o resumo abaixo. Curta (até 12 linhas), direta, no estilo dele. Primeiro o que ele precisa fazer hoje (agenda), depois vendas, depois e-mail que vale atenção (só se for de fornecedor, cliente ou dinheiro; ignore propaganda), e uma linha de sugestão prática se houver cliente pra chamar de volta ou pendência. Não invente nada que não esteja no resumo. Sem oferta no final.' },
+    { role: 'user', content: 'RESUMO DE ' + Utilities.formatDate(hojeD, FUSO, 'EEEE, dd/MM/yyyy') + ':\n\n' + partes.join('\n\n') }
+  ];
+  let texto = null, cerebro = '';
+  for (const nome of ['gemini', 'groq', 'cerebras', 'groq2']) {
+    if (!temCerebro(nome)) continue;
+    const motivo = motivoNaoCabe(nome, CEREBROS[nome], estimarTokens(JSON.stringify(msgs)) + 900);
+    if (motivo) continue;
+    try { texto = chamarCompat(CEREBROS[nome], msgs, 900, { temperature: 0.4 }); cerebro = CEREBROS[nome].nome; registrarUso(nome, estimarTokens(JSON.stringify(msgs)) + estimarTokens(texto)); break; } catch (e) { /* próximo */ }
+  }
+  if (!texto) texto = '☀️ Bom dia, Thiago!\n\n' + partes.join('\n\n');
+  const chatId = 'bomdia' + Utilities.formatDate(hojeD, FUSO, 'yyyyMMdd');
+  if (!linhaDoChat(chatId)) aba('chats').appendRow([chatId, '☀️ Bom dia ' + Utilities.formatDate(hojeD, FUSO, 'dd/MM'), "'" + agora(), "'" + agora(), 'rotina']);
+  PASSOS = ['Rotina das 7h: montou o resumo do dia'];
+  gravarMensagem(chatId, 'zicoai', texto, cerebro || 'rotina', 'rotina');
+  tocarChat(chatId);
+  Logger.log('Bom dia criado: ' + chatId);
+  return texto;
+}
+
+function backupPlanilha() {
+  const nome = 'ZicoAI Memória - backup ' + Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd');
+  let copia;
+  try { copia = planilha().copy(nome); }
+  catch (e) { Logger.log('Backup falhou: ' + e.message); aba('memoria').appendRow(["'" + hoje(), 'Backup da planilha FALHOU em ' + hoje() + ': ' + String(e.message).slice(0, 120), 'rotina']); return null; }
+  try {
+    const pastas = DriveApp.getFoldersByName('ZicoAI Backups');
+    const pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder('ZicoAI Backups');
+    DriveApp.getFileById(copia.getId()).moveTo(pasta);
+  } catch (e) { /* fica na raiz do Drive, tudo bem */ }
+  Logger.log('Backup: ' + nome);
+  return copia.getId();
+}
+
+/** Rode UMA vez: bom dia todo dia às 7h e backup todo domingo às 3h. */
+function ligarRotinas() {
+  ScriptApp.getProjectTriggers().filter(t => ['bomDia', 'backupPlanilha'].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('bomDia').timeBased().everyDays(1).atHour(7).create();
+  ScriptApp.newTrigger('backupPlanilha').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
+  bomDia();
+  Logger.log('Rotinas: LIGADAS (bom dia 7h, backup domingo 3h). Primeiro bom dia criado agora.');
 }
 
 /* ============================================================
