@@ -30,7 +30,8 @@ const sheets = {
 };
 const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = makeSheet(n)), copy: nome => ({ getId: () => 'COPIA_' + nome }) };
 let fetchLog = []; const EVENTOS = []; const RASCUNHOS = []; let OFFSET = 0; const TRIGGERS = [];
-class FakeDate extends Date { static now() { return Date.now() + OFFSET; } }
+const SHIFT = new Date(2026, 9, 30, 12, 0, 0).getTime() - Date.now(); // relógio fixo em 30/10/2026 12h (testes não quebram à meia-noite)
+class FakeDate extends Date { constructor(...a) { if (a.length) super(...a); else super(Date.now() + OFFSET + SHIFT); } static now() { return Date.now() + OFFSET + SHIFT; } }
 let fetchImpl = (url, opt) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Resposta teste [[MEMORIA: Thiago gosta de café]] fim' } }] }) });
 let SEQ = 0; const PROPS = { PIN: '1234', GROQ_KEY: 'g', GEMINI_KEY: 'm' }; const CACHE = {};
 const ctx = {

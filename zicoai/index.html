@@ -255,6 +255,8 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 .menu button b{display:block;font-size:14px;font-weight:600}
 .menu button span{display:block;font-size:12px;color:var(--cinza)}
 .menu button.on b::after{content:' ✓';color:var(--ouro)}
+.menu-sep{height:1px;background:var(--borda2);margin:6px 4px}
+.menu button.capricho b i{font-style:normal;color:var(--ouro)}
 .enviar{width:38px;height:38px;border-radius:50%;background:var(--ouro);color:#111;font-size:18px;font-weight:700;display:grid;place-items:center}
 .enviar:disabled{opacity:.35}
 .enviar.parar{background:#fff}
@@ -396,6 +398,8 @@ header{display:flex}
             <button data-c="nvidia"><b>NVIDIA</b><span>Nemotron 120B, reserva grátis com limite maior</span></button>
             <button data-c="mistral"><b>Mistral</b><span>Texto e foto, reserva do Gemini</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
+            <div class="menu-sep"></div>
+            <button id="bCapricho" class="capricho"><b>✨ Capricho: <i id="txtCapricho">automático</i></b><span id="descCapricho">Pergunta difícil: pensa mais e outro cérebro revisa antes de responder</span></button>
           </div>
         </div>
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
@@ -1130,7 +1134,7 @@ async function envia(refazendo){
     const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
       acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio,
-      imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, refazer: !!refazendo, appSlug: appAtual || undefined
+      imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
     if(novo && j.chatId){
@@ -1303,11 +1307,24 @@ $('cAgente').onclick = () => setModo('agente');
 /* ---------- seletor de cérebro ---------- */
 const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', nvidia:'NVIDIA', mistral:'Mistral', pc:'PC de casa' };
 function mostraModelo(){
-  $('nomeModelo').textContent = NOMES[cfg.cerebro] || 'Auto';
-  document.querySelectorAll('#menuModelo button').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
+  $('nomeModelo').textContent = (NOMES[cfg.cerebro] || 'Auto') + (cfg.capricho === 'sempre' ? ' ✨' : '');
+  document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
+  const cap = CAPRICHO[cfg.capricho] || CAPRICHO.auto;
+  $('txtCapricho').textContent = cap[0]; $('descCapricho').textContent = cap[1];
 }
+/* modo capricho: automático (só pergunta difícil) → sempre → nunca */
+const CAPRICHO = {
+  auto: ['automático', 'Pergunta difícil: pensa mais e outro cérebro revisa antes de responder'],
+  sempre: ['sempre', 'Toda resposta: cérebro forte + revisão (mais lento, mais certo)'],
+  nunca: ['desligado', 'Responde rápido, sem revisão']
+};
 $('bModelo').onclick = e => { e.stopPropagation(); $('menuModelo').classList.toggle('aberto'); };
-document.querySelectorAll('#menuModelo button').forEach(b => b.onclick = () => {
+$('bCapricho').onclick = e => {
+  e.stopPropagation();
+  cfg.capricho = cfg.capricho === 'sempre' ? 'nunca' : cfg.capricho === 'nunca' ? 'auto' : 'sempre';
+  LS.set('cfg', cfg); mostraModelo();
+};
+document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.onclick = () => {
   cfg.cerebro = b.dataset.c; LS.set('cfg', cfg); mostraModelo(); $('menuModelo').classList.remove('aberto');
 });
 document.addEventListener('click', e => { if(!e.target.closest('.sel-wrap')) $('menuModelo').classList.remove('aberto'); });

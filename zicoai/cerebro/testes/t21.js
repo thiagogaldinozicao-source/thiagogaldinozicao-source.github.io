@@ -164,7 +164,7 @@ delete H.PROPS.MISTRAL_KEY;
   const so = H.ctx.Utilities.sleep; let pedido = null;
   H.ctx.Utilities.sleep = ms => { so(ms); const ps = vm2.runInContext('ponteFila(f => f.splice(0, f.length))', H.ctx); ps.forEach(p => { pedido = p; H.post({ acao: 'ponteResposta', segredo: 'seg123', id: p.id, resultado: JSON.stringify({ ok: true, saida: 'TOTAL: 335 testes ok, 0 arquivo(s) com falha' }) }); }); };
   const out = vm2.runInContext('FERRAMENTAS', H.ctx).pc_testar.run({});
-  ok(/TOTAL: 335 testes ok/.test(out) && pedido.dados.nome === 'testes_zicoai' && pedido.ate - Date.now() > 100000, 'pc_testar roda os testes no PC com espera longa');
+  ok(/TOTAL: 335 testes ok/.test(out) && pedido.dados.nome === 'testes_zicoai' && pedido.ate - vm2.runInContext('Date.now()', H.ctx) > 100000, 'pc_testar roda os testes no PC com espera longa');
   ok(/MÉTODO \(o mesmo do Claude\)/.test(vm2.runInContext('PROMPT_AGENTE', H.ctx)), 'agente recebeu o método de trabalho');
   H.ctx.Utilities.sleep = so;
 }

@@ -408,7 +408,11 @@ function chat(req, aparelho) {
   try { extraSistema += contextoMeusCerebros(pergunta); } catch (e) { /* ok */ }
   if (querPesquisa && !colado && querPesquisaProfunda(pergunta)) resultado = pesquisaProfunda(historico, pergunta, extraSistema);
   if (querPesquisa && !resultado) resultado = pesquisar(historico, pergunta, extraSistema);
-  if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema);
+  // MODO CAPRICHO: pedido difícil (ou o Thiago ligou): cérebro forte, pensando no máximo, e outro cérebro revisa antes de entregar
+  const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && ehDificil(pergunta, colado)));
+  if (capricho) passo('Modo capricho: pergunta difícil, vai pensar mais e revisar antes de responder');
+  if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema, capricho);
+  if (capricho && resultado && resultado.ok && !req.imagem) { try { resultado = revisarResposta(pergunta, resultado, extraSistema); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
   if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS });
 
   const proc = processarTags(resultado.texto, aparelho);
@@ -520,7 +524,7 @@ function registrar(req, aparelho) {
 
 /* ---------- conversa normal ---------- */
 
-function conversar(historico, pergunta, imagem, preferido, extraSistema) {
+function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) {
   const sistema = montarSistema(pergunta, false) + (extraSistema || '');
   const msgs = [{ role: 'system', content: sistema }];
   historico.forEach((m, i) => {
@@ -535,7 +539,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
   // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
   // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
   const codigo = !imagem && ehProgramacao(pergunta);
-  const pc = codigo ? cerebroPCcodigo() : cerebroPC();
+  const pc = (codigo || forte) ? cerebroPCcodigo() : cerebroPC();
   let ordem;
   if (imagem) ordem = ['gemini', 'mistral', 'pc'];
   else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
@@ -573,7 +577,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
     if (motivo) { erros.push(c.nome + ': ' + motivo); passo(c.nome + ' pulado: ' + motivo); continue; }
     try {
       // gpt-oss pensa mais em código quando pedimos esforço alto (só os modelos que aceitam o parâmetro)
-      const extras = codigo && /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'high' } : null;
+      const extras = (codigo || forte) && /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'high' } : null;
       const texto = chamarCompat(c, usar, maxSaida, extras);
       if (!c.local) registrarUso(nome, tokens + estimarTokens(texto));
       if (!texto.trim()) throw new Error(c.nome + ' respondeu vazio');
@@ -840,6 +844,55 @@ function precisaPesquisar(t) {
   const s = normalizar(t);
   if (/^(lembra|lembre|salva|salve|anota|anote|guarda|guarde|esquece|esqueca)/.test(s)) return false;
   return /(pesquis|procura na|busca na|na internet|na web|no google|noticia|cotacao|dolar hoje|preco atual|quanto ta custando|quanto esta custando|lancament|lancou|previsao do tempo|clima em|resultado do jogo|placar|quem ganhou|ultimas|mais recente|atualizad|hoje em dia)/.test(s);
+}
+
+/** Pedido que vale gastar mais tempo pra acertar. */
+function ehDificil(t, colado) {
+  const s = normalizar(t);
+  if (colado) return true;
+  if (ehProgramacao(t) && /(faz|faca|cria|crie|monta|monte|gera|corrig|conserta|arruma|melhora|adiciona|muda|erro|bug|nao funciona)/.test(s)) return true;
+  if (querPesquisaProfunda(t)) return true;
+  if (/(planej|estrateg|analis|compar|calcul|vale a pena|o que vc acha|me ajuda a decidir|explica (bem|direito|passo)|relatorio|resum)/.test(s) && s.length > 60) return true;
+  return s.length > 600;
+}
+const PROMPT_REVISOR_RESPOSTA = [
+  'Você é o REVISOR da ZicoAI. Recebe o PEDIDO do Thiago e o RASCUNHO da resposta. Procure, com rigor:',
+  '- erro de fato, de conta ou de lógica;',
+  '- código que não roda (sintaxe, variável que não existe, falta de parte do arquivo, função chamada antes de existir);',
+  '- o que o pedido pediu e o rascunho esqueceu;',
+  '- coisa inventada (preço, garantia, endereço, horário, dado que não estava nas informações): isso NUNCA pode passar;',
+  '- resposta longa demais ou fora do jeito do Thiago (curto, direto, informal).',
+  'Se o rascunho estiver bom, responda SÓ: OK',
+  'Se tiver problema, responda SÓ a versão final corrigida e COMPLETA (o Thiago vai ler direto, sem saber que houve revisão; mantenha as linhas especiais [[...]] do rascunho).'
+].join('\n');
+/** Outro cérebro (de preferência de outra empresa) revisa o rascunho e devolve OK ou a versão corrigida. */
+function revisarResposta(pergunta, resultado, extraSistema) {
+  const rascunho = String(resultado.texto || '');
+  if (rascunho.length < 40) return resultado;
+  const autor = String(resultado.cerebro || '');
+  const contexto = String(extraSistema || '').slice(0, 30000);
+  const msgs = [{ role: 'system', content: PROMPT_REVISOR_RESPOSTA + (contexto ? '\n\nINFORMAÇÕES QUE A ZICOAI TINHA (use pra conferir):' + contexto : '') }, { role: 'user', content: 'PEDIDO:\n' + String(pergunta).slice(0, 12000) + '\n\nRASCUNHO:\n' + rascunho.slice(0, 30000) }];
+  const tk = estimarTokens(JSON.stringify(msgs));
+  // revisor diferente de quem escreveu; código: gpt-oss pensando no máximo; o resto: Gemini (contexto grande)
+  let ordem = ehProgramacao(pergunta) ? ['groq', 'nvidia', 'gemini', 'mistral', 'groq2'] : ['gemini', 'groq', 'mistral', 'nvidia', 'groq2'];
+  ordem = ordem.filter(n => temCerebro(n) && autor.indexOf(CEREBROS[n].nome) !== 0).concat(ordem.filter(n => temCerebro(n) && autor.indexOf(CEREBROS[n].nome) === 0));
+  for (const nome of ordem) {
+    const c = CEREBROS[nome];
+    const saida = Math.min(c.maxSaida, Math.max(1500, estimarTokens(rascunho) + 800));
+    if (tk + saida > c.limite || motivoNaoCabe(nome, c, tk + saida)) continue;
+    try {
+      const r = chamarCompat(c, msgs, saida, Object.assign({ temperature: 0.2 }, /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'high' } : {}));
+      registrarUso(nome, tk + estimarTokens(r));
+      const limpo = String(r || '').trim();
+      if (/^ok\b/i.test(limpo) && limpo.length < 120 || limpo.length < 20) { passo('Revisou com ' + c.nome + ': aprovou o rascunho'); return resultado; }
+      // revisor que devolve só um comentário curto (e não a versão completa) não pode apagar o rascunho
+      if (rascunho.length > 400 && limpo.length < rascunho.length * 0.35) { passo('Revisou com ' + c.nome + ': mandou só observação, ficou o rascunho'); return resultado; }
+      passo('Revisou com ' + c.nome + ': achou o que melhorar e corrigiu');
+      return Object.assign({}, resultado, { texto: limpo, cerebro: autor + ' + revisão ' + c.nome });
+    } catch (e) { if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); else if (/\b429\b/.test(e.message)) castigo(nome, e.message); }
+  }
+  passo('Nenhum revisor livre agora, entregou o rascunho');
+  return resultado;
 }
 
 function ehProgramacao(t) {
@@ -2718,10 +2771,10 @@ function placarDiario(forcar) {
   if (!lock.tryLock(1000)) return null;
   try {
     const dia = Math.floor(Date.now() / 86400000);
-    const disp = PLACAR_RODIZIO.filter(n => (n === 'pc' ? !!cerebroPC() : temCerebro(n)));
+    const disp = PLACAR_RODIZIO.filter(n => (n === 'pc' ? !!cerebroPCcodigo() : temCerebro(n)));
     if (!disp.length) return null;
     const nome = forcar && disp.indexOf(forcar) >= 0 ? forcar : disp[dia % disp.length];
-    const c = nome === 'pc' ? cerebroPC() : CEREBROS[nome];
+    const c = nome === 'pc' ? cerebroPCcodigo() : CEREBROS[nome];
     const prova = linhas('prova').filter(l => l[2] && !/\|\|\s*MSG 2/i.test(l[2]));
     if (!prova.length) return null;
     const ini = (dia * 5) % prova.length;

@@ -155,6 +155,15 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## Modo capricho (31/10)
+- `ehDificil(pergunta, colado)` (só regex): texto colado, código pra corrigir/criar, pesquisa profunda, análise/planejamento/comparação longa ou pedido > 600 letras.
+- Capricho = `conversar(..., forte=true)` (PC usa `cerebroPCcodigo()`, gpt-oss com `reasoning_effort: high`) + `revisarResposta()`: outro cérebro (o autor vai pro fim da fila) recebe PEDIDO + RASCUNHO + contexto e devolve `OK` ou a versão completa corrigida (`PROMPT_REVISOR_RESPOSTA`; não confundir com `PROMPT_REVISOR` da revisão do dia). "OK…" curto ou comentário < 35% de um rascunho > 400 letras → fica o rascunho. Nenhum revisor livre → entrega o rascunho. Rótulo: "Autor + revisão X".
+- App: menu de cérebros → `✨ Capricho: automático / sempre / desligado` (`cfg.capricho`), manda `capricho: true/false/undefined`.
+- Placar do PC usa o modelo grande (`cerebroPCcodigo()`).
+
+## Aulas (`zicoai/aulas/`)
+Todo trabalho do Claude vira uma aula (pedido → entender → plano → execução com comandos reais → erros e correções → teste → lições) e uma linha na aba `trajetorias`. Ver `aulas/README.md`.
+
 ## Testar sem internet
 ```
 cd zicoai/cerebro/testes
@@ -180,10 +189,11 @@ node t19.js  # já existe parecido (apps publicados e pedidos antigos)
 node t20.js  # imagem com pedido detalhado, NVIDIA reserva, 3 agentes juntos, tarefa longa que continua, agente chefe, PC reserva
 node t23.js  # pesquisa profunda (buscas, páginas, fontes) e MEUS CÉREBROS
 node t22.js  # fase 1 do treino: tipos, placar, estudo noturno, revisão
+node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
-`harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.
+`harness.js` tem relógio fixo em 30/10/2026 12h (teste não quebra à meia-noite) e simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.
 
 ## Publicar o cérebro (Apps Script)
 Opção A, com clasp (dá pra fazer tudo pelo terminal):
