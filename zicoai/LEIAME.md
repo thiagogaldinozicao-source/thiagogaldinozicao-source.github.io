@@ -169,7 +169,7 @@ Curso ABC: A fundamentos, B programação, D a própria ZicoAI (no GitHub, `aula
 - `planilhaExtra(nome, criar)` cria/abre a planilha e guarda o id em `PLANILHA_<NOME>` (Propriedades); `abaExtra`, `linhasArquivo`.
 - "ZicoAI Arquivo": `arquivarMensagens()` (domingo 5h) MOVE as mensagens com mais de 60 dias (`DIAS_NO_ATIVO`) — copia com `'` na frente, confere a contagem e só então tira da principal; até 3 mil por vez; registra no `historico`. `abrirChat` lê o arquivo só pra conversa criada antes do corte (`chatTemArquivo`); `buscarConversas` procura nos dois.
 - Aprender sozinha passou de 10 pra 30 min (`garantirRotinasTreino` troca o gatilho uma vez; propriedade `APRENDER_30`) pra sobrar tempo de rotina pros agentes e o estudo.
-- `sincronizarAulas()` (a cada 12 h e ação `sincronizarAulas`): baixa `aulas/aulas.json` do GitHub e atualiza/acrescenta só as aulas A/B/D marcadas "GitHub"; as privadas (C, E, B20–B55) só existem na planilha.
+- `sincronizarAulas()` (a cada 12 h e ação `sincronizarAulas`): baixa `aulas/aulas.json` do GitHub e atualiza/acrescenta só as aulas A/B/D marcadas "GitHub"; as privadas (C, E, B20–B55 e as 1xx das conversas antigas) só existem na planilha.
 - Teste: t26.js (arquivo) e t25.js (aulas).
 
 ## Testar sem internet

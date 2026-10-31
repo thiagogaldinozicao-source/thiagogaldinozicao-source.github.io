@@ -27,6 +27,9 @@ A versão curta de cada aula também vai pra aba `trajetorias` da planilha "Zico
 
 Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavras-chave**. O cérebro procura na aba `aulas` da planilha as 2 aulas que mais combinam com o pedido e coloca a Regra no sistema (`contextoAulas`).
 
+### Aulas das conversas antigas (IDs 1xx, só na planilha)
+80 aulas tiradas das conversas antigas do Thiago com o Claude (A101–A124 jeito de trabalhar e prompts pro Gemini/GPT, B101–B174 apps/jogo/Supabase/catálogo, C103–C167 loja, E101–E162 pessoal). Como têm dado da loja e pessoal, ficam **só na aba `aulas` da planilha (privado)**. Repetidas entre si foram juntadas (ficou a mais completa).
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
