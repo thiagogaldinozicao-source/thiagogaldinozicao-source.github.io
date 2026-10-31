@@ -38,3 +38,10 @@ run('ponteSemDetalhe = function(acao, dados, espera, disp){ if (acao === "ler") 
 enviado = '';
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'vê se esse site tem erro' }] });
 ok(r.passos.some(p => /Olhou os erros e a rede da aba/.test(p)) && /404/.test(enviado) && /DEPURAR AGORA/.test(enviado), 'depura na hora: erros + rede da aba vão pro cérebro');
+// v66: pela extensão, sempre lê a aba (o site do lado é o assunto)
+run('ponteSemDetalhe = function(acao, dados, espera, disp){ if (acao === "ler") return {ok:true, abaId: 3, titulo:"Fornecedor X", url:"https://x/", texto:"iPhone 15 3.999"}; throw new Error("x"); };');
+enviado = '';
+r = H.post({ pin: '1234', acao: 'chat', capricho: false, naExtensao: true, mensagens: [{ role: 'user', content: 'quanto tá o 15 aqui?' }] });
+ok(r.passos.some(p => /Leu a aba aberta no Chrome: Fornecedor X/.test(p)) && /PAINEL DA EXTENSÃO/.test(enviado), 'pela extensão: lê a aba mesmo sem falar "chrome"');
+r = H.post({ pin: '1234', acao: 'chat', capricho: false, naExtensao: true, mensagens: [{ role: 'user', content: 'valeu' }] });
+ok(!r.passos.some(p => /Leu a aba/.test(p)), 'conversa à toa pela extensão não lê a aba');

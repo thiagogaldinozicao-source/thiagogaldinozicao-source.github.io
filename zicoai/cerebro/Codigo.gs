@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 65 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 66 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -645,7 +645,10 @@ function chat(req, aparelho) {
   if (querPesquisa && temDadoVivo && modo !== 'web' && !ficha) { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
   if (ficha) extraSistema += REGRA_FICHA;
   // falou do Chrome/WhatsApp/"esse cliente" e não mandou a página: a extensão lê a aba aberta agora
-  if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && pergunta.length < 400 && /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|\b(esse|essa|este|esta|desse|dessa|deste|desta|nesse|nessa|neste|nesta|pro|pra|ao|a) (cliente|mensagem|conversa|pessoa|cara|moco|moca|contato)\b|respond\w* (pra|pro|a|ao) (ele|ela|cliente|cara)|o ?que (eu )?respond|ta aqui|aqui na tela|na tela|(erro|bug|depur|console|quebr).{0,40}(app|site|pagina|aba|aqui|isso)|(app|site|pagina|aba).{0,40}(erro|bug|depur|quebr))/.test(normalizar(pergunta)) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
+  // pela extensão (app aberto no painel do Chrome): o site do lado É o assunto, então lê a aba sempre (menos conversa à toa)
+  const viaExtensao = !!req.naExtensao && !ehConversaAToa(pergunta);
+  if (req.naExtensao) extraSistema += '\n\nO Thiago está falando com vc pelo PAINEL DA EXTENSÃO no Chrome, do lado do site aberto. "Isso", "aqui", "esse cliente", "essa página" = o que está na aba aberta.';
+  if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && (viaExtensao || pergunta.length < 400) && (viaExtensao || /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|\b(esse|essa|este|esta|desse|dessa|deste|desta|nesse|nessa|neste|nesta|pro|pra|ao|a) (cliente|mensagem|conversa|pessoa|cara|moco|moca|contato)\b|respond\w* (pra|pro|a|ao) (ele|ela|cliente|cara)|o ?que (eu )?respond|ta aqui|aqui na tela|na tela|(erro|bug|depur|console|quebr).{0,40}(app|site|pagina|aba|aqui|isso)|(app|site|pagina|aba).{0,40}(erro|bug|depur|quebr))/.test(normalizar(pergunta))) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
     try {
       const pg = ponte('ler', { max: 12000 }, 45000, 'nav');
       extraSistema += '\n\n### PÁGINA ABERTA NO CHROME (a extensão leu agora)\n' + String(pg.titulo || '') + ' (' + String(pg.url || '').slice(0, 120) + ')\n' + esconderPessoal(String(pg.texto || '')).slice(-12000);

@@ -696,6 +696,8 @@ let chats = LS.get('chats', []);            // [{id,titulo,atualizada}]
 let atual = LS.get('atual', null);          // id da conversa aberta
 let mensagens = LS.get('msgs_' + atual, []);
 let foto = null, miniatura = null, ultimaFoto = null;
+// aberta dentro do painel da extensão do Chrome (?ext=1): o cérebro sabe que tem um site aberto do lado
+const NA_EXTENSAO = /[?&]ext=1\b/.test(location.search);
 let modo = 'auto';
 let controle = null;                        // pra botão parar
 let projetos = LS.get('projetos', []);       // [{id,nome,instrucoes,arquivos,conversas}]
@@ -1536,7 +1538,7 @@ async function envia(refazendo){
     const cAtual = chats.find(x => x.id === atual);
     const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
-      acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio,
+      acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio, naExtensao: NA_EXTENSAO || undefined,
       imagem: fotoEnvio || undefined, fotoRepetida: fotoRepetida || undefined, erroAnterior, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
