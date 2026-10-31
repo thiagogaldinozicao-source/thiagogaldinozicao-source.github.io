@@ -100,6 +100,7 @@
     if (!dec.ok) return Object.assign({ alvo: info.texto }, dec);
     if (el.matches(CAMPOS) && S.campoProibido(infoCampo(el))) return { ok: false, erro: 'não mexo em campo sensível' };
     el.scrollIntoView({ block: 'center' });
+    if (d.soOnde) { const r = el.getBoundingClientRect(); return { ok: true, clicou: info.texto || info.tag, seletor: seletor(el), x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }
     el.click();
     return { ok: true, clicou: info.texto || info.tag, seletor: seletor(el) };
   }
@@ -163,8 +164,27 @@
   }
 
   // "ao vivo": selo dourado no canto + contorno no que ela está mexendo (igual o Claude no Chrome), some sozinho
+  function bordaEParar() {
+    if (document.getElementById('__zicoaiBorda')) { clearTimeout(self.__zicoBordaT); self.__zicoBordaT = setTimeout(tirarBorda, 20000); return; }
+    const b = document.createElement('div'); b.id = '__zicoaiBorda';
+    b.style.cssText = 'position:fixed;inset:0;z-index:2147483646;pointer-events:none;box-shadow:inset 0 0 0 3px #EBB533, inset 0 0 28px rgba(235,181,51,.45);border-radius:6px;animation:__zicoPulso 1.6s ease-in-out infinite';
+    const st = document.createElement('style'); st.id = '__zicoaiEstilo';
+    st.textContent = '@keyframes __zicoPulso{0%,100%{opacity:.55}50%{opacity:1}}';
+    const p = document.createElement('button'); p.id = '__zicoaiParar'; p.textContent = '■  Parar ZicoAI';
+    p.style.cssText = 'position:fixed;z-index:2147483647;left:50%;bottom:18px;transform:translateX(-50%);background:#fff;color:#111;border:0;border-radius:12px;padding:10px 16px;font:600 14px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer';
+    p.onclick = () => { try { chrome.runtime.sendMessage({ tipo: 'zicoai-parar' }); } catch (e) { /* ok */ } tirarBorda(); };
+    document.documentElement.append(st, b, p);
+    self.__zicoBordaT = setTimeout(tirarBorda, 20000);
+  }
+  function tirarBorda() { ['__zicoaiBorda', '__zicoaiParar', '__zicoaiEstilo', '__zicoaiCursor'].forEach(id => { const e = document.getElementById(id); if (e) e.remove(); }); }
+  function cursorAte(x, y) {
+    let c = document.getElementById('__zicoaiCursor');
+    if (!c) { c = document.createElement('div'); c.id = '__zicoaiCursor'; c.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#111" stroke="#EBB533" stroke-width="1.6" stroke-linejoin="round"/></svg>'; c.style.cssText = 'position:fixed;z-index:2147483647;left:' + (innerWidth / 2) + 'px;top:' + (innerHeight / 2) + 'px;pointer-events:none;transition:left .45s ease,top .45s ease;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))'; document.documentElement.appendChild(c); }
+    c.style.left = (x - 4) + 'px'; c.style.top = (y - 2) + 'px';
+  }
   function aoVivo(texto, el) {
     try {
+      bordaEParar();
       let b = document.getElementById('__zicoaiSelo');
       if (!b) { b = document.createElement('div'); b.id = '__zicoaiSelo'; b.style.cssText = 'position:fixed;z-index:2147483647;right:12px;bottom:12px;background:#1c1706;color:#F4CB63;border:1px solid #EBB533;border-radius:999px;padding:7px 12px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.4);pointer-events:none;transition:opacity .3s'; document.documentElement.appendChild(b); }
       b.textContent = '⚡ ZicoAI: ' + texto; b.style.opacity = '1';
@@ -177,8 +197,9 @@
   rolar = d => { aoVivo('rolando'); return _rolar(d); };
   tabelas = (f => d => { aoVivo('lendo as tabelas'); return f(d); })(tabelas);
   rede = (f => d => { aoVivo('olhando a rede'); return f(d); })(rede);
-  clicar = d => { const r = _clicar(d); aoVivo(r && r.ok ? 'clicou em "' + r.clicou + '"' : 'não achou onde clicar', r && r.seletor ? document.querySelector(r.seletor) : null); return r; };
+  clicar = d => { const r = _clicar(d); if (r && r.ok && r.x != null) cursorAte(r.x, r.y); aoVivo(r && r.ok ? (d && d.soOnde ? 'clicando em "' : 'clicou em "') + r.clicou + '"' : 'não achou onde clicar', r && r.seletor ? document.querySelector(r.seletor) : null); return r; };
+  const parar = () => { tirarBorda(); return { ok: true }; };
   preencher = d => { const r = _preencher(d); aoVivo(r && r.ok ? 'preencheu' : 'não preencheu'); return r; };
 
-  self.ZicoPagina = { ler: ler, clicar: clicar, preencher: preencher, rolar: rolar, tabelas: tabelas, rede: rede };
+  self.ZicoPagina = { ler: ler, clicar: clicar, preencher: preencher, rolar: rolar, tabelas: tabelas, rede: rede, parar: parar };
 })();

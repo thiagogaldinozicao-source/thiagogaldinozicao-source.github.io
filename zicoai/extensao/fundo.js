@@ -94,7 +94,39 @@ async function laco() {
 async function acTabelas(d) { const aba = await abaAlvo(d); return naPagina(aba, 'tabelas', { linhas: d.linhas }); }
 async function acRede(d) { const aba = await abaAlvo(d); return naPagina(aba, 'rede', { max: d.max }); }
 const ACOES = { status: acStatus, abas: acAbas, ler: acLer, erros: acErros, clicar: acClicar, preencher: acPreencher, rolar: acRolar, abrir: acAbrir, print: acPrint, tabelas: acTabelas, rede: acRede };
+/* ---------- depurador do Chrome: o mesmo jeito do Claude ----------
+ * Ligar o depurador numa aba mostra a barra do Chrome "ZicoAI começou a depurar este navegador [Cancelar]" e deixa
+ * a ZicoAI clicar com o MOUSE DE VERDADE (sites que ignoram clique de script, tipo WhatsApp, aceitam). Solta sozinho
+ * depois de 60 s parada. "Cancelar" na barra ou "Parar ZicoAI" na página = ela para (10 min sem mexer). */
+const depurando = {};   // abaId -> timer de soltar
+let paradoAte = 0;
+async function ligarDepurador(abaId) {
+  if (depurando[abaId]) { clearTimeout(depurando[abaId]); depurando[abaId] = setTimeout(() => soltarDepurador(abaId), 60000); return true; }
+  try { await chrome.debugger.attach({ tabId: abaId }, '1.3'); } catch (e) { if (!/already attached/i.test(e.message || '')) return false; }
+  depurando[abaId] = setTimeout(() => soltarDepurador(abaId), 60000);
+  return true;
+}
+async function soltarDepurador(abaId) { clearTimeout(depurando[abaId]); delete depurando[abaId]; try { await chrome.debugger.detach({ tabId: abaId }); } catch (e) { /* já soltou */ } }
+chrome.debugger.onDetach.addListener((alvo, motivo) => {
+  if (!alvo || alvo.tabId == null) return;
+  clearTimeout(depurando[alvo.tabId]); delete depurando[alvo.tabId];
+  if (motivo === 'canceled_by_user') { paradoAte = Date.now() + 10 * 60000; estado(true, 'Parada pelo Thiago (10 min)'); }
+});
+chrome.runtime.onMessage.addListener((m, quem) => {
+  if (quem.id !== chrome.runtime.id || !m || m.tipo !== 'zicoai-parar') return;
+  paradoAte = Date.now() + 10 * 60000;
+  Object.keys(depurando).forEach(id => soltarDepurador(Number(id)));
+  estado(true, 'Parada pelo Thiago (10 min)');
+});
+async function cliqueDeVerdade(abaId, x, y) {
+  const cmd = (m, p) => chrome.debugger.sendCommand({ tabId: abaId }, m, p);
+  await cmd('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x, y: y });
+  await esperar(120);
+  await cmd('Input.dispatchMouseEvent', { type: 'mousePressed', x: x, y: y, button: 'left', clickCount: 1 });
+  await cmd('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x, y: y, button: 'left', clickCount: 1 });
+}
 async function executar(acao, d) {
+  if (Date.now() < paradoAte && !/^(status|abas)$/.test(acao)) return { ok: false, erro: 'o Thiago apertou PARAR: não mexo no Chrome por ' + Math.ceil((paradoAte - Date.now()) / 60000) + ' min' };
   const f = ACOES[acao];
   if (!f) return { ok: false, erro: 'Ação desconhecida no Chrome: ' + acao };
   return f(d || {});
@@ -150,7 +182,15 @@ async function acLer(d) {
 }
 async function acClicar(d) {
   const aba = await abaAlvo(d);
-  const r = await naPagina(aba, 'clicar', { seletor: d.seletor, texto: d.texto, confirmado: d.confirmado === true });
+  let r;
+  if (await ligarDepurador(aba.id)) {
+    r = await naPagina(aba, 'clicar', { seletor: d.seletor, texto: d.texto, confirmado: d.confirmado === true, soOnde: true });   // as travas rodam aqui
+    if (r && r.ok && r.x != null) {
+      await esperar(500);   // o cursor da ZicoAI chega no botão
+      try { await cliqueDeVerdade(aba.id, r.x, r.y); r.comMouse = true; }
+      catch (e) { r = await naPagina(aba, 'clicar', { seletor: r.seletor, confirmado: d.confirmado === true }); }
+    }
+  } else r = await naPagina(aba, 'clicar', { seletor: d.seletor, texto: d.texto, confirmado: d.confirmado === true });
   if (r && r.ok) {
     await esperar(800);
     const depois = await chrome.tabs.get(aba.id).catch(() => null);

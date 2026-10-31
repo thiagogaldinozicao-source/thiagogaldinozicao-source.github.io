@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## Extensão 2.5 (31/10): igual o Claude no Chrome
+- Permissão `debugger`: ao clicar, liga o depurador na aba (barra do Chrome "ZicoAI começou a depurar este navegador [Cancelar]") e clica com o MOUSE DE VERDADE (`Input.dispatchMouseEvent`), o que funciona em site que ignora clique de script. As travas rodam antes (pagina.js `soOnde` devolve o ponto só se pode clicar). Solta sozinho com 60 s parada; sem depurador, volta pro clique de script.
+- Na página: borda dourada pulsando, cursor da ZicoAI andando até o botão, selo "⚡ ZicoAI: …" e botão "■ Parar ZicoAI". Parar ou "Cancelar" na barra = 10 min sem mexer no Chrome.
+
 ## v66 (31/10): ela sabe que vc tá pela extensão
 - App aberto no painel do Chrome (`?ext=1`) manda `naExtensao`; o cérebro avisa no sistema ("o site do lado é o assunto") e lê a aba aberta em toda mensagem (menos conversa à toa). Cache do app `zicoai-v29`.
 
