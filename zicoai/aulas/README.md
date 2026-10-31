@@ -33,6 +33,8 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 ### Aulas por projeto (IDs 2xx, só na planilha)
 - **2xx — projeto "Maquina de cartão"** (simulador da maquininha): B201–B213 (app de 1 arquivo, parser de número BR, centavos, copiar texto, publicar, ícone, service worker, som, logo, copiar imagem, temas, testes, edição segura), C201–C202 (taxas e mensagem pro cliente), A201–A203 (prompt de revisão completa, jeito de trabalhar com o Thiago, regra do chat extenso).
 
+- **3xx — projeto "Calculadora"**: B301–B314 (fluxo no repositório, tutorial de primeira vez, vibração no iPhone com switch, temas por variáveis CSS, som, PWA offline, ícone, APK e App Store com Capacitor, revisão das contas, faixa vazia no iOS 26, fonte, Pages com repo privado), C301–C302 (parcelas com entrada/Pix/débito, lucro e preço reverso), E301 (mandar o app pra um amigo), A301–A304 (regras fixas do projeto, aviso de chat pesado, revisão que só lista, dizer o que foi testado).
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
