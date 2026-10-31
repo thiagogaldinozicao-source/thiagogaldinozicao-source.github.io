@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 43 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 44 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -768,6 +768,13 @@ function querPesquisaProfunda(t) {
  * com o pedido: palavra-chave/título pesa 3, regra/conteúdo pesa 1; precisa somar 4 (evita aula aleatória em "oi"). */
 /** Índice leve das aulas: só ID, título, palavras-chave e regra (colunas A–E, sem o Conteúdo pesado), com o nº da linha.
  *  Fica 30 min no cache (em pedaços, se passar de 90 mil letras), então com milhares de aulas a busca continua rápida. */
+/** Palavras de uma aula/pergunta pra busca: sem acento, sem palavra vazia, raiz de 6 letras (celular/celulares → celula). */
+function raizesAulas(t) {
+  return expandir(t).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && PARADAS.indexOf(w) < 0 && PARADAS_AULAS.indexOf(w) < 0).map(w => w.slice(0, 6));
+}
+const PARADAS_AULAS = ['zica', 'zicao', 'zicoai', 'thiago', 'tudo', 'todo', 'toda', 'coisa', 'tipo', 'entao', 'agora', 'depois', 'antes', 'aqui', 'ali', 'bem', 'deu', 'dar', 'ficar', 'fica', 'pode', 'posso', 'vai', 'vou', 'tava', 'estava', 'tbm', 'tambem', 'mesmo', 'ainda', 'cada', 'porque', 'por que', 'the', 'and'];
+
+/** Índice das aulas (cache 30 min, em pedaços): por aula, as raízes do título+palavras-chave, da regra e do conteúdo. */
 function indiceAulas() {
   const cache = CacheService.getScriptCache();
   try {
@@ -781,8 +788,12 @@ function indiceAulas() {
   const tot = a.getLastRow();
   if (tot < 2) return [];
   const idx = [];
-  a.getRange(2, 1, tot - 1, 5).getDisplayValues().forEach((l, k) => {
-    if (l[0] && l[4] && !l.some(c => /^\[IGNORAR\]/i.test(String(c)))) idx.push([l[0], l[2], normalizar(l[2] + ' ' + l[3]), normalizar(l[4]), l[4], k + 2]);
+  a.getRange(2, 1, tot - 1, 6).getDisplayValues().forEach((l, k) => {
+    if (!l[0] || !l[4] || l.some(c => /^\[IGNORAR\]/i.test(String(c)))) return;
+    // conteúdo guardado compacto: cada raiz uma vez com a contagem ("celula:3"), mais o total de palavras
+    const rc = raizesAulas(String(l[5]).slice(0, 6000)), cont = {};
+    rc.forEach(w => { cont[w] = (cont[w] || 0) + 1; });
+    idx.push([l[0], l[2], raizesAulas(l[2] + ' ' + l[3]).join(' '), raizesAulas(l[4]).join(' '), l[4], k + 2, Object.keys(cont).map(w => cont[w] > 1 ? w + ':' + cont[w] : w).join(' '), rc.length]);
   });
   try {
     const txt = JSON.stringify(idx), pedacos = {};
@@ -793,17 +804,38 @@ function indiceAulas() {
   return idx;
 }
 
-/** As aulas que mais combinam com o pedido: palavra-chave/título pesa 3, regra pesa 1; precisa somar 4. */
+/** As aulas que mais combinam com o pedido (BM25: palavra rara pesa mais que palavra comum).
+ *  Pesos: título+palavras-chave 2, conteúdo 1,5, regra 1. Medido com as 1.284 perguntas do treino: acerta a aula em ~78% (era 53%). */
+const PESO_AULAS = { k: 2, r: 1, c: 1.5 }, AULAS_MIN = 18;
 function aulasPara(pergunta, limite) {
-  const pn = expandir(pergunta);
-  const palavras = pn.split(/[^a-z0-9]+/).filter((p, i, a) => p.length >= 3 && PARADAS.indexOf(p) < 0 && a.indexOf(p) === i);
-  if (!palavras.length) return [];
-  return indiceAulas().map((x, i) => {
-    const chave = ' ' + x[2] + ' ';
+  const q = raizesAulas(pergunta).filter((w, i, a) => a.indexOf(w) === i);
+  if (!q.length) return [];
+  const idx = indiceAulas();
+  if (!idx.length) return [];
+  // por aula e por campo: { raiz: quantas vezes } e o tamanho do campo
+  const conta = t => { const m = {}; (t ? t.split(' ') : []).forEach(w => { const j = w.indexOf(':'); if (j > 0) m[w.slice(0, j)] = (m[w.slice(0, j)] || 0) + Number(w.slice(j + 1)); else m[w] = (m[w] || 0) + 1; }); return m; };
+  const campos = idx.map(x => { const k = x[2] ? x[2].split(' ') : [], r = x[3] ? x[3].split(' ') : []; return { k: conta(x[2]), r: conta(x[3]), c: conta(x[6]), tam: { k: k.length, r: r.length, c: Number(x[7]) || 0 } }; });
+  const N = campos.length, df = {}, media = { k: 0, r: 0, c: 0 };
+  campos.forEach(d => {
+    const vistas = {};
+    ['k', 'r', 'c'].forEach(f => { media[f] += d.tam[f] / N; Object.keys(d[f]).forEach(w => { vistas[w] = 1; }); });
+    Object.keys(vistas).forEach(w => { df[w] = (df[w] || 0) + 1; });
+  });
+  const k1 = 1.2, b = 0.6;
+  // o corte acompanha o tamanho do curso (com poucas aulas toda palavra pesa menos); calibrado com 267 aulas
+  const corte = AULAS_MIN * Math.log(1 + (N - 0.5) / 1.5) / Math.log(1 + 266.5 / 1.5);
+  return idx.map((x, i) => {
     let p = 0;
-    palavras.forEach(w => { if (chave.indexOf(w) >= 0 || parecida(w, chave)) p += 3; else if (x[3].indexOf(w) >= 0) p += 1; });
+    q.forEach(w => {
+      if (!df[w]) return;
+      const idf = Math.log(1 + (N - df[w] + 0.5) / (df[w] + 0.5));
+      ['k', 'r', 'c'].forEach(f => {
+        const tf = campos[i][f][w] || 0;
+        if (tf) p += PESO_AULAS[f] * idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * campos[i].tam[f] / (media[f] || 1)));
+      });
+    });
     return { x: x, p: p, i: i };
-  }).filter(o => o.p >= 4).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
+  }).filter(o => o.p >= corte).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
 }
 /** Traz as aulas públicas (A, B, D) do GitHub (zicoai/aulas/aulas.json) pra aba `aulas`: atualiza pelo ID ou acrescenta.
  *  Não mexe nas aulas privadas (C, E e as que só existem na planilha). Roda sozinha a cada 12 h (garantirRotinasTreino). */
