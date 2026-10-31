@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 64 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 65 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -645,11 +645,20 @@ function chat(req, aparelho) {
   if (querPesquisa && temDadoVivo && modo !== 'web' && !ficha) { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
   if (ficha) extraSistema += REGRA_FICHA;
   // falou do Chrome/WhatsApp/"esse cliente" e não mandou a página: a extensão lê a aba aberta agora
-  if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && pergunta.length < 400 && /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|\b(esse|essa|este|esta|desse|dessa|deste|desta|nesse|nessa|neste|nesta|pro|pra|ao|a) (cliente|mensagem|conversa|pessoa|cara|moco|moca|contato)\b|respond\w* (pra|pro|a|ao) (ele|ela|cliente|cara)|o ?que (eu )?respond|ta aqui|aqui na tela|na tela)/.test(normalizar(pergunta)) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
+  if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && pergunta.length < 400 && /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|\b(esse|essa|este|esta|desse|dessa|deste|desta|nesse|nessa|neste|nesta|pro|pra|ao|a) (cliente|mensagem|conversa|pessoa|cara|moco|moca|contato)\b|respond\w* (pra|pro|a|ao) (ele|ela|cliente|cara)|o ?que (eu )?respond|ta aqui|aqui na tela|na tela|(erro|bug|depur|console|quebr).{0,40}(app|site|pagina|aba|aqui|isso)|(app|site|pagina|aba).{0,40}(erro|bug|depur|quebr))/.test(normalizar(pergunta)) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
     try {
       const pg = ponte('ler', { max: 12000 }, 45000, 'nav');
       extraSistema += '\n\n### PÁGINA ABERTA NO CHROME (a extensão leu agora)\n' + String(pg.titulo || '') + ' (' + String(pg.url || '').slice(0, 120) + ')\n' + esconderPessoal(String(pg.texto || '')).slice(-12000);
       passo('Leu a aba aberta no Chrome: ' + String(pg.titulo || '').slice(0, 60));
+      // pediu pra achar erro/depurar: já traz os erros e a rede dessa aba (responde na hora, sem mandar agente)
+      if (/(erro|bug|depur|console|quebr|nao funciona|nao carrega|travad|lento|demora|por que nao)/.test(normalizar(pergunta))) {
+        try {
+          extraSistema += '\n\n### ERROS DESSA ABA (extensão)\n' + navTextoErros(ponte('erros', { abaId: pg.abaId }, 45000, 'nav'));
+          extraSistema += '\n\n### REDE DESSA ABA (extensão)\n' + FERRAMENTAS.nav_rede.run({ abaId: pg.abaId });
+          extraSistema += '\n\nDEPURAR AGORA: responda direto com o que achou (erro, linha, arquivo que não carregou, causa provável e o conserto). Não mande [[TAREFA]] se já deu pra achar; só se precisar clicar/navegar várias telas.';
+          passo('Olhou os erros e a rede da aba no Chrome');
+        } catch (e) { passo('Não deu pra ver os erros da aba (' + String(e.message || e).slice(0, 60) + ')'); }
+      }
     } catch (e) { passo('Não conseguiu ler o Chrome agora (' + String(e.message || e).slice(0, 60) + ')'); }
   }
   // erro que o app mostrou na mensagem anterior (o "Load failed" não chega no histórico)

@@ -29,6 +29,13 @@ chrome.runtime.onMessage.addListener((m, quem, responder) => {
   criarAlarme(); laco(); responder({ ok: true });
 });
 criarAlarme(); laco();   // toda vez que o service worker acorda
+// Painel aberto = ZicoAI ao vivo: o painel mantém uma porta aberta e manda um sinal a cada 20 s, aí o Chrome não põe
+// a extensão pra dormir e o pedido começa na hora (sem esperar o alarme de 30 s).
+chrome.runtime.onConnect.addListener(porta => {
+  if (porta.name !== 'zicoai-vivo') return;
+  laco();
+  porta.onMessage.addListener(() => laco());
+});
 
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 

@@ -33,3 +33,8 @@ for (const frase of ['oque responder pra este cliente?', 'o que eu respondo pra 
 run('ponteSemDetalhe = function(acao, dados, espera, disp){ if (acao === "tabelas") return {ok:true, titulo:"Fornecedor", tabelas:[{n:1, linhas:2, colunas:2, dados:[["Modelo","Preço"],["iPhone 15","3.999"]]}]}; if (acao === "rede") return {ok:true, total:3, comErro:[{status:404, ms:20, tipo:"script", url:"https://x/app.js"}], lentas:[], ultimas:[]}; throw new Error("x"); };');
 ok(/iPhone 15 \| 3\.999/.test(run('FERRAMENTAS.nav_tabelas.run({}, {pedido:"x"})')), 'nav_tabelas traz a tabela em linhas/colunas');
 ok(/404 · 20 ms · script · https:\/\/x\/app\.js/.test(run('FERRAMENTAS.nav_rede.run({}, {pedido:"x"})')), 'nav_rede mostra a chamada que deu 404');
+// v65: "vê se esse site tem erro" depura na hora (sem agente)
+run('ponteSemDetalhe = function(acao, dados, espera, disp){ if (acao === "ler") return {ok:true, abaId: 7, titulo:"Calculadora", url:"https://x/calc/", texto:"Calc"}; if (acao === "erros") return {ok:true, titulo:"Calculadora", url:"https://x/calc/", erros:[{tipo:"js", msg:"naoExiste is not defined", onde:"calc.js:12"}]}; if (acao === "rede") return {ok:true, total:2, comErro:[{status:404, ms:9, tipo:"script", url:"https://x/calc/app.js"}], lentas:[], ultimas:[]}; throw new Error("x"); };');
+enviado = '';
+r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'vê se esse site tem erro' }] });
+ok(r.passos.some(p => /Olhou os erros e a rede da aba/.test(p)) && /404/.test(enviado) && /DEPURAR AGORA/.test(enviado), 'depura na hora: erros + rede da aba vão pro cérebro');

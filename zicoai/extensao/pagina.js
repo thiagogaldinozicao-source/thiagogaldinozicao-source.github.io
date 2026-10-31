@@ -162,5 +162,23 @@
     return { ok: true, url: location.href, total: lista.length, comErro: ruins, lentas: lentas, ultimas: lista.slice(-25) };
   }
 
+  // "ao vivo": selo dourado no canto + contorno no que ela está mexendo (igual o Claude no Chrome), some sozinho
+  function aoVivo(texto, el) {
+    try {
+      let b = document.getElementById('__zicoaiSelo');
+      if (!b) { b = document.createElement('div'); b.id = '__zicoaiSelo'; b.style.cssText = 'position:fixed;z-index:2147483647;right:12px;bottom:12px;background:#1c1706;color:#F4CB63;border:1px solid #EBB533;border-radius:999px;padding:7px 12px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.4);pointer-events:none;transition:opacity .3s'; document.documentElement.appendChild(b); }
+      b.textContent = '⚡ ZicoAI: ' + texto; b.style.opacity = '1';
+      clearTimeout(self.__zicoSeloT); self.__zicoSeloT = setTimeout(() => { b.style.opacity = '0'; }, 2500);
+      if (el && el.style) { const o = el.style.outline; el.style.outline = '3px solid #EBB533'; el.style.outlineOffset = '2px'; setTimeout(() => { el.style.outline = o; }, 1500); }
+    } catch (e) { /* visual só */ }
+  }
+  const _ler = ler, _clicar = clicar, _preencher = preencher, _rolar = rolar;
+  ler = d => { aoVivo('lendo a página'); return _ler(d); };
+  rolar = d => { aoVivo('rolando'); return _rolar(d); };
+  tabelas = (f => d => { aoVivo('lendo as tabelas'); return f(d); })(tabelas);
+  rede = (f => d => { aoVivo('olhando a rede'); return f(d); })(rede);
+  clicar = d => { const r = _clicar(d); aoVivo(r && r.ok ? 'clicou em "' + r.clicou + '"' : 'não achou onde clicar', r && r.seletor ? document.querySelector(r.seletor) : null); return r; };
+  preencher = d => { const r = _preencher(d); aoVivo(r && r.ok ? 'preencheu' : 'não preencheu'); return r; };
+
   self.ZicoPagina = { ler: ler, clicar: clicar, preencher: preencher, rolar: rolar, tabelas: tabelas, rede: rede };
 })();

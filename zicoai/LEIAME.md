@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v65 (31/10): depurar ao vivo
+- Chat: "vê se esse site/app tem erro" com a extensão ligada → lê a aba + `erros` + `rede` na hora e responde direto (sem agente em segundo plano, que levava minutos).
+- Extensão 2.4: painel aberto mantém a extensão acordada (porta `zicoai-vivo`, sinal a cada 20 s: ação começa na hora); selo dourado "⚡ ZicoAI: …" no canto da página e contorno no botão que ela clicou.
+
 ## v64 (31/10): Chrome lê tabelas e rede
 - Extensão 2.3: ações `tabelas` (até 5 tabelas visíveis, 500 linhas) e `rede` (performance resource: status, tempo, tamanho; com erro e lentas). Ferramentas `nav_tabelas` (lista de fornecedor → planilha) e `nav_rede` (depurar app junto do nav_erros).
 

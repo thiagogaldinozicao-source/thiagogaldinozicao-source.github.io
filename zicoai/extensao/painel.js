@@ -73,3 +73,10 @@ chrome.storage.onChanged.addListener((mud, area) => {
 });
 setInterval(() => chrome.storage.local.get(['zicoSegredo', 'zicoEstado']).then(c => mostrarEstado(c.zicoEstado, !!c.zicoSegredo)), 15000);
 carregarConexao();
+// mantém a extensão acordada enquanto o painel estiver aberto (ação começa na hora)
+(function vivo() {
+  let porta = null;
+  const ligar = () => { try { porta = chrome.runtime.connect({ name: 'zicoai-vivo' }); porta.onDisconnect.addListener(() => setTimeout(ligar, 1000)); } catch (e) { setTimeout(ligar, 5000); } };
+  ligar();
+  setInterval(() => { try { porta && porta.postMessage({ t: Date.now() }); } catch (e) { /* religa no onDisconnect */ } }, 20000);
+})();
