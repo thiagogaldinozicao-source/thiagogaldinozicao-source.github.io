@@ -31,6 +31,11 @@ Repare: quantidade exata, casos listados, marcadores no lugar de número, estilo
 5. **Conferiu** os rascunhos e mandou **um revisor separado** comparar tudo com o código (na rodada anterior, o revisor achou 8 erros).
 6. Publicou e ligou as aulas no cérebro da ZicoAI.
 
+## Conferir com código, não com a palavra do ajudante
+Erro que já aconteceu: os ajudantes gravaram as aulas na planilha e disseram que estava tudo "conferido". Mas eles tinham conferido lendo e digitando à mão, então não dava pra confiar.
+Correção: o maestro lê a planilha inteira de volta para um arquivo e compara, com um script, célula por célula contra o arquivo de origem.
+Exemplo real (31/10/2026): nas 35 aulas dos projetos ZOMBIES e Zicão Gestão, o script achou **4 campos "Onde" incompletos** que a leitura a olho tinha deixado passar. Eles foram corrigidos e a segunda conferência deu zero diferenças.
+
 ## O mesmo dentro da ZicoAI
 - Roteador: pergunta fácil → cérebro rápido; difícil → modo capricho (D18).
 - `dividir_em_agentes`: o agente chefe divide e junta (D09).
@@ -42,3 +47,4 @@ Repare: quantidade exata, casos listados, marcadores no lugar de número, estilo
 2. Pedido bom = contexto + tarefa + formato + o que não fazer.
 3. Tudo que volta de outra IA é rascunho até conferir.
 4. Barato pra volume, forte pra decisão e conferência.
+5. "Conferido" só vale quando um código comparou com a fonte; a palavra do ajudante não basta.

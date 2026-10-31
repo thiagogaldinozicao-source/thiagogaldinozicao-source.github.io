@@ -63,6 +63,7 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 |---|---|---|
 | B01 | [o padrão dos apps do Thiago](B/B01-app-em-um-arquivo.md) | App em um arquivo `.html` só (HTML + CSS + JavaScript, sem framework), mobile-first, modo escuro por padrão (p… |
 | B02 | [erros de programação que já foram corrigidos](B/B02-erros-de-programacao-ja-corrigidos.md) | Antes de entregar código, confira esta lista: modo escuro, nada desligado com `//`, fórmula certa, arquivo com… |
+| B03 | [criar um artefato (página/app) do zero](B/B03-criar-artefato-do-zero.md) | Primeiro o formato (tipo pronto ou HTML), celular e tema escuro desde o começo, dados no banco, republicar no mesmo link. |
 | B10 | [App de 1 arquivo HTML, escuro, mobile-first](B/B10-app-html-mobile-iphone-layout.md) | Faça o app inteiro em um `index.html` (HTML + CSS + JS, sem framework e sem build), pensado primeiro pro celul… |
 | B11 | [PWA instalável no iPhone](B/B11-pwa-instalavel-iphone.md) | Pra instalar na tela inicial: `manifest.webmanifest` com ícones 192, 512 e maskable, `apple-touch-icon` (180x1… |
 | B12 | [Service worker: abrir sem internet e atualizar o cache](B/B12-service-worker-offline-e-versao-nova.md) | Cada app tem um `sw.js` com a versão do cache no topo: `VERSAO` (emprestimo/maquininha) ou `CACHE` (calculador… |
