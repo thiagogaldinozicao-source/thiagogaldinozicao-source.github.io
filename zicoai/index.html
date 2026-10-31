@@ -885,6 +885,24 @@ async function abrir(id){
     desenha();
   }catch(e){ status(false); }
 }
+/** Depois de "Load failed": confere no cérebro (até ~4 min) se a resposta chegou e troca o aviso pela resposta. */
+async function recuperarResposta(id, qtdLocal, tentativa){
+  tentativa = tentativa || 1;
+  if(atual !== id || controle) return;
+  try{
+    const j = await api({ acao:'abrir', chatId: id });
+    if(atual !== id) return;
+    const ult = j.mensagens[j.mensagens.length - 1];
+    const temNova = ult && ult.role === 'assistant' && j.mensagens.length >= qtdLocal;
+    if(temNova){
+      const locais = mensagens.filter(m => !m.erro);
+      mensagens = j.mensagens.map((m, i) => Object.assign({}, locais[i] && locais[i].content === m.content ? locais[i] : {}, m));
+      LS.set('msgs_' + id, mensagens); desenha(); status(true); return;
+    }
+  }catch(e){ /* sem rede ainda */ }
+  if(tentativa < 16) setTimeout(() => recuperarResposta(id, qtdLocal, tentativa + 1), 15000);
+  else { const m = mensagens[mensagens.length - 1]; if(m && m.erro){ m.content = '⚠️ A conexão caiu e a resposta não chegou. Toca em Refazer.'; desenha(); } }
+}
 async function apagar(id){
   if(!confirm('Apagar essa conversa? (o que a ZicoAI aprendeu continua salvo)')) return;
   chats = chats.filter(c => c.id !== id); LS.set('chats', chats);
@@ -1411,9 +1429,12 @@ async function envia(refazendo){
   }catch(e){
     para();
     const parou = e.name === 'AbortError';
+    // "Load failed"/"Failed to fetch" = a conexão caiu (celular bloqueou, trocou de rede, demorou), mas o cérebro pode ter terminado
+    const caiu = !parou && e instanceof TypeError && atual;
     mensagens.push({ role:'assistant', erro:true, passos: e.passos, detalhes: e.detalhes,
-      content: parou ? 'Parei. (Se ela já tinha começado, a resposta aparece quando vc abrir a conversa de novo.)' : '⚠️ ' + e.message });
+      content: parou ? 'Parei. (Se ela já tinha começado, a resposta aparece quando vc abrir a conversa de novo.)' : caiu ? '⚠️ A conexão caiu (' + e.message + '). Ela pode ter terminado: tô conferindo…' : '⚠️ ' + e.message });
     if(!parou) status(false);
+    if(caiu) setTimeout(() => recuperarResposta(atual, mensagens.length), 8000);
   }
   modoEnviando(false);
   if(modo === 'imagem' || modo === 'agente') setModo('auto');

@@ -155,6 +155,13 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v54 (31/10): cérebro do Mac + app da conversa por trechos
+- `CEREBROS.mac` (`viaPonte`): Ollama do Mac pela ponte (`ollama_chat`, mac-1.3; `MAC_MODELO`, `MAC_CEREBRO=nao`). Ligado se a ponte do Mac foi vista há < 90 s. Estudo gera no Mac primeiro (nuvem corrige), resumo da conversa no Mac primeiro, conversa com o Mac por último (reserva quando a nuvem toda bate limite). Foto não vai pro Mac.
+- App que ela mandou antes NA CONVERSA (sem publicar): pedido de mudança edita o último html por trechos (igual app publicado). `programadora` roda em toda resposta com html (antes só se o pedido falava de programação) e também com foto.
+- Resposta que falhou fica gravada ("⚠️ Não consegui responder: …"). Regra 12: nunca dizer que não dá pra testar; "testado" só com o selo ✅.
+- App: depois de "Load failed", confere a conversa por ~4 min e troca o aviso pela resposta (`recuperarResposta`). Cache `zicoai-v26`.
+- Testes t1–t40 (554 ok). Aula D31.
+
 ## v53 (31/10): programadora (edita por trechos, testa e conserta)
 - App existente (`appSlug`): `REGRA_EDICAO` pede trechos `<<<<<<< ANTES / ======= / >>>>>>> DEPOIS`; `aplicarTrechos` aplica (cada ANTES tem que aparecer 1 vez; falhou → 1 refazer); resposta = explicação + arquivo COMPLETO. Código do app no contexto até 150 mil letras (era 60 mil e cortava).
 - `programadora()` depois de toda resposta de código: `checarHtmlEstatico` (cortado, script sem fechar, sintaxe) + `ponte('testar_html')` no Mac (Chromium sem janela, 390 px, clica em até 6 botões; erros de JS/console/arquivo/página branca/rolagem lateral) → `consertarCodigo` (Gemini Flash, trechos) até `MAX_CONSERTOS` (2). Selo ✅/⚠️ no fim. Revisor de texto não roda em resposta com app.

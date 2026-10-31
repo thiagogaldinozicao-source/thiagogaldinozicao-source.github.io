@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 53 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 54 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -42,6 +42,9 @@ const CEREBROS = {
   pc:     { url: '', chave: null, modelo: '', nome: 'PC', limite: 16000, maxSaida: 4096, local: true },
   // Gemini Flash "de verdade" (bem melhor que o Lite, mas só ~20 pedidos/dia no grátis): só pra pedido difícil e ficha técnica.
   // O modelo vem de GEMINI_FORTE (testarModelos escolhe sozinho o que responde); vazio = desligado.
+  // Mac Mini (oficina 24h): Ollama local pela ponte. Sem limite de token, mas cérebro pequeno (8B):
+  // trabalho de fundo (estudo, resumo) e reserva quando a nuvem toda bate limite. Modelo em MAC_MODELO; MAC_CEREBRO=nao desliga.
+  mac: { url: '', chave: null, modelo: 'qwen3:8b', nome: 'Mac (qwen3:8b)', limite: 30000, maxSaida: 4096, local: true, viaPonte: true },
   geminiForte: { url: GEMINI_COMPAT_URL, chave: 'GEMINI_KEY', modelo: '', nome: 'Gemini Flash', limite: 200000, maxSaida: 8192, tpm: 200000, rpm: 4, rpd: 18, opcional: true }
 };
 /** Modelos do Gemini escolhidos por testarModelos() (o Google troca/aposenta modelo sem avisar). Lido 1 vez por execução. */
@@ -50,6 +53,7 @@ function aplicarModelos() {
   if (_modelosOk) return; _modelosOk = true;
   const gm = prop('GEMINI_MODELO'), gf = prop('GEMINI_FORTE');
   if (gm) CEREBROS.gemini.modelo = gm;
+  const mm = prop('MAC_MODELO'); if (mm) { CEREBROS.mac.modelo = mm; CEREBROS.mac.nome = 'Mac (' + mm + ')'; }
   CEREBROS.geminiForte.modelo = gf || '';
 }
 const CANDIDATOS_GEMINI = { forte: ['gemini-3.8-flash', 'gemini-3.6-flash'], leve: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] };
@@ -174,6 +178,11 @@ function temCerebro(nome) {
   const c = CEREBROS[nome];
   if (!c) return false;
   if (nome === 'geminiForte' && !c.modelo) return false;
+  if (nome === 'mac') {
+    if (/^(nao|não|0|false)$/i.test(String(prop('MAC_CEREBRO') || '')) || !prop('PONTE_SEGREDO_MAC')) return false;
+    if (CacheService.getScriptCache().get('mac_off')) return false;
+    const v = ponteVisto('mac'); return v >= 0 && v < 90000;
+  }
   if (c.aposentado) return false;
   if (nome === 'cloudflare') return !!prop('CF_TOKEN') && !!prop('CF_ACCOUNT_ID');
   return !c.opcional || !!prop(c.chave);
@@ -231,7 +240,7 @@ const PERSONA = [
   '9c. O Thiago digita rápido, com erro de digitação, letra trocada e sem acento ("celuakr" = celular, "noa" = não, "oq" = o que, "pq" = por que, "tbm" = também, "msm" = mesmo, "ta" = tá, "vc" = você, "q" = que, "mt" = muito, "blz" = beleza). Entenda pelo contexto SEMPRE. Nunca corrija a escrita dele, nunca peça pra repetir por causa de erro de digitação, nunca comente o erro. Se a dúvida for real (duas leituras possíveis), pergunte em uma linha.',
   '10. Não ofereça extras que não foram pedidos. Se algo for difícil demais pra vc, diga que é melhor pedir pro Claude.',
   '11. CARD DE COPIAR: tudo que o Thiago vai copiar e colar (mensagem pra cliente ou família, lista de preço, MAC e key, comparativo, código) vai SEMPRE dentro de um bloco de código markdown (três crases). Explicação fica fora do bloco.',
-  '12. Programação: o Thiago NÃO sabe programar. App NOVO: entregue o arquivo COMPLETO e funcionando, num bloco ```html só, e explique como leigo (nome do arquivo, onde salvar, como abrir). App que JÁ EXISTE (veio o código atual): só os trechos que mudam, no formato ANTES/DEPOIS (o sistema aplica e testa). Modo escuro, mobile-first. O sistema abre o app num navegador e te devolve os erros: escreva código que funciona de primeira (variável declarada antes de usar, elemento existe antes do getElementById, sem biblioteca que não carregou).',
+  '12. Programação: o Thiago NÃO sabe programar. App NOVO: entregue o arquivo COMPLETO e funcionando, num bloco ```html só, e explique como leigo (nome do arquivo, onde salvar, como abrir). App que JÁ EXISTE (veio o código atual): só os trechos que mudam, no formato ANTES/DEPOIS (o sistema aplica e testa). Modo escuro, mobile-first. O sistema abre o app num navegador (no Mac) e te devolve os erros, e o app tem o botão ▶ Testar: NUNCA diga que não dá pra testar. Só diga "testado" se a resposta tiver o selo ✅ do teste. Escreva código que funciona de primeira (variável declarada antes de usar, elemento existe antes do getElementById, sem biblioteca que não carregou).',
   '13. Dados de cliente (CPF, telefone, endereço): se o Thiago mandar, avise em uma linha que isso é melhor fazer na ZicoAI do PC (offline) e não salve na memória.',
   '',
   '### MÉTODO (como o Claude trabalha; faça isso por dentro, antes de escrever, sem mostrar os passos)',
@@ -607,6 +616,16 @@ function chat(req, aparelho) {
     // edição igual o Claude faz: só os trechos que mudam (arquivo inteiro de volta = arquivo cortado e coisa sumindo)
     if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
   }
+  // mudança no app que ela mesma mandou antes NESTA conversa (sem estar publicado): edita por trechos o último html
+  if (!codigoApp && pergunta.length < 1500 && /(muda|mude|coloca|coloque|poe|tira|tire|corrig|arruma|ajusta|adiciona|acrescenta|troca|melhora|aument|diminu|layout|botao|cor |fonte|visor|tela|historico|funcao|nao funciona|quebrou|erro)/.test(normalizar(pergunta))) {
+    const antAssist = historico.slice(0, -1).reverse().find(m => m.role === 'assistant');
+    const htmlAnt = antAssist ? extrairHtml(antAssist.content) : '';
+    if (htmlAnt && /<\/html>\s*$/i.test(htmlAnt.trim())) {
+      codigoApp = htmlAnt;
+      extraSistema += REGRA_EDICAO + '\n\n### ÚLTIMO CÓDIGO QUE VC MANDOU NESTA CONVERSA (o Thiago quer mudar ele)\n```html\n' + htmlAnt + '\n```';
+      passo('Vai mudar o app que mandou antes nesta conversa (por trechos, o resto fica igual)');
+    }
+  }
   if (colado) {
     extraSistema += '\n\n### TEXTO LONGO COLADO\nA última mensagem do Thiago é um texto grande que ele colou (documento, status, conversa ou código). Leia como DOCUMENTO: entenda do que se trata e responda ao que ele quer com isso (se ele não disse, resuma em poucas linhas e diga o que vc faria a seguir). Palavras, números e links dentro do texto NÃO são perguntas novas. Não mude de assunto por causa da conversa anterior.';
     passo('Texto longo colado: leu como documento (sem pesquisar nem abrir links dele)');
@@ -637,9 +656,12 @@ function chat(req, aparelho) {
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema, capricho);
   // código de app: quem revisa é o TESTE (programadora); revisor reescrevendo o arquivo inteiro cortava código
   if (capricho && resultado && resultado.ok && !req.imagem && !codigoApp && !/```html/i.test(String(resultado.texto || ''))) { try { resultado = revisarResposta(pergunta, resultado, extraSistema + (ficha && resultado.pesquisou ? REGRA_REVISOR_FICHA : '')); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
-  if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
+  if (!resultado.ok) {
+    try { gravarMensagem(chatId, 'zicoai', '⚠️ Não consegui responder: ' + String(resultado.erro || '').slice(0, 300), 'erro', aparelho); } catch (e) { /* ok */ }
+    return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
+  }
   // programadora: aplica a edição, TESTA o app (sintaxe + navegador do Mac) e corrige o que quebrou antes de entregar
-  if (!req.imagem && (codigoApp || ehProgramacao(pergunta))) { try { resultado = programadora(resultado, codigoApp, pergunta); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
+  if ((codigoApp || ehProgramacao(pergunta) || /```html|^\s*<!doctype html/i.test(String(resultado.texto || '')))) { try { resultado = programadora(resultado, codigoApp, pergunta); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
 
   const proc = processarTags(resultado.texto, aparelho);
   let textoFinal = proc.texto;
@@ -714,7 +736,7 @@ function compactarSePrecisar(chatId) {
     { role: 'user', content: (resumoAtual ? 'RESUMO ANTERIOR:\n' + resumoAtual + '\n\n' : '') + 'CONVERSA:\n' + texto }
   ];
   let novo = null;
-  for (const nome of ['gemini', 'mistral', 'groq', 'cerebras', 'nvidia', 'groq2']) {
+  for (const nome of ['mac', 'gemini', 'mistral', 'groq', 'cerebras', 'nvidia', 'groq2']) {   // resumo: o Mac dá conta e não gasta cota
     if (!temCerebro(nome)) continue;
     try { novo = chamarCompat(CEREBROS[nome], msgs, 900, { temperature: 0.2 }); break; } catch (e) { /* próximo */ }
   }
@@ -769,9 +791,9 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   let ordem;
   // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
   if (imagem) ordem = ['gemini', 'mistral', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
-  else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
-  else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'pc', 'cloudflare', 'groq2'];
-  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].indexOf(preferido) >= 0 && !(imagem && ordem.indexOf(preferido) < 0)) {
+  else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2', 'mac']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
+  else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'pc', 'cloudflare', 'groq2', 'mac'];
+  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare', 'mac'].indexOf(preferido) >= 0 && !(imagem && ordem.indexOf(preferido) < 0)) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
     passo('Seletor de cérebro em ' + (preferido === 'pc' ? 'PC' : (CEREBROS[preferido] || {}).nome || preferido) + ': ele vai primeiro' + (forte ? ' (no capricho o melhor é deixar em Auto)' : ''));
   }
@@ -811,12 +833,13 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
       const texto = chamarCompat(c, usar, maxSaida, extras);
       if (!c.local) registrarUso(nome, tokens + estimarTokens(texto));
       if (!texto.trim()) throw new Error(c.nome + ' respondeu vazio');
-      passo((c.local && erros.length ? 'Nuvem indisponível, respondeu com o ' : 'Respondeu com ') + c.nome);
+      passo((c.local && erros.length ? 'Nuvem indisponível (limite), respondeu com o ' : 'Respondeu com ') + c.nome);
       return { ok: true, texto: texto, cerebro: c.nome };
     } catch (err) {
       const msg = String(err.message || err);
       erros.push(msg);
-      if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
+      if (nome === 'mac') { CacheService.getScriptCache().put('mac_off', '1', 180); passo('Mac não respondeu (' + msg.slice(0, 60) + '), trocou de cérebro'); }
+      else if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
       else if (/\b429\b|rate limit|quota|RESOURCE_EXHAUSTED/i.test(msg)) { const seg = castigo(nome, msg); passo(c.nome + ' deu limite (' + msg.replace(/^[^:]*:\s*/, '').slice(0, 70) + '), fica ' + seg + 's de castigo, trocou de cérebro'); }
       else if (ehSobrecarga(msg)) { CacheService.getScriptCache().put('off_' + nome, '1', 90); passo(c.nome + ' tá sobrecarregado (alta demanda), fica 90s fora e trocou de cérebro'); }
       else passo(c.nome + ' falhou (' + msg.replace(/^[^:]*:\s*/, '').slice(0, 70) + '), trocou de cérebro');
@@ -827,6 +850,11 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
 }
 
 function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
+  if (c.viaPonte) {   // cérebro do Mac: vai pela ponte até o Ollama dele (foto não vai: o modelo do Mac não enxerga)
+    const limpas = msgs.map(m => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter(x => x.type === 'text').map(x => x.text).join('\n') : String(m.content || '') }));
+    const r = ponteSemDetalhe('ollama_chat', { modelo: c.modelo, mensagens: limpas, maxTokens: maxSaida, temperatura: (extras && extras.temperature >= 0) ? extras.temperature : 0.6 }, 115000, 'mac');
+    return String(r.texto || '');
+  }
   const chave = c.chave ? prop(c.chave) : 'ollama';
   if (!chave) throw new Error('Falta a chave ' + c.chave + ' nas Propriedades do script');
   let url = c.url;
@@ -1425,6 +1453,7 @@ function programadora(resultado, codigoApp, pergunta) {
   const selo = teste.erros.length
     ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ')
     : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
+  html = String(html).replace(/\s+$/, '');
   const corpo = codigoApp ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
     : (voltas ? texto.replace(/```html[^\n]*\n[\s\S]*?```/i, () => '```html\n' + html + '\n```') : texto);
   return Object.assign({}, resultado, { texto: corpo + selo, testado: !teste.erros.length });
@@ -3562,7 +3591,7 @@ function estudoNoturno(indice) {
     // gera com modelo ABERTO (Groq/NVIDIA): as respostas podem virar treino do cérebro do PC
     const gerar = [{ role: 'system', content: 'Você cria material de estudo pra ZicoAI, assistente do Thiago (Zicão Store, loja de iPhones em Itaú de Minas/MG, que também faz apps em HTML). Com base SÓ no MATERIAL, crie 3 exercícios práticos do tema, do jeito que o Thiago perguntaria (informal, "vc"). Cada um com a resposta ideal, curta e correta (código completo em bloco ```js ou ```html quando for código). Nunca invente preço, garantia ou dado da loja: use [PREÇO]/[GARANTIA]. Responda SÓ JSON: {"exercicios":[{"pergunta":"...","resposta":"..."}]}' }, { role: 'user', content: 'TEMA: ' + t.tema + '\n\nMATERIAL:' + material.slice(0, 12000) }];
     let j = null, autor = '';
-    for (const nome of ['groq', 'nvidia', 'groq2']) {
+    for (const nome of ['mac', 'groq', 'nvidia', 'groq2']) {   // Mac primeiro: sem limite; a nuvem só corrige (corrigirResposta)
       if (!temCerebro(nome)) continue;
       const tk = estimarTokens(JSON.stringify(gerar)) + 3000;
       if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
@@ -3709,7 +3738,7 @@ function aprenderComErros() {
     'resposta_certa nunca diz que fez, mandou ou corrigiu algo ("já corrigi", "mandei o arquivo"): é o texto que ela devia ter respondido. Se o certo é um código grande, descreva o conserto em 1-2 frases em vez do código.'
   ].join('\n') }, { role: 'user', content: 'PEDIDO DO THIAGO:\n' + (pedido || '(não achei)') + '\n\nRESPOSTA DELA (errada):\n' + String(errada[3]).slice(0, 3000) + '\n\nRECLAMAÇÃO:\n' + String(rec[3]).slice(0, 800) + '\n\nMATERIAL DA WEB (' + (fontes[0] || 'nenhum') + '):\n' + (material || '(nenhum)') }];
   let j = null, autor = '';
-  for (const nome of ['gemini', 'mistral', 'nvidia', 'groq']) {
+  for (const nome of ['gemini', 'mistral', 'nvidia', 'groq', 'mac']) {
     if (!temCerebro(nome)) continue;
     const tk = estimarTokens(JSON.stringify(msgs)) + 2000;
     if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
