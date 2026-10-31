@@ -1,4 +1,7 @@
-# Aula 04: ligar os cérebros grátis e testar cada um de verdade (30/10/2026)
+# D04: ligar os cérebros grátis e testar cada um de verdade (30/10/2026)
+
+**Regra:** Só conta como funcionando o cérebro que respondeu de verdade. Leia o código do erro: 401 chave, 404/410 modelo, 429 limite, 502/503 sobrecarga.
+**Palavras-chave:** api, chave, groq, gemini, mistral, nvidia, openrouter, 401, 404, 429, limite, cérebro, não responde
 
 ## Pedido
 > "Vamos usar apis grátis tbm todas que existem aí vc coloca esgotou muda pra próxima"

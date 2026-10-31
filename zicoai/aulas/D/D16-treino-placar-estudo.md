@@ -1,4 +1,7 @@
-# Aula 16: treino, placar e estudo noturno (30/10/2026)
+# D16: treino, placar e estudo noturno (30/10/2026)
+
+**Regra:** Pra subir de nível: medir (prova/placar com mesmo contexto), filtrar material (sintaxe, revisor, Thiago) e só depois treinar o modelo.
+**Palavras-chave:** treino, treinar, placar, prova, nota, estudo noturno, nível, melhorar, fine-tuning
 
 ## Pedido
 > "me ajuda fazer ela ir subindo até chegar nível mistral gpt gemini e claude, vai traçando o caminho pra mim"

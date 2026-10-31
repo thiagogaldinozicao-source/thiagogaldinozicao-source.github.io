@@ -1,4 +1,7 @@
-# Aula 11: publicar uma versão nova do cérebro (30/10/2026)
+# D11: publicar uma versão nova do cérebro (30/10/2026)
+
+**Regra:** Publicar: testes → commit → colar → conferir sha256 → salvar → Nova versão na mesma implantação → testar no app.
+**Palavras-chave:** publicar, implantar, deploy, apps script, nova versão, editor, colar código, sha256
 
 ## Por que é delicado
 O código do repositório e o código que roda no Google são cópias separadas. Publicar errado derruba a ZicoAI no celular do Thiago.

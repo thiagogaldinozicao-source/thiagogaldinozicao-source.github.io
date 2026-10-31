@@ -164,6 +164,7 @@ const ABAS = {
   exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto', 'Tipo', 'Origem'],
   placar:       ['Data', 'Cérebro', 'Tipo', 'Nota', 'Pergunta nº', 'O que faltou'],
   trajetorias:  ['Data', 'Pedido', 'Passos (ferramenta → resultado)', 'Lições', 'Autor'],
+  aulas:        ['ID', 'Módulo', 'Título', 'Palavras-chave', 'Regra', 'Conteúdo', 'Onde'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
   tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho', 'Pai'],
   vetores:      ['Aba', 'Texto', 'Vetor']
@@ -406,6 +407,7 @@ function chat(req, aparelho) {
   if (querPesquisa && temDadoVivo && modo !== 'web') { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
 
   try { extraSistema += contextoMeusCerebros(pergunta); } catch (e) { /* ok */ }
+  if (!colado && modo !== 'imagem') try { extraSistema += contextoAulas(pergunta, 2); } catch (e) { /* sem aulas */ }
   if (querPesquisa && !colado && querPesquisaProfunda(pergunta)) resultado = pesquisaProfunda(historico, pergunta, extraSistema);
   if (querPesquisa && !resultado) resultado = pesquisar(historico, pergunta, extraSistema);
   // MODO CAPRICHO: pedido difícil (ou o Thiago ligou): cérebro forte, pensando no máximo, e outro cérebro revisa antes de entregar
@@ -754,6 +756,30 @@ function querPesquisaProfunda(t) {
 }
 
 /* ---------- conhecer a si mesma: cérebros, limites e placar ---------- */
+/* ---------- AULAS (curso ABC: A fundamentos, B programação, C loja, D a própria ZicoAI, E pessoal) ----------
+ * Aba `aulas`: ID | Módulo | Título | Palavras-chave | Regra | Conteúdo | Onde. O texto completo das aulas A, B e D
+ * fica no GitHub (zicoai/aulas); C e E só existem na planilha (privado). Aqui entram as 2 aulas que mais combinam
+ * com o pedido: palavra-chave/título pesa 3, regra/conteúdo pesa 1; precisa somar 4 (evita aula aleatória em "oi"). */
+function aulasPara(pergunta, limite) {
+  const pn = expandir(pergunta);
+  const palavras = pn.split(/[^a-z0-9]+/).filter((p, i, a) => p.length >= 3 && PARADAS.indexOf(p) < 0 && a.indexOf(p) === i);
+  if (!palavras.length) return [];
+  return linhas('aulas').filter(l => l[0] && l[4]).map((l, i) => {
+    const chave = ' ' + normalizar(l[2] + ' ' + l[3]) + ' ';
+    const corpo = normalizar(l[4] + ' ' + l[5]);
+    let p = 0;
+    palavras.forEach(w => { if (chave.indexOf(w) >= 0 || parecida(w, chave)) p += 3; else if (corpo.indexOf(w) >= 0) p += 1; });
+    return { l: l, p: p, i: i };
+  }).filter(x => x.p >= 4).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(x => x.l);
+}
+function contextoAulas(pergunta, limite) {
+  const lista = aulasPara(pergunta, limite);
+  if (!lista.length) return '';
+  passo('📚 Aula(s) que se aplicam: ' + lista.map(l => l[0] + ' ' + l[2]).join(' · '));
+  return '\n\n### AULAS QUE SE APLICAM (o jeito certo de fazer isso; siga a REGRA)\n' + lista.map(l =>
+    '[' + l[0] + '] ' + l[2] + '\nREGRA: ' + String(l[4]).slice(0, 600) + (l[5] ? '\n' + String(l[5]).slice(0, 1500) : '')).join('\n\n');
+}
+
 function contextoMeusCerebros(pergunta) {
   if (!/(cerebro|modelo de ia|modelos de ia|\bllm\b|\bapi\b|gemini|groq|mistral|nvidia|cerebras|ollama|qwen|gpt|claude|qual ia|melhor ia|ia gratis|sua cabeca|vc usa|voce usa)/.test(normalizar(pergunta))) return '';
   const linhasC = Object.keys(CEREBROS).filter(n => n !== 'pc' && temCerebro(n)).map(n => {
@@ -3182,7 +3208,9 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
         est.log.push('📚 Lembrou de ' + tr.length + ' tarefa(s) parecida(s) já resolvida(s)');
       }
     } catch (e) { /* sem trajetórias */ }
-    const sistema = montarSistema(pedido, true) + proj + traj + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
+    let aulas = '';
+    try { aulas = contextoAulas(pedido, 2); if (aulas) est.log.push('📚 Leu ' + (aulas.match(/^\[[A-E]\d+\]/gm) || []).length + ' aula(s) do curso'); } catch (e) { /* sem aulas */ }
+    const sistema = montarSistema(pedido, true) + proj + traj + aulas + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
     est.msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
     anota('Começou a trabalhar');
   } else anota('Continuou de onde parou (rodada ' + est.rodadas + ')');

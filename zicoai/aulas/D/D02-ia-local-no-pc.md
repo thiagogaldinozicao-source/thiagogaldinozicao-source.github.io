@@ -1,4 +1,7 @@
-# Aula 02: montar a IA local no PC (29–30/10/2026)
+# D02: montar a IA local no PC (29–30/10/2026)
+
+**Regra:** IA local: Ollama + modelos que cabem na placa (8–9B rápido, 35B lento); instalador é com o Thiago; link carregando sem erro = firewall.
+**Palavras-chave:** ollama, modelo local, pc, anythingllm, comfyui, tailscale, firewall, instalar, qwen, celular
 
 ## Pedido
 Rodar a IA no PC do Thiago (Windows, i9, 32 GB, RTX 3080 10 GB), de graça, com chat, pesquisa e base de conhecimento.

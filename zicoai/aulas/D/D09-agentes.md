@@ -1,4 +1,7 @@
-# Aula 09: agentes que trabalham sozinhos em segundo plano (30/10/2026)
+# D09: agentes que trabalham sozinhos em segundo plano (30/10/2026)
+
+**Regra:** Agente = laço de ferramentas em JSON com travas no código; desenhe pelos limites (6 min, cota/min): salvar progresso e continuar; chefe divide e junta.
+**Palavras-chave:** agente, tarefa, segundo plano, ferramenta, paralelo, dividir, chefe, demorado, longo
 
 ## Pedido
 Tarefa grande (comparar preços em várias lojas, relatório, mexer em app) sem travar a conversa. Depois:

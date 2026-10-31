@@ -1,4 +1,7 @@
-# Aula 05: ZicoAI na nuvem com memória única no celular e no PC (30/10/2026)
+# D05: ZicoAI na nuvem com memória única no celular e no PC (30/10/2026)
+
+**Regra:** Memória que o dono vê e corrige (planilha + Apps Script); segredos nas Propriedades; nuvem primeiro, PC de reserva; Nova versão na mesma implantação.
+**Palavras-chave:** planilha, apps script, memória, nuvem, app, pwa, supabase, chave, propriedades, implantar
 
 ## Pedido
 Usar a ZicoAI de qualquer lugar, com uma memória só pro celular e pro PC, que aprenda sem ele repetir. Ele não quis usar o Supabase dele pra isso.

@@ -1,4 +1,7 @@
-# Aula 13: testar sem internet antes de publicar (30/10/2026 em diante)
+# D13: testar sem internet antes de publicar (30/10/2026 em diante)
+
+**Regra:** Teste antes de publicar: simulador do Google no Node, caso normal e de erro, rode todos; teste também precisa ser conferido.
+**Palavras-chave:** teste, testar, harness, node, simulador, playwright, publicar, bug, pass, fail
 
 ## Por que
 Cada publicação mexe na ZicoAI que o Thiago usa na loja. Testar direto em produção é testar no cliente.
@@ -39,7 +42,7 @@ Cada publicação mexe na ZicoAI que o Thiago usa na loja. Testar direto em prod
 1. O caso normal **e** os casos de erro (API fora do ar, 429, resposta sem JSON, dado de cliente).
 2. A **trava de segurança** testada (aba proibida, CPF barrado, nunca apagar).
 3. Nada de dado real do Thiago nos testes.
-4. Relógio fixo (aula 19).
+4. Relógio fixo (aula D19).
 
 ## Lições
 1. Teste antes, publique depois. Nunca o contrário.

@@ -1,4 +1,7 @@
-# Aula 07: usar API grátis sem estourar o limite (30/10/2026)
+# D07: usar API grátis sem estourar o limite (30/10/2026)
+
+**Regra:** Confira o limite antes de chamar; minuto = esperar, dia = próximo cérebro, sobrecarga = sair 90 s; mostre o motivo no Como respondi.
+**Palavras-chave:** limite, cota, 429, tokens, por minuto, por dia, groq, esgotou, rate limit
 
 ## Problema
 Cérebro grátis tem limite **por minuto** (tokens e pedidos) e **por dia**. O Groq, por exemplo: ~8 mil tokens por minuto, e só o prompt da ZicoAI já tinha ~4,4 mil. Bater no limite = erro 429 e resposta falhando.

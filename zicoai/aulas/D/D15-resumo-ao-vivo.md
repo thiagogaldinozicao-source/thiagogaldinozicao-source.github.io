@@ -1,4 +1,7 @@
-# Aula 15: mostrar o trabalho ao vivo e aprender por exemplo (30/10/2026)
+# D15: mostrar o trabalho ao vivo e aprender por exemplo (30/10/2026)
+
+**Regra:** Mostre o trabalho enquanto faz (passos ao vivo); método + relatório no fim; aprenda por exemplos resolvidos (trajetórias).
+**Palavras-chave:** resumo, passos, ao vivo, painel, mágica, relatório, trajetória, método, exemplo
 
 ## Pedido
 > "Isso essa mágica aqui" (print do painel de passos do Claude)

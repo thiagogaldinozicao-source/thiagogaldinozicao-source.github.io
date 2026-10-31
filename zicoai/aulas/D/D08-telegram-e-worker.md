@@ -1,4 +1,7 @@
-# Aula 08: bot do Telegram e o atalho no Cloudflare (30/10/2026)
+# D08: bot do Telegram e o atalho no Cloudflare (30/10/2026)
+
+**Regra:** Webhook no /exec (nunca /dev); serviço que não aceita 302 → atalho no meio (Worker); diagnóstico que mostra o erro do outro lado.
+**Palavras-chave:** telegram, bot, webhook, cloudflare, worker, 302, /exec, /dev, segredo
 
 ## Pedido
 Conversar com a ZicoAI pelo Telegram (WhatsApp não oficial está proibido pelo Thiago: risco de ban).

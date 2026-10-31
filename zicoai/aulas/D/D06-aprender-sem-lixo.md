@@ -1,4 +1,7 @@
-# Aula 06: aprender sozinha sem aprender lixo (30/10/2026)
+# D06: aprender sozinha sem aprender lixo (30/10/2026)
+
+**Regra:** O que a IA disse não é fato; só vira memória o que o Thiago disse (números inclusive). Toda mudança automática com antes/depois; [IGNORAR] em vez de apagar.
+**Palavras-chave:** memória, aprender, lembrar, salvar, esquecer, aprendizado, perfil, fato errado, lixo
 
 ## Pedido
 > "memória única… que aprenda tudo sozinha, sem eu precisar repetir nada"

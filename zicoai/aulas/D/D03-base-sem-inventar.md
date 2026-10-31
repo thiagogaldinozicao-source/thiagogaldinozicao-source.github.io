@@ -1,4 +1,7 @@
-# Aula 03: base de conhecimento sem inventar nada (30/10/2026)
+# D03: base de conhecimento sem inventar nada (30/10/2026)
+
+**Regra:** Material de outra IA é rascunho: confira cada número; valor que muda vira marcador [PREÇO]; promessa da loja só com confirmação (NÃO CONFIRMADO).
+**Palavras-chave:** base, conhecimento, ficha técnica, iphone, respostas prontas, gemini, conferir, inventado, promessa
 
 ## Pedido
 Juntar numa base o que a ZicoAI precisa saber: ficha dos iPhones, respostas prontas de WhatsApp e regras de programação. Parte do material veio do Gemini.

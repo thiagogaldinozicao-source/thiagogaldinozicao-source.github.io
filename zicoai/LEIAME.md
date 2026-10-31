@@ -162,7 +162,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - Placar do PC usa o modelo grande (`cerebroPCcodigo()`).
 
 ## Aulas (`zicoai/aulas/`)
-Todo trabalho do Claude vira uma aula (pedido → entender → plano → execução com comandos reais → erros e correções → teste → lições) e uma linha na aba `trajetorias`. Ver `aulas/README.md`.
+Curso ABC: A fundamentos, B programação, D a própria ZicoAI (no GitHub, `aulas/A|B|D`); C loja e E pessoal só na planilha (privado). Todo trabalho do Claude vira aula + linha na aba `trajetorias`. Aba `aulas` (ID | Módulo | Título | Palavras-chave | Regra | Conteúdo | Onde): `aulasPara()` pontua palavra-chave/título 3 e regra/conteúdo 1, precisa de 4; `contextoAulas()` põe as 2 melhores (`### AULAS QUE SE APLICAM`) no chat (fora texto colado e imagem) e no agente. Teste: t25.js. Ver `aulas/README.md`.
 
 ## Testar sem internet
 ```
@@ -189,6 +189,7 @@ node t19.js  # já existe parecido (apps publicados e pedidos antigos)
 node t20.js  # imagem com pedido detalhado, NVIDIA reserva, 3 agentes juntos, tarefa longa que continua, agente chefe, PC reserva
 node t23.js  # pesquisa profunda (buscas, páginas, fontes) e MEUS CÉREBROS
 node t22.js  # fase 1 do treino: tipos, placar, estudo noturno, revisão
+node t25.js  # aulas: acha a aula certa, ignora conversa à toa, máx. 2, agente também lê
 node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado
 ```

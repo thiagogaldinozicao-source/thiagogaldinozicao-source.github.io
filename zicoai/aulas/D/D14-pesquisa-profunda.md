@@ -1,4 +1,7 @@
-# Aula 14: pesquisar igual o Claude, lendo várias fontes (30/10/2026)
+# D14: pesquisar igual o Claude, lendo várias fontes (30/10/2026)
+
+**Regra:** Assunto que muda: várias buscas, leia as páginas, confira a data, fonte mais nova ganha, cite as fontes.
+**Palavras-chave:** pesquisa, pesquisar, fontes, profunda, melhor, ranking, hoje, atual, comparar
 
 ## Pedido
 > "ensina nossa ia fazer isso responder pesquisar igual vc fez em 27 fontes"

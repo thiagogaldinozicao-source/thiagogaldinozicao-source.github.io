@@ -1,4 +1,7 @@
-# Aula 01: escolher o caminho da IA própria (29/10/2026)
+# D01: escolher o caminho da IA própria (29/10/2026)
+
+**Regra:** Treinar do zero não dá; o caminho é modelo aberto + memória + ferramentas + método. Local pra dado privado; nuvem grátis pra pensar pesado.
+**Palavras-chave:** ia própria, treinar, criar ia, modelo, local, nuvem, gemini, gpt, claude, placa de vídeo, rtx
 
 ## Pedido
 > "criar uma ia padrao gemini grook gpt claude"

@@ -1,4 +1,7 @@
-# Aula 17: imagem melhor sem trocar o gerador (30/10/2026)
+# D17: imagem melhor sem trocar o gerador (30/10/2026)
+
+**Regra:** Pedido de imagem curto vira prompt detalhado em inglês; pedido longo do Thiago passa igual; mostre o prompt usado.
+**Palavras-chave:** imagem, gerar imagem, prompt, foto, banner, arte, comfyui, desenho
 
 ## Pedido
 > "esse gerador de imagem tá fraco"

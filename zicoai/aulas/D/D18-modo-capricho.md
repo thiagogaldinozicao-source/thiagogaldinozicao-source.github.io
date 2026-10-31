@@ -1,4 +1,7 @@
-# Aula 18: modo capricho (31/10/2026)
+# D18: modo capricho (31/10/2026)
+
+**Regra:** Pergunta difícil: cérebro forte, mais raciocínio e OUTRO cérebro revisa; o revisor nunca pode piorar a resposta; fácil continua rápido.
+**Palavras-chave:** capricho, difícil, revisar, revisor, qualidade, resultado, pensar mais, demora
 
 ## Pedido
 > "Não ligo pra demora ligo pra resultado… Já faz agora."

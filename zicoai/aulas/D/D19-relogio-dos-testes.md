@@ -1,4 +1,7 @@
-# Aula 19: teste que quebra à meia-noite (31/10/2026)
+# D19: teste que quebra à meia-noite (31/10/2026)
+
+**Regra:** Teste falhou? Primeiro "foi eu?" (guarda a mudança e roda de novo); teste não pode depender do dia de hoje.
+**Palavras-chave:** teste falhando, meia-noite, relógio, data, stash, foi eu, harness
 
 ## O que aconteceu
 Rodei todos os testes às 00:02 e 7 falharam em t5, t8 e t12 ("venda anotada e somada", "resumo traz vendas de ontem", "backup copia a planilha", "revisor recebe os pares do dia"). Eu não tinha mexido nessas partes.

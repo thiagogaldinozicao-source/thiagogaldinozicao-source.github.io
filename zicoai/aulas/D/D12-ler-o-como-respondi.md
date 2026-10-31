@@ -1,4 +1,7 @@
-# Aula 12: achar a causa pelo "Como respondi" (30/10/2026)
+# D12: achar a causa pelo "Como respondi" (30/10/2026)
+
+**Regra:** Antes de mexer no código, veja qual cérebro respondeu e quais passos rodou; palavra solta em texto colado não é pergunta.
+**Palavras-chave:** como respondi, passos, resposta errada, texto colado, documento, dólar, 8b, seletor
 
 ## Pedido
 > "isso e triste… olha como gpt respondeu ela nao pq?"

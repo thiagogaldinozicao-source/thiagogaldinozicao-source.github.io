@@ -1,4 +1,7 @@
-# Aula 10: a ponte pra ZicoAI mexer no PC (30/10/2026)
+# D10: a ponte pra ZicoAI mexer no PC (30/10/2026)
+
+**Regra:** Mexer no PC: só pastas liberadas, nunca apagar nem sobrescrever; o PC busca os pedidos (sem porta aberta); antivírus libera só a pasta.
+**Palavras-chave:** pc, computador, ponte, print, tela, arquivo, powershell, antivírus, defender, acesso remoto
 
 ## Pedido
 > "E o que precisamos fazer para ela acessar meu computador remotamente?"
