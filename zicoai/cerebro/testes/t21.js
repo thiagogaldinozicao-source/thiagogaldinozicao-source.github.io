@@ -143,3 +143,15 @@ delete H.PROPS.MISTRAL_KEY;
   const r10 = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'quanto tá o dólar hoje?' }] });
   ok(!/### TEXTO LONGO COLADO/.test(sys9), 'pergunta curta continua normal');
 }
+
+// 10) editar mensagem: corta a conversa a partir da mensagem editada
+{
+  H.setFetch((u, o) => resp('resposta'));
+  const a = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'pergunta um' }] });
+  H.post({ pin: '1234', acao: 'chat', chatId: a.chatId, mensagens: [{ role: 'user', content: 'pergunta um' }, { role: 'assistant', content: 'resposta' }, { role: 'user', content: 'pergunta dois' }] });
+  const antes = H.sheets.mensagens.rows.filter(x => x[0] === a.chatId).length;
+  const c = H.post({ pin: '1234', acao: 'cortarConversa', chatId: a.chatId, manter: 2 });
+  const depois = H.sheets.mensagens.rows.filter(x => x[0] === a.chatId).map(x => x[3]);
+  ok(antes === 4 && c.ok && c.apagadas === 2 && depois.length === 2 && depois[0] === 'pergunta um', 'cortar conversa mantém as 2 primeiras e apaga o resto');
+  ok(H.post({ pin: '1234', acao: 'cortarConversa', chatId: '', manter: 0 }).ok === false, 'sem conversa: erro');
+}

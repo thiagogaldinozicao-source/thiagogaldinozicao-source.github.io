@@ -299,6 +299,7 @@ function doPost(e) {
       case 'abrir':         return saida({ ok: true, mensagens: abrirChat(req.chatId) });
       case 'apagarChat':    apagarChat(req.chatId); return saida({ ok: true });
       case 'chatMeta':      return saida(chatMeta(req));
+      case 'cortarConversa': return saida(cortarConversa(req.chatId, req.manter));
       case 'projetos':      return saida({ ok: true, projetos: listarProjetos() });
       case 'projetoSalvar': return saida(salvarProjeto(req));
       case 'projetoArquivo': return saida(arquivoProjeto(req));
@@ -1156,6 +1157,22 @@ function abrirChat(chatId) {
   return linhas('mensagens')
     .filter(l => l[0] === chatId)
     .map(l => ({ role: l[2] === 'thiago' ? 'user' : 'assistant', content: l[3], cerebro: l[4] }));
+}
+
+/** Editar mensagem (igual GPT/Claude): mantém as `manter` primeiras mensagens da conversa e apaga o resto. */
+function cortarConversa(chatId, manter) {
+  chatId = String(chatId || ''); manter = Math.max(0, parseInt(manter, 10) || 0);
+  if (!chatId) return { ok: false, erro: 'Conversa não informada' };
+  const a = aba('mensagens');
+  const n = a.getLastRow();
+  if (n < 2) return { ok: true, apagadas: 0 };
+  const ids = a.getRange(2, 1, n - 1, 1).getDisplayValues();
+  const linhasDoChat = [];
+  ids.forEach((v, i) => { if (v[0] === chatId) linhasDoChat.push(i + 2); });
+  const apagar = linhasDoChat.slice(manter);
+  for (let i = apagar.length - 1; i >= 0; i--) a.deleteRow(apagar[i]);   // de baixo pra cima
+  if (apagar.length) passo('Cortou a conversa: apagou ' + apagar.length + ' mensagem(ns) depois da editada');
+  return { ok: true, apagadas: apagar.length };
 }
 
 function apagarUltimaResposta(chatId) {

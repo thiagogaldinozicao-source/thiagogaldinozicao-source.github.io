@@ -16,6 +16,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <style>
 :root{
   --bg:#0a0a0a; --lado:#0f0f0f; --card:#151515; --card2:#1d1d1d; --borda:#262626; --borda2:#333;
@@ -60,7 +62,7 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .status.on i{background:var(--verde)}
 .status.off i{background:var(--erro)}
 
-#chat{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#chat{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .trilho{max-width:820px;margin:0 auto;padding:20px 16px 8px;display:flex;flex-direction:column;gap:18px}
 
 .boas{min-height:60dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
@@ -73,6 +75,22 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 
 .msg-eu{align-self:flex-end;max-width:85%;background:var(--card2);border:1px solid var(--borda2);padding:10px 14px;border-radius:18px 18px 4px 18px;white-space:pre-wrap;word-wrap:break-word;line-height:1.5}
 .msg-eu img{display:block;max-width:230px;width:100%;border-radius:12px;margin-bottom:8px}
+.eu-wrap{align-self:flex-end;max-width:85%;display:flex;flex-direction:column;align-items:flex-end}
+.eu-wrap .msg-eu{max-width:100%}
+.acoes-eu{display:flex;gap:2px;opacity:0;transition:opacity .15s;margin-top:2px}
+.eu-wrap:hover .acoes-eu,.eu-wrap:focus-within .acoes-eu{opacity:1}
+@media (hover:none){ .acoes-eu{opacity:.7} }
+.acoes-eu button{font-size:12px;color:var(--cinza);padding:4px 8px;border-radius:8px}
+.acoes-eu button:hover{background:var(--card);color:var(--txt)}
+.msg-eu.editando{padding:8px;width:100%}
+.msg-eu.editando textarea{width:100%;min-height:80px;background:transparent;border:none;color:var(--txt);font:inherit;resize:vertical;outline:none}
+.msg-eu .ed-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.msg-eu .ed-acts button{font-size:13px;padding:7px 12px;border-radius:9px;border:1px solid var(--borda2)}
+.msg-eu .ed-acts .ok{background:var(--ouro);color:#111;border-color:var(--ouro);font-weight:700}
+.anexo-doc{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--ouro2);border:1px solid #4a3c12;background:var(--ouro-fundo);border-radius:10px;padding:4px 10px;margin-bottom:6px}
+#irFim{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--borda2);color:var(--txt);display:none;place-items:center;font-size:18px;box-shadow:0 4px 14px rgba(0,0,0,.5);z-index:5}
+#irFim.on{display:grid}
+.chat-area{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 
 .msg-ia{display:flex;gap:10px;align-items:flex-start}
 .ava{width:30px;height:30px;border-radius:9px;background:#0a0a0a url(ava.png) center/cover;border:1px solid #3a2f0d;flex-shrink:0;margin-top:2px}
@@ -314,18 +332,19 @@ header{display:flex}
     <button class="btn-ic" id="bNovo2" aria-label="Nova conversa">✎</button>
   </header>
 
-  <main id="chat"><div class="trilho" id="trilho"></div></main>
+  <div class="chat-area"><main id="chat"><div class="trilho" id="trilho"></div></main><button id="irFim" aria-label="Ir pro fim da conversa" title="Ir pro fim">↓</button></div>
 
   <footer>
     <div class="caixa">
       <div id="editando">🧩 Editando o app <b id="editandoNome"></b> (ela devolve o arquivo inteiro alterado)<button id="pararEdicao">✕ sair</button></div>
       <div id="previa"><img id="previaImg" alt=""><button id="tiraFoto">✕ remover foto</button></div>
       <div id="pagina">📄 <span id="paginaNome"></span><button id="tiraPagina" title="Tirar">✕</button></div>
+      <div id="docAnexo" class="anexo-doc" style="display:none">📄 <span id="docNome"></span><button id="tiraDoc" title="Tirar">✕</button></div>
       <textarea id="txt" rows="1" placeholder="Pergunta qualquer coisa pra ZicoAI"></textarea>
       <div class="caixa-pe">
-        <button class="chip-ic" id="bFoto" title="Foto">📷</button>
+        <button class="chip-ic" id="bFoto" title="Foto ou arquivo">📎</button>
         <button class="chip-ic" id="bMic" title="Falar" style="display:none">🎤</button>
-        <input type="file" id="arquivo" accept="image/*" hidden>
+        <input type="file" id="arquivo" accept="image/*,.txt,.md,.csv,.json,.tsv,.html,.htm,.js,.css,.gs,.py,.xml,.log,text/plain" hidden>
         <button class="chip" id="cWeb" title="Pesquisar na web">🌐<span class="rot"> Pesquisar</span></button>
         <button class="chip" id="cImg" title="Gerar imagem">🎨<span class="rot"> Imagem</span></button>
         <button class="chip" id="cAgente" title="Mandar um agente fazer em segundo plano">🧠<span class="rot"> Agente</span></button>
@@ -480,7 +499,14 @@ if(window.marked && window.DOMPurify){
     const l = String(lang || '').trim().split(/\s/)[0] || 'texto';
     const ehHtml = /^html?$/i.test(l) || /^\s*(<!doctype html|<html)/i.test(String(code || '').slice(0, 200));
     const extras = ehHtml ? '<button class="testar" type="button">▶ Testar</button><button class="testar publicar" type="button">⬆ Publicar</button>' : '';
-    return '<div class="bloco"><div class="bloco-top"><span>' + esc(ehHtml ? 'html · app' : l) + '</span><div class="acts">' + extras + '<button class="copiar" type="button">Copiar</button></div></div><pre><code>' + esc(code) + '</code></pre></div>';
+    let corpo = esc(code);
+    try {
+      if(window.hljs && String(code).length < 60000){
+        const lg = ehHtml ? 'xml' : l.toLowerCase();
+        corpo = hljs.getLanguage(lg) ? hljs.highlight(String(code), { language: lg, ignoreIllegals: true }).value : (l === 'texto' ? esc(code) : hljs.highlightAuto(String(code)).value);
+      }
+    } catch(e) { corpo = esc(code); }
+    return '<div class="bloco"><div class="bloco-top"><span>' + esc(ehHtml ? 'html · app' : l) + '</span><div class="acts">' + extras + '<button class="copiar" type="button">Copiar</button></div></div><pre><code class="hljs">' + corpo + '</code></pre></div>';
   };
   marked.setOptions({ renderer: r, gfm: true, breaks: true });
   DOMPurify.addHook('afterSanitizeAttributes', n => { if(n.tagName === 'A'){ n.setAttribute('target','_blank'); n.setAttribute('rel','noopener'); } });
@@ -682,13 +708,29 @@ function desenha(){
   mensagens.forEach((m, i) => t.appendChild(balao(m, i === mensagens.length - 1)));
   rola();
 }
+const MARCA_DOC = '\n\n[📄 arquivo: ';
 function balao(m, ultima){
   if(m.role === 'user'){
+    const w = document.createElement('div'); w.className = 'eu-wrap';
     const d = document.createElement('div');
     d.className = 'msg-eu';
     if(m.foto){ const i = document.createElement('img'); i.src = m.foto; d.appendChild(i); }
-    d.appendChild(document.createTextNode(m.content.replace(/\n\[📷 foto enviada\]$/, '')));
-    return d;
+    let txt = m.content.replace(/\n\[📷 foto enviada\]$/, '');
+    const k = txt.indexOf(MARCA_DOC);
+    if(k >= 0){
+      const nome = txt.slice(k + MARCA_DOC.length).split(']')[0];
+      const chip = document.createElement('div'); chip.className = 'anexo-doc'; chip.textContent = '📄 ' + nome;
+      d.appendChild(chip); d.appendChild(document.createElement('br'));
+      txt = txt.slice(0, k);
+    }
+    d.appendChild(document.createTextNode(txt));
+    w.appendChild(d);
+    const ac = document.createElement('div'); ac.className = 'acoes-eu';
+    const bc = document.createElement('button'); bc.textContent = '⧉ Copiar'; bc.onclick = () => copiar(m.content, bc);
+    const be = document.createElement('button'); be.textContent = '✎ Editar'; be.onclick = () => editarMensagem(m, d, w);
+    ac.appendChild(bc); if(!m.foto) ac.appendChild(be);
+    w.appendChild(ac);
+    return w;
   }
   const d = document.createElement('div');
   d.className = 'msg-ia';
@@ -894,15 +936,48 @@ function etapasPara(texto, temFoto){
   return e;
 }
 
+/* ---------- editar mensagem (igual GPT/Claude): corta a conversa ali e reenvia ---------- */
+function editarMensagem(m, d, w){
+  if(controle) return;
+  const i = mensagens.indexOf(m); if(i < 0) return;
+  const k = m.content.indexOf(MARCA_DOC);
+  const doc = k >= 0 ? m.content.slice(k) : '';
+  d.className = 'msg-eu editando'; d.innerHTML = '<textarea></textarea><div class="ed-acts"><button class="nao">Cancelar</button><button class="ok">Enviar</button></div>';
+  const ta = d.querySelector('textarea'); ta.value = k >= 0 ? m.content.slice(0, k) : m.content; ta.focus();
+  w.querySelector('.acoes-eu').style.display = 'none';
+  d.querySelector('.nao').onclick = () => desenha();
+  d.querySelector('.ok').onclick = async () => {
+    const novo = ta.value.trim(); if(!novo) return;
+    const manter = mensagens.slice(0, i).filter(x => !x.erro).length;
+    d.querySelector('.ok').disabled = true;
+    try{ if(atual) await api({ acao:'cortarConversa', chatId: atual, manter }); }
+    catch(e){ alert('Não consegui editar: ' + e.message); desenha(); return; }
+    mensagens = mensagens.slice(0, i); guarda();
+    $('txt').value = novo; docAnexo = doc ? { colado: doc } : docAnexo;
+    envia();
+  };
+}
+
+/* ---------- arquivo de texto anexado (vai junto com a mensagem, como documento) ---------- */
+let docAnexo = null;
+function tiraDoc(){ docAnexo = null; $('docAnexo').style.display = 'none'; }
+$('tiraDoc').onclick = tiraDoc;
+
+/* ---------- botão ↓ ir pro fim ---------- */
+$('chat').addEventListener('scroll', () => { const c = $('chat'); $('irFim').classList.toggle('on', c.scrollHeight - c.scrollTop - c.clientHeight > 320); });
+$('irFim').onclick = () => { const c = $('chat'); c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); };
+
 /* ---------- enviar ---------- */
 async function envia(refazendo){
   if(controle) return;
   const texto = $('txt').value.trim();
-  if(!refazendo && !texto && !foto) return;
+  if(!refazendo && !texto && !foto && !docAnexo) return;
 
   let fotoEnvio = null;
   if(!refazendo){
-    const m = { role:'user', content: texto || 'O que tem nessa foto?' };
+    let conteudo = texto || (docAnexo && !foto ? 'Lê esse arquivo e me diz do que se trata.' : 'O que tem nessa foto?');
+    if(docAnexo){ conteudo += docAnexo.colado ? docAnexo.colado : MARCA_DOC + docAnexo.nome + ']\n```\n' + docAnexo.texto + '\n```'; tiraDoc(); }
+    const m = { role:'user', content: conteudo };
     if(foto){ m.foto = miniatura; fotoEnvio = foto; }
     mensagens.push(m);
     $('txt').value = ''; ajusta(); tiraFoto();
@@ -1092,10 +1167,16 @@ document.addEventListener('click', e => { if(!e.target.closest('.sel-wrap')) $('
 
 /* ---------- foto ---------- */
 $('bFoto').onclick = () => $('arquivo').click();
-$('arquivo').onchange = e => {
+$('arquivo').onchange = async e => {
   const f = e.target.files[0];
   e.target.value = '';
   if(!f) return;
+  if(!/^image\//.test(f.type)){
+    if(f.size > 200000){ alert('Arquivo grande demais (máx. 200 KB). Divide em partes.'); return; }
+    docAnexo = { nome: f.name, texto: await f.text() };
+    $('docNome').textContent = f.name; $('docAnexo').style.display = 'inline-flex'; $('txt').focus();
+    return;
+  }
   const url = URL.createObjectURL(f);
   const img = new Image();
   img.onload = () => {
