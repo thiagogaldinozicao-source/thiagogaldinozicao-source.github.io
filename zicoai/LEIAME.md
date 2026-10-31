@@ -131,6 +131,15 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - **Texto longo colado** (v40, > 1500 letras): vira documento — sem pesquisa automática, sem conectores (e-mail, Drive, agenda, link, dólar) e com a seção `### TEXTO LONGO COLADO` no sistema (não mudar de assunto por causa da conversa anterior).
 - **Ajustes**: Gemini (ou outro) com 502/503/"high demand" fica 90 s fora (`ehSobrecarga`), no chat e no agente; pesquisa reserva quando o `browser_search` do Groq falha (`pesquisaReserva`: DuckDuckGo → Bing lidos pelo r.jina.ai, um cérebro responde só com os resultados); "Como respondi" com ícone por tipo de passo (`iconePasso`); efeito de digitação na resposta nova (`digita`, só texto fora de blocos de código; o servidor continua mandando tudo de uma vez).
 
+## Fase 1 do treino (v41, 30/10 noite) — caminho em `claude/caminho-zicoai.md` no projeto
+- **Exemplos por tipo**: `tipoTarefa()` (cliente, comparativo, preço, código, loja, geral). Aba `exemplos` ganhou Tipo e Origem (`👍 Thiago`, `estudo (revisar)`, `estudo ✅ Thiago`). `guardarExemplo()` não duplica e barra CPF/telefone.
+- **Placar** (aba `placar`: Data | Cérebro | Tipo | Nota | Pergunta nº | O que faltou): `placarDiario()` às 2h — um cérebro por dia em rodízio (gemini, groq, mistral, nvidia, groq2, pc) responde 5 perguntas da prova (só as de 1 mensagem) com o MESMO contexto (sistema enxuto cortado em 14 mil letras) e `corrigirResposta` dá a nota. Não coube no limite/sem corretor não conta. `placar()` = média por cérebro e por tipo (60 dias).
+- **Estudo noturno** `estudoNoturno()` à 1h: tema do dia (`TEMAS_ESTUDO`, rodízio), lê fontes abertas (MDN, docs do Google) pelo r.jina.ai ou a busca reserva, gera 3 exercícios com modelo ABERTO (Groq/NVIDIA), reprova código com erro de sintaxe (`new Function` nos blocos js) e o que o revisor (`corrigirResposta`) der < 7,5; o resto vira exemplo "estudo (revisar)".
+- `garantirRotinasTreino()` cria os gatilhos `estudoNoturno` (1h) e `placarDiario` (2h) sozinha (chamada no `aprenderSozinha`, cache 6 h).
+- `exportarTreino()` só exporta exemplos aprovados e que não vieram do Gemini (conferir os termos antes de usar respostas dele pra treinar).
+- Ações: `treinoResumo` (por tipo, placar, até 20 pra revisar), `revisarExemplo {pergunta, aprovado}` (👎 marca [IGNORAR]). App: 📈 Treino na lateral.
+- App também ganhou (v41): cores no código (highlight.js 11.9.0), ✎ Editar e ⧉ Copiar nas mensagens do Thiago (`cortarConversa {chatId, manter}` apaga as mensagens depois da editada), 📎 anexar arquivo de texto (vai junto como documento, com marca `[📄 arquivo: nome]`), botão ↓ pra ir pro fim.
+
 ## Testar sem internet
 ```
 cd zicoai/cerebro/testes
@@ -154,6 +163,7 @@ node t17.js  # erros de digitação: busca tolerante, abreviações, regra
 node t18.js  # auto-melhoria: ler, editar, testar, publicar, desfazer o próprio código
 node t19.js  # já existe parecido (apps publicados e pedidos antigos)
 node t20.js  # imagem com pedido detalhado, NVIDIA reserva, 3 agentes juntos, tarefa longa que continua, agente chefe, PC reserva
+node t22.js  # fase 1 do treino: tipos, placar, estudo noturno, revisão
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.

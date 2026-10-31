@@ -161,7 +161,8 @@ const ABAS = {
   vendas:       ['Data', 'Valor', 'Descrição', 'Origem'],
   config:       ['Chave', 'Valor'],
   precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
-  exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto'],
+  exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto', 'Tipo', 'Origem'],
+  placar:       ['Data', 'Cérebro', 'Tipo', 'Nota', 'Pergunta nº', 'O que faltou'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
   tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho', 'Pai'],
   vetores:      ['Aba', 'Texto', 'Vetor']
@@ -307,6 +308,8 @@ function doPost(e) {
       case 'projetoArquivoLer': { const l = linhas('projeto_arquivos').find(x => x[0] === String(req.projeto) && x[1] === String(req.nome)); return saida(l ? { ok: true, conteudo: l[2] } : { ok: false, erro: 'Arquivo não encontrado' }); }
       case 'dispositivos':  return saida(dispositivos());
       case 'memorias':      return saida(listarMemorias());
+      case 'treinoResumo':  return saida({ ok: true, treino: resumoTreino(), placar: placar(), revisar: exemplosParaRevisar(20) });
+      case 'revisarExemplo': return saida(revisarExemplo(String(req.pergunta || ''), !!req.aprovado));
       case 'salvar':        return saida(salvarMemoria(req.texto, aparelho));
       case 'apagarMemoria': return saida({ ok: true, apagadas: esquecer(req.texto, true) });
       default:              return saida({ ok: false, erro: 'Ação desconhecida' });
@@ -430,13 +433,7 @@ function feedback(req, aparelho) {
   // 👍 numa resposta vira EXEMPLO: os cérebros mais fracos recebem esses exemplos como modelo do jeito certo (destilação).
   const pergunta = String(req.pergunta || '').trim().slice(0, 1500);
   const respostaCheia = String(req.resposta || '').trim();
-  if (nota === '👍' && pergunta && respostaCheia.length >= 20 && !temDadoSensivel(pergunta + ' ' + respostaCheia)) {
-    const ex = linhas('exemplos');
-    if (!ex.some(l => normalizar(l[1]) === normalizar(pergunta))) {
-      aba('exemplos').appendRow(["'" + hoje(), seguro(pergunta), seguro(respostaCheia.slice(0, 4000)), String(req.cerebro || ''), assuntoDe(pergunta)]);
-      salvou.push('exemplo');
-    }
-  }
+  if (nota === '👍' && pergunta && guardarExemplo(pergunta, respostaCheia, String(req.cerebro || ''), '👍 Thiago')) salvou.push('exemplo');
   // Reclamação escrita pelo Thiago vira aprendizado (é palavra dele, não dedução da IA). Curtida só registra.
   if (nota === '👎' && coment.length >= 8 && !temDadoSensivel(coment)) {
     const erro = resposta ? 'Resposta: "' + resposta.slice(0, 160).replace(/\s+/g, ' ') + (resposta.length > 160 ? '…' : '') + '"' : 'Resposta reprovada';
@@ -1931,6 +1928,7 @@ const PROMPT_APRENDER = [
 ].join('\n');
 
 function aprenderSozinha() {
+  try { garantirRotinasTreino(); } catch (e) { /* ok */ }
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return;
   try {
@@ -2292,7 +2290,8 @@ function gerarPerguntasProva() {
 /** Junta exemplos aprovados + aprendizados num JSONL (formato de treino de modelo) e salva no Drive. */
 function exportarTreino() {
   const linhasJsonl = [];
-  linhas('exemplos').forEach(l => { linhasJsonl.push(JSON.stringify({ messages: [{ role: 'system', content: 'Você é a ZicoAI, assistente do Thiago (Zicão Store).' }, { role: 'user', content: l[1] }, { role: 'assistant', content: l[2] }] })); });
+  // só aprovados; fica de fora o que ainda falta revisar e o que veio do Gemini (conferir os termos antes de usar)
+  linhas('exemplos').filter(l => !/revisar/.test(l[6] || '') && !/^Gemini/i.test(l[3] || '')).forEach(l => { linhasJsonl.push(JSON.stringify({ messages: [{ role: 'system', content: 'Você é a ZicoAI, assistente do Thiago (Zicão Store).' }, { role: 'user', content: l[1] }, { role: 'assistant', content: l[2] }] })); });
   linhas('aprendizados').forEach(l => { if (l[1] && l[2]) linhasJsonl.push(JSON.stringify({ messages: [{ role: 'system', content: 'Você é a ZicoAI. Regra aprendida: ' + l[2] }, { role: 'user', content: 'Qual erro vc não pode repetir?' }, { role: 'assistant', content: l[1] + ' → o certo é: ' + l[2] }] })); });
   if (!linhasJsonl.length) return null;
   const nome = 'zicoai-treino-' + Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd') + '.jsonl';
@@ -2522,6 +2521,198 @@ function descreverImagem(b64, mime, pergunta) {
 }
 function salvarBase64Drive(b64, mime, nome) {
   return salvarImagemDrive(Utilities.newBlob(Utilities.base64Decode(b64), mime || 'image/jpeg', nome));
+}
+
+
+/* ============================================================
+ *  FASE 1 DO TREINO (caminho até o nível dos grandes)
+ *  - exemplos: cada 👍 vira exemplo com TIPO (cliente, comparativo, preço, código, loja, geral) e ORIGEM
+ *  - placar: todo dia de madrugada um cérebro faz 5 perguntas da prova (um por dia, em rodízio);
+ *    a nota fica na aba placar, por cérebro e por tipo. É o jeito de saber se ela subiu.
+ *  - estudo noturno: um agente lê material aberto de um tema, cria exercícios com cérebro de modelo
+ *    aberto (Groq/NVIDIA), outro cérebro confere, código passa por checagem de sintaxe; o que passa
+ *    vai pros exemplos como "estudo (revisar)" pro Thiago aprovar.
+ * ============================================================ */
+
+const META_EXEMPLOS = 200;
+const TIPOS_TREINO = ['cliente', 'comparativo', 'preço', 'código', 'loja', 'geral'];
+function tipoTarefa(t) {
+  const s = normalizar(t);
+  if (ehProgramacao(t)) return 'código';
+  if (ehModoCliente(t) || /(cliente|whatsapp|responde pr[ao]|manda pr[ao] (ele|ela)|mensagem pr[ao])/.test(s)) return 'cliente';
+  if (/(compar|\bvs\b|versus|diferenca entre|qual (e |eh )?melhor|ou o )/.test(s)) return 'comparativo';
+  if (/(preco|quanto (fica|custa|sai|e)|parcel|cartao|\bpix\b|desconto|dolar|lucro|custo|margem|\d+ ?x\b)/.test(s)) return 'preço';
+  if (/(garantia|iphone|seminovo|tv ?box|pelicula|capinha|loja|entrega|bateria|horario)/.test(s)) return 'loja';
+  return 'geral';
+}
+function garantirColunasExemplos() {
+  const a = aba('exemplos');
+  const cab = a.getRange(1, 1, 1, 7).getDisplayValues()[0];
+  if (cab[5] !== 'Tipo' || cab[6] !== 'Origem') a.getRange(1, 6, 1, 2).setValues([['Tipo', 'Origem']]);
+  return a;
+}
+function guardarExemplo(pergunta, resposta, cerebro, origem, tipo) {
+  pergunta = String(pergunta || '').trim().slice(0, 1500); resposta = String(resposta || '').trim();
+  if (!pergunta || resposta.length < 20 || temDadoSensivel(pergunta + ' ' + resposta)) return false;
+  const a = garantirColunasExemplos();
+  if (linhas('exemplos').some(l => normalizar(l[1]) === normalizar(pergunta))) return false;
+  a.appendRow(["'" + hoje(), seguro(pergunta), seguro(resposta.slice(0, 4000)), String(cerebro || ''), assuntoDe(pergunta), (TIPOS_TREINO.indexOf(tipo) >= 0 ? tipo : tipoTarefa(pergunta)), origem || '👍 Thiago']);
+  return true;
+}
+/** Exemplos por tipo: aprovados (contam pra meta) e os do estudo que ainda faltam revisar. */
+function resumoTreino() {
+  const ex = linhas('exemplos');
+  const por = {};
+  TIPOS_TREINO.forEach(t => { por[t] = { aprovados: 0, revisar: 0 }; });
+  ex.forEach(l => {
+    const t = TIPOS_TREINO.indexOf(l[5]) >= 0 ? l[5] : tipoTarefa(l[1]);
+    if (/revisar/.test(l[6] || '')) por[t].revisar++; else por[t].aprovados++;
+  });
+  return { meta: META_EXEMPLOS, porTipo: por, total: ex.length };
+}
+function exemplosParaRevisar(max) {
+  const ex = linhas('exemplos');
+  const out = [];
+  for (let i = ex.length - 1; i >= 0 && out.length < (max || 20); i--) if (/revisar/.test(ex[i][6] || '')) out.push({ pergunta: ex[i][1], resposta: ex[i][2], tipo: ex[i][5], cerebro: ex[i][3] });
+  return out;
+}
+/** Thiago revisou um exemplo do estudo: 👍 aprova, 👎 marca [IGNORAR] (some de tudo e a arrumação apaga). */
+function revisarExemplo(pergunta, aprovado) {
+  const a = garantirColunasExemplos();
+  const n = a.getLastRow();
+  if (n < 2) return { ok: false, erro: 'Sem exemplos' };
+  const vals = a.getRange(2, 2, n - 1, 1).getDisplayValues();
+  const alvo = normalizar(pergunta);
+  for (let i = vals.length - 1; i >= 0; i--) {
+    if (normalizar(vals[i][0]) !== alvo) continue;
+    if (aprovado) a.getRange(i + 2, 7, 1, 1).setValue('estudo ✅ Thiago');
+    else a.getRange(i + 2, 2, 1, 1).setValue(seguro('[IGNORAR] ' + vals[i][0]));
+    return { ok: true };
+  }
+  return { ok: false, erro: 'Exemplo não encontrado' };
+}
+
+/* ---------- placar dos cérebros ---------- */
+const PLACAR_RODIZIO = ['gemini', 'groq', 'mistral', 'nvidia', 'groq2', 'pc'];
+function placarDiario(forcar) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return null;
+  try {
+    const dia = Math.floor(Date.now() / 86400000);
+    const disp = PLACAR_RODIZIO.filter(n => (n === 'pc' ? !!cerebroPC() : temCerebro(n)));
+    if (!disp.length) return null;
+    const nome = forcar && disp.indexOf(forcar) >= 0 ? forcar : disp[dia % disp.length];
+    const c = nome === 'pc' ? cerebroPC() : CEREBROS[nome];
+    const prova = linhas('prova').filter(l => l[2] && !/\|\|\s*MSG 2/i.test(l[2]));
+    if (!prova.length) return null;
+    const ini = (dia * 5) % prova.length;
+    const escolhidas = [0, 1, 2, 3, 4].map(k => prova[(ini + k) % prova.length]).filter((l, i, arr) => arr.indexOf(l) === i);
+    const a = aba('placar');
+    let soma = 0, qtd = 0;
+    const inicio = Date.now();
+    escolhidas.forEach(l => {
+      if (Date.now() - inicio > 240000) return;
+      // mesmo contexto pra todos os cérebros (cortado pra caber no menor), senão a comparação não é justa
+      const sistema = (montarSistema(l[2], true)).slice(0, 14000) + '\n\n(Pergunta de teste. Responda como responderia ao Thiago.)';
+      const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: String(l[2]) }];
+      let resposta = '', nota = 0, faltou = '';
+      try {
+        const tk = estimarTokens(JSON.stringify(msgs));
+        let motivo = c.local ? '' : (tk + 1500 > c.limite ? 'grande demais' : motivoNaoCabe(nome, c, tk + 1500));
+        if (/do minuto/.test(motivo)) { Utilities.sleep(60000 - (Date.now() % 60000) + 800); motivo = motivoNaoCabe(nome, c, tk + 1500); }
+        if (motivo) { faltou = 'não coube no limite agora'; }
+        else { resposta = chamarCompat(c, msgs, 1500, { temperature: 0.3 }); if (!c.local) registrarUso(nome, tk + estimarTokens(resposta)); }
+      } catch (e) { faltou = 'erro: ' + String(e.message || e).slice(0, 80); }
+      if (resposta) { const cr = corrigirResposta(l[2], l[3], l[4], resposta); if (cr) { nota = cr.nota; faltou = cr.faltou; } else { faltou = 'sem corretor'; } }
+      if (/não coube|sem corretor/.test(faltou)) return;   // não conta: não foi culpa do cérebro
+      a.appendRow(["'" + hoje(), c.nome, tipoTarefa(l[2]), nota, String(l[0]), seguro(String(faltou).slice(0, 200))]);
+      soma += nota; qtd++;
+    });
+    const media = qtd ? Math.round(soma / qtd * 10) / 10 : null;
+    if (qtd) aba('treino').appendRow(["'" + hoje(), 'placar', media, c.nome + ': ' + qtd + ' pergunta(s)']);
+    return { cerebro: c.nome, media: media, perguntas: qtd };
+  } finally { lock.releaseLock(); }
+}
+/** Média por cérebro e por tipo (últimos 60 dias). */
+function placar() {
+  const limite = Utilities.formatDate(new Date(Date.now() - 60 * 86400000), FUSO, 'dd/MM/yyyy');
+  const conv = d => { const m = String(d).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3] + m[2] + m[1] : ''; };
+  const lim = conv(limite);
+  const por = {};
+  linhas('placar').forEach(l => {
+    if (conv(l[0]) < lim) return;
+    const c = l[1], t = l[2], n = Number(String(l[3]).replace(',', '.'));
+    if (!c || isNaN(n)) return;
+    por[c] = por[c] || { soma: 0, qtd: 0, tipos: {} };
+    por[c].soma += n; por[c].qtd++;
+    por[c].tipos[t] = por[c].tipos[t] || { soma: 0, qtd: 0 };
+    por[c].tipos[t].soma += n; por[c].tipos[t].qtd++;
+  });
+  return Object.keys(por).map(c => ({
+    cerebro: c, media: Math.round(por[c].soma / por[c].qtd * 10) / 10, perguntas: por[c].qtd,
+    tipos: Object.keys(por[c].tipos).map(t => ({ tipo: t, media: Math.round(por[c].tipos[t].soma / por[c].tipos[t].qtd * 10) / 10, qtd: por[c].tipos[t].qtd }))
+  })).sort((x, y) => y.media - x.media);
+}
+
+/* ---------- estudo noturno ---------- */
+const TEMAS_ESTUDO = [
+  { tema: 'HTML e CSS pra apps de celular', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Learn/CSS/CSS_layout/Flexbox', 'https://developer.mozilla.org/pt-BR/docs/Web/CSS/CSS_grid_layout'], busca: 'CSS flexbox grid layout responsivo tutorial' },
+  { tema: 'JavaScript no navegador (eventos, localStorage, fetch)', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API/Using_Fetch', 'https://developer.mozilla.org/pt-BR/docs/Web/API/Window/localStorage'], busca: 'javascript fetch localStorage eventos tutorial' },
+  { tema: 'Google Apps Script com planilhas', tipo: 'código', fontes: ['https://developers.google.com/apps-script/guides/sheets?hl=pt-br'], busca: 'Google Apps Script SpreadsheetApp exemplos' },
+  { tema: 'Contas de loja: parcelamento, juros, margem e desconto', tipo: 'preço', fontes: [], busca: 'como calcular parcelamento com juros tabela price margem de lucro desconto' },
+  { tema: 'Atendimento de cliente pelo WhatsApp numa loja de celulares', tipo: 'cliente', fontes: [], busca: 'boas práticas atendimento cliente WhatsApp loja de celular' },
+  { tema: 'Diferenças entre modelos de iPhone (tela, câmera, bateria, chip)', tipo: 'comparativo', fontes: [], busca: 'comparação modelos iPhone diferenças tela câmera bateria chip' }
+];
+function conferirCodigo_(texto) {
+  // checagem simples: cada bloco ```js / ```javascript precisa passar na sintaxe (new Function)
+  const blocos = [...String(texto).matchAll(/```(?:js|javascript|gs)\n([\s\S]*?)```/gi)].map(m => m[1]);
+  for (const b of blocos) { try { new Function(b); } catch (e) { return 'erro de sintaxe: ' + String(e.message).slice(0, 80); } }
+  return '';
+}
+function estudoNoturno(indice) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return null;
+  try {
+    const dia = Math.floor(Date.now() / 86400000);
+    const t = TEMAS_ESTUDO[(typeof indice === 'number' ? indice : dia) % TEMAS_ESTUDO.length];
+    let material = '';
+    for (const u of t.fontes) { const p = lerPagina(u); if (p && p.length > 400) { material += '\n\n[FONTE ' + u + ']\n' + p.slice(0, 6000); if (material.length > 9000) break; } }
+    if (material.length < 800) { const b = resultadosBusca(t.busca); if (b) material += '\n\n[BUSCA ' + b.fonte + ']\n' + b.texto.slice(0, 6000); }
+    if (material.length < 400) { aba('treino').appendRow(["'" + hoje(), 'estudo', '', t.tema + ': não achei material hoje']); return { tema: t.tema, salvos: 0 }; }
+    // gera com modelo ABERTO (Groq/NVIDIA): as respostas podem virar treino do cérebro do PC
+    const gerar = [{ role: 'system', content: 'Você cria material de estudo pra ZicoAI, assistente do Thiago (Zicão Store, loja de iPhones em Itaú de Minas/MG, que também faz apps em HTML). Com base SÓ no MATERIAL, crie 3 exercícios práticos do tema, do jeito que o Thiago perguntaria (informal, "vc"). Cada um com a resposta ideal, curta e correta (código completo em bloco ```js ou ```html quando for código). Nunca invente preço, garantia ou dado da loja: use [PREÇO]/[GARANTIA]. Responda SÓ JSON: {"exercicios":[{"pergunta":"...","resposta":"..."}]}' }, { role: 'user', content: 'TEMA: ' + t.tema + '\n\nMATERIAL:' + material.slice(0, 12000) }];
+    let j = null, autor = '';
+    for (const nome of ['groq', 'nvidia', 'groq2']) {
+      if (!temCerebro(nome)) continue;
+      const tk = estimarTokens(JSON.stringify(gerar)) + 3000;
+      if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
+      try { j = lerJSON(chamarCompat(CEREBROS[nome], gerar, 3000, { temperature: 0.4 })); registrarUso(nome, tk); autor = CEREBROS[nome].nome; if (j && j.exercicios) break; } catch (e) { /* próximo */ }
+    }
+    if (!j || !Array.isArray(j.exercicios)) { aba('treino').appendRow(["'" + hoje(), 'estudo', '', t.tema + ': nenhum cérebro aberto livre agora']); return { tema: t.tema, salvos: 0 }; }
+    let salvos = 0; const det = [];
+    j.exercicios.slice(0, 3).forEach(ex => {
+      const p = String(ex.pergunta || '').trim(), r = String(ex.resposta || '').trim();
+      if (p.length < 10 || r.length < 20) return;
+      const erroCod = conferirCodigo_(r);
+      if (erroCod) { det.push('reprovado (' + erroCod + ')'); return; }
+      const cr = corrigirResposta(p, 'Resposta correta e sem informação inventada | Responde exatamente o que foi perguntado | Código completo e funcionando quando houver código | Explicação curta, em português simples', 'inventar fato ou código que não funciona', r);
+      if (!cr || cr.nota < 7.5) { det.push('reprovado pelo revisor (' + (cr ? cr.nota : 'sem revisor') + ')'); return; }
+      if (guardarExemplo(p, r, autor, 'estudo (revisar)', t.tipo)) { salvos++; det.push('aprovado ' + cr.nota); }
+    });
+    aba('treino').appendRow(["'" + hoje(), 'estudo', salvos, seguro((t.tema + ': ' + det.join(' | ')).slice(0, 1500))]);
+    return { tema: t.tema, salvos: salvos, detalhe: det };
+  } finally { lock.releaseLock(); }
+}
+/** Liga as rotinas novas sozinha (sem o Thiago precisar rodar nada): placar 2h e estudo 1h. */
+function garantirRotinasTreino() {
+  const c = CacheService.getScriptCache();
+  if (c.get('rotinas_treino_ok')) return;
+  try {
+    const tem = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+    if (tem.indexOf('estudoNoturno') < 0) ScriptApp.newTrigger('estudoNoturno').timeBased().everyDays(1).atHour(1).create();
+    if (tem.indexOf('placarDiario') < 0) ScriptApp.newTrigger('placarDiario').timeBased().everyDays(1).atHour(2).create();
+    c.put('rotinas_treino_ok', '1', 21600);
+  } catch (e) { Logger.log('rotinas do treino: ' + e.message); }
 }
 
 

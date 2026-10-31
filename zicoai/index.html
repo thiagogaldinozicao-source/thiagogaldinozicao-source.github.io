@@ -291,6 +291,22 @@ header{display:flex}
 .disp small{display:block;color:var(--cinza);font-size:13px}
 #pagina{display:none;align-items:center;gap:8px;margin:2px 4px 6px;padding:7px 10px;border:1px solid #4a3c12;background:var(--ouro-fundo);border-radius:12px;font-size:13px;color:var(--ouro2)}
 #pagina span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr-tipo{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px}
+.tr-tipo b{width:96px;flex-shrink:0;font-weight:600;text-transform:capitalize}
+.tr-barra{flex:1;height:8px;border-radius:6px;background:var(--bg);border:1px solid var(--borda2);overflow:hidden}
+.tr-barra i{display:block;height:100%;background:var(--ouro)}
+.tr-tipo small{width:72px;text-align:right;color:var(--cinza);flex-shrink:0}
+.tr-cer{padding:9px 0;border-bottom:1px solid var(--borda);font-size:14px}
+.tr-cer .top{display:flex;justify-content:space-between;font-weight:600}
+.tr-cer .top span{color:var(--ouro)}
+.tr-cer small{color:var(--cinza);display:block;margin-top:2px}
+.tr-rev{border:1px solid var(--borda2);border-radius:12px;padding:10px;margin:8px 0;background:var(--bg);font-size:14px}
+.tr-rev .q{font-weight:600;margin-bottom:6px}
+.tr-rev .r{max-height:180px;overflow:auto;border-top:1px solid var(--borda);padding-top:6px}
+.tr-rev .bts{display:flex;gap:8px;margin-top:8px}
+.tr-rev .bts button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--borda2);font-weight:600}
+.tr-rev .bts .sim{border-color:var(--verde);color:var(--verde)}
+.tr-rev .bts .nao{border-color:var(--erro);color:var(--erro)}
 .boas .proj{font-size:13px;color:var(--ouro2);border:1px solid #4a3c12;border-radius:20px;padding:3px 12px;margin-top:4px}
 
 @media (max-width:899px){
@@ -316,6 +332,7 @@ header{display:flex}
     <button id="bProj">📁 Projetos</button>
     <button id="bDisp">💻 Dispositivos</button>
     <button id="bMem">🧠 Memória</button>
+    <button id="bTreino">📈 Treino</button>
     <button id="bApps">🧩 Meus apps</button>
     <button id="bTarefas2">⧉ Tarefas em segundo plano <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
     <button id="bCfg">⚙️ Configurar <span class="status" id="status" style="margin-left:auto"><i></i><span>—</span></span></button>
@@ -384,6 +401,15 @@ header{display:flex}
   </div>
 </div>
 <input type="file" id="pjArq" accept=".txt,.md,.csv,.json,.tsv,.html,.js,.gs,.css,.xml,text/plain" hidden>
+
+<div class="modal" id="mTreino">
+  <div class="painel">
+    <h3>Treino</h3>
+    <p class="aviso">Caminho até o nível dos grandes: juntar exemplos bons por tarefa, medir cada cérebro na prova e estudar de madrugada.</p>
+    <div id="trConteudo"><p class="aviso">Carregando...</p></div>
+    <div class="linha-btn"><button class="btn cinza" id="trFechar">Fechar</button></div>
+  </div>
+</div>
 
 <div class="modal" id="mDisp">
   <div class="painel">
@@ -1353,6 +1379,43 @@ $('pjArq').onchange = async e => {
 };
 $('bProj').onclick = () => abreProjetos();
 $('pjFechar').onclick = () => $('mProj').classList.remove('aberto');
+
+/* ---------- treino: exemplos por tarefa, placar dos cérebros, revisar o estudo da madrugada ---------- */
+async function abreTreino(){
+  fechaLado();
+  $('mTreino').classList.add('aberto');
+  const box = $('trConteudo'); box.innerHTML = '<p class="aviso">Carregando...</p>';
+  try{
+    const j = await api({ acao:'treinoResumo' });
+    const t = j.treino;
+    let h = '<div class="sec">Exemplos bons por tarefa (meta ' + t.meta + ')</div>';
+    Object.keys(t.porTipo).forEach(k => {
+      const v = t.porTipo[k]; const pct = Math.min(100, Math.round(v.aprovados / t.meta * 100));
+      h += '<div class="tr-tipo"><b>' + esc(k) + '</b><div class="tr-barra"><i style="width:' + pct + '%"></i></div><small>' + v.aprovados + (v.revisar ? ' +' + v.revisar + '?' : '') + '</small></div>';
+    });
+    h += '<p class="aviso">Cada 👍 que vc dá vira exemplo. Os "+?" são do estudo da madrugada esperando vc revisar.</p>';
+    h += '<div class="sec">Placar dos cérebros (prova, últimos 60 dias)</div>';
+    if(!j.placar.length) h += '<p class="aviso">Ainda sem notas. Todo dia às 2h um cérebro faz 5 perguntas da prova (um por dia, em rodízio).</p>';
+    j.placar.forEach(c => {
+      h += '<div class="tr-cer"><div class="top">' + esc(c.cerebro) + '<span>' + String(c.media).replace('.', ',') + '/10</span></div><small>' + c.perguntas + ' pergunta(s) · ' + c.tipos.map(x => esc(x.tipo) + ' ' + String(x.media).replace('.', ',')).join(' · ') + '</small></div>';
+    });
+    h += '<div class="sec">Estudo da madrugada pra revisar (' + j.revisar.length + ')</div>';
+    if(!j.revisar.length) h += '<p class="aviso">Nada pra revisar. Todo dia à 1h um agente estuda um tema e traz exercícios conferidos.</p>';
+    box.innerHTML = h;
+    j.revisar.forEach(x => {
+      const d = document.createElement('div'); d.className = 'tr-rev';
+      d.innerHTML = '<div class="q"></div><div class="r md"></div><div class="bts"><button class="sim">👍 Tá certo</button><button class="nao">👎 Tá errado</button></div>';
+      d.querySelector('.q').textContent = '(' + (x.tipo || '') + ') ' + x.pergunta;
+      d.querySelector('.r').innerHTML = renderMd(x.resposta);
+      const vai = async ok => { d.style.opacity = '.4'; try{ await api({ acao:'revisarExemplo', pergunta: x.pergunta, aprovado: ok }); d.remove(); }catch(e){ d.style.opacity = '1'; alert(e.message); } };
+      d.querySelector('.sim').onclick = () => vai(true);
+      d.querySelector('.nao').onclick = () => vai(false);
+      box.appendChild(d);
+    });
+  }catch(e){ box.innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
+}
+$('bTreino').onclick = abreTreino;
+$('trFechar').onclick = () => $('mTreino').classList.remove('aberto');
 
 /* ---------- dispositivos (o PC de casa) ---------- */
 async function abreDispositivos(){

@@ -36,10 +36,11 @@ H.setFetch(() => resp('{"perguntas":[{"grupo":"Cliente","pergunta":"Cliente quer
 const novas = H.ctx.gerarPerguntasProva();
 ok(novas === 1 && prova.rows.some(l => /trocar um 11 por um 15/.test(l[2]) && /gerada automaticamente/.test(l[7])), 'gera pergunta nova e ignora repetida: ' + novas);
 // exportação
-H.sheets.exemplos = null; const ex = H.ctx.aba('exemplos'); ex.appendRow(["'30/10/2026", 'p', 'r boa', 'Gemini', 'geral']);
+H.sheets.exemplos = null; const ex = H.ctx.aba('exemplos'); ex.appendRow(["'30/10/2026", 'p', 'r boa', 'Groq GPT-OSS 120B', 'geral']); ex.appendRow(["'30/10/2026", 'p2', 'r do gemini', 'Gemini', 'geral']); ex.appendRow(["'30/10/2026", 'p3', 'r pra revisar', 'Groq GPT-OSS 120B', 'código', 'código', 'estudo (revisar)']);
 let arquivo = null;
 H.ctx.DriveApp.getFoldersByName = () => ({ hasNext: () => false });
 H.ctx.DriveApp.createFolder = () => ({ createFile: b => { arquivo = { nome: b.getName(), txt: Buffer.from(b.getBytes()).toString() }; return { getId: () => 'TREINOID' }; } });
 const id = H.ctx.exportarTreino();
 ok(id === 'TREINOID' && /zicoai-treino-2026-10-30\.jsonl/.test(arquivo.nome) && arquivo.txt.split('\n').length >= 2 && /"role":"assistant","content":"r boa"/.test(arquivo.txt), 'JSONL de treino exportado: ' + arquivo.nome);
+ok(!/r do gemini|r pra revisar/.test(arquivo.txt), 'exportação deixa de fora Gemini e o que falta revisar');
 H.ctx.ligarRotinas();
