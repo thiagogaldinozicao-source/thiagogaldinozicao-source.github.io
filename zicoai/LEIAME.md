@@ -162,7 +162,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - Placar do PC usa o modelo grande (`cerebroPCcodigo()`).
 
 ## Aulas (`zicoai/aulas/`)
-Curso ABC: A fundamentos, B programação, D a própria ZicoAI (no GitHub, `aulas/A|B|D`); C loja e E pessoal só na planilha (privado). Todo trabalho do Claude vira aula + linha na aba `trajetorias`. Aba `aulas` (ID | Módulo | Título | Palavras-chave | Regra | Conteúdo | Onde): `aulasPara()` pontua palavra-chave/título 3 e regra/conteúdo 1, precisa de 4; `contextoAulas()` põe as 2 melhores (`### AULAS QUE SE APLICAM`) no chat (fora texto colado e imagem) e no agente. Teste: t25.js. Ver `aulas/README.md`.
+Curso ABC: A fundamentos, B programação, D a própria ZicoAI (no GitHub, `aulas/A|B|D`); C loja e E pessoal só na planilha (privado). Todo trabalho do Claude vira aula + linha na aba `trajetorias`. Aba `aulas` (ID | Módulo | Título | Palavras-chave | Regra | Conteúdo | Onde): `indiceAulas()` lê só as colunas A–E (sem o Conteúdo) e guarda 30 min no cache em pedaços de 90 mil letras; `aulasPara()` pontua palavra-chave/título 3 e regra 1, precisa de 4; o Conteúdo é lido só das escolhidas; `contextoAulas()` põe as 2 melhores (`### AULAS QUE SE APLICAM`) no chat (fora texto colado e imagem) e no agente. Teste: t25.js. Ver `aulas/README.md`.
 
 ## Testar sem internet
 ```

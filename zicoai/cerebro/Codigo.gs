@@ -760,24 +760,55 @@ function querPesquisaProfunda(t) {
  * Aba `aulas`: ID | Módulo | Título | Palavras-chave | Regra | Conteúdo | Onde. O texto completo das aulas A, B e D
  * fica no GitHub (zicoai/aulas); C e E só existem na planilha (privado). Aqui entram as 2 aulas que mais combinam
  * com o pedido: palavra-chave/título pesa 3, regra/conteúdo pesa 1; precisa somar 4 (evita aula aleatória em "oi"). */
+/** Índice leve das aulas: só ID, título, palavras-chave e regra (colunas A–E, sem o Conteúdo pesado), com o nº da linha.
+ *  Fica 30 min no cache (em pedaços, se passar de 90 mil letras), então com milhares de aulas a busca continua rápida. */
+function indiceAulas() {
+  const cache = CacheService.getScriptCache();
+  try {
+    const n = Number(cache.get('aulas_idx_n') || 0);
+    if (n) {
+      const partes = cache.getAll(Array.from({ length: n }, (_, k) => 'aulas_idx_' + k));
+      if (Object.keys(partes).length === n) return JSON.parse(Array.from({ length: n }, (_, k) => partes['aulas_idx_' + k]).join(''));
+    }
+  } catch (e) { /* refaz */ }
+  const a = aba('aulas');
+  const tot = a.getLastRow();
+  if (tot < 2) return [];
+  const idx = [];
+  a.getRange(2, 1, tot - 1, 5).getDisplayValues().forEach((l, k) => {
+    if (l[0] && l[4] && !l.some(c => /^\[IGNORAR\]/i.test(String(c)))) idx.push([l[0], l[2], normalizar(l[2] + ' ' + l[3]), normalizar(l[4]), l[4], k + 2]);
+  });
+  try {
+    const txt = JSON.stringify(idx), pedacos = {};
+    const qtd = Math.ceil(txt.length / 90000);
+    for (let k = 0; k < qtd; k++) pedacos['aulas_idx_' + k] = txt.slice(k * 90000, (k + 1) * 90000);
+    if (qtd <= 50) { cache.putAll(pedacos, 1800); cache.put('aulas_idx_n', String(qtd), 1800); }
+  } catch (e) { /* sem cache, segue */ }
+  return idx;
+}
+
+/** As aulas que mais combinam com o pedido: palavra-chave/título pesa 3, regra pesa 1; precisa somar 4. */
 function aulasPara(pergunta, limite) {
   const pn = expandir(pergunta);
   const palavras = pn.split(/[^a-z0-9]+/).filter((p, i, a) => p.length >= 3 && PARADAS.indexOf(p) < 0 && a.indexOf(p) === i);
   if (!palavras.length) return [];
-  return linhas('aulas').filter(l => l[0] && l[4]).map((l, i) => {
-    const chave = ' ' + normalizar(l[2] + ' ' + l[3]) + ' ';
-    const corpo = normalizar(l[4] + ' ' + l[5]);
+  return indiceAulas().map((x, i) => {
+    const chave = ' ' + x[2] + ' ';
     let p = 0;
-    palavras.forEach(w => { if (chave.indexOf(w) >= 0 || parecida(w, chave)) p += 3; else if (corpo.indexOf(w) >= 0) p += 1; });
-    return { l: l, p: p, i: i };
-  }).filter(x => x.p >= 4).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(x => x.l);
+    palavras.forEach(w => { if (chave.indexOf(w) >= 0 || parecida(w, chave)) p += 3; else if (x[3].indexOf(w) >= 0) p += 1; });
+    return { x: x, p: p, i: i };
+  }).filter(o => o.p >= 4).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
 }
 function contextoAulas(pergunta, limite) {
   const lista = aulasPara(pergunta, limite);
   if (!lista.length) return '';
-  passo('📚 Aula(s) que se aplicam: ' + lista.map(l => l[0] + ' ' + l[2]).join(' · '));
-  return '\n\n### AULAS QUE SE APLICAM (o jeito certo de fazer isso; siga a REGRA)\n' + lista.map(l =>
-    '[' + l[0] + '] ' + l[2] + '\nREGRA: ' + String(l[4]).slice(0, 600) + (l[5] ? '\n' + String(l[5]).slice(0, 1500) : '')).join('\n\n');
+  passo('📚 Aula(s) que se aplicam: ' + lista.map(x => x[0] + ' ' + x[1]).join(' · '));
+  const a = aba('aulas');
+  return '\n\n### AULAS QUE SE APLICAM (o jeito certo de fazer isso; siga a REGRA)\n' + lista.map(x => {
+    let cont = '';
+    try { cont = String(a.getRange(x[5], 6, 1, 1).getDisplayValues()[0][0] || ''); } catch (e) { /* só a regra */ }
+    return '[' + x[0] + '] ' + x[1] + '\nREGRA: ' + String(x[4]).slice(0, 600) + (cont ? '\n' + cont.slice(0, 1500) : '');
+  }).join('\n\n');
 }
 
 function contextoMeusCerebros(pergunta) {

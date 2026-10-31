@@ -49,3 +49,17 @@ H.ctx.rodarTarefas();
 ok(/\[C06\] Comparativo/.test(sysAg), 'agente recebe a aula no sistema');
 const t = H.sheets.tarefas.rows.find(x => x[0] === r.id);
 ok(/📚 Leu 1 aula\(s\) do curso/.test(t[5]), 'rastro do agente mostra a aula lida');
+
+// muitas aulas: índice em pedaços no cache, busca rápida e o Conteúdo só das escolhidas
+for (const k of Object.keys(H.CACHE)) if (/^aulas_idx/.test(k)) delete H.CACHE[k];
+for (let i = 0; i < 3000; i++) a.appendRow(['X' + i, 'B', 'Aula de enchimento número ' + i, 'enchimento, teste, volume' + i, 'Regra de enchimento ' + i + ' com um texto razoavelmente comprido pra ocupar espaço no índice.', 'conteudo '.repeat(200), 'GitHub']);
+a.appendRow(['B99', 'B', 'Ler código de barras pela câmera', 'código de barras, câmera, scanner, ler etiqueta, imei', 'Use o leitor nativo e, se não tiver, ZXing.', 'Conteúdo da B99 completo.', 'GitHub']);
+const t0 = Date.now();
+const achou = vm.runInContext('aulasPara("como ler código de barras pela câmera do iphone", 2)', H.ctx);
+const ms = Date.now() - t0;
+ok(achou.length && achou[0][0] === 'B99', 'com 3 mil aulas acha a certa (' + ms + ' ms)');
+ok(Number(H.CACHE.aulas_idx_n) > 1, 'índice grande vai pro cache em ' + H.CACHE.aulas_idx_n + ' pedaços');
+const ctx2 = vm.runInContext('contextoAulas("como ler código de barras pela câmera do iphone", 1)', H.ctx);
+ok(/\[B99\]/.test(ctx2) && /Conteúdo da B99 completo/.test(ctx2) && !/conteudo conteudo/.test(ctx2), 'Conteúdo lido só da aula escolhida');
+const t1 = Date.now(); vm.runInContext('aulasPara("scanner de imei pela câmera", 2)', H.ctx);
+ok(Date.now() - t1 <= ms + 50, 'segunda busca usa o índice do cache');
