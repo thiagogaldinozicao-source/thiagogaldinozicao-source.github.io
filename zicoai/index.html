@@ -1285,7 +1285,7 @@ $('mcExcluir').onclick = () => { fechaMenuConv(); if(atual) apagar(atual); };
 
 /* ---------- projetos (instruções + arquivos que entram em toda conversa do projeto) ---------- */
 async function carregaProjetos(){
-  try{ const j = await api({ acao:'projetos' }); projetos = j.projetos; LS.set('projetos', projetos); }catch(e){}
+  try{ const j = await api({ acao:'projetos' }); projetos = Array.isArray(j.projetos) ? j.projetos : []; LS.set('projetos', projetos); }catch(e){}
   return projetos;
 }
 function abreProjetos(modoTela){
