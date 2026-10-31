@@ -28,4 +28,4 @@ ok(mac && mac.ok && mac.nome === 'Mac-mini-de-Thiago' && /macOS/.test(mac.plataf
 ok(mac && mac.servicos.some(s => /Ollama/.test(s.nome) && /qwen3:8b/.test(s.detalhe)) && mac.servicos.some(s => /Ponte/.test(s.nome) && s.detalhe === 'mac-1.4'), 'serviços do Mac: ponte (versão) e cérebro (modelos do Ollama)');
 ok(pc && !pc.ok && /Windows/.test(pc.plataforma) && pc.vistoMs === -1, 'cartão do PC: desligado (nunca visto nesta sessão)');
 ok(Array.isArray(d.dispositivos), 'lista antiga continua (app antigo não quebra)');
-ok(/versão 56/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 56');
+ok(/versão 5[6-9]/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 56 ou mais nova');

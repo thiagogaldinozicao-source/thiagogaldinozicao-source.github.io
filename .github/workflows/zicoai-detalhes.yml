@@ -14,10 +14,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Testes antigos e novos (t1 a t36)
+      - name: Testes antigos e novos (t1 a t42)
         run: |
           set -e
-          for n in $(seq 1 41); do node "zicoai/cerebro/testes/t$n.js"; done
+          for n in $(seq 1 42); do node "zicoai/cerebro/testes/t$n.js"; done
       - run: npm install --prefix /tmp/zicoai-playwright --no-audit --no-fund playwright@1.64.1
       - run: node /tmp/zicoai-playwright/node_modules/playwright/cli.js install --with-deps chromium
       - name: Playwright 390 e 1440 com API falsa

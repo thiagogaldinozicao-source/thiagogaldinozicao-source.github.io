@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "ZicoAI",
-  "version": "1.0",
-  "description": "A ZicoAI do lado de qualquer site: lê a página aberta e conversa sobre ela.",
-  "permissions": ["sidePanel", "activeTab", "scripting", "tabs"],
+  "version": "2.0",
+  "description": "A ZicoAI do lado de qualquer site: lê a página, acha erros, clica e preenche (com as travas de segurança) quando vc pede.",
+  "permissions": ["sidePanel", "activeTab", "scripting", "tabs", "storage", "alarms"],
   "host_permissions": ["<all_urls>"],
   "side_panel": { "default_path": "painel.html" },
   "action": { "default_title": "Abrir a ZicoAI" },
   "background": { "service_worker": "fundo.js" },
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["vigia.js"], "run_at": "document_start", "world": "MAIN", "all_frames": false }
+  ],
   "icons": { "128": "icone-128.png" }
 }

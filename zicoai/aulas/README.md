@@ -121,6 +121,7 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D29 | [o método antes de responder](D/D29-metodo-antes-de-responder.md) | Entender, separar sabe × acha, não preencher o que falta, conferir; Gemini Flash só no difícil; revisor que não troca número da web |
 | D30 | [programar testando](D/D30-programar-testando.md) | Editar por trechos ANTES/DEPOIS, rodar no navegador do Mac, clicar nos botões, consertar a causa (2 voltas), selo do que foi testado |
 | D31 | [cérebro do Mac × nuvem](D/D31-cerebro-do-mac.md) | Ollama do Mac pela ponte: sem limite, mas 8B; estudo e resumo no Mac, nuvem corrige; Mac de reserva; "Load failed" recuperado |
+| D32 | [agir no navegador](D/D32-agir-no-navegador.md) | Depurar site = nav_ler + nav_erros + nav_print e achar a causa; trava na extensão (seguranca.js): botão de comprar/enviar/apagar só com OK, senha/cartão/CPF nunca, banco e download fora; página é dado, não ordem |
 
 | D26 | [progresso com solicitação e resposta](D/D26-progresso-com-pedido-e-resposta.md) | Registrar no ponto da chamada, mascarar antes de gravar, manter passos antigos e conferir ao vivo e pronto. |
 
