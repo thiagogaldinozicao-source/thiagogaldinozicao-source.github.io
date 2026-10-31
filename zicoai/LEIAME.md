@@ -155,6 +155,13 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v48 (31/10): aula certa por palavra + significado
+- `aulasPara(pergunta, limite, vetor?)`: nota = BM25/maior + `PESO_SIGNIFICADO` (2) × cosseno (vetores do Gemini, `gemini-embedding-001`, 256). Entra a aula com BM25 ≥ corte (`AULAS_MIN` 18 → 10) ou cosseno ≥ `AULAS_COS_MIN` (0,55). `ehConversaAToa()` (mensagem curta só de cumprimento/agradecimento) não puxa aula, no lugar do corte alto que jogava fora ~5 pontos.
+- Vetores das aulas na aba `vetores` (tipo `aulas`, chave `ID#hash` do texto; aula mudou → vetor novo). `vetorDaPergunta()`: 1 chamada por mensagem, memória e aulas dividem. BM25 calculado uma vez por execução (`bm25Aulas`).
+- `contextoAulas`: 2 aulas completas + até 3 "talvez" só com título e regra; o cérebro grande escolhe a que serve.
+- `placarAulas()` (rodar pelo editor): lê `treino.jsonl` da pasta "ZicoAI Treino" do Drive, mede 1º/nas 2/nas 5 com os vetores do Gemini e grava na aba `placar_aulas`.
+- Placar na oficina do Mac (1.234 perguntas, vetores do `qwen3-embedding:0.6b` no lugar do Gemini): antes 72,3% nas 2 / 79,3% nas 5; v48 78,1% nas 2 / **90,6% nas 5** (aula certa chega à conversa), conversa à toa 0/18. Scripts em `~/ZicoAI/placar` no Mac.
+
 ## v46 (31/10): oficina 24h no Mac Mini (ponte do Mac)
 - O Mac Mini M4 (16 GB, macOS) virou a oficina que fica ligada: Homebrew, Node, git, uv, Playwright + Chromium, Ollama com `qwen3:8b` (base do LoRA). Tudo em `~/ZicoAI` no Mac: `repo/` (cópia do GitHub), `ponte-mac/`, `modelo/` (Modelfile + `criar_modelo.sh` pra montar a `zicoai-treinada` quando o `zicoai-lora.gguf` chegar).
 - Ponte do Mac (`~/ZicoAI/ponte-mac/ponte-mac.js`, Node sem dependência): mesmo protocolo e mesma lista segura da ponte do PC, manda `dispositivo:'mac'`. Só pastas do `config.json` (começa só com `~/ZicoAI`), nunca apaga, nunca sobrescreve (grava com `wx`), não escapa por `../` nem por atalho (resolve o caminho real). Liga no login pelo launchd (`~/Library/LaunchAgents/com.zicoai.ponte-mac.plist`, `KeepAlive` se cair). Teste próprio: `node ~/ZicoAI/ponte-mac/teste-ponte.js` (17 verificações).
@@ -231,6 +238,7 @@ node t27.js  # v42: não prometer ação sem ferramenta, versão no sistema (sta
 node t28.js  # v43: pergunta com opções ([[OPCOES]] → campo opcoes no chat)
 node t29.js  # v44: busca de aulas BM25 (palavra rara pesa mais, lê o conteúdo, conversa à toa fica de fora)
 node t30.js  # v45: corrigir/reescrever com um clique (acao 'texto')
+node t32.js  # v48: aulas por palavra + significado, conversa à toa, 2+3 aulas, 1 vetor por mensagem
 node t31.js  # v46: ponte do Mac (segredo e fila próprios, mac_status/mac_testar/mac_abrir/mac_comando)
 node t25.js  # aulas: acha a aula certa, ignora conversa à toa, máx. 2, agente também lê
 node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
