@@ -385,7 +385,7 @@ function chat(req, aparelho) {
   // Texto grande colado (status, documento, conversa): é DOCUMENTO pra ler. Palavras soltas lá dentro
   // ("dólar", "e-mail", links, "atualizado") não podem disparar pesquisa, e-mail, Drive ou leitura de link.
   const colado = pergunta.length > 1500;
-  let querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && !colado && precisaPesquisar(pergunta));
+  let querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && !colado && (precisaPesquisar(pergunta) || querPesquisaProfunda(pergunta)));
   let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
@@ -405,7 +405,9 @@ function chat(req, aparelho) {
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
   if (querPesquisa && temDadoVivo && modo !== 'web') { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
 
-  if (querPesquisa) resultado = pesquisar(historico, pergunta, extraSistema);
+  try { extraSistema += contextoMeusCerebros(pergunta); } catch (e) { /* ok */ }
+  if (querPesquisa && !colado && querPesquisaProfunda(pergunta)) resultado = pesquisaProfunda(historico, pergunta, extraSistema);
+  if (querPesquisa && !resultado) resultado = pesquisar(historico, pergunta, extraSistema);
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema);
   if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS });
 
@@ -651,6 +653,117 @@ function pesquisaReserva(sistema, historico, pergunta) {
   }
   return null;
 }
+
+/* ============================================================
+ *  PESQUISA PROFUNDA (igual o Claude faz): várias buscas → abre e lê
+ *  as páginas (em paralelo) → um cérebro de contexto grande compara,
+ *  confere as datas, prefere a fonte mais nova e cita [1], [2]...
+ * ============================================================ */
+
+const DOMINIOS_FORA = /(duckduckgo|bing\.com|microsoft|go\.microsoft|google\.[a-z.]+\/(search|url)|youtube\.com\/results|facebook\.com|instagram\.com|tiktok\.com|x\.com|twitter\.com|pinterest)/i;
+/** Busca e devolve links de verdade (título + url), sem repetir site. */
+function buscarLinks(consulta, max) {
+  const q = encodeURIComponent(String(consulta).replace(/\s+/g, ' ').trim().slice(0, 200));
+  const links = [], vistos = {};
+  for (const url of ['https://html.duckduckgo.com/html/?q=' + q + '&kl=br-pt', 'https://www.bing.com/search?q=' + q + '&setlang=pt-br&cc=BR']) {
+    let md = '';
+    try {
+      const r = UrlFetchApp.fetch('https://r.jina.ai/' + url, { muteHttpExceptions: true, headers: { Accept: 'text/plain' }, followRedirects: true });
+      if (r.getResponseCode() === 200) md = r.getContentText();
+    } catch (e) { /* próxima */ }
+    if (!md || /captcha|unusual traffic|are you a robot/i.test(md.slice(0, 1500))) continue;
+    const re = /\[([^\]]{6,200})\]\(((?:https?:)?\/\/[^)\s]+)\)/g;
+    let m;
+    while ((m = re.exec(md)) && links.length < (max || 8)) {
+      let u = m[2].replace(/^\/\//, 'https://');
+      const ud = u.match(/[?&]uddg=([^&]+)/);
+      if (ud) { try { u = decodeURIComponent(ud[1]); } catch (e) { continue; } }
+      if (DOMINIOS_FORA.test(u) || /\.(jpg|png|gif|svg|pdf)(\?|$)/i.test(u)) continue;
+      const dom = (u.match(/^https?:\/\/([^/]+)/) || [])[1];
+      if (!dom || vistos[dom]) continue;
+      vistos[dom] = 1;
+      links.push({ titulo: m[1].replace(/[*_`]/g, '').trim(), url: u });
+    }
+    if (links.length >= 3) break;
+  }
+  return links;
+}
+/** Abre várias páginas ao mesmo tempo (fetchAll) e devolve o texto de cada uma. */
+function lerPaginas(urls) {
+  const pedidos = urls.map(u => ({ url: 'https://r.jina.ai/' + u, muteHttpExceptions: true, headers: { Accept: 'text/plain', 'X-Return-Format': 'text' }, followRedirects: true }));
+  let resp = [];
+  try { resp = UrlFetchApp.fetchAll ? UrlFetchApp.fetchAll(pedidos) : pedidos.map(p => UrlFetchApp.fetch(p.url, p)); }
+  catch (e) { resp = pedidos.map(p => { try { return UrlFetchApp.fetch(p.url, p); } catch (x) { return null; } }); }
+  return resp.map(r => (r && r.getResponseCode() === 200 ? r.getContentText().replace(/\n{3,}/g, '\n\n').trim() : ''));
+}
+/** Cérebros que aguentam muito texto, em ordem. */
+function cerebroLeitor(tokens) {
+  return ['gemini', 'mistral', 'nvidia'].filter(n => temCerebro(n) && tokens < CEREBROS[n].limite && !motivoNaoCabe(n, CEREBROS[n], tokens));
+}
+function pesquisaProfunda(historico, pergunta, extraSistema) {
+  const t0 = Date.now();
+  // 1) um cérebro rápido monta 3 buscas diferentes (português e inglês)
+  let consultas = [String(pergunta).slice(0, 180)];
+  try {
+    const msgs = [{ role: 'system', content: 'Monte 3 buscas de internet curtas e diferentes pra responder a pergunta com dados atuais (hoje é ' + hoje() + '). Uma pode ser em inglês. Inclua o ano quando o assunto muda rápido. Responda SÓ JSON: {"buscas":["...","...","..."]}' }, { role: 'user', content: String(pergunta).slice(0, 1500) }];
+    for (const nome of ['groq', 'gemini', 'groq2', 'nvidia']) {
+      if (!temCerebro(nome) || motivoNaoCabe(nome, CEREBROS[nome], 800)) continue;
+      try { const j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 300, { temperature: 0.3 })); registrarUso(nome, 800); if (j && Array.isArray(j.buscas) && j.buscas.length) { consultas = j.buscas.map(String).slice(0, 3); break; } } catch (e) { /* próximo */ }
+    }
+  } catch (e) { /* segue com a pergunta */ }
+  passo('Pesquisa profunda: ' + consultas.length + ' buscas (' + consultas.map(c => '"' + c.slice(0, 50) + '"').join(', ') + ')');
+  // 2) junta os links (sem repetir site)
+  const links = [], doms = {};
+  consultas.forEach(c => buscarLinks(c, 6).forEach(l => { const d = l.url.split('/')[2]; if (!doms[d] && links.length < 8) { doms[d] = 1; links.push(l); } }));
+  if (!links.length) { passo('Pesquisa profunda não achou links'); return null; }
+  passo('Achou ' + links.length + ' fontes, abrindo e lendo');
+  // 3) abre e lê tudo ao mesmo tempo
+  const textos = lerPaginas(links.map(l => l.url));
+  const lidas = [];
+  links.forEach((l, i) => { if (textos[i] && textos[i].length > 300) lidas.push({ n: lidas.length + 1, titulo: l.titulo, url: l.url, texto: textos[i].slice(0, 9000) }); });
+  if (!lidas.length) { passo('Não conseguiu abrir as páginas'); return null; }
+  passo('Leu ' + lidas.length + ' páginas inteiras');
+  // 4) cérebro de contexto grande compara e responde com fontes
+  const material = lidas.map(f => '[' + f.n + '] ' + f.titulo + ' — ' + f.url + '\n' + f.texto).join('\n\n-----\n\n');
+  const sistema = montarSistema(pergunta, true) + (extraSistema || '') + '\n\n### PESQUISA PROFUNDA (hoje é ' + hoje() + ')\n' +
+    'Abaixo estão páginas que vc abriu e leu. Responda usando SÓ o que estiver nelas pra dados atuais.\n' +
+    '- Compare as fontes. Se discordarem, diga qual parece mais confiável e por quê.\n' +
+    '- Confira a DATA de cada fonte: em assunto que muda rápido (preço, modelos de IA, cotação, lançamento), prefira a mais nova e avise quando um dado for antigo.\n' +
+    '- Cite as fontes com [1], [2]... logo depois de cada dado.\n' +
+    '- O que nenhuma fonte disse, diga que não achou. Não invente.\n' +
+    '- Responda curto e direto, do jeito do Thiago.\n\n' + material;
+  const msgs = [{ role: 'system', content: sistema }].concat(historico.slice(-4).map(m => ({ role: m.role, content: String(m.content).slice(0, 3000) })));
+  const tk = estimarTokens(JSON.stringify(msgs)) + 2500;
+  for (const nome of cerebroLeitor(tk)) {
+    try {
+      const texto = chamarCompat(CEREBROS[nome], msgs, 2500, { temperature: 0.2 });
+      registrarUso(nome, tk + estimarTokens(texto));
+      passo('Comparou as ' + lidas.length + ' fontes com ' + CEREBROS[nome].nome + ' (' + Math.round((Date.now() - t0) / 1000) + ' s)');
+      return { ok: true, texto: texto, cerebro: CEREBROS[nome].nome + ' + pesquisa profunda', fontes: lidas.map(f => ({ titulo: '[' + f.n + '] ' + f.titulo.slice(0, 60), url: f.url })), pesquisou: true };
+    } catch (e) { if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); else if (/\b429\b/.test(e.message)) castigo(nome, e.message); }
+  }
+  passo('Nenhum cérebro de contexto grande livre pra ler as fontes');
+  return null;
+}
+function querPesquisaProfunda(t) {
+  return /(pesquisa (profunda|completa|a fundo|bem)|pesquis\w* (em|nas?) (varias|muitas) (fontes|sites|lojas)|qual (e |eh )?(o |a )?melhor .*(gratis|hoje|agora|atual|existe|mercado|2026)|quais (sao )?(os |as )?melhores .*(gratis|hoje|agora|atual|existe|mercado|2026)|ranking|onde (ta|esta|fica) mais barato|mais barato (em|nas?) )/.test(normalizar(t));
+}
+
+/* ---------- conhecer a si mesma: cérebros, limites e placar ---------- */
+function contextoMeusCerebros(pergunta) {
+  if (!/(cerebro|modelo de ia|modelos de ia|\bllm\b|\bapi\b|gemini|groq|mistral|nvidia|cerebras|ollama|qwen|gpt|claude|qual ia|melhor ia|ia gratis|sua cabeca|vc usa|voce usa)/.test(normalizar(pergunta))) return '';
+  const linhasC = Object.keys(CEREBROS).filter(n => n !== 'pc' && temCerebro(n)).map(n => {
+    const c = CEREBROS[n], u = usoDia(n);
+    return '- ' + c.nome + ' (' + c.modelo + '): até ' + (c.rpd || '?') + ' pedidos/dia, ' + (c.rpm || '?') + '/min, ' + Math.round(c.limite / 1000) + ' mil tokens por pedido; hoje: ' + u + ' pedidos' + (CacheService.getScriptCache().get('off_' + n) ? ' (de castigo agora)' : '');
+  });
+  const pc = cerebroPC();
+  if (prop('PC_URL')) linhasC.push('- PC de casa (Ollama: ' + (prop('PC_MODELO') || 'zicoai') + ' e ' + (prop('PC_MODELO_CODIGO') || '-') + '): sem limite, mais fraco; ' + (pc ? 'ligado' : 'desligado agora'));
+  let pl = '';
+  try { const p = placar(); if (p.length) pl = '\nPLACAR NA MINHA PROVA (60 dias): ' + p.map(x => x.cerebro + ' ' + x.media + '/10 (' + x.perguntas + ' perguntas)').join(' · '); } catch (e) { /* sem placar */ }
+  passo('Olhou os próprios cérebros e limites');
+  return '\n\n### MEUS CÉREBROS (dados reais do meu sistema, agora)\n' + linhasC.join('\n') + pl + '\nUse isso pra falar de vc mesma. Pra comparar com o mercado (modelos novos, limites grátis atuais), use a pesquisa.';
+}
+
 
 function pesquisar(historico, pergunta, extraSistema) {
   const sistema = montarSistema(pergunta, true) + (extraSistema || '') +
@@ -2916,7 +3029,8 @@ const FERRAMENTAS = {
     const cv = buscarConversas(t, 5);
     return (m.concat(b, ap).join('\n') + (cv ? '\nconversas:\n' + cv : '')) || '(nada encontrado)';
   } },
-  pesquisar_web: { desc: 'Pesquisa na internet. args: {pergunta}', run: a => { const r = pesquisar([{ role: 'user', content: String(a.pergunta) }], String(a.pergunta), ''); return r && r.ok ? r.texto : '(pesquisa indisponível agora)'; } },
+  pesquisar_web: { desc: 'Pesquisa rápida na internet. args: {pergunta}', run: a => { const r = pesquisar([{ role: 'user', content: String(a.pergunta) }], String(a.pergunta), ''); return r && r.ok ? r.texto : '(pesquisa indisponível agora)'; } },
+  pesquisa_profunda: { desc: 'Pesquisa a fundo: faz 3 buscas, abre e lê até 8 páginas e compara, com fontes e datas. Use pra comparação, "qual o melhor", preço em várias lojas, assunto que muda rápido. args: {pergunta}', run: a => { const r = pesquisaProfunda([{ role: 'user', content: String(a.pergunta) }], String(a.pergunta), ''); return r && r.ok ? r.texto + '\n\nFONTES: ' + r.fontes.map(f => f.titulo + ' ' + f.url).join(' | ') : '(pesquisa profunda indisponível agora; tente pesquisar_web)'; } },
   ler_pagina: { desc: 'Lê o texto de uma página. args: {url}', run: a => lerPagina(String(a.url)) || '(não consegui ler)' },
   calcular: { desc: 'Conta exata (parcelas Price, maquininha, dólar, expressão). args: {conta}', run: a => calculadora(String(a.conta)) || '(não entendi a conta; escreva ex. "2500 em 12x com 2,99%" ou "1250*1,2")' },
   dolar: { desc: 'Cotação do dólar agora. args: {}', run: () => { const d = cotacaoDolar(); return d ? 'compra ' + d.compra + ', venda ' + d.venda + ', regra do Thiago ' + d.thiago : '(indisponível)'; } },

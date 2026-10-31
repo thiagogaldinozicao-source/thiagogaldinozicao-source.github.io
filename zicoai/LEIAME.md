@@ -150,6 +150,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - Agente: cada JSON traz `"pensamento"` (frase curta no gerúndio) → passo `💭 …`; ferramenta → `🔧 nome {args} → resultado (160 letras)`. `compacto()` mantém os passos em 4 mil letras (3 primeiros + mais recentes).
 - **Trajetórias** (aba `trajetorias`: Data | Pedido | Passos | Lições | Autor): como o Claude resolveu tarefas reais. O agente recebe as 2 mais parecidas com o pedido (`### COMO TAREFAS PARECIDAS FORAM RESOLVIDAS`) e o passo "📚 Lembrou de N tarefa(s)…". Tarefa concluída com 2+ ferramentas vira trajetória "ZicoAI (revisar)". O Claude acrescenta uma trajetória a cada trabalho grande.
 
+## Pesquisa profunda e conhecer a si mesma (30/10 noite)
+- `pesquisaProfunda()`: um cérebro rápido monta 3 buscas (pt/en, com ano) → `buscarLinks` (DuckDuckGo/Bing em markdown pelo r.jina.ai; decodifica `uddg`, tira anúncio/rede social, 1 link por site) → até 8 páginas lidas AO MESMO TEMPO (`lerPaginas` com `UrlFetchApp.fetchAll`) → cérebro de contexto grande (`cerebroLeitor`: Gemini → Mistral → NVIDIA) compara, confere a data, prefere a fonte mais nova e cita [1], [2]; fontes vão no fim. Dispara com `querPesquisaProfunda` ("qual o melhor … hoje/grátis/2026", "pesquisa profunda", "ranking", "onde tá mais barato"…); se não achar links, cai na pesquisa normal. Ferramenta do agente: `pesquisa_profunda`.
+- `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
+- Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
+
 ## Testar sem internet
 ```
 cd zicoai/cerebro/testes
@@ -173,6 +178,7 @@ node t17.js  # erros de digitação: busca tolerante, abreviações, regra
 node t18.js  # auto-melhoria: ler, editar, testar, publicar, desfazer o próprio código
 node t19.js  # já existe parecido (apps publicados e pedidos antigos)
 node t20.js  # imagem com pedido detalhado, NVIDIA reserva, 3 agentes juntos, tarefa longa que continua, agente chefe, PC reserva
+node t23.js  # pesquisa profunda (buscas, páginas, fontes) e MEUS CÉREBROS
 node t22.js  # fase 1 do treino: tipos, placar, estudo noturno, revisão
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado
 ```
