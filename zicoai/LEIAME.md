@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v46 (31/10): oficina 24h no Mac Mini (ponte do Mac)
+- O Mac Mini M4 (16 GB, macOS) virou a oficina que fica ligada: Homebrew, Node, git, uv, Playwright + Chromium, Ollama com `qwen3:8b` (base do LoRA). Tudo em `~/ZicoAI` no Mac: `repo/` (cópia do GitHub), `ponte-mac/`, `modelo/` (Modelfile + `criar_modelo.sh` pra montar a `zicoai-treinada` quando o `zicoai-lora.gguf` chegar).
+- Ponte do Mac (`~/ZicoAI/ponte-mac/ponte-mac.js`, Node sem dependência): mesmo protocolo e mesma lista segura da ponte do PC, manda `dispositivo:'mac'`. Só pastas do `config.json` (começa só com `~/ZicoAI`), nunca apaga, nunca sobrescreve (grava com `wx`), não escapa por `../` nem por atalho (resolve o caminho real). Liga no login pelo launchd (`~/Library/LaunchAgents/com.zicoai.ponte-mac.plist`, `KeepAlive` se cair). Teste próprio: `node ~/ZicoAI/ponte-mac/teste-ponte.js` (17 verificações).
+- Cérebro: cada ponte tem segredo e fila próprios. `ponteDisp(segredo)` → 'pc' (`PONTE_SEGREDO`) ou 'mac' (`PONTE_SEGREDO_MAC`); as chaves do cache do Mac ganham `_mac` (`ponte_fila_mac`, `ponte_visto_mac`…), as do PC não mudaram. `ponte(acao, dados, esperaMs, disp)`. Ferramentas novas: `mac_status`, `mac_testar`, `mac_abrir`, `mac_comando`. Painel de dispositivos mostra "Oficina (Mac)".
+- Propriedade nova no Apps Script: `PONTE_SEGREDO_MAC` (o segredo do `config.json` do Mac). Sem ela o Mac é recusado e nada muda pro PC.
+
 ## v45 (31/10): corrigir e reescrever com um clique
 - Ação `texto` {modo: 'corrigir'|'reescrever', estilo: 'cliente'|'curto'|'formal'|'claro', texto} → {ok, texto, modo, estilo, cerebro}. Cérebro rápido (Groq → Gemini → …), devolve só o texto.
 - Corrigir: só ortografia/acento/pontuação, mantém "vc", "kkk", emojis e números, temperatura 0; se o resultado mudar demais de tamanho (virou outro texto), recusa e tenta o próximo cérebro.
@@ -225,6 +231,7 @@ node t27.js  # v42: não prometer ação sem ferramenta, versão no sistema (sta
 node t28.js  # v43: pergunta com opções ([[OPCOES]] → campo opcoes no chat)
 node t29.js  # v44: busca de aulas BM25 (palavra rara pesa mais, lê o conteúdo, conversa à toa fica de fora)
 node t30.js  # v45: corrigir/reescrever com um clique (acao 'texto')
+node t31.js  # v46: ponte do Mac (segredo e fila próprios, mac_status/mac_testar/mac_abrir/mac_comando)
 node t25.js  # aulas: acha a aula certa, ignora conversa à toa, máx. 2, agente também lê
 node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado

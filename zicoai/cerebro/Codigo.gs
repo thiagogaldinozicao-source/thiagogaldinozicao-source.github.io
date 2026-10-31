@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 45 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 46 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -275,7 +275,8 @@ function doPost(e) {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     // ponte do PC: usa o segredo dela, não o PIN
     if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta') {
-      if (!ponteSegredoOk(req.segredo)) return saida({ ok: false, erro: 'segredo errado' });
+      req.disp = ponteDisp(req.segredo); // 'pc' ou 'mac': cada um tem segredo e fila próprios
+      if (!req.disp) return saida({ ok: false, erro: 'segredo errado' });
       return saida(req.acao === 'ponteBuscar' ? ponteBuscar(req) : ponteResposta(req));
     }
     const cache = CacheService.getScriptCache();
@@ -2774,6 +2775,10 @@ function dispositivos() {
     try { const s = ponte('status'); out.push({ nome: 'Ponte (acesso ao PC)', ok: true, detalhe: s.nome + ' · ' + (s.pastas || []).map(p => p.caminho.split(/[\\/]/).pop() + (p.escrever ? ' ✎' : '')).join(', ') }); }
     catch (e) { out.push({ nome: 'Ponte (acesso ao PC)', ok: false, detalhe: String(e.message || e).slice(0, 80) }); }
   } else out.push({ nome: 'Ponte (acesso ao PC)', ok: false, detalhe: 'não instalada' });
+  if (prop('PONTE_SEGREDO_MAC')) {
+    try { const s = ponte('status', null, null, 'mac'); out.push({ nome: 'Oficina (Mac)', ok: true, detalhe: s.nome + ' · ' + (s.disco || '') }); }
+    catch (e) { out.push({ nome: 'Oficina (Mac)', ok: false, detalhe: String(e.message || e).slice(0, 80) }); }
+  }
   return { ok: true, dispositivos: out, pc: 'DESKTOP-UL41KIJ' };
 }
 
@@ -2788,26 +2793,35 @@ function dispositivos() {
 
 const PONTE_PEDACO = 90000;
 function ponteSegredoOk(seg) { const s = prop('PONTE_SEGREDO'); return !!s && String(seg || '') === String(s); }
-function ponteFila(fn) {
+/** Qual ponte é pelo segredo: 'pc' (PONTE_SEGREDO), 'mac' (PONTE_SEGREDO_MAC) ou '' (recusa). */
+function ponteDisp(seg) {
+  if (ponteSegredoOk(seg)) return 'pc';
+  const m = prop('PONTE_SEGREDO_MAC');
+  return m && String(seg || '') === String(m) ? 'mac' : '';
+}
+/** Nome da chave no cache: o PC usa as de sempre; o Mac ganha "_mac" (fila separada, um não pega pedido do outro). */
+function ponteChave(k, disp) { return disp === 'mac' ? k + '_mac' : k; }
+function ponteFila(fn, disp) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(8000)) throw new Error('fila da ponte ocupada');
   try {
     const c = CacheService.getScriptCache();
-    const f = JSON.parse(c.get('ponte_fila') || '[]');
+    const f = JSON.parse(c.get(ponteChave('ponte_fila', disp)) || '[]');
     const r = fn(f);
-    c.put('ponte_fila', JSON.stringify(f), 600);
+    c.put(ponteChave('ponte_fila', disp), JSON.stringify(f), 600);
     return r;
   } finally { lock.releaseLock(); }
 }
 function ponteBuscar(req) {
   const c = CacheService.getScriptCache();
-  c.put('ponte_nome', String(req.nome || 'PC').slice(0, 60), 21600);
-  if (req.versao) c.put('ponte_versao', String(req.versao).slice(0, 20), 21600);
+  const disp = req.disp || 'pc';
+  c.put(ponteChave('ponte_nome', disp), String(req.nome || disp.toUpperCase()).slice(0, 60), 21600);
+  if (req.versao) c.put(ponteChave('ponte_versao', disp), String(req.versao).slice(0, 20), 21600);
   const fim = Date.now() + 20000;
   while (true) {
-    c.put('ponte_visto', String(Date.now()), 21600);
+    c.put(ponteChave('ponte_visto', disp), String(Date.now()), 21600);
     const agoraMs = Date.now();
-    const peds = ponteFila(f => f.splice(0, f.length)).filter(p => p.ate > agoraMs);
+    const peds = ponteFila(f => f.splice(0, f.length), disp).filter(p => p.ate > agoraMs);
     if (peds.length || Date.now() > fim) return { ok: true, pedidos: peds };
     Utilities.sleep(800);
   }
@@ -2822,18 +2836,20 @@ function ponteResposta(req) {
   c.put('pres_' + id + '_n', String(n), 300);
   return { ok: true };
 }
-function ponteVisto() {
-  const v = parseInt(CacheService.getScriptCache().get('ponte_visto') || '0', 10);
+function ponteVisto(disp) {
+  const v = parseInt(CacheService.getScriptCache().get(ponteChave('ponte_visto', disp)) || '0', 10);
   return v ? Date.now() - v : -1;
 }
-function ponte(acao, dados, esperaMs) {
-  if (!prop('PONTE_SEGREDO')) throw new Error('A ponte do PC não está instalada');
-  const visto = ponteVisto();
-  if (visto < 0 || visto > 90000) throw new Error('PC desligado ou ponte fechada' + (visto > 0 ? ' (última vez há ' + Math.round(visto / 60000) + ' min)' : ''));
+function ponte(acao, dados, esperaMs, disp) {
+  disp = disp === 'mac' ? 'mac' : 'pc';
+  const quem = disp === 'mac' ? 'Mac' : 'PC';
+  if (!prop(disp === 'mac' ? 'PONTE_SEGREDO_MAC' : 'PONTE_SEGREDO')) throw new Error('A ponte do ' + quem + ' não está instalada');
+  const visto = ponteVisto(disp);
+  if (visto < 0 || visto > 90000) throw new Error(quem + ' desligado ou ponte fechada' + (visto > 0 ? ' (última vez há ' + Math.round(visto / 60000) + ' min)' : ''));
   const c = CacheService.getScriptCache();
   const id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
   const limite = Date.now() + (esperaMs || 45000);
-  ponteFila(f => { f.push({ id: id, acao: acao, dados: dados || {}, ate: limite }); });
+  ponteFila(f => { f.push({ id: id, acao: acao, dados: dados || {}, ate: limite }); }, disp);
   while (Date.now() < limite) {
     Utilities.sleep(700);
     const n = parseInt(c.get('pres_' + id + '_n') || '0', 10);
@@ -2847,8 +2863,8 @@ function ponte(acao, dados, esperaMs) {
     if (!j.ok) throw new Error(j.erro || 'Ponte deu erro');
     return j;
   }
-  try { ponteFila(f => { const i = f.findIndex(x => x.id === id); if (i >= 0) f.splice(i, 1); }); } catch (e) { /* ok */ }
-  throw new Error('O PC não respondeu a tempo');
+  try { ponteFila(f => { const i = f.findIndex(x => x.id === id); if (i >= 0) f.splice(i, 1); }, disp); } catch (e) { /* ok */ }
+  throw new Error('O ' + quem + ' não respondeu a tempo');
 }
 /** Olha uma imagem (print da tela, foto do PC) com um cérebro que enxerga e devolve o que tem nela. */
 function descreverImagem(b64, mime, pergunta) {
@@ -3353,6 +3369,10 @@ const FERRAMENTAS = {
   pc_abrir: { desc: 'Abre no PC um site (https://...), um programa da lista (bloco de notas, calculadora, chrome, explorador, comfyui) ou um arquivo de pasta liberada (txt, pdf, imagem, planilha). args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }); return 'aberto: ' + r.aberto; } },
   pc_testar: { desc: 'Roda os testes automáticos da ZicoAI no PC (baixa a versão do GitHub e roda node t*.js). Use DEPOIS de mudar seu código: só diga que funciona se passar. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000); return String(r.saida).slice(0, 6000); } },
   pc_comando: { desc: 'Roda um comando SEGURO da lista no PC: espaco_disco, processos, gpu, ip, sistema, ollama_modelos. args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }); return String(r.saida).slice(0, 6000); } },
+  mac_status: { desc: 'Oficina 24h (Mac Mini M4): nome, pastas liberadas e espaço livre. args: {}', run: () => { const s = ponte('status', null, null, 'mac'); return 'Mac ' + s.nome + ' (' + s.hora + ')\nPastas: ' + s.pastas.map(p => p.caminho + (p.escrever ? ' (lê e escreve)' : ' (só lê)')).join('; ') + (s.disco ? '\n' + s.disco : ''); } },
+  mac_testar: { desc: 'Roda os testes automáticos da ZicoAI na oficina (Mac, ligado 24h): baixa a versão do GitHub e roda node t*.js. Use quando o PC estiver desligado. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000, 'mac'); return String(r.saida).slice(0, 6000); } },
+  mac_abrir: { desc: 'Abre no Mac um site (https://...) no navegador, um app da lista (safari, chrome, calculadora, textedit, finder) ou um arquivo de pasta liberada. args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }, null, 'mac'); return 'aberto no Mac: ' + r.aberto; } },
+  mac_comando: { desc: 'Roda um comando SEGURO da lista no Mac: espaco_disco, processos, gpu, ip, sistema, ollama_modelos. args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }, null, 'mac'); return String(r.saida).slice(0, 6000); } },
   dividir_em_agentes: { desc: 'Divide um pedido GRANDE em 2 a 4 partes independentes que outros agentes fazem AO MESMO TEMPO (ex.: pesquisar 4 lojas, uma por agente). Você espera e recebe todos os resultados juntos pra montar a resposta final. args: {partes: ["descrição completa da parte 1", "parte 2", ...]}', run: (a, ctx) => {
     const partes = (Array.isArray(a.partes) ? a.partes : []).map(x => String(x || '').trim()).filter(x => x.length >= 8).slice(0, 4);
     if (partes.length < 2) return 'ERRO: mande de 2 a 4 partes, cada uma com a descrição completa do que fazer';
