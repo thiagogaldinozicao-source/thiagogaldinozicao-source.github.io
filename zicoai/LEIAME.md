@@ -141,7 +141,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - App também ganhou (v41): cores no código (highlight.js 11.9.0), ✎ Editar e ⧉ Copiar nas mensagens do Thiago (`cortarConversa {chatId, manter}` apaga as mensagens depois da editada), 📎 anexar arquivo de texto (vai junto como documento, com marca `[📄 arquivo: nome]`), botão ↓ pra ir pro fim.
 
 ## Método de trabalho do agente (30/10 noite)
-- `PROMPT_AGENTE` ganhou o MÉTODO (igual o Claude): entender → plano curto → ler antes de mexer → mudar pouco → testar → só dizer que funciona depois de testar → fechar com pronto/falta/precisa do Thiago.
+- `PROMPT_AGENTE` ganhou o MÉTODO (igual o Claude): entender → plano curto → ler antes de mexer → mudar pouco → testar → só dizer que funciona depois de testar. Relatório final no formato que o Thiago gostou: 1 frase de resultado + "Já está valendo" / "Pronto, falta publicar" / "Precisa de você" / "Falta" (só as que tiverem conteúdo). Também na base: "Manual de trabalho: relatório no fim da tarefa".
 - Aba `base` ganhou 5 linhas "Manual de trabalho: …" (tarefa grande, mexer em código, publicar o cérebro, erros que o Claude já cometeu, escolher o cérebro certo).
 - Ferramenta `pc_testar`: pede pra ponte (comando `testes_zicoai`, ponte 2.2) baixar/atualizar a cópia do GitHub em `%USERPROFILE%\ZicoAI\repo` e rodar `node t*.js`; devolve "TOTAL: N testes ok, M arquivo(s) com falha". `ponte(acao, dados, esperaMs)` aceita espera maior (170 s aqui). Precisa de Git e Node no PC.
 
