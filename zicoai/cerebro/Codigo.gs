@@ -3590,7 +3590,8 @@ function aprenderComErros() {
   const msgs = [{ role: 'system', content: [
     'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). Ela errou e o Thiago reclamou. Analise e ensine.',
     'Responda SÓ JSON: {"causa":"por que ela errou (1-2 frases: faltou pesquisar? inventou? pegou aula errada? não viu a foto?)","regra":"o jeito certo, 1 frase","porque":"o porquê da regra, 2-3 frases","situacoes":["como isso aparece em outras palavras", "..."],"erro_comum":"1 frase","resposta_certa":"a resposta que ela devia ter dado, no jeito do Thiago (curta, informal). Use SÓ dados do MATERIAL; o que o material não confirma vira \\"não confirmado\\". Se o pedido era só conversa, responda como deveria ter respondido.","tipo":"cliente|comparativo|preço|código|loja|geral"}',
-    'Nunca invente preço, garantia, endereço, horário. Ficha técnica só com número que está no MATERIAL.'
+    'Nunca invente preço, garantia, endereço, horário. Ficha técnica só com número que está no MATERIAL.',
+    'resposta_certa nunca diz que fez, mandou ou corrigiu algo ("já corrigi", "mandei o arquivo"): é o texto que ela devia ter respondido. Se o certo é um código grande, descreva o conserto em 1-2 frases em vez do código.'
   ].join('\n') }, { role: 'user', content: 'PEDIDO DO THIAGO:\n' + (pedido || '(não achei)') + '\n\nRESPOSTA DELA (errada):\n' + String(errada[3]).slice(0, 3000) + '\n\nRECLAMAÇÃO:\n' + String(rec[3]).slice(0, 800) + '\n\nMATERIAL DA WEB (' + (fontes[0] || 'nenhum') + '):\n' + (material || '(nenhum)') }];
   let j = null, autor = '';
   for (const nome of ['gemini', 'mistral', 'nvidia', 'groq']) {
