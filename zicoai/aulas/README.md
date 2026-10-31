@@ -45,6 +45,20 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 |---|---|---|
 | B01 | [o padrão dos apps do Thiago](B/B01-app-em-um-arquivo.md) | App em um arquivo `.html` só (HTML + CSS + JavaScript, sem framework), mobile-first, modo escuro por padrão (p… |
 | B02 | [erros de programação que já foram corrigidos](B/B02-erros-de-programacao-ja-corrigidos.md) | Antes de entregar código, confira esta lista: modo escuro, nada desligado com `//`, fórmula certa, arquivo com… |
+| B10 | [App de 1 arquivo HTML, escuro, mobile-first](B/B10-app-html-mobile-iphone-layout.md) | Faça o app inteiro em um `index.html` (HTML + CSS + JS, sem framework e sem build), pensado primeiro pro celul… |
+| B11 | [PWA instalável no iPhone](B/B11-pwa-instalavel-iphone.md) | Pra instalar na tela inicial: `manifest.webmanifest` com ícones 192, 512 e maskable, `apple-touch-icon` (180x1… |
+| B12 | [Service worker: abrir sem internet e atualizar o cache](B/B12-service-worker-offline-e-versao-nova.md) | Cada app tem um `sw.js` com a versão do cache no topo: `VERSAO` (emprestimo/maquininha) ou `CACHE` (calculador… |
+| B13 | [Gesto de deslizar pra apagar](B/B13-deslizar-pra-apagar-sem-quebrar.md) | Use `touchstart`/`touchmove`/`touchend` no `document` (passivos). Só conta como swipe se for horizontal e long… |
+| B14 | [Virar app nativo](B/B14-capacitor-app-store-e-android.md) | Mantenha o app web como fonte. Script `build.mjs` copia só os arquivos do app pra `www/`, e o Capacitor empaco… |
+| B15 | [Conta de parcelas com taxa da maquininha](B/B15-parcelas-com-taxa-centavos.md) | Taxa incide sobre o total cobrado, então `total = valor_à_vista / (1 - taxa)` (dividir, não somar). Arredonde … |
+| B30 | [Ler código de barras pela câmera](B/B30-ler-codigo-de-barras-pela-camera.md) | Use o leitor nativo (`BarcodeDetector`) quando existir; senão ZXing em WebAssembly lendo só a faixa do meio do… |
+| B31 | [Buscar produto numa API pública grátis](B/B31-api-open-food-facts.md) | Consulte a base aberta direto do app, pedindo só os campos que usa (`fields=`), com prazo (AbortController) e … |
+| B32 | [Site](B/B32-site-vira-apk-capacitor.md) | Faça o app como site em `www/`, publique no GitHub Pages e use Capacitor para empacotar o mesmo `www/` num APK… |
+| B33 | [Google Planilha + Apps Script como banco de dados grátis](B/B33-planilha-google-apps-script-banco-gratis.md) | Guarde os dados numa Planilha Google e exponha as funções via Apps Script (`doPost`). A regra de negócio e a s… |
+| B34 | [CLAUDE.md do projeto: regras escritas pra IA](B/B34-claude-md-regras-pra-ia.md) | Todo projeto leva um `CLAUDE.md` curto (carregado em toda sessão) com: o que é, regras de git, mapa de arquivo… |
+| B35 | [Página simples de loja](B/B35-pagina-simples-de-loja-whatsapp.md) | Página estática de um arquivo só (`index.html`) no GitHub Pages: lista de produtos em array JS, botão `wa.me` … |
+
+Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, Android, TV box), B40–B42 (catálogo e Gestão: sync de estoque, IMEI/OCR pela câmera, sistema grande num arquivo) e B50–B55 (jogo no Unreal: AGENTS.md, sync do PC com o GitHub, mapa por script, testes, bugs de C++) saíram de repositórios **privados**, então ficam só na planilha.
 
 ### D — A própria ZicoAI
 | ID | Aula | Regra |
@@ -68,3 +82,5 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 | D17 | [imagem melhor sem trocar o gerador](D/D17-imagem-prompt-detalhado.md) | Pedido de imagem curto vira prompt detalhado em inglês; pedido longo do Thiago passa igual; mostre o prompt us… |
 | D18 | [modo capricho](D/D18-modo-capricho.md) | Pergunta difícil: cérebro forte, mais raciocínio e OUTRO cérebro revisa; o revisor nunca pode piorar a respost… |
 | D19 | [teste que quebra à meia-noite](D/D19-relogio-dos-testes.md) | Teste falhou? Primeiro "foi eu?" (guarda a mudança e roda de novo); teste não pode depender do dia de hoje. |
+
+`aulas.json` (gerado destas aulas) é o que o cérebro baixa (`sincronizarAulas`, a cada 12 h) pra aba `aulas`.

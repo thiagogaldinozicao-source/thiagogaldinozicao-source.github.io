@@ -33,9 +33,9 @@ let fetchLog = []; const EVENTOS = []; const RASCUNHOS = []; let OFFSET = 0; con
 const SHIFT = new Date(2026, 9, 30, 12, 0, 0).getTime() - Date.now(); // relógio fixo em 30/10/2026 12h (testes não quebram à meia-noite)
 class FakeDate extends Date { constructor(...a) { if (a.length) super(...a); else super(Date.now() + OFFSET + SHIFT); } static now() { return Date.now() + OFFSET + SHIFT; } }
 let fetchImpl = (url, opt) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Resposta teste [[MEMORIA: Thiago gosta de café]] fim' } }] }) });
-let SEQ = 0; const PROPS = { PIN: '1234', GROQ_KEY: 'g', GEMINI_KEY: 'm' }; const CACHE = {};
+const EXTRAS = {}; let SEQ = 0; const PROPS = { PIN: '1234', GROQ_KEY: 'g', GEMINI_KEY: 'm' }; const CACHE = {};
 const ctx = {
-  SpreadsheetApp: { openById: () => ss },
+  SpreadsheetApp: { openById: id => (id && EXTRAS[id]) || ss, create: nome => { const id = 'PL_' + nome.replace(/\W+/g, '_'); const sh = {}; EXTRAS[id] = { nome, sheets: sh, getId: () => id, getSheetByName: n => sh[n] || null, insertSheet: n => (sh[n] = makeSheet(n)), getSheets: () => Object.values(sh), deleteSheet: () => {} }; EXTRAS[id].insertSheet('Página1'); return EXTRAS[id]; } },
   UrlFetchApp: { fetch: (u, o) => {
     o = o || {};
     // embeddings: só contam se o teste devolver embeddings de verdade; senão 500 e o código segue por palavra
@@ -60,4 +60,4 @@ const ctx = {
 };
 vm.createContext(ctx); vm.runInContext(code, ctx);
 const post = b => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(b) } }).t);
-module.exports = { PROPS, CACHE, ctx, post, sheets, fetchLog, EVENTOS, RASCUNHOS, TRIGGERS, setFetch: f => fetchImpl = f };
+module.exports = { EXTRAS, PROPS, CACHE, ctx, post, sheets, fetchLog, EVENTOS, RASCUNHOS, TRIGGERS, setFetch: f => fetchImpl = f };

@@ -164,6 +164,14 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 ## Aulas (`zicoai/aulas/`)
 Curso ABC: A fundamentos, B programação, D a própria ZicoAI (no GitHub, `aulas/A|B|D`); C loja e E pessoal só na planilha (privado). Todo trabalho do Claude vira aula + linha na aba `trajetorias`. Aba `aulas` (ID | Módulo | Título | Palavras-chave | Regra | Conteúdo | Onde): `indiceAulas()` lê só as colunas A–E (sem o Conteúdo) e guarda 30 min no cache em pedaços de 90 mil letras; `aulasPara()` pontua palavra-chave/título 3 e regra 1, precisa de 4; o Conteúdo é lido só das escolhidas; `contextoAulas()` põe as 2 melhores (`### AULAS QUE SE APLICAM`) no chat (fora texto colado e imagem) e no agente. Teste: t25.js. Ver `aulas/README.md`.
 
+## Várias planilhas (31/10)
+- Um script abre quantas planilhas quiser; os limites do Google são por CONTA (6 min por execução, 90 min/dia somando as rotinas, 20 mil UrlFetch/dia, 30 execuções juntas), então vários scripts não ajudam.
+- `planilhaExtra(nome, criar)` cria/abre a planilha e guarda o id em `PLANILHA_<NOME>` (Propriedades); `abaExtra`, `linhasArquivo`.
+- "ZicoAI Arquivo": `arquivarMensagens()` (domingo 5h) MOVE as mensagens com mais de 60 dias (`DIAS_NO_ATIVO`) — copia com `'` na frente, confere a contagem e só então tira da principal; até 3 mil por vez; registra no `historico`. `abrirChat` lê o arquivo só pra conversa criada antes do corte (`chatTemArquivo`); `buscarConversas` procura nos dois.
+- Aprender sozinha passou de 10 pra 30 min (`garantirRotinasTreino` troca o gatilho uma vez; propriedade `APRENDER_30`) pra sobrar tempo de rotina pros agentes e o estudo.
+- `sincronizarAulas()` (a cada 12 h e ação `sincronizarAulas`): baixa `aulas/aulas.json` do GitHub e atualiza/acrescenta só as aulas A/B/D marcadas "GitHub"; as privadas (C, E, B20–B55) só existem na planilha.
+- Teste: t26.js (arquivo) e t25.js (aulas).
+
 ## Testar sem internet
 ```
 cd zicoai/cerebro/testes
@@ -189,6 +197,7 @@ node t19.js  # já existe parecido (apps publicados e pedidos antigos)
 node t20.js  # imagem com pedido detalhado, NVIDIA reserva, 3 agentes juntos, tarefa longa que continua, agente chefe, PC reserva
 node t23.js  # pesquisa profunda (buscas, páginas, fontes) e MEUS CÉREBROS
 node t22.js  # fase 1 do treino: tipos, placar, estudo noturno, revisão
+node t26.js  # várias planilhas: arquivo das mensagens antigas, abrir/buscar no arquivo, aprender 30 min
 node t25.js  # aulas: acha a aula certa, ignora conversa à toa, máx. 2, agente também lê
 node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado

@@ -287,6 +287,7 @@ function doPost(e) {
     switch (req.acao) {
       case 'teste':         return saida({ ok: true, msg: 'Conectado ✅', cotas: cotas() });
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
+      case 'sincronizarAulas': return saida(sincronizarAulas());
       case 'aoVivo':        return saida({ ok: true, passos: JSON.parse(CacheService.getScriptCache().get('vivo_' + String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)) || '[]') });
       case 'chat':          { REQ_VIVO = String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40); const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
@@ -799,6 +800,30 @@ function aulasPara(pergunta, limite) {
     return { x: x, p: p, i: i };
   }).filter(o => o.p >= 4).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
 }
+/** Traz as aulas públicas (A, B, D) do GitHub (zicoai/aulas/aulas.json) pra aba `aulas`: atualiza pelo ID ou acrescenta.
+ *  Não mexe nas aulas privadas (C, E e as que só existem na planilha). Roda sozinha a cada 12 h (garantirRotinasTreino). */
+function sincronizarAulas() {
+  const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/zicoai/aulas/aulas.json?t=' + Date.now(), { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return { ok: false, erro: 'GitHub respondeu ' + r.getResponseCode() };
+  let novas;
+  try { novas = JSON.parse(r.getContentText()); } catch (e) { return { ok: false, erro: 'aulas.json inválido' }; }
+  if (!Array.isArray(novas) || !novas.length) return { ok: false, erro: 'aulas.json vazio' };
+  const a = aba('aulas');
+  const n = a.getLastRow();
+  const ids = n < 2 ? [] : a.getRange(2, 1, n - 1, 7).getDisplayValues();
+  let trocou = 0, novasQtd = 0;
+  novas.forEach(l => {
+    if (!Array.isArray(l) || !/^[ABD]\d+$/.test(String(l[0])) || !/^GitHub/.test(String(l[6]))) return;
+    const linha = l.slice(0, 7).map(v => seguro(String(v == null ? '' : v)));
+    const i = ids.findIndex(x => x[0] === l[0]);
+    if (i >= 0) {
+      if (/^GitHub/.test(ids[i][6]) && ids[i].join('\u0001') !== l.slice(0, 7).join('\u0001')) { a.getRange(i + 2, 1, 1, 7).setValues([linha]); trocou++; }
+    } else { a.appendRow(linha); novasQtd++; }
+  });
+  if (trocou || novasQtd) { const c = CacheService.getScriptCache(); c.remove('aulas_idx_n'); }
+  return { ok: true, atualizadas: trocou, novas: novasQtd };
+}
+
 function contextoAulas(pergunta, limite) {
   const lista = aulasPara(pergunta, limite);
   if (!lista.length) return '';
@@ -1380,8 +1405,8 @@ function listarChats() {
 
 function abrirChat(chatId) {
   if (!chatId) return [];
-  return linhas('mensagens')
-    .filter(l => l[0] === chatId)
+  const doArquivo = chatTemArquivo(chatId) ? linhasArquivo('mensagens').filter(l => l[0] === chatId) : [];
+  return doArquivo.concat(linhas('mensagens').filter(l => l[0] === chatId))
     .map(l => ({ role: l[2] === 'thiago' ? 'user' : 'assistant', content: l[3], cerebro: l[4] }));
 }
 
@@ -1688,7 +1713,8 @@ function calculadora(pergunta) {
  * ============================================================ */
 
 function buscarConversas(pergunta, limite) {
-  const todas = linhas('mensagens').filter(l => l[2] === 'thiago' && String(l[3]).length > 15);
+  // procura também nas conversas antigas que foram pra planilha de arquivo
+  const todas = linhasArquivo('mensagens').concat(linhas('mensagens')).filter(l => l[2] === 'thiago' && String(l[3]).length > 15);
   if (!todas.length) return '';
   const sel = relevantes(todas, pergunta, limite, l => l[3]);
   if (!sel.length) return '';
@@ -2275,12 +2301,13 @@ function jaSabe(novo, lista) {
   });
 }
 
-/** Rode UMA vez: liga o "aprender sozinha" a cada 10 minutos. */
+/** Rode UMA vez: liga o "aprender sozinha" a cada 30 minutos (era 10: as rotinas da conta grátis somam no máximo 90 min/dia). */
 function ligarAprendizado() {
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'aprenderSozinha').forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('aprenderSozinha').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('aprenderSozinha').timeBased().everyMinutes(30).create();
+  PropertiesService.getScriptProperties().setProperty('APRENDER_30', '1');
   aprenderSozinha();
-  Logger.log('Aprender sozinha: LIGADO (roda a cada 10 minutos)');
+  Logger.log('Aprender sozinha: LIGADO (roda a cada 30 minutos)');
 }
 
 /* ============================================================
@@ -2933,6 +2960,73 @@ function estudoNoturno(indice) {
   } finally { lock.releaseLock(); }
 }
 /** Liga as rotinas novas sozinha (sem o Thiago precisar rodar nada): placar 2h e estudo 1h. */
+/* ============================================================
+ *  VÁRIAS PLANILHAS
+ *  Um script abre quantas planilhas quiser. A "ZicoAI Memória" fica com o que é usado toda hora;
+ *  o que só cresce vai pra planilhas extras, criadas sozinhas na primeira vez (id guardado em
+ *  PLANILHA_<NOME> nas Propriedades). Primeira: "ZicoAI Arquivo", com as mensagens com mais de
+ *  60 dias (a aba mensagens é lida a cada pergunta e a planilha tem teto de 10 milhões de células).
+ * ============================================================ */
+const DIAS_NO_ATIVO = 60;
+const _extras = {};
+function planilhaExtra(nome, criar) {
+  if (_extras[nome]) return _extras[nome];
+  const props = PropertiesService.getScriptProperties();
+  const chave = 'PLANILHA_' + normalizar(nome).replace(/[^a-z0-9]+/g, '_').toUpperCase();
+  const id = props.getProperty(chave);
+  if (id) { try { return (_extras[nome] = SpreadsheetApp.openById(id)); } catch (e) { if (!criar) return null; } }
+  if (!criar) return null;
+  const nova = SpreadsheetApp.create(nome);
+  props.setProperty(chave, nova.getId());
+  return (_extras[nome] = nova);
+}
+function abaExtra(planilhaNome, nomeAba, criar) {
+  const pl = planilhaExtra(planilhaNome, criar);
+  if (!pl) return null;
+  let a = pl.getSheetByName(nomeAba);
+  if (!a && criar) { a = pl.insertSheet(nomeAba); a.appendRow(ABAS[nomeAba]); a.setFrozenRows(1); }
+  return a;
+}
+/** Linhas de uma aba na planilha de arquivo (vazio se ainda não existe arquivo). */
+function linhasArquivo(nomeAba) {
+  const a = abaExtra('ZicoAI Arquivo', nomeAba, false);
+  if (!a) return [];
+  const n = a.getLastRow();
+  return n < 2 ? [] : a.getRange(2, 1, n - 1, ABAS[nomeAba].length).getDisplayValues().filter(l => l.join('').trim());
+}
+/** Conversa criada antes do corte (pode ter mensagens no arquivo). */
+function chatTemArquivo(chatId) {
+  if (!PropertiesService.getScriptProperties().getProperty('PLANILHA_ZICOAI_ARQUIVO')) return false;
+  const r = linhaDoChat(chatId);
+  if (!r) return true;
+  const criada = String(aba('chats').getRange(r, 3, 1, 1).getDisplayValues()[0][0] || '').slice(0, 10);
+  return !criada || criada < corteArquivo();
+}
+function corteArquivo() { return Utilities.formatDate(new Date(Date.now() - DIAS_NO_ATIVO * 86400000), FUSO, 'yyyy-MM-dd'); }
+
+/** Domingo 5h: MOVE (copia, confere e só então tira) as mensagens com mais de 60 dias pra "ZicoAI Arquivo". Até 3 mil por vez. */
+function arquivarMensagens() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { ok: false, erro: 'ocupado' };
+  try {
+    const a = aba('mensagens');
+    const n = a.getLastRow();
+    if (n < 2) return { ok: true, movidas: 0 };
+    const corte = corteArquivo();
+    const vals = a.getRange(2, 1, Math.min(n - 1, 3000), ABAS.mensagens.length).getDisplayValues();
+    let qtd = 0;
+    while (qtd < vals.length && String(vals[qtd][1]).slice(0, 10) && String(vals[qtd][1]).slice(0, 10) < corte) qtd++;   // as antigas ficam no topo
+    if (!qtd) return { ok: true, movidas: 0 };
+    const dest = abaExtra('ZicoAI Arquivo', 'mensagens', true);
+    const antes = dest.getLastRow();
+    dest.getRange(antes + 1, 1, qtd, ABAS.mensagens.length).setValues(vals.slice(0, qtd).map(l => l.map(v => v === '' ? '' : "'" + v)));   // ' na frente: data e número continuam texto (igual na principal)
+    if (dest.getLastRow() !== antes + qtd) return { ok: false, erro: 'conferência do arquivo falhou; nada foi tirado da planilha principal' };
+    a.deleteRows(2, qtd);
+    try { aba('historico').appendRow(["'" + hoje(), 'mensagens', 'arquivo', qtd + ' mensagens de antes de ' + corte, 'ZicoAI Arquivo', 'arquivamento']); } catch (e) { /* ok */ }
+    return { ok: true, movidas: qtd };
+  } finally { lock.releaseLock(); }
+}
+
 function garantirRotinasTreino() {
   const c = CacheService.getScriptCache();
   if (c.get('rotinas_treino_ok')) return;
@@ -2940,7 +3034,16 @@ function garantirRotinasTreino() {
     const tem = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
     if (tem.indexOf('estudoNoturno') < 0) ScriptApp.newTrigger('estudoNoturno').timeBased().everyDays(1).atHour(1).create();
     if (tem.indexOf('placarDiario') < 0) ScriptApp.newTrigger('placarDiario').timeBased().everyDays(1).atHour(2).create();
+    if (tem.indexOf('arquivarMensagens') < 0) ScriptApp.newTrigger('arquivarMensagens').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(5).create();
+    // aprender sozinha: de 10 em 10 min pra 30 em 30 (uma vez só), pra sobrar tempo de rotina pros agentes e o estudo
+    const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('APRENDER_30') && tem.indexOf('aprenderSozinha') >= 0) {
+      ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'aprenderSozinha').forEach(t => ScriptApp.deleteTrigger(t));
+      ScriptApp.newTrigger('aprenderSozinha').timeBased().everyMinutes(30).create();
+      props.setProperty('APRENDER_30', '1');
+    }
     c.put('rotinas_treino_ok', '1', 21600);
+    if (!c.get('aulas_sync')) { try { sincronizarAulas(); } catch (e) { Logger.log('aulas: ' + e.message); } c.put('aulas_sync', '1', 21600); }
   } catch (e) { Logger.log('rotinas do treino: ' + e.message); }
 }
 

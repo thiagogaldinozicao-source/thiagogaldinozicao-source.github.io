@@ -59,11 +59,11 @@ ok(pl.length === 1 && pl[0].cerebro === 'Groq GPT-OSS 120B' && pl[0].tipos.lengt
 // rotinas novas ligam sozinhas
 const criados = [];
 const nt = H.ctx.ScriptApp.newTrigger;
-H.ctx.ScriptApp.newTrigger = fn => ({ timeBased: () => ({ everyDays: () => ({ atHour: h => ({ create: () => { criados.push(fn + '@' + h); } }) }) }) });
+H.ctx.ScriptApp.newTrigger = fn => ({ timeBased: () => ({ everyDays: () => ({ atHour: h => ({ create: () => { criados.push(fn + '@' + h); } }) }), onWeekDay: d => ({ atHour: h => ({ create: () => { criados.push(fn + '@' + d + h); } }) }) }) });
 H.ctx.garantirRotinasTreino();
-ok(criados.join() === 'estudoNoturno@1,placarDiario@2', 'estudo (1h) e placar (2h) ligados sozinhos: ' + criados.join());
+ok(criados.join() === 'estudoNoturno@1,placarDiario@2,arquivarMensagens@SUNDAY5', 'estudo (1h), placar (2h) e arquivo (domingo 5h) ligados sozinhos: ' + criados.join());
 H.ctx.garantirRotinasTreino();
-ok(criados.length === 2, 'não cria de novo (fica anotado no cache)');
+ok(criados.length === 3, 'não cria de novo (fica anotado no cache)');
 H.ctx.ScriptApp.newTrigger = nt;
 
 // resumo ao vivo: passos vão pro cache enquanto a resposta é montada

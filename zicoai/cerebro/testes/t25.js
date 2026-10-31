@@ -63,3 +63,17 @@ const ctx2 = vm.runInContext('contextoAulas("como ler código de barras pela câ
 ok(/\[B99\]/.test(ctx2) && /Conteúdo da B99 completo/.test(ctx2) && !/conteudo conteudo/.test(ctx2), 'Conteúdo lido só da aula escolhida');
 const t1 = Date.now(); vm.runInContext('aulasPara("scanner de imei pela câmera", 2)', H.ctx);
 ok(Date.now() - t1 <= ms + 50, 'segunda busca usa o índice do cache');
+
+// sincronizar aulas públicas do GitHub: atualiza pelo ID, acrescenta novas, não mexe nas privadas
+H.setFetch(u => /aulas\.json/.test(u) ? { getResponseCode: () => 200, getContentText: () => JSON.stringify([
+  ['B01', 'B', 'O padrão dos apps do Thiago', 'app, html', 'Regra NOVA do B01.', 'conteúdo novo', 'GitHub zicoai/aulas/B/B01-app-em-um-arquivo.md'],
+  ['A01', 'A', 'O método de trabalho', 'método, passo a passo', 'Entender, planejar, ler, mudar pouco, testar.', '', 'GitHub zicoai/aulas/A/A01-metodo.md'],
+  ['C06', 'C', 'TENTATIVA DE SOBRESCREVER PRIVADA', 'x', 'x', 'x', 'GitHub falso'],
+  ['=CMD', 'A', 'injeção', 'x', 'x', 'x', 'GitHub']
+]) } : json({}));
+const sync = vm.runInContext('sincronizarAulas()', H.ctx);
+ok(sync.ok && sync.atualizadas === 1 && sync.novas === 1, 'sincronizou: 1 atualizada, 1 nova (' + JSON.stringify(sync) + ')');
+ok(a.rows.find(l => l[0] === 'B01')[4] === 'Regra NOVA do B01.' && a.rows.some(l => l[0] === 'A01'), 'B01 atualizada e A01 acrescentada');
+ok(a.rows.find(l => l[0] === 'C06')[2] === 'Comparativo de celular pro cliente' && !a.rows.some(l => l[0] === '=CMD'), 'aula privada C06 intocada e ID estranho recusado');
+const sync2 = vm.runInContext('sincronizarAulas()', H.ctx);
+ok(sync2.atualizadas === 0 && sync2.novas === 0, 'rodar de novo não muda nada');

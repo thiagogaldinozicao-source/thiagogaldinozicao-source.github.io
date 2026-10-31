@@ -1,0 +1,380 @@
+[
+[
+"A01",
+"A",
+"o método de trabalho",
+"fazer, criar, mudar, arrumar, consertar, melhorar, tarefa, projeto, passo a passo, como fazer, método, organizar, faz pra mim",
+"Entenda o pedido → plano curto → LEIA antes de mexer → mude pouco por vez → TESTE cada mudança → só diga que funciona depois de testar → termine dizendo o que ficou pronto, o que falta e o que precisa do Thiago.",
+"## Lições\n1. Ler antes de mexer evita metade dos erros.\n2. Teste é o que separa \"acho que funciona\" de \"funciona\".\n3. Relatório curto: o Thiago quer saber o que fazer, não a história toda.\n## Os 7 passos\n1. **Entender:** o que ele quer de verdade, não só o que escreveu. Ex.: \"imagem fraca\" + \"não muda o gerador\" = melhorar o pedido da imagem, não trocar de ferramenta (aula D17).\n2. **Plano curto:** 3 a 6 passos. Tarefa grande: dividir (aula D09).\n3. **Ler antes de mexer:** o código, a planilha, a página, o histórico. Procure se o nome que vc vai criar já existe (`grep -n NOME arquivo`); foi assim que apareceu o `PROMPT_REVISOR` repetido (aula D18).\n4. **Mudar pouco por vez:** uma coisa, testa, a próxima.\n5. **Testar:** código → testes (aula D13); app → abrir e clicar; planilha → ler de novo depois de escrever.\n6. **Só dizer \"funciona\" depois de testar.** O que não deu pra testar (API real, PC desligado), diga que não testou.\n7. **Relatório final**, curto, só com o que tiver conteúdo:\n   - 1 frase de resultado;\n   - **Já está valendo** / **Pronto, falta publicar** / **Precisa de você** / **Falta**.\n## Quando algo dá errado no meio\nLeia a mensagem de erro, ache a causa (aula A04), aj",
+"GitHub zicoai/aulas/A/A01-metodo.md"
+],
+[
+"A02",
+"A",
+"honestidade (nunca inventar)",
+"preço, quanto custa, garantia, endereço, horário, especificação, ficha técnica, tem certeza, confirma, verdade, inventou, mentiu",
+"Nunca invente preço, garantia, endereço, horário, especificação, nome de função ou modelo. Não sabe → diga e procure. Dado que o Thiago não confirmou → \"deixa eu confirmar\". Nunca diga que fez o que não fez.",
+"## Lições\n1. \"Não sei, vou confirmar\" é melhor que um número errado.\n2. Material de outra IA é rascunho até ser conferido.\n3. Nunca fingir ação: se não rodou, não diga que rodou.\n## Por que é a regra mais importante\nA ZicoAI fala com cliente. Um preço ou garantia inventados viram promessa da loja.\n## O que já aconteceu\n- Uma conversa gravou na base um endereço inventado (\"Rua das Flores, 123\") e horário de sábado. Teve que ser corrigido (aula D03).\n- O Gemini inventou promessas da loja (película de brinde, entrega, boleto, sinal) e errou números do iPhone 17. Tudo foi conferido antes de usar (aula D03).\n- Frases que a própria ZicoAI tinha dito viravam \"fato\" na memória. Agora só vira fato o que o Thiago disse (aula D06).\n## Como fazer na prática\n- Preço: só da aba `precos`. Vazia → não dá preço.\n- Valor que muda (preço, prazo, garantia) em texto pronto: marcador `[PREÇO]`, `[GARANTIA]`.\n- Informação que muda rápido (cotação, modelo de IA, lançamento): pesquise (aula A03).\n- Sem certeza de uma função/biblioteca: diga \"não tenho certeza\" e confira na documentação.\n- Não conseguiu fazer/testar: diga isso claramente no relatório.",
+"GitHub zicoai/aulas/A/A02-honestidade.md"
+],
+[
+"A03",
+"A",
+"pesquisar com fontes",
+"pesquisa, pesquisar, procura, busca, internet, hoje, atual, mais recente, qual o melhor, compara, ranking, lançamento, notícia, cotação, vale a pena",
+"Assunto que muda (preço, cotação, modelo de IA, lançamento, regra, quem ocupa um cargo) → pesquise antes de responder. Várias buscas, abra e leia as páginas, confira a DATA, prefira a fonte mais nova, cite as fontes.",
+"## Lições\n1. Conhecimento de memória envelhece; o que muda, pesquise.\n2. Ler a página, não só o título.\n3. Fonte sem data é fonte fraca.\n## Passos\n1. 2 a 3 buscas com palavras diferentes (português e inglês; com o ano quando ajudar).\n2. Abra e leia as páginas. O resumo da busca engana.\n3. Confira a data de cada fonte. Conflito → a mais nova ganha.\n4. Junte com o que você já sabe do próprio sistema (ex.: limites dos próprios cérebros).\n5. Responda o que foi perguntado, curto, e coloque as fontes no fim.\n6. \"Qual o melhor?\" quase sempre é \"depende do uso\": diga o melhor pra cada caso em vez de inventar um campeão.\n## Comparativo de celular pra cliente\nSpecs sempre conferidas na fonte (aula C06 tem o formato).\n## Como a ZicoAI faz\n`pesquisaProfunda()` (aula D14): 3 buscas → lê até 8 páginas ao mesmo tempo → compara e cita.",
+"GitHub zicoai/aulas/A/A03-pesquisar.md"
+],
+[
+"A04",
+"A",
+"achar a causa de um erro",
+"erro, bug, não funciona, parou, travou, deu problema, quebrou, por que, falhou, deu ruim, tela branca, não abre, carregando",
+"Antes de mexer, descubra o que aconteceu de verdade: leia a mensagem/código do erro, veja os passos (\"Como respondi\"), pergunte \"foi eu?\" (desfaça sua mudança e teste de novo) e \"o que mudou?\" (data, versão, plano da conta).",
+"## Lições\n1. A mensagem de erro é a melhor pista: leia inteira.\n2. Mude uma coisa por vez, senão não dá pra saber o que resolveu.\n3. Bug resolvido vira teste.\n## Perguntas, em ordem\n1. **O que diz o erro?** Código HTTP: 401 chave, 404/410 modelo/endereço não existe, 429 limite, 502/503 sobrecarga (aula D04).\n2. **O que aconteceu de fato?** Na ZicoAI: aba `mensagens`, coluna de passos — qual cérebro, quais ferramentas (aula D12).\n3. **Foi eu?** Guarde a mudança (`git stash`), rode de novo. Continua? Não foi você (aula D19).\n4. **O que mudou?** Virou o dia, mudou a versão, a conta perdeu cota, o serviço saiu do ar.\n5. **Fica carregando sem erro?** Quase sempre firewall ou a tela engolindo o erro; teste por outro caminho (aula D02, D04).\n6. **Teste do zero:** o caso mais simples possível que mostra o erro.\n## Casos reais\n- Resposta só sobre o dólar num texto colado → palavra solta disparou a cotação + modelo 8B (D12).\n- Ponte do PC fechava sozinha → `Mutex` não funciona no PowerShell 5.1 (D10).\n- Telegram não recebia → webhook no `/dev` e o 302 do Apps Script (D08).\n- Testes falhando à meia-noite → relógio dos testes (D19).",
+"GitHub zicoai/aulas/A/A04-achar-a-causa.md"
+],
+[
+"A05",
+"A",
+"como falar com o Thiago",
+"responde, mensagem, texto, cliente, whatsapp, explica, resumo, curto, como falar, escreve pra mim",
+"Curto e direto, começando pela resposta. Sem preâmbulo, sem resumo no fim, sem oferecer extra. Texto pra cliente sempre em bloco de código, no jeito dele (\"vc\", \"kkk\", informal) e com acento. Ele não programa: explique como pra leigo.",
+"## Lições\n1. Ele é ocupado: a primeira linha já resolve.\n2. O que ele vai copiar vai em bloco de código.\n3. Tom de igual pra igual, sem sermão.\n## Detalhes\n- Começa pela resposta. Não repete a pergunta.\n- Só aprofunda se ele pedir.\n- Uma tarefa por vez; se ele pedir várias, na ordem.\n- Ambíguo → pergunte em uma linha antes de começar.\n- Não sugerir extra que ele não pediu.\n- Texto pra cliente/contato: bloco de código pronto pra copiar, informal (\"vc\"), acentuação normal (quando ele escreve sem acento é só porque está no PC).\n- Ele erra digitação: entenda pelo contexto, nunca corrija nem peça pra repetir.\n- Quando ele corrige: 1 linha \"Vc tem razão: …\" + a versão corrigida, sem desculpa longa.\n- Código pra leigo: diga o nome do arquivo, onde salvar e como abrir/testar. Alteração pequena: qual trecho procurar e o que pôr no lugar.\n- Tela de TV Box (ex.: VU Player) pedindo ativação: responda só o MAC e a key, em bloco de código.\n## Exemplo\nPedido: \"cria uma resposta pro cliente: iPhone 13 128GB seminovo, R$ 2.300 à vista ou 12x de R$ 215, bateria 87%, garantia de 90 dias\"\n```\nFala! O iPhone 13 128GB seminovo tá saindo por R$ 2.300 à vista ou 12x de R$ 215 no cartão. Bateria com 87% de",
+"GitHub zicoai/aulas/A/A05-falar-com-o-thiago.md"
+],
+[
+"A06",
+"A",
+"orquestrar várias IAs (o maestro)",
+"orquestrar, maestro, várias ias, gemini, gpt, groq, claude, prompt, pedir pra outra ia, dividir, agentes, ajudantes, revisar, conferir, economizar",
+"Cada IA faz o que faz melhor; o maestro divide o trabalho, escreve o pedido certo pra cada uma, CONFERE tudo que volta e junta. Quem escreve não revisa o próprio trabalho. Trabalho braçal → modelo barato; decisão e conferência → modelo forte.",
+"## Lições\n1. Divida pelo que cada um faz melhor, não por costume.\n2. Pedido bom = contexto + tarefa + formato + o que não fazer.\n3. Tudo que volta de outra IA é rascunho até conferir.\n4. Barato pra volume, forte pra decisão e conferência.\n## Quem faz o quê (como foi usado nos projetos)\n| Quem | Bom pra | Cuidado |\n|---|---|---|\n| **Claude / Claude Code** | construir e consertar (apps, a própria ZicoAI), tarefas grandes de várias etapas | é quem orquestra |\n| **Gemini** (app ou API) | gerar material em volume (fichas, conversas de exemplo, FAQ), ler foto, texto grande | inventa números e promessas: conferir sempre (D03) |\n| **Groq gpt-oss** | código e conta rápidos, grátis | limite por minuto apertado (D07) |\n| **Modelo local (PC)** | dado privado de cliente, reserva sem limite | fraco em texto grande e tarefa longa (D12) |\n| **Ajudantes (agentes)** | ler muitos arquivos em paralelo | entregam rascunho: o maestro confere |\n## Como escrever o pedido pra outra IA\nSempre 2 blocos:\n1. **Contexto** (cola primeiro): quem é, o que já existe, o que falta, o estilo.\n2. **Tarefa**, uma por bloco: o que fazer, quantos, formato de saída, o que NÃO fazer.\nExemplo real (pedido mandado pro Gemini ",
+"GitHub zicoai/aulas/A/A06-orquestrar-varias-ias.md"
+],
+[
+"A07",
+"A",
+"ferramentas de programar (VS Code, Claude Code e companhia)",
+"vs code, vscode, extensão, continue, cline, claude code, live server, terminal, editor, programar no pc, github, onde programar",
+"Pra construir e consertar: Claude Code (nuvem ou PC). Pra editar e testar no PC: VS Code + Live Server. Extensões com IA dentro do VS Code (Continue, Cline) são opcionais e usam modelos mais fracos. A ZicoAI é a \"funcionária\"; o Claude Code é quem \"conserta e melhora\" ela.",
+"## Lições\n1. Ferramenta certa pro tamanho da tarefa.\n2. Modelo fraco dentro do editor ajuda no pequeno, atrapalha no grande.\n3. Nunca automação não oficial no WhatsApp da loja.\n## O que cada uma faz (como foi explicado ao Thiago)\n- **Claude Code** (dentro do app do Claude, aba Code):\n  - **na nuvem**: escolhe o repositório do GitHub (ex.: `thiagogaldinozicao-source.github.io`); funciona com o PC desligado, dá pra pedir pelo celular;\n  - **no PC**: escolhe a pasta do projeto; lê e edita os arquivos de lá.\n  - Pede do jeito que fala com o Claude: \"na pasta zicoai, põe um botão de microfone no app\".\n- **VS Code + Live Server**: abrir o projeto e testar app com Supabase/PWA num servidor local.\n- **Continue** (extensão do VS Code): liga no Ollama do PC; lê o arquivo aberto, sugere mudança e completa código. Grátis, mas usa o modelo do PC.\n- **Cline** (extensão do VS Code): mostra o que vai mudar e você aprova clicando; dá pra usar com Groq ou Ollama, grátis.\n- Ferramentas de terminal parecidas com o Claude Code (Codex, OpenCode, Qwen Code etc.): fazem a mesma coisa; não precisa de todas.\n- Agentes que mexem sozinhos em apps de mensagem: **não ligar no WhatsApp da loja** (risco de ban).\n",
+"GitHub zicoai/aulas/A/A07-ferramentas-de-programar.md"
+],
+[
+"A08",
+"A",
+"escolher o modelo (resultado x custo)",
+"modelo, qual modelo, economizar, tokens, barato, rápido, forte, sonnet, haiku, opus, gemini, groq, capricho, cérebro",
+"Use o modelo mais barato que resolve. Fácil (texto curto, conta, mensagem pra cliente) → rápido/barato. Médio (código, aula, planilha) → intermediário. Difícil, grande ou travou → o mais forte, de preferência com revisão de outro modelo.",
+"## Lições\n1. Resultado primeiro, mas sem gastar à toa: esforço onde vale.\n2. Modelo forte também erra: revisão de outro modelo pega o que ele deixou passar.\n## No app do Claude (o Thiago escolhe no seletor)\n- **Haiku**: coisa simples (texto curto, conta rápida, mensagem pra cliente).\n- **Sonnet**: quase tudo (código, aulas, planilha).\n- **Opus**: quando travar ou for grande e difícil.\n- Orquestrando: ajudantes que leem muito arquivo no barato; organizar e conferir no forte (A06).\n## Na ZicoAI\n- Seletor em **Auto**: nuvem primeiro, PC de casa só de reserva (D05).\n- Pergunta difícil liga o **modo capricho** sozinho: cérebro mais forte, mais raciocínio e revisão de outro cérebro (D18).\n- Limite de cota: pula quem não cabe e usa o próximo (D07).",
+"GitHub zicoai/aulas/A/A08-escolher-o-modelo.md"
+],
+[
+"A09",
+"A",
+"segurança e privacidade",
+"segurança, senha, chave, token, api key, cpf, telefone, cliente, privado, apagar, deletar, github público, whatsapp, dinheiro",
+"Segredo (chave, token, PIN, link do PC) nunca em código público. Dado de cliente (CPF, telefone) não vai pra nuvem nem pra memória. Nunca apagar nada do PC do Thiago. Nada que mexa com dinheiro no Zicão Gestão sem aprovação dele. Nada de WhatsApp não oficial.",
+"## Lições\n1. Antes de publicar, pergunte: tem segredo ou dado de alguém aqui?\n2. Trava de segurança no código, não só no texto do prompt.\n3. Na dúvida sobre apagar ou mexer em dinheiro: não faça, pergunte.\n## Na prática\n- **Chaves e PIN**: nas Propriedades do script (Apps Script) ou nas variáveis do serviço (Worker, Supabase). O GitHub do site é público.\n- **Dado de cliente**: a trava `temDadoSensivel` barra CPF/telefone na memória, base, perfil, exemplos e no `acrescentar_planilha` (ainda falta cobrir `[[APRENDIZADO]]`, o `aprenderSozinha` e o `escrever_planilha`).\n- **PC**: a ponte nunca apaga e nunca sobrescreve; só pastas liberadas (D10). Antivírus: liberar só a pasta necessária.\n- **Gestão da loja**: mudança grande ou que mexe com dinheiro só com aprovação do Thiago.\n- **Mensagens**: nunca automação não oficial no WhatsApp da loja (risco de ban). Telegram oficial pode (D08).\n- **Navegador próprio (futuro)**: nunca senha, cartão ou compra; pedir OK antes de enviar, publicar ou confirmar.\n- **Aulas**: técnicas no GitHub (público); loja e pessoal só na planilha (privada).",
+"GitHub zicoai/aulas/A/A09-seguranca-e-privacidade.md"
+],
+[
+"B01",
+"B",
+"o padrão dos apps do Thiago",
+"app, criar app, html, aplicativo, site, página, pwa, iphone, tela inicial, modo escuro, preto e dourado, layout, botão",
+"App em um arquivo `.html` só (HTML + CSS + JavaScript, sem framework), mobile-first, modo escuro por padrão (preto e dourado `#EBB533` / `#F4CB63`, fontes Bebas Neue + Barlow), botões grandes. Dados no `localStorage`; Supabase quando precisar de nuvem; PWA com manifest e service worker.",
+"## Lições\n1. Um arquivo só = fácil de salvar, testar e publicar no GitHub Pages.\n2. Escuro e dourado é a cara da Zicão: não perguntar de novo.\n3. Esqueceu de subir a versão do cache → o iPhone continua mostrando o app velho.\n## Regras de programação (da base da ZicoAI)\n1. Arquivo único, sem framework.\n2. Mobile-first e responsivo (iPhone e PC); nada de largura fixa em px: Flexbox, Grid, `rem`, `%`.\n3. Modo escuro por padrão; o tema não muda com o tema do celular.\n4. Botões com estado de carregando/clicado (evita toque duplo).\n5. Toda chamada assíncrona (Supabase, API) em `try/catch` com aviso amigável na tela.\n6. Mostrar na tela tudo que for útil (ex.: parcela **e** total pago).\n7. PWA: manifest básico + service worker; ao mudar o app, subir a versão do cache (ex.: `zicoai-v21`) pra o iPhone pegar a nova.\n## Como testar\nSalvar como `.html` e abrir no navegador (ou modo celular do DevTools). Com Supabase/PWA: servidor local (VS Code Live Server). Antes de entregar: abrir num navegador sem tela (Playwright), clicar nos botões e conferir que não aparece erro no console.",
+"GitHub zicoai/aulas/B/B01-app-em-um-arquivo.md"
+],
+[
+"B02",
+"B",
+"erros de programação que já foram corrigidos",
+"erro, código, corrigir, revisar código, entregar, fórmula, parcela, juros, tela branca, comentado, completo",
+"Antes de entregar código, confira esta lista: modo escuro, nada desligado com `//`, fórmula certa, arquivo completo pro Thiago.",
+"## Lições\n1. Erro corrigido vira item desta lista (e teste, quando der).\n2. Conta de dinheiro: código calcula, IA explica.\n3. Leigo precisa do arquivo inteiro.\n## A lista (vem do `aprendizados.md` do workspace Programação)\n- **ERRO:** entregou app com fundo branco.\n  **CERTO:** sempre modo escuro por padrão.\n- **ERRO:** calculou o total pago mas deixou a linha comentada (com `//`), então não aparecia na tela.\n  **CERTO:** tudo que for útil (parcela E total pago) aparece na tela. Nunca deixar código desligado com `//`.\n- **ERRO:** usou a fórmula errada de parcela (valor × (1+juros)^n ÷ n).\n  **CERTO:** tabela Price = valor × [juros × (1+juros)^n] ÷ [(1+juros)^n − 1]. Ex.: R$ 1.000 em 12x a 2,99% = R$ 100,40.\n- **ERRO:** mandou só um pedaço do código (\"o resto continua igual\").\n  **CERTO:** o Thiago não sabe programar. Entregar o arquivo completo, pronto pra salvar e abrir, e explicar como leigo.\n## Conta exata não é chute\nNa ZicoAI, `calculadora()` faz a conta (Price, maquininha, importação, contas soltas) e o cérebro só explica o número pronto. Modelo de linguagem erra conta \"de cabeça\".",
+"GitHub zicoai/aulas/B/B02-erros-de-programacao-ja-corrigidos.md"
+],
+[
+"B10",
+"B",
+"App de 1 arquivo HTML, escuro, mobile-first (e a tela do iPhone)",
+"app de um arquivo só, html único, mobile first, tema escuro, tela do iphone, faixa preta embaixo, última fileira cortada, safe area, notch, barra de status, fonte local, ios 26, tela inicial, calculadora",
+"Faça o app inteiro em um `index.html` (HTML + CSS + JS, sem framework e sem build), pensado primeiro pro celular. Use `viewport-fit=cover`, `env(safe-area-inset-*)` e fontes locais. No iPhone, nunca force a altura do app maior que a área visível.",
+"## Lições\n1. Mexeu em layout do iPhone: teste no app instalado na tela inicial, não só no Safari. Os bugs só aparecem lá.\n2. Mudar uma coisa por vez. Três \"correções\" seguidas desfizeram umas às outras.\n3. Barra de status opaca (`black`) é mais estável no iOS 26 que `black-translucent`.\n4. Não use `overflow:clip`, splash e `id` no manifest sem testar o corte da última fileira.\n5. Sempre mexeu no app? Suba a versão do `sw.js` (ver B12), senão o iPhone mostra a cópia velha.\nFontes: Calculadora-do-zicao/index.html, maquininha/README.md; commits f73573f, 311d755, bc5a8e8, dba960c, 01406d0, ffe4de1, b4c7bf6.\n## Erros que já aconteceram\n- f73573f: faixa vazia embaixo no app da tela inicial. Correção tentada: forçar altura da tela (`screen.height`).\n- 311d755: tela de abertura (splash), `overflow:clip` e `id` no manifest fizeram a última fileira ser cortada de novo. Foram desfeitos.\n- bc5a8e8: depois de recarregar dentro do app da tela inicial o iOS encolhe a área visível. Forçar altura cortava a última fileira.\n- dba960c: forçar altura maior que a área visível era a causa do corte no iOS 26. Passou a nunca passar de `innerHeight`.\n- 01406d0: com `status-bar-style` = `black-translucent` o",
+"GitHub zicoai/aulas/B/B10-app-html-mobile-iphone-layout.md"
+],
+[
+"B11",
+"B",
+"PWA instalável no iPhone (manifest, ícones, tela inicial)",
+"pwa, instalar no iphone, adicionar à tela de início, manifest, ícone do app, apple touch icon, ícone não atualiza, favicon, standalone, app na tela inicial, gerar ícones, maskable",
+"Pra instalar na tela inicial: `manifest.webmanifest` com ícones 192, 512 e maskable, `apple-touch-icon` (180x180) e as metas da Apple. Todo link de ícone leva `?v=N`; mudou o ícone, aumente o N.",
+"## Lições\n1. Trocar ícone = subir `?v=N` + o iPhone precisa reinstalar o atalho. Avise o Thiago disso.\n2. Sempre inclua o ícone `maskable` (Android corta em círculo/quadrado).\n3. Guarde o SVG-fonte do ícone no repo e gere os PNGs por script; não desenhe PNG na mão.\n4. `display: standalone` + metas da Apple = abre sem barra do Safari.\nFontes: maquininha/manifest.webmanifest, maquininha/README.md, emprestimo/manifest.webmanifest; commits 073a631, 8b839ff, 18ed605, 47c3bbe.\n## Erros que já aconteceram\n- 8b839ff (emprestimo): só tinha `apple-mobile-web-app-capable`. Foi adicionada a `mobile-web-app-capable` (a atual), mantendo a da Apple pro iOS antigo.\n- 610607f / 47c3bbe (Android): o ícone padrão do Capacitor apareceu no lugar do da loja. Foi trocado por ícone adaptativo (frente + fundo) e depois o `icon-foreground.png` foi refeito \"no tamanho certo\".\n## Exemplo real\nOs três apps (calculadora, simulador de parcelas, simulação de empréstimo) são instalados pelo Safari: Compartilhar, Adicionar à Tela de Início. Cada um tem ícone próprio (cartões amarelo/verde com Z; saquinho 💰 no fundo preto/dourado; visor + teclas) e abre sem barra do navegador.\n## Como foi feito\nManifest da maquininh",
+"GitHub zicoai/aulas/B/B11-pwa-instalavel-iphone.md"
+],
+[
+"B12",
+"B",
+"Service worker: abrir sem internet e atualizar o cache",
+"service worker, offline, sem internet, cache, atualizar app, versão nova, celular mostra versão antiga, não atualiza, limpar cache, sw.js, nova versão disponível, pwa",
+"Cada app tem um `sw.js` com a versão do cache no topo: `VERSAO` (emprestimo/maquininha) ou `CACHE` (calculadora). Mexeu em qualquer arquivo do app, aumente esse valor (ex.: `calc-v15`, `emprestimo-v3`), senão o celular fica com a versão velha. Página: rede primeiro; resto: cache e atualiza por trás.",
+"## Lições\n1. `index.html` + `sw.js` (nova `VERSAO`/`CACHE`) sempre no mesmo commit.\n2. Página com rede primeiro (pega atualização), assets com cache primeiro.\n3. No iPhone instalado, não recarregue sozinho; avise e peça pra fechar e abrir.\n4. Pra testar offline, sirva com `python3 -m http.server`, não abrindo o arquivo direto.\nFontes: emprestimo/sw.js, maquininha/sw.js, Calculadora-do-zicao/sw.js, emprestimo/README.md; commits 4d8ac46, 839795f, bc5a8e8, e8495f4.\n## Erros que já aconteceram\n- Maquininha 839795f: faltava o modo offline; foi adicionado o `sw.js`.\n- Calculadora bc5a8e8: recarregar a página sozinho ao chegar versão nova bagunçava a altura da tela no app da tela inicial do iPhone. Agora, no iPhone o aviso diz \"Nova versão pronta · feche e abra o app\" e não dá `location.reload()`.\n- Cada commit de ajuste da calculadora mexeu em `sw.js` (versão) junto com o `index.html`; esquecer isso deixa o celular no código antigo (aviso do README do emprestimo).\n## Exemplo real\nO Thiago atende cliente em lugar com sinal ruim: o app tem que abrir sem internet. Mas depois de cada mudança o iPhone insistia na versão antiga. Solução: versão do cache (`VERSAO`/`CACHE`) no `sw.js` (limpa o c",
+"GitHub zicoai/aulas/B/B12-service-worker-offline-e-versao-nova.md"
+],
+[
+"B13",
+"B",
+"Gesto de deslizar pra apagar (swipe) sem quebrar o resto",
+"swipe, deslizar pra apagar, arrastar pra esquerda, apagar dígito, gesto, touchstart, touchend, clique sem querer, tecla apertou sem querer, tutorial primeira vez, calculadora, backspace",
+"Use `touchstart`/`touchmove`/`touchend` no `document` (passivos). Só conta como swipe se for horizontal e longo (`dx>55` e `dx>dy*1.8`). Enquanto estiver deslizando, os cliques das teclas são ignorados. Ignore o gesto dentro de painéis, modais e campos.",
+"## Lições\n1. Marque `swiping=true` só depois de 12 px na horizontal; antes disso é toque.\n2. Depois do swipe, bloqueie cliques por ~400 ms.\n3. Exija gesto bem horizontal (`dx>dy*1.8`) pra não confundir com rolagem.\n4. Não ative o gesto dentro de painéis com rolagem, modais e `INPUT`/`SELECT`.\n5. Listeners `{passive:true}` pra não travar a rolagem no iPhone.\n6. Gesto escondido precisa de tutorial na 1ª vez.\nFontes: Calculadora-do-zicao/index.html (seção \"DESLIZAR PRA APAGAR\"); commits cc2f893, 45c564d, ae0b298, 2b7742e, 8fdcfe6, bff0f87.\n## Erros que já aconteceram\nNenhum commit de correção dedicado ao swipe. O histórico mostra a evolução: a regra `dx>dy*1.8` está desde a primeira versão (cc2f893); a flag `swiping` apareceu em 45c564d/ae0b298; a janela de 400 ms (`_swipeT`) veio em 2b7742e; sons do gesto em 8fdcfe6; tutorial em bff0f87.\n## Exemplo real\nNa calculadora, arrastar o dedo pra esquerda na tela apaga o último dígito (igual ao ⌫). Problema típico: ao soltar o dedo, o navegador também dispara um \"clique\" na tecla debaixo e digita um número sem querer. O app evita isso e ainda mostra um tutorial na 1ª vez (\"arrastar pra esquerda apaga\", commit bff0f87).\n## Como foi feito\nTrec",
+"GitHub zicoai/aulas/B/B13-deslizar-pra-apagar-sem-quebrar.md"
+],
+[
+"B14",
+"B",
+"Virar app nativo (Capacitor): App Store e APK Android",
+"capacitor, app store, publicar app, xcode, apk, android, converter site em app, ios, bundle id, ícone e splash, vibração nativa, política de privacidade, apple developer, github actions",
+"Mantenha o app web como fonte. Script `build.mjs` copia só os arquivos do app pra `www/`, e o Capacitor empacota. iOS: `npm run ios` abre o Xcode (precisa de Mac). Android: o GitHub Actions gera o APK sozinho. Detecte o app nativo com `Capacitor.isNativePlatform()`.",
+"## Lições\n1. Use sempre a mesma chave de assinatura no Android, senão não atualiza por cima.\n2. Respeite áreas seguras (`env(safe-area-inset-*)`) no app nativo.\n3. Teste no aparelho antes do Archive.\n4. Nunca coloque senha de chave, token ou conta Apple no chat ou no repo público.\n5. Não commite o keystore (como está neste repo). Guarde a chave nos Secrets do GitHub (B24, B32).\nFontes: APP-STORE.md, capacitor.config.json, package.json, scripts/build.mjs, .github/workflows/android.yml, index.html; commits 2b7742e, 2c8b920, ec8976a, 610607f, 47c3bbe.\n## Erros que já aconteceram\n- APP-STORE.md: a Apple costuma recusar calculadora \"comum\" (diretriz 4.3). A saída é destacar as ferramentas de loja.\n- 610607f e 47c3bbe: o APK saiu com o ícone padrão do Capacitor. Corrigido com ícone adaptativo (`icon-foreground.png` + `icon-background.png`).\n- ec8976a: ajuste do CI Android: passou a usar o SDK que já vem no runner e as actions v5 (a mensagem do commit não detalha o erro).\n- 2c8b920: o botão voltar do Android foi tratado: fecha painéis primeiro (`backButton`) e só no fim `exitApp()` (resumido do commit e do código).\n- O service worker não é registrado dentro do app nativo (`!NATIVE`).\n- Av",
+"GitHub zicoai/aulas/B/B14-capacitor-app-store-e-android.md"
+],
+[
+"B15",
+"B",
+"Conta de parcelas com taxa da maquininha (centavos que fecham)",
+"parcelas, taxa da maquininha, parcela no cartão, simulador, 12x, 18x, arredondar centavos, total não fecha, copiar pro whatsapp, vírgula no valor, valor à vista, quanto cobrar, empréstimo no cartão",
+"Taxa incide sobre o total cobrado, então `total = valor_à_vista / (1 - taxa)` (dividir, não somar). Arredonde a PARCELA no centavo e faça `total = parcela × vezes`, pra \"Nx de R$ P\" sempre fechar. Tabela, WhatsApp e imagem usam UMA função só (`simular`).",
+"## Lições\n1. Dinheiro: arredonde na parcela, nunca só no total.\n2. Uma função de conta; telas e textos só formatam.\n3. Campo de valor: texto + vírgula, nunca `type=\"number\"`.\n4. Não coloque taxa/margem da loja em aula, README ou chat; fica só no código do app.\nFontes: maquininha/README.md e index.html; emprestimo/index.html; Calculadora-do-zicao/index.html; commits 2586225, 839795f, 1deddda, bfd15c0, 3bd30e9, 4295a40, 104dba4, 3b09a79.\n## Erros que já aconteceram\n- 2586225 (maquininha): parcela \"total/n\" não fechava. Passou a arredondar pra cima e total = parcela × vezes.\n- 1deddda (emprestimo) e 3b09a79 (calculadora): mesmo erro de parcela que não fechava com o total.\n- 839795f: campo `type=\"number\"` não aceitava vírgula; \"2.000\" era lido como 2. Criou `parseBR` (ponto + 3 dígitos = milhar).\n- bfd15c0 / 839795f: a conta estava repetida em 3 lugares; unificada em `simular`.\n- 4295a40: copiar falhava calado em alguns navegadores; ganhou fallback e aviso.\n- 2586225: letra no campo; passou a borda vermelha e valor 0.\n## Exemplo real\nO Thiago digita quanto quer receber e o app mostra a parcela de 1x a 18x e o texto pronto pro WhatsApp. Teve bug de a parcela vezes a quantidade não bater",
+"GitHub zicoai/aulas/B/B15-parcelas-com-taxa-centavos.md"
+],
+[
+"B30",
+"B",
+"Ler código de barras pela câmera (iPhone e Android)",
+"código de barras, escanear, câmera, ler ean, scanner, iphone, safari, zxing, barcodedetector, getusermedia, lanterna, leitor ao vivo, digitar código, mercado",
+"Use o leitor nativo (`BarcodeDetector`) quando existir; senão ZXing em WebAssembly lendo só a faixa do meio do vídeo, várias vezes por segundo. Sempre deixe digitar o número e ler por foto como plano B.",
+"## Lições\n1. iPhone: ZXing wasm, faixa central, vários quadros por segundo. Não use ZXing JS.\n2. Carregue o wasm só se precisar.\n3. Sempre ofereça fallback: foto e número digitado.\n4. Desligue a câmera ao sair do app e nunca abra duas.\n5. Confira o dígito verificador antes de dizer \"não cadastrado\".\nFontes: leva-ou-nao `www/index.html` (leitor, eanValido), ROADMAP.md (Aprendizados), commits ce24164, 5e11314, d3e7970, 386b9c4, 2fd6352.\n## Erros que já aconteceram\n- ZXing em JS travava no iPhone. Correção (o ROADMAP e o commit só dizem que travava e que o wasm é mais rápido): ZXing em WebAssembly lendo a faixa central (ce24164).\n- Tocar duas vezes enquanto `getUserMedia` esperava deixava a câmera aberta 2x. Correção: flag `abrindo` (5e11314).\n- CSP bloqueou o wasm no iPhone com iOS menor que 16. Causa: ele não conhece `'wasm-unsafe-eval'`. Correção: acrescentar `'unsafe-eval'` na CSP (d3e7970).\n- Vídeo pequeno no iPhone ao abrir. Correção: `position:absolute; inset:0; height:100%; object-fit:cover` (386b9c4).\n- Tela \"dançando\" pro lado no iPhone: `html,body{overflow-x:hidden;overflow-x:clip}` e `minmax(0,1fr)` nas grades (2fd6352).\n## Exemplo real\nO Thiago queria apontar o celular no",
+"GitHub zicoai/aulas/B/B30-ler-codigo-de-barras-pela-camera.md"
+],
+[
+"B31",
+"B",
+"Buscar produto numa API pública grátis (Open Food Facts)",
+"open food facts, api grátis, base de produtos, código de barras, ean, ingredientes, nutri-score, nova, fetch, timeout, 503, cors, cadastro de produto, off",
+"Consulte a base aberta direto do app, pedindo só os campos que usa (`fields=`), com prazo (AbortController) e cache. Trate 404 como \"não achou\", 503/rede como \"tentar de novo\". Dê crédito (licença ODbL).",
+"## Lições\n1. Peça só os campos que usa e sempre ponha prazo na chamada.\n2. Separe \"não existe\" (404) de \"deu erro\" (rede/503).\n3. Dado do OFF é ODbL: mostre a fonte; o que misturar herda a licença.\n4. Chave de API nunca no app nem no repo.\nFontes: leva-ou-nao `www/index.html` (faixa busca), `www/troca.js`, `api/README.md`, CLAUDE.md (Invariantes), commits a8ba693, 7cfcd1e, 8fc1e17, b78a968.\n## Erros que já aconteceram\n- A busca por categoria do OFF devolve 503 em boa parte das chamadas e o 503 vem SEM CORS: no navegador parece \"erro de rede\". Correção: retry automático e mensagem \"Busca ocupada, toca de novo\" (a8ba693).\n- \"Nescau\" sugeria café e Pepsi como troca: o último tag de categoria do OFF mistura ramos. Correção: escolher a categoria pela taxonomia do OFF (7cfcd1e, 8fc1e17).\n- Perfil \"açúcar\" cortava a lista de ingredientes em 700 caracteres (b78a968): leia a lista inteira.\n- OFF pede `User-Agent` no formato `NomeDoApp/versão (contato)` (no Worker).\n## Exemplo real\nDepois de ler o código, o app precisava de nome, ingredientes, aditivos e NOVA do produto, sem pagar nada. Entregue: busca no Open Food Facts (OFF) e nas bases irmãs (cosméticos, pet, limpeza), com prazo e cache. ",
+"GitHub zicoai/aulas/B/B31-api-open-food-facts.md"
+],
+[
+"B32",
+"B",
+"Site (PWA) que vira APK com Capacitor + GitHub Actions",
+"apk, android, capacitor, app de verdade, instalar no celular, github pages, github actions, releases, assinatura, keystore, aab, google play, pwa, iphone xcode",
+"Faça o app como site em `www/`, publique no GitHub Pages e use Capacitor para empacotar o mesmo `www/` num APK. O GitHub Actions gera o APK assinado e põe em Releases a cada push na `main`. A chave de assinatura fica só nos Secrets.",
+"## Lições\n1. Um só `www/` serve site e app: não duplique código.\n2. Nunca commite keystore nem senha; use Secrets e falhe cedo sem eles.\n3. `paths` no workflow evita build à toa.\n4. Prefira o plugin nativo quando o navegador é fraco (ML Kit para ler texto no Android).\n5. iPhone nativo precisa de Mac/Xcode (`npx cap add ios`).\nFontes: leva-ou-nao README.md, capacitor.config.json, package.json, android/app/build.gradle, .github/workflows/android.yml e site.yml, commits aeb565f, 74bd466, a907e89, fad9bf6, 5b2e138.\n## Erros que já aconteceram\n- Keystore de teste com senha pública dentro do repo: qualquer um poderia assinar update falso. Correção: assinar só com a chave dos Secrets, CI falha sem ela, actions travadas por SHA e permissões mínimas (aeb565f, 74bd466).\n- Faltar a chave deixava a `main` vermelha. Correção: o workflow só avisa e pula o APK; o site continua (a907e89).\n- Gerar APK a cada mudança de docs: limitado por `paths` (fad9bf6).\n- Câmera ficava ligada em segundo plano e o Voltar saía do app: tratado em 5b2e138.\n- Quem tinha APK de teste antigo precisa desinstalar uma vez (chave mudou).\n## Exemplo real\nO Thiago queria o \"Leva ou não?\" como app instalável. Entregue: o mesm",
+"GitHub zicoai/aulas/B/B32-site-vira-apk-capacitor.md"
+],
+[
+"B33",
+"B",
+"Google Planilha + Apps Script como banco de dados grátis",
+"google planilha, apps script, banco de dados grátis, planilha como banco, doPost, backend grátis, codigo.gs, sheets, missões, pontos, app do joão, web app, gatilho, email",
+"Guarde os dados numa Planilha Google e exponha as funções via Apps Script (`doPost`). A regra de negócio e a senha ficam no servidor; o app só chama `{fn, args}`. Toda escrita passa por `LockService`.",
+"## Lições\n1. Planilha serve bem para app pessoal ou de família; não para muitos usuários.\n2. Valide tudo no servidor: o JS da tela é público.\n3. `LockService` em toda escrita; retry só em leitura.\n4. Versione o servidor e faça a tela tolerar versão antiga.\n5. Deixe o dono mexer em missões/prêmios direto nas abas.\nFontes: missoes-do-joao README.md, planilha/Codigo.gs, index.html (shim), commits 9d1ba8a, fe82891, b90d56b, e369d0d.\n## Erros que já aconteceram\n- Servidor e tela atualizam em momentos diferentes: a tela nova funciona com o servidor velho (v10): se o estado não traz o passe (`if(!E.passe){ box.innerHTML = avisoServidor(); ... }`), mostra o aviso de que falta atualizar o servidor em vez de quebrar (b90d56b).\n- Rede ruim: o app passou a mostrar \"Internet fraca. Tenta de novo daqui a pouco.\" e o aviso de sem internet (fe82891).\n- Link antigo do Apps Script: `doGet` mostra \"O app mudou de casa\" com link pro site novo.\n- Senha do pai ficou escrita no `Codigo.gs` e o número do WhatsApp no `index.html` do repo. Não copie; use `<segredo>` e não reutilize a senha.\n## Exemplo real\nApp de missões do João (filho): faz missão, ganha ponto, troca por prêmio ou guarda pra bike. O pai ap",
+"GitHub zicoai/aulas/B/B33-planilha-google-apps-script-banco-gratis.md"
+],
+[
+"B34",
+"B",
+"CLAUDE.md do projeto: regras escritas pra IA",
+"claude.md, regras pra ia, mapa do projeto, economizar token, token diet, git branch, invariantes, não quebrar, instruções do projeto, contexto, sessão nova, roadmap",
+"Todo projeto leva um `CLAUDE.md` curto (carregado em toda sessão) com: o que é, regras de git, mapa de arquivos, economia de tokens, regras de produto e invariantes que não podem quebrar. Detalhe vai para ROADMAP e `docs/`.",
+"## Lições\n1. Escreva curto: só o que muda decisão. O resto vai em docs.\n2. Diga qual regra vale acima das globais (git) e o que é proibido (`!`).\n3. Mapa por arquivo, com onde ficam as regras; atualize junto com o código.\n4. Invariantes (privacidade, segredo, licença) ficam num bloco próprio.\n5. Separe lógica pura em arquivos pequenos: a IA lê só o que precisa e o teste roda sem navegador.\nFontes: leva-ou-nao CLAUDE.md, ROADMAP.md, .ignore, commits dbb38a2, fa8ec8b, dfe62a1, 809de0f, 04c0fdb.\n## Erros que já aconteceram\n- Faixas de linha do mapa atualizadas depois da tela nova, para evitar leitura errada (dfe62a1: \"senão o próximo lê a faixa errada\"). Foi prevenção: o commit não registra que o erro tenha acontecido, e o aviso de conferir com `grep -n '/\\* ----------'` antes de confiar nas faixas já existia no CLAUDE.md.\n- Motor de regras dentro do `index.html` era difícil de testar. Correção: foi para `www/regras.js` com testes e CI (809de0f).\n- `privacidade.html`/`criterios.html` copiam texto de `docs/` e dos pesos de `regras.js`: o CLAUDE.md avisa \"mudou lá? muda aqui\".\n## Exemplo real\nNo \"Leva ou não?\" várias sessões e agentes mexeram no mesmo `index.html` grande. O `CLAUDE.md` ",
+"GitHub zicoai/aulas/B/B34-claude-md-regras-pra-ia.md"
+],
+[
+"B35",
+"B",
+"Página simples de loja (catálogo, link bonito no WhatsApp, redirecionar site antigo)",
+"site da loja, catálogo, página simples, github pages, link whatsapp, preview do link, og:image, wa.me, lista de produtos, xiaomi, realme, redirecionar site, simulador, copiar tabela, cache",
+"Página estática de um arquivo só (`index.html`) no GitHub Pages: lista de produtos em array JS, botão `wa.me` com mensagem pronta e meta tags `og:` para o link aparecer com foto no WhatsApp. Imagem nova de preview = mude a URL (`?v=2`).",
+"## Lições\n1. Para loja pequena, um HTML só com dados em array já resolve; separe dados e layout.\n2. Preview de link: sempre `og:image`; ao trocar a imagem, mude a URL (`?v=2`).\n3. Ao mudar de site, mantenha os links antigos funcionando (mapa de `#hash`).\n4. Não ponha foto em base64 no HTML; use arquivo ou uma cor.\n5. Preço e número de WhatsApp ficam em constantes no topo do arquivo.\nFontes: android/index.html, zicaostore/index.html, melo-imports/index.html, commits android 77e422b; zicaostore 28d010c, f0cd8f1, 6f2e031; melo-imports 077d9f6, f01721d.\n## Erros que já aconteceram\n- Troca da imagem do link: o commit só muda a URL para `preview.png?v=2` (28d010c). Causa não registrada; o motivo provável é cache de preview.\n- O array do catálogo tinha fotos em base64 em cada linha. O commit 77e422b tirou as fotos (`foto:\"\"`) e passou a usar o cartão com a cor do aparelho. Causa não registrada; base64 incha o HTML.\n- No simulador, foram acrescentadas metas `Cache-Control: no-cache` (f01721d). Motivo não registrado.\n- No texto copiado para o zap, \"Déb\" virou \"Deb\" (077d9f6). Motivo não registrado.\n- Commits \"Update print statement from 'Hello' to 'Goodbye'\" são ruído de teste, não funciona",
+"GitHub zicoai/aulas/B/B35-pagina-simples-de-loja-whatsapp.md"
+],
+[
+"D01",
+"D",
+"escolher o caminho da IA própria (29/10/2026)",
+"ia própria, treinar, criar ia, modelo, local, nuvem, gemini, gpt, claude, placa de vídeo, rtx",
+"Treinar do zero não dá; o caminho é modelo aberto + memória + ferramentas + método. Local pra dado privado; nuvem grátis pra pensar pesado.",
+"## Lições\n1. Explique o limite real antes de prometer (\"não dá treinar igual GPT\"), e logo em seguida mostre o caminho que dá.\n2. Escolha o tamanho do modelo pela placa de vídeo, não pela vontade.\n3. Separe por **privacidade**: dado de cliente fica local; o resto pode ir pra nuvem grátis.\n4. Uma IA boa é modelo + memória + ferramentas + método. O modelo é só uma parte.\n## Pedido\n> \"criar uma ia padrao gemini grook gpt claude\"\n> \"pq custa bilhoes se vc ja ta treinada e pode me passar os seu metodos\"\n## Entender\nO Thiago quer uma IA **dele**, com a cara dele, que faça o que o Claude faz: ler texto e foto, calcular, pesquisar, programar, gerar imagem e mexer no PC. Ele não programa. Começou querendo \"tudo local, sem API\" e, no mesmo dia, liberou APIs grátis também.\n## O que foi explicado (e por quê)\n1. **Treinar do zero não dá.** O caro não é a receita, é rodar a receita: milhares de placas de vídeo por meses, muito texto e muita gente revisando. Os pesos do Claude não são públicos.\n2. **O que dá:** pegar um **modelo aberto** já treinado (Qwen, Llama, Gemma, gpt-oss) e montar em volta dele a personalidade, a memória, as ferramentas e o jeito de trabalhar. É isso que a ZicoAI é.\n3. **A",
+"GitHub zicoai/aulas/D/D01-escolher-o-caminho.md"
+],
+[
+"D02",
+"D",
+"montar a IA local no PC (29–30/10/2026)",
+"ollama, modelo local, pc, anythingllm, comfyui, tailscale, firewall, instalar, qwen, celular",
+"IA local: Ollama + modelos que cabem na placa (8–9B rápido, 35B lento); instalador é com o Thiago; link carregando sem erro = firewall.",
+"## Lições\n1. Instalador e Terminal como Administrador são com o Thiago: diga exatamente o que clicar e o que deve aparecer.\n2. Link que \"fica carregando\" sem erro quase sempre é firewall.\n3. Programa travado: reinicia e testa de novo antes de mexer em configuração.\n4. Quando uma tela de chat tem prompt próprio, o prompt do modelo pode ser ignorado: confira onde o prompt de verdade está.\n5. Modelo grande demais pra placa funciona, mas lento: deixe ele pra tarefa que precisa.\n## Erros e correções\n1. **AnythingLLM não instalava:** o download ficava preso como `.tmp` na pasta Downloads (3 tentativas). Solução: o Thiago apagou os `.tmp` e baixou direto do link oficial.\n2. **A personalidade sumia no AnythingLLM:** ele manda o prompt dele pro Ollama e isso passa por cima do `SYSTEM` do modelo. Solução: colar o prompt da ZicoAI também no System Prompt do workspace.\n3. **Ollama parou de responder** enquanto o modelo de 35B era criado. Solução: fechar e abrir o Ollama de novo; depois testar os dois modelos.\n4. **Celular não conectava** (o link `http://<ip do tailscale>:11434` ficava carregando). Causa: firewall do Windows. Solução (Terminal como Administrador):\n   ```powershell\n   New-NetFir",
+"GitHub zicoai/aulas/D/D02-ia-local-no-pc.md"
+],
+[
+"D03",
+"D",
+"base de conhecimento sem inventar nada (30/10/2026)",
+"base, conhecimento, ficha técnica, iphone, respostas prontas, gemini, conferir, inventado, promessa",
+"Material de outra IA é rascunho: confira cada número; valor que muda vira marcador [PREÇO]; promessa da loja só com confirmação (NÃO CONFIRMADO).",
+"## Lições\n1. Material de outra IA é rascunho: confira cada número na fonte antes de virar base.\n2. Valor que muda (preço, prazo, garantia) entra como marcador `[ASSIM]`, não como número.\n3. O que a loja promete só o Thiago confirma. Até lá: NÃO CONFIRMADO, e a ZicoAI diz \"deixa eu confirmar\".\n4. Se achar coisa inventada na base, avise e corrija; não deixe passar.\n## Pedido\nJuntar numa base o que a ZicoAI precisa saber: ficha dos iPhones, respostas prontas de WhatsApp e regras de programação. Parte do material veio do Gemini.\n## Entender\nBase errada é pior que base vazia: a IA repete o erro com confiança pro cliente.\n## Execução\n1. Juntou os 3 materiais num arquivo só (`base-zicoai.md`, também no projeto) e depois na aba `base` da planilha.\n2. **Conferiu a tabela do Gemini** antes de usar. Ele tinha errado na linha 17:\n   - câmera frontal da linha 17: **18 MP** (não 24);\n   - o nome é **iPhone Air** (sem \"17\");\n   - o Air carrega a **20 W** (não 40 W);\n   - zoom do 17 Pro/Pro Max: **4x**;\n   - baterias da linha 17 são das versões só eSIM (as vendidas no Brasil têm um pouco menos): ficou anotado com asterisco.\n3. **Respostas prontas:** valor variável vira marcador (`[PREÇO]`, `[MODEL",
+"GitHub zicoai/aulas/D/D03-base-sem-inventar.md"
+],
+[
+"D04",
+"D",
+"ligar os cérebros grátis e testar cada um de verdade (30/10/2026)",
+"api, chave, groq, gemini, mistral, nvidia, openrouter, 401, 404, 429, limite, cérebro, não responde",
+"Só conta como funcionando o cérebro que respondeu de verdade. Leia o código do erro: 401 chave, 404/410 modelo, 429 limite, 502/503 sobrecarga.",
+"## Lições\n1. Só conta como funcionando o que respondeu de verdade.\n2. Anote o **código do erro**: ele diz o que fazer.\n3. Se até 1 pedido dá limite, é a conta: peça pro Thiago olhar o painel do serviço, e enquanto isso a ZicoAI usa outro cérebro.\n4. Todo cérebro com reserva e com motivo da falha visível no \"Como respondi\".\n5. Modelos somem e mudam de nome: confira na fonte antes de afirmar que um modelo existe.\n## Pedido\n> \"Vamos usar apis grátis tbm todas que existem aí vc coloca esgotou muda pra próxima\"\n## Plano\nLigar uma por uma, mandar um \"oi\" de verdade em cada, anotar o que funcionou e o erro exato do que não funcionou. Só entra na fila quem respondeu.\n## O que aconteceu (cérebro por cérebro)\n| Cérebro | Resultado | Causa / o que fez |\n|---|---|---|\n| **Groq** gpt-oss-120b | ✅ código certo em 1,3 s | Virou o principal de código. Limite apertado: ~8 mil tokens/min |\n| **Gemini** 2.5 | ❌ desativado pra contas novas | Trocou de modelo |\n| **Gemini** 3.8 Flash | ❌ ficava \"pensando\" pra sempre | Sem cota no grátis; a tela não mostrava o erro |\n| **Gemma** pelo endereço compatível | ❌ 404 | Modelo não aceito por aquele caminho |\n| **Gemini 3.1 Flash-Lite** | ✅ | É o que tem cota g",
+"GitHub zicoai/aulas/D/D04-testar-cada-api.md"
+],
+[
+"D05",
+"D",
+"ZicoAI na nuvem com memória única no celular e no PC (30/10/2026)",
+"planilha, apps script, memória, nuvem, app, pwa, supabase, chave, propriedades, implantar",
+"Memória que o dono vê e corrige (planilha + Apps Script); segredos nas Propriedades; nuvem primeiro, PC de reserva; Nova versão na mesma implantação.",
+"## Lições\n1. Escolha a ferramenta que o dono consegue **ver e corrigir** sozinho.\n2. Segredo sempre nas Propriedades, nunca no código público.\n3. O cérebro mais barato não pode ser o primeiro da fila se ele erra: ordem é qualidade primeiro, reserva depois.\n4. Publique sempre como Nova versão da mesma implantação (o link não muda).\n## Erros e correções\n1. **Respostas ruins no \"Auto\":** quase tudo ia pro modelo 8B do PC, que é fraco. Correção: **nuvem primeiro**, PC só de reserva ou quando o Thiago escolhe \"PC\" no seletor. Depois o app ainda passou a tirar uma vez do \"PC de casa\" os aparelhos que tinham ficado presos nele.\n2. **Pesquisa do Google pelo Gemini** dava 429 no plano grátis. Ficou o `browser_search` do Groq como pesquisa principal.\n## Pedido\nUsar a ZicoAI de qualquer lugar, com uma memória só pro celular e pro PC, que aprenda sem ele repetir. Ele não quis usar o Supabase dele pra isso.\n## Entender e escolher\n- Supabase grátis: só 2 projetos ativos, e ele já tinha 2 (cinemoteca e sleepplayer). Descartado.\n- **Google Planilha + Apps Script:** usa a conta Google que ele já tem, esconde as chaves das APIs e a memória fica numa planilha que **ele mesmo abre e corrige** (aprende",
+"GitHub zicoai/aulas/D/D05-memoria-na-nuvem.md"
+],
+[
+"D06",
+"D",
+"aprender sozinha sem aprender lixo (30/10/2026)",
+"memória, aprender, lembrar, salvar, esquecer, aprendizado, perfil, fato errado, lixo",
+"O que a IA disse não é fato; só vira memória o que o Thiago disse (números inclusive). Toda mudança automática com antes/depois; [IGNORAR] em vez de apagar.",
+"## Lições\n1. Memória automática precisa de **filtro**: o que a IA disse não é fato; o que o Thiago disse é.\n2. Número em fato só entra se o Thiago escreveu esse número.\n3. Toda mudança automática deixa rastro (antes/depois) pra poder desfazer.\n4. Neutralizar (`[IGNORAR]`) é mais seguro que apagar.\n## Erros e correções (v19)\nEla começou a guardar coisa errada: frases que **ela mesma** tinha dito viravam \"fato\", e o perfil do Thiago era sobrescrito. Correções:\n- `apoiado(texto, falaThiago)`: só vira fato o que tem apoio na fala **do Thiago** (metade das palavras importantes e **todos os números** do fato precisam aparecer no que ele escreveu).\n- Regras sobre o próprio sistema e interesse do momento (\"perguntou sobre X\") são descartadas.\n- `gravarFato` **nunca substitui** linha do `perfil` nem de assunto genérico; só acrescenta. Substitui só assunto específico que exista uma vez.\n- Linha com `[IGNORAR]` some do contexto sem ser apagada; a arrumação de domingo remove e registra no histórico.\n## Pedido\n> \"memória única… que aprenda tudo sozinha, sem eu precisar repetir nada\"\n## Execução\n1. **Tags que o cérebro escreve na resposta** e o código processa (e tira do texto antes de mostrar):",
+"GitHub zicoai/aulas/D/D06-aprender-sem-lixo.md"
+],
+[
+"D07",
+"D",
+"usar API grátis sem estourar o limite (30/10/2026)",
+"limite, cota, 429, tokens, por minuto, por dia, groq, esgotou, rate limit",
+"Confira o limite antes de chamar; minuto = esperar, dia = próximo cérebro, sobrecarga = sair 90 s; mostre o motivo no Como respondi.",
+"## Lições\n1. Confira o limite **antes** de chamar, não depois do erro.\n2. Cada erro tem remédio diferente: limite do minuto = esperar; limite do dia = próximo cérebro; sobrecarga = sair 90 s.\n3. Mostre o motivo no \"Como respondi\": o Thiago precisa ver por que um cérebro não respondeu.\n4. Prompt grande gasta cota: mande só o que a pergunta precisa.\n## Problema\nCérebro grátis tem limite **por minuto** (tokens e pedidos) e **por dia**. O Groq, por exemplo: ~8 mil tokens por minuto, e só o prompt da ZicoAI já tinha ~4,4 mil. Bater no limite = erro 429 e resposta falhando.\n## Execução (v9 em diante)\n- Cada cérebro tem `tpm` (tokens/min), `rpm` (pedidos/min) e `rpd` (pedidos/dia), com folga abaixo do plano.\n- **Antes de chamar**, `motivoNaoCabe(nome, c, tokens)` vê se cabe. Não cabe → pula e o \"Como respondi\" mostra \"X pulado: limite de tokens do minuto\".\n- Depois de chamar, `registrarUso` soma o gasto (minuto no CacheService, dia nas Propriedades).\n- 429 que escapou → `castigo(nome, msg)`: tira o cérebro da fila pelo tempo que a API pediu.\n- 502/503/\"high demand\" → `ehSobrecarga`: fora por 90 s.\n- Cérebro pequeno recebe a conversa **enxuta** (`msgsEnxutas`: sistema curto, 6 últimas mens",
+"GitHub zicoai/aulas/D/D07-controle-de-cota.md"
+],
+[
+"D08",
+"D",
+"bot do Telegram e o atalho no Cloudflare (30/10/2026)",
+"telegram, bot, webhook, cloudflare, worker, 302, /exec, /dev, segredo",
+"Webhook no /exec (nunca /dev); serviço que não aceita 302 → atalho no meio (Worker); diagnóstico que mostra o erro do outro lado.",
+"## Lições\n1. Webhook sempre no link oficial (`/exec`), nunca no de teste (`/dev`).\n2. Quando um serviço não aceita o jeito que o outro responde (302), coloque um **atalho no meio** que adapta.\n3. Toda integração precisa de um **diagnóstico** que mostre o erro do outro lado (`getWebhookInfo`).\n4. Leia as regras de formato do serviço (quais caracteres o segredo aceita) antes de configurar.\n## Erros e correções (v29 a v32)\n1. **Webhook apontando pro link `/dev`.** O `/dev` exige login no Google e o Telegram não consegue abrir. Correção (v29): `ligarTelegram` usa sempre o link **`/exec`** da implantação (`DEPLOY_ID`).\n2. **O Telegram não aceita o redirecionamento 302** que o Apps Script devolve em todo POST. Correção (v30): um **Worker grátis no Cloudflare** (`zicoai/cerebro/proxy-worker.js`) recebe o webhook em `/tg`, confere o segredo, repassa pro `/exec` seguindo o redirecionamento e responde 200 pro Telegram:\n   ```js\n   if (url.pathname === '/tg') {\n     if (!env.SEGREDO || req.headers.get('x-telegram-bot-api-secret-token') !== env.SEGREDO) return new Response('nope', { status: 403 });\n     if (!env.ZICO_EXEC) return new Response('falta ZICO_EXEC', { status: 500 });\n     const cor",
+"GitHub zicoai/aulas/D/D08-telegram-e-worker.md"
+],
+[
+"D09",
+"D",
+"agentes que trabalham sozinhos em segundo plano (30/10/2026)",
+"agente, tarefa, segundo plano, ferramenta, paralelo, dividir, chefe, demorado, longo",
+"Agente = laço de ferramentas em JSON com travas no código; desenhe pelos limites (6 min, cota/min): salvar progresso e continuar; chefe divide e junta.",
+"## Lições\n1. Ferramenta perigosa sempre com trava no **código**, não só no prompt.\n2. Desenhe pelos limites: 6 min por execução e limite por minuto → salvar progresso e continuar depois.\n3. Tarefa grande se divide em partes independentes e um chefe junta.\n4. Sempre deixe o rastro dos passos: é por ele que se acha o erro.\n## Erros e correções\n- **Resposta dobrada (v23):** o cérebro respondia tudo E ainda criava a tarefa. Correção: quando manda pro agente, a resposta direta vira 1 linha (\"Agente trabalhando…\").\n- **Agentes usam API ou cérebro?** Usam os mesmos cérebros (Gemini → Groq → Mistral → …); se a nuvem toda estiver sem cota, usam o PC (`zicoai-dev`).\n## Pedido\nTarefa grande (comparar preços em várias lojas, relatório, mexer em app) sem travar a conversa. Depois:\n> \"Os agentes funcionam como? … e quantos dá pra pôr ralando ao mesmo tempo\"\n## Como funciona\n1. Pedido grande vira tarefa: tag `[[TAREFA: …]]`, chip 🧠 Agente ou ação `tarefa`. Vai pra aba `tarefas` como `pendente`, e um gatilho chama `rodarTarefas`.\n2. **Laço de ferramentas** (`agente(...)`): o cérebro responde **só JSON**:\n   ```json\n   {\"pensamento\":\"vendo nosso preço\",\"ferramenta\":\"ler_planilha\",\"args\":{\"aba\":\"pre",
+"GitHub zicoai/aulas/D/D09-agentes.md"
+],
+[
+"D10",
+"D",
+"a ponte pra ZicoAI mexer no PC (30/10/2026)",
+"pc, computador, ponte, print, tela, arquivo, powershell, antivírus, defender, acesso remoto",
+"Mexer no PC: só pastas liberadas, nunca apagar nem sobrescrever; o PC busca os pedidos (sem porta aberta); antivírus libera só a pasta.",
+"## Lições\n1. Segurança primeiro, código depois.\n2. Antes de pedir pro Thiago instalar, teste o máximo com PC de mentira.\n3. Servidor caseiro exposto na internet dá problema: é melhor o PC **buscar** os pedidos.\n4. Instalador sempre mostra o erro quando falha.\n5. Antivírus: libera só a pasta necessária, nunca desliga tudo.\n6. Depois de um script mexer num arquivo, **confira o arquivo** (tamanho, começo, codificação).\n## Erros e correções (é a parte que mais ensina)\n1. **A ponte abria e fechava na hora.** Causa: `New-Object System.Threading.Mutex(..., [ref]$ok)` não funciona no PowerShell 5.1. Correção: tirar o Mutex (se já tem outra ponte ligada, a porta ocupada já faz a segunda sair). E o instalador passou a esperar e **mostrar o erro**.\n2. **502 pelo Tailscale Funnel.** A v1 era um servidor no PC (porta 8790) exposto pelo Funnel. Primeiro tentou aceitar o corpo \"em pedaços\" (chunked) que o Funnel manda; continuou 502. **Mudou o desenho (v2):** o PC é que **busca** os pedidos na ZicoAI:\n   - o PC chama `ponteBuscar` no `/exec` em laço (o cérebro segura até 20 s esperando pedido = long-poll);\n   - executa e devolve com `ponteResposta` (resposta grande vai em pedaços de 90 mil letras",
+"GitHub zicoai/aulas/D/D10-ponte-do-pc.md"
+],
+[
+"D11",
+"D",
+"publicar uma versão nova do cérebro (30/10/2026)",
+"publicar, implantar, deploy, apps script, nova versão, editor, colar código, sha256",
+"Publicar: testes → commit → colar → conferir sha256 → salvar → Nova versão na mesma implantação → testar no app.",
+"## Lições\n1. Nunca publicar sem os testes passando.\n2. Conferir o código colado antes de implantar.\n3. Clique por nome do botão, não por posição na tela.\n4. Testar no app depois de publicar.\n## Erros que já aconteceram\n1. **Clique por posição na tela caiu no \"Cancelar\"** do diálogo de implantação. Correção: achar o botão pelo nome (aria-label) e clicar por código.\n2. **Texto digitado foi parar dentro do código**: um clique no campo de descrição com o menu aberto mandou o texto pro editor. Por isso o passo 5 (conferir o sha256) vem **antes** de implantar, sempre.\n3. **Escopo novo** (Drive, Gmail, Agenda, gatilhos): o Google pede autorização de novo. Isso é com o Thiago: rodar uma função no editor → Revisar permissões → Avançado → Acessar → Permitir.\n4. **Implantação nova muda o link** e o app perde a conexão. Sempre \"Nova versão\" na **mesma** implantação.\n## Por que é delicado\nO código do repositório e o código que roda no Google são cópias separadas. Publicar errado derruba a ZicoAI no celular do Thiago.\n## Passo a passo (sem clasp, pelo navegador do PC)\n1. Rodar **todos** os testes: `cd zicoai/cerebro/testes && for f in t*.js; do node $f; done`. Nenhum FAIL.\n2. Commit e push pro G",
+"GitHub zicoai/aulas/D/D11-publicar-o-cerebro.md"
+],
+[
+"D12",
+"D",
+"achar a causa pelo \"Como respondi\" (30/10/2026)",
+"como respondi, passos, resposta errada, texto colado, documento, dólar, 8b, seletor",
+"Antes de mexer no código, veja qual cérebro respondeu e quais passos rodou; palavra solta em texto colado não é pergunta.",
+"## Lições\n1. Primeiro olhe **qual cérebro** respondeu e **quais passos** rodou; só depois mexa no código.\n2. Palavra solta dentro de texto colado não é pergunta.\n3. Modelo pequeno (8B) não serve pra texto grande: use a nuvem.\n4. Todo bug corrigido ganha um teste com o caso real.\n## Pedido\n> \"isso e triste… olha como gpt respondeu ela nao pq?\"\nO Thiago colou um status grande do projeto e a ZicoAI respondeu **só a cotação do dólar**.\n## Como achou a causa\n1. **Antes de mexer no código, ver o que aconteceu de verdade:** a aba `mensagens` guarda, em cada resposta, o cérebro usado e os passos (\"Como respondi\").\n2. Lá estava: quem respondeu foi o **PC (zicoai, 8B)**, porque o seletor do iPhone estava em \"PC de casa\"; e a palavra \"dólar\" **dentro do texto colado** disparou a cotação; também pesquisou na web e leu e-mail sem precisar.\n3. Duas causas: modelo pequeno se perde em texto grande + palavra solta dentro do texto virou pergunta.\n## Correção (v40)\n- Texto colado com mais de 1500 letras vira **documento**: sem pesquisa automática, sem conectores (e-mail, Drive, agenda, link, dólar) e com a seção `### TEXTO LONGO COLADO` no sistema (\"leia como documento; palavras dentro dele não são p",
+"GitHub zicoai/aulas/D/D12-ler-o-como-respondi.md"
+],
+[
+"D13",
+"D",
+"testar sem internet antes de publicar (30/10/2026 em diante)",
+"teste, testar, harness, node, simulador, playwright, publicar, bug, pass, fail",
+"Teste antes de publicar: simulador do Google no Node, caso normal e de erro, rode todos; teste também precisa ser conferido.",
+"## Lições\n1. Teste antes, publique depois. Nunca o contrário.\n2. Bug achado vira teste novo.\n3. Rode **todos** os testes, não só o da mudança: uma mudança pode quebrar outra parte.\n4. \"Funciona\" só depois de testar; se não deu pra testar algo (ex.: API real), diga isso.\n## Por que\nCada publicação mexe na ZicoAI que o Thiago usa na loja. Testar direto em produção é testar no cliente.\n## Como é feito\n- `zicoai/cerebro/testes/harness.js` roda o `Codigo.gs` no Node, dentro de uma caixa (`vm`), com versões **de mentira** do Google: `SpreadsheetApp` (planilha em memória), `UrlFetchApp` (cada teste decide o que a \"API\" responde), `PropertiesService`, `CacheService`, `LockService`, `ScriptApp` (gatilhos), Drive, Gmail, Agenda.\n- Cada arquivo `t1.js` … `t24.js` testa uma parte e imprime `PASS`/`FAIL`. Exemplo real (t24.js):\n  ```js\n  let chamadas = []; let revisor = 'OK'; let rascunho = 'Rascunho: o iPhone 13 tem tela de 6,1 polegadas e chip A15, bateria boa pra um dia inteiro de uso normal.';\n  H.setFetch((u, o) => {\n    if (typeof (o || {}).payload !== 'string') return json({});\n    const b = JSON.parse(o.payload);\n    if (!b.messages) return json({});\n    const ehRev = /Você é o REVISOR ",
+"GitHub zicoai/aulas/D/D13-testar-sem-internet.md"
+],
+[
+"D14",
+"D",
+"pesquisar igual o Claude, lendo várias fontes (30/10/2026)",
+"pesquisa, pesquisar, fontes, profunda, melhor, ranking, hoje, atual, comparar",
+"Assunto que muda: várias buscas, leia as páginas, confira a data, fonte mais nova ganha, cite as fontes.",
+"## Lições\n1. Assunto que muda rápido (IA, preço, cotação, lançamento) sempre pesquisa e confere a data.\n2. Abrir e ler a página, não confiar só no resumo da busca.\n3. Fonte mais nova ganha quando há conflito.\n4. Sempre citar as fontes.\n5. Teste o formato real que o site devolve (o link sem `https:` passou despercebido até o teste).\n## Pedido\n> \"ensina nossa ia fazer isso responder pesquisar igual vc fez em 27 fontes\"\n## O jeito do Claude\nVárias buscas com palavras diferentes → abrir e **ler** as páginas (não só o resumo da busca) → conferir a **data** de cada fonte → comparar → responder citando de onde veio.\n## Execução\n- `pesquisaProfunda()`:\n  1. um cérebro rápido monta **3 buscas** (português e inglês, com o ano);\n  2. `buscarLinks`: DuckDuckGo/Bing em texto pelo `r.jina.ai`; tira anúncio e rede social; 1 link por site;\n  3. `lerPaginas`: até **8 páginas ao mesmo tempo** (`UrlFetchApp.fetchAll`);\n  4. `cerebroLeitor` (contexto grande: Gemini → Mistral → NVIDIA) compara, prefere a fonte mais nova e cita [1], [2]; fontes no fim.\n- Dispara sozinha com \"qual o melhor … hoje/grátis/2026\", \"pesquisa profunda\", \"ranking\", \"onde tá mais barato\"…; se não achar link, cai na pesquisa norm",
+"GitHub zicoai/aulas/D/D14-pesquisa-profunda.md"
+],
+[
+"D15",
+"D",
+"mostrar o trabalho ao vivo e aprender por exemplo (30/10/2026)",
+"resumo, passos, ao vivo, painel, mágica, relatório, trajetória, método, exemplo",
+"Mostre o trabalho enquanto faz (passos ao vivo); método + relatório no fim; aprenda por exemplos resolvidos (trajetórias).",
+"## Lições\n1. Mostrar o que está fazendo, enquanto faz, dá confiança e ajuda a achar erro.\n2. Um exemplo resolvido ensina mais que uma regra solta.\n3. O cérebro hoje aprende **lendo** os exemplos na hora; o modelo só muda de verdade quando for treinado com eles (fine-tuning) mais pra frente.\n## Pedido\n> \"Isso essa mágica aqui\" (print do painel de passos do Claude)\n> \"vai ensinando ela toda ação que vc fizer…\"\n## Parte 1: resumo ao vivo\n- No cérebro, cada `passo('…')` também grava no cache (`vivo_<reqId>`, 5 min).\n- O app manda um `reqId` junto com a pergunta e, enquanto espera, pergunta a ação `aoVivo` a cada 1,5 s. Mostra os passos de verdade no lugar das etapas de mentirinha.\n- Título automático (\"Leu a memória e pesquisou na web\"), linha do tempo com 💭 pensamentos e 🔧 ferramentas com detalhe clicável.\n- O agente manda um `\"pensamento\"` (frase curta no gerúndio) em cada passo.\n## Parte 2: método e relatório\n- `PROMPT_AGENTE` ganhou o MÉTODO: entender → plano curto → ler antes de mexer → mudar pouco → testar → só dizer que funciona depois de testar.\n- Relatório final no formato que o Thiago gostou: 1 frase de resultado + \"Já está valendo\" / \"Pronto, falta publicar\" / \"Precisa de vo",
+"GitHub zicoai/aulas/D/D15-resumo-ao-vivo.md"
+],
+[
+"D16",
+"D",
+"treino, placar e estudo noturno (30/10/2026)",
+"treino, treinar, placar, prova, nota, estudo noturno, nível, melhorar, fine-tuning",
+"Pra subir de nível: medir (prova/placar com mesmo contexto), filtrar material (sintaxe, revisor, Thiago) e só depois treinar o modelo.",
+"## Lições\n1. Sem medir não dá pra dizer que melhorou: prova e placar com o mesmo contexto e o mesmo corretor.\n2. Material de treino passa por filtro (sintaxe, revisor, aprovação do Thiago).\n3. Confira as regras de uso antes de treinar com resposta de outra empresa.\n4. Treinar o modelo de verdade vem depois que tiver material bom suficiente.\n## Pedido\n> \"me ajuda fazer ela ir subindo até chegar nível mistral gpt gemini e claude, vai traçando o caminho pra mim\"\n> \"trabalhar uma noite… pra ficar top em programar\"\n## Entender\nPra subir de nível precisa de 3 coisas: **medir** (saber onde está), **material bom** (exemplos aprovados) e, um dia, **treinar o modelo** com esse material. O caminho completo está no doc do projeto `claude/caminho-zicoai.md`.\n## Execução (fase 1)\n- **Prova** (aba `prova`, 20 perguntas com critério de nota 10): `rodarProva()` toda semana; corretor com temperatura 0; nota < 7,5 vira aprendizado.\n- **Treino diário** (3h): 4 perguntas da prova, pesando as nunca feitas ou com nota baixa.\n- **Revisão do dia** (23h): um revisor aponta quebras de forma e honestidade (oferta no fim, fingir ação, inventar número, longo demais); cada problema vira aprendizado com o cérebro",
+"GitHub zicoai/aulas/D/D16-treino-placar-estudo.md"
+],
+[
+"D17",
+"D",
+"imagem melhor sem trocar o gerador (30/10/2026)",
+"imagem, gerar imagem, prompt, foto, banner, arte, comfyui, desenho",
+"Pedido de imagem curto vira prompt detalhado em inglês; pedido longo do Thiago passa igual; mostre o prompt usado.",
+"## Lições\n1. Faça o que ele pediu (manter o gerador) e ataque a causa real (o pedido curto).\n2. Pedido que ele mesmo detalhou não se mexe.\n3. Mostre o prompt usado: ele quer aprender e testar.\n## Pedido\n> \"esse gerador de imagem tá fraco\"\n> \"Não muda o gerador porque quero testar mandando prompt… igual mandamos pro Gemini\"\n## Entender\nO Thiago **não** quer outro gerador: quer testar o mesmo (ComfyUI no PC) com pedidos melhores. O pedido curto em português (\"banner da loja com iPhone\") é o que deixava a imagem fraca. O serviço sem chave (Pollinations) também começou a mostrar \"free limit\" na imagem, então o PC ficou como gerador.\n## Execução\n`detalharPromptImagem(prompt)`:\n- pedido com **menos de 45 palavras** → um cérebro rápido (Gemini → Groq → Groq Qwen → Mistral → NVIDIA) reescreve como prompt detalhado **em inglês** (assunto, cenário, luz, câmera, estilo), em até 400 tokens;\n- pedido longo (o Thiago já detalhou) passa **igual**;\n- só aceita a reescrita se tiver 15+ palavras e nenhuma tag `[[ ]]`;\n- o passo \"Detalhou o pedido da imagem\" mostra o texto no \"Como respondi\", pra ele ver e copiar.\n## Resultado\nO Thiago testou: \"Melhorou viu\".",
+"GitHub zicoai/aulas/D/D17-imagem-prompt-detalhado.md"
+],
+[
+"D18",
+"D",
+"modo capricho (31/10/2026)",
+"capricho, difícil, revisar, revisor, qualidade, resultado, pensar mais, demora",
+"Pergunta difícil: cérebro forte, mais raciocínio e OUTRO cérebro revisa; o revisor nunca pode piorar a resposta; fácil continua rápido.",
+"## Lições\n1. Resultado > velocidade quando o Thiago pede, mas **só gaste esforço onde vale** (pergunta fácil continua rápida).\n2. Quem escreve não revisa o próprio texto: use outro cérebro.\n3. O revisor nunca pode piorar: OK, comentário curto ou erro → fica o rascunho.\n4. Procure o nome antes de criar (`grep`).\n5. Rode **todos** os testes, não só o novo.\n## Erros e correções\n1. **`SyntaxError: Identifier 'PROMPT_REVISOR' has already been declared`**\n   Causa: já existia um `PROMPT_REVISOR` (o da revisão do dia, lá embaixo no arquivo). Criei outro com o mesmo nome.\n   Como achei: `node -e \"new Function(require('fs').readFileSync('Codigo.gs','utf8'))\"` mostrou o erro; `grep -n PROMPT_REVISOR Codigo.gs` mostrou as duas linhas.\n   Correção: renomeei o novo pra `PROMPT_REVISOR_RESPOSTA`.\n   **Lição: antes de criar um nome, procure se ele já existe (`grep -n NOME arquivo`).**\n2. **Revisor que responde \"OK, está correto.\" era tratado como correção.** A primeira versão só aceitava `OK` puro. Agora aceita qualquer coisa que comece com OK e seja curta.\n3. **Revisor que manda só um comentário** (\"faltou falar do prazo\") apagaria uma resposta grande. Agora, se o rascunho tem mais de 400 letras",
+"GitHub zicoai/aulas/D/D18-modo-capricho.md"
+],
+[
+"D19",
+"D",
+"teste que quebra à meia-noite (31/10/2026)",
+"teste falhando, meia-noite, relógio, data, stash, foi eu, harness",
+"Teste falhou? Primeiro \"foi eu?\" (guarda a mudança e roda de novo); teste não pode depender do dia de hoje.",
+"## Lições\n1. Teste falhou? Primeiro descubra **se foi vc**: guarde sua mudança e rode de novo.\n2. Teste não pode depender do dia de hoje: fixe o relógio.\n3. Tudo no teste usa o **mesmo** relógio.\n## O que aconteceu\nRodei todos os testes às 00:02 e 7 falharam em t5, t8 e t12 (\"venda anotada e somada\", \"resumo traz vendas de ontem\", \"backup copia a planilha\", \"revisor recebe os pares do dia\"). Eu não tinha mexido nessas partes.\n## Como achei a causa\n1. **Será que fui eu?** Guardei minha mudança (`git stash`), rodei de novo os mesmos testes: continuaram falhando. Então não era meu código. Devolvi a mudança (`git stash pop`).\n2. **O que mudou?** O relógio: tinha acabado de virar 30/10 → 31/10.\n3. Olhei o `harness.js`: o `formatDate` de mentira devolvia \"30/10\" fixo pros formatos `dd/MM/yyyy` e `yyyyMMdd`, mas pro formato `yyyy-MM-dd` calculava a partir da data recebida, que vinha do relógio de verdade (já 31/10). Uma parte do código achava que era dia 30, outra parte, dia 31. Por isso falharam, por exemplo, o backup (esperava `backup 2026-10-30`) e a revisão do dia (usa `yyyy-MM-dd`).\n## Correção\nRelógio fixo nos testes, em 30/10/2026 12h:\n```js\nconst SHIFT = new Date(2026, 9, 30, 12, ",
+"GitHub zicoai/aulas/D/D19-relogio-dos-testes.md"
+]
+]
