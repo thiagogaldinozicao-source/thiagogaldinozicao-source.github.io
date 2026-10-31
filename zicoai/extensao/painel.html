@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>ZicoAI</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0a; color: #f2f2f2; font-family: system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  .barra { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #262626; }
+  .barra button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #4a3c12; background: #1c1706; color: #F4CB63; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .barra button:active { transform: scale(.98); }
+  #aviso { font-size: 12px; color: #9a9a9a; padding: 0 10px 6px; min-height: 0; }
+  iframe { flex: 1; width: 100%; border: 0; }
+</style>
+</head>
+<body>
+  <div class="barra">
+    <button id="usar" title="Manda o texto da página aberta pra ZicoAI">📄 Usar esta página</button>
+    <button id="trecho" title="Manda só o trecho que vc selecionou">✂️ Usar trecho selecionado</button>
+  </div>
+  <div id="aviso"></div>
+  <iframe id="app" src="https://thiagogaldinozicao-source.github.io/zicoai/?ext=1" allow="microphone; clipboard-write"></iframe>
+  <script src="painel.js"></script>
+</body>
+</html>

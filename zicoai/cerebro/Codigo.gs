@@ -94,6 +94,8 @@ function motivoNaoCabe(nome, c, tokens) {
   if (c.tpm && u.tokens + tokens > c.tpm) return 'limite de tokens do minuto';
   return '';
 }
+/** Servidor do modelo lotado (503, "high demand", "overloaded"): não adianta insistir nos próximos minutos. */
+function ehSobrecarga(msg) { return /\b50[23]\b|high demand|overloaded|UNAVAILABLE|try again later/i.test(String(msg || '')); }
 /** Deu 429: descobre quanto tempo esperar e deixa o cérebro de castigo. */
 function castigo(nome, msgErro) {
   let seg = 20;
@@ -148,7 +150,9 @@ const ABAS = {
   aprendizados: ['Data', 'Erro', 'Certo', 'Assunto'],
   perfil:       ['Tópico', 'Informação'],
   base:         ['Assunto', 'Conteúdo'],
-  chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho'],
+  chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Fixada', 'Projeto'],
+  projetos:     ['Id', 'Nome', 'Instruções', 'Criado', 'Atualizado'],
+  projeto_arquivos: ['Projeto', 'Nome', 'Conteúdo', 'Data'],
   mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho', 'Passos'],
   historico:    ['Data', 'Aba', 'Assunto', 'Antes', 'Depois', 'Origem'],
   feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
@@ -215,6 +219,7 @@ const PERSONA = [
   '- Venda que o Thiago informar ("vendi um 13 por 2.500"): [[VENDA: valor em número || descrição curta]].',
   '- Pedido pra MUDAR VC MESMA (seu código, seu jeito de funcionar, uma ferramenta nova, um bug seu): responda em 1 linha que vai fazer e coloque [[TAREFA: MELHORAR MEU CÓDIGO: o que mudar, exatamente como o Thiago pediu]]. O agente lê o próprio código, edita, testa e publica.',
   '- Pedido GRANDE que exige várias etapas (pesquisar em vários lugares e comparar, relatório, estudo, app com várias telas, levantamento de preços): NÃO tente responder tudo agora. Responda em 1 linha que vai fazer em segundo plano e coloque [[TAREFA: descrição completa do que fazer, com tudo que o Thiago pediu]]. Um agente faz e o resultado aparece nesta conversa.',
+  '- Pedido pra mexer no PC do Thiago (ler/criar arquivo, ver pasta, print da tela, abrir programa, espaço em disco, GPU): responda em 1 linha e coloque [[TAREFA: o que fazer no PC]]. O agente usa a ponte do PC (pc_*). Ela nunca apaga nada.',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
   '- Quando a seção JÁ EXISTE PARECIDO aparecer (apps publicados ou pedidos antigos parecidos com o pedido atual), diga em 1 linha que já existe, com o link, e pergunte se é pra melhorar o que existe ou fazer um novo. Não faça do zero sem perguntar.',
   '- Quando a seção CÁLCULO EXATO aparecer, use exatamente esses números (foram calculados por código, não por vc). Mostre a conta e o resultado deles.',
@@ -287,6 +292,13 @@ function doPost(e) {
       case 'chats':         return saida({ ok: true, chats: listarChats() });
       case 'abrir':         return saida({ ok: true, mensagens: abrirChat(req.chatId) });
       case 'apagarChat':    apagarChat(req.chatId); return saida({ ok: true });
+      case 'chatMeta':      return saida(chatMeta(req));
+      case 'projetos':      return saida({ ok: true, projetos: listarProjetos() });
+      case 'projetoSalvar': return saida(salvarProjeto(req));
+      case 'projetoArquivo': return saida(arquivoProjeto(req));
+      case 'projetoTirarArquivo': return saida(tirarArquivoProjeto(req));
+      case 'projetoArquivoLer': { const l = linhas('projeto_arquivos').find(x => x[0] === String(req.projeto) && x[1] === String(req.nome)); return saida(l ? { ok: true, conteudo: l[2] } : { ok: false, erro: 'Arquivo não encontrado' }); }
+      case 'dispositivos':  return saida(dispositivos());
       case 'memorias':      return saida(listarMemorias());
       case 'salvar':        return saida(salvarMemoria(req.texto, aparelho));
       case 'apagarMemoria': return saida({ ok: true, apagadas: esquecer(req.texto, true) });
@@ -335,7 +347,7 @@ function chat(req, aparelho) {
   if (!chatId) {
     chatId = Utilities.getUuid().slice(0, 8) + Date.now().toString(36);
     titulo = criarTitulo(pergunta);
-    aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho]);
+    aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho, '', String(req.projeto || '')]);
   }
   if (req.refazer) apagarUltimaResposta(chatId);
   else gravarMensagem(chatId, 'thiago', pergunta + (temFoto ? '\n[📷 foto enviada]' : ''), '', aparelho);
@@ -358,6 +370,7 @@ function chat(req, aparelho) {
   let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
+  try { extraSistema += contextoProjeto(req.projeto || projetoDoChat(chatId)); } catch (e) { /* sem projeto */ }
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
   if (req.appSlug) {
@@ -475,7 +488,7 @@ function registrar(req, aparelho) {
   if (!chatId) {
     chatId = Utilities.getUuid().slice(0, 8) + Date.now().toString(36);
     titulo = criarTitulo(pergunta);
-    aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho]);
+    aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho, '', String(req.projeto || '')]);
   }
   if (req.refazer) apagarUltimaResposta(chatId);
   else gravarMensagem(chatId, 'thiago', pergunta + (req.foto ? '\n[📷 foto enviada]' : ''), '', aparelho);
@@ -552,6 +565,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
       erros.push(msg);
       if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
       else if (/\b429\b|rate limit|quota|RESOURCE_EXHAUSTED/i.test(msg)) { const seg = castigo(nome, msg); passo(c.nome + ' deu limite, fica ' + seg + 's de castigo, trocou de cérebro'); }
+      else if (ehSobrecarga(msg)) { CacheService.getScriptCache().put('off_' + nome, '1', 90); passo(c.nome + ' tá sobrecarregado (alta demanda), fica 90s fora e trocou de cérebro'); }
       else passo(c.nome + ' falhou (' + msg.replace(/^[^:]*:\s*/, '').slice(0, 70) + '), trocou de cérebro');
     }
   }
@@ -593,6 +607,34 @@ function chamarCompat(c, msgs, maxSaida, extras) {
 
 /* ---------- pesquisa na web ---------- */
 
+/** Busca reserva, sem chave: resultados do DuckDuckGo (ou Bing) em texto, e um cérebro responde com eles. */
+function resultadosBusca(pergunta) {
+  const q = encodeURIComponent(String(pergunta).replace(/\s+/g, ' ').trim().slice(0, 200));
+  for (const url of ['https://html.duckduckgo.com/html/?q=' + q + '&kl=br-pt', 'https://www.bing.com/search?q=' + q + '&setlang=pt-br&cc=BR']) {
+    const t = lerPagina(url);
+    if (t && t.length > 400 && !/captcha|unusual traffic|are you a robot/i.test(t.slice(0, 1500))) return { texto: t.slice(0, 7000), fonte: /duckduckgo/.test(url) ? 'DuckDuckGo' : 'Bing' };
+  }
+  return null;
+}
+function pesquisaReserva(sistema, historico, pergunta) {
+  const busca = resultadosBusca(pergunta);
+  if (!busca) { passo('Pesquisa reserva não achou resultados'); return null; }
+  const msgs = [{ role: 'system', content: sistema + '\n\nRESULTADOS DA BUSCA NA WEB (' + busca.fonte + ', ' + hoje() + '). Use só o que estiver aqui pra dados atuais (preço, cotação, notícia); se não tiver a informação, diga que não achou. Cite a loja/site de onde veio cada número.\n' + busca.texto }]
+    .concat(historico.slice(-4).map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) })));
+  const tk = estimarTokens(JSON.stringify(msgs)) + 1500;
+  for (const nome of ['gemini', 'mistral', 'nvidia', 'groq2', 'groq']) {
+    const c = CEREBROS[nome];
+    if (!temCerebro(nome) || tk > c.limite || motivoNaoCabe(nome, c, tk)) continue;
+    try {
+      const texto = chamarCompat(c, msgs, 1500);
+      registrarUso(nome, tk + estimarTokens(texto));
+      passo('Pesquisou na web pela reserva (' + busca.fonte + ') e leu com ' + c.nome);
+      return { ok: true, texto: texto, cerebro: c.nome + ' + web', fontes: [], pesquisou: true };
+    } catch (e) { if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); }
+  }
+  return null;
+}
+
 function pesquisar(historico, pergunta, extraSistema) {
   const sistema = montarSistema(pergunta, true) + (extraSistema || '') +
     '\n\nVocê tem acesso à pesquisa na web. Pesquise, confira e responda com os dados atuais. Diga a data da informação quando fizer diferença (preço, cotação).';
@@ -612,9 +654,15 @@ function pesquisar(historico, pergunta, extraSistema) {
       passo('Pesquisou na web (Groq)');
       return { ok: true, texto: texto, cerebro: c.nome + ' + web', fontes: [], pesquisou: true };
     }
-  } catch (e) { if (/429|rate limit/i.test(String(e.message))) castigo('groq', e.message); passo('Pesquisa pelo Groq falhou, tentou o Google'); }
+  } catch (e) { if (/429|rate limit/i.test(String(e.message))) castigo('groq', e.message); passo('Pesquisa pelo Groq falhou, usou a pesquisa reserva'); }
 
-  // 2) Gemini com Google Search (no plano grátis pode estar sem cota)
+  // 2) reserva: busca aberta (DuckDuckGo/Bing lidos pelo r.jina.ai) + um cérebro lê os resultados e responde
+  try {
+    const r = pesquisaReserva(sistema, historico, pergunta);
+    if (r) return r;
+  } catch (e) { /* tenta o Google */ }
+
+  // 3) Gemini com Google Search (no plano grátis pode estar sem cota)
   try {
     const r = geminiComGoogle(sistema, historico);
     if (r) { passo('Pesquisou no Google (' + r.fontes.length + ' fontes)'); return r; }
@@ -1083,9 +1131,10 @@ function tocarChat(chatId) {
 }
 
 function listarChats() {
+  const trab = chatsTrabalhando();
   return linhas('chats')
-    .map(l => ({ id: l[0], titulo: l[1], atualizada: l[3] }))
-    .sort((a, b) => (a.atualizada < b.atualizada ? 1 : -1))
+    .map(l => ({ id: l[0], titulo: l[1], atualizada: l[3], fixada: l[5] === 'sim', projeto: l[6] || '', trabalhando: !!trab[l[0]] }))
+    .sort((a, b) => (a.fixada !== b.fixada ? (a.fixada ? -1 : 1) : (a.atualizada < b.atualizada ? 1 : -1)))
     .slice(0, 100);
 }
 
@@ -2226,6 +2275,172 @@ function exportarTreino() {
 }
 
 /* ============================================================
+ *  CONVERSAS: fixar, renomear, mudar de projeto (igual o app do Claude)
+ * ============================================================ */
+
+function chatMeta(req) {
+  const r = (req.chatId ? linhaDoChat(String(req.chatId)) : 0);
+  if (!r) return { ok: false, erro: 'Conversa não encontrada' };
+  const a = aba('chats');
+  if (a.getRange(1, 6, 1, 1).getDisplayValues()[0][0] !== 'Fixada') a.getRange(1, 6, 1, 2).setValues([['Fixada', 'Projeto']]);
+  if (req.titulo !== undefined) { const t = String(req.titulo).replace(/\s+/g, ' ').trim().slice(0, 80); if (t) a.getRange(r, 2, 1, 1).setValue(seguro(t)); }
+  if (req.fixada !== undefined) a.getRange(r, 6, 1, 1).setValue(req.fixada ? 'sim' : '');
+  if (req.projeto !== undefined) a.getRange(r, 7, 1, 1).setValue(String(req.projeto || ''));
+  return { ok: true };
+}
+function projetoDoChat(chatId) {
+  const r = chatId ? linhaDoChat(String(chatId)) : 0;
+  return r ? aba('chats').getRange(r, 7, 1, 1).getDisplayValues()[0][0] : '';
+}
+function chatsTrabalhando() {
+  const s = {};
+  try { linhas('tarefas').forEach(l => { if (l[2] && ['pendente', 'rodando', 'esperando'].indexOf(l[4]) >= 0) s[l[2]] = true; }); } catch (e) { /* ok */ }
+  return s;
+}
+
+/* ============================================================
+ *  PROJETOS: instruções + arquivos que entram em toda conversa do projeto
+ * ============================================================ */
+
+function listarProjetos() {
+  const arqs = linhas('projeto_arquivos');
+  const chats = linhas('chats');
+  return linhas('projetos').map(l => ({
+    id: l[0], nome: l[1], instrucoes: l[2], criado: l[3], atualizado: l[4],
+    arquivos: arqs.filter(a => a[0] === l[0]).map(a => ({ nome: a[1], tamanho: String(a[2]).length, data: a[3] })),
+    conversas: chats.filter(c => c[6] === l[0]).length
+  }));
+}
+function salvarProjeto(req) {
+  const nome = String(req.nome || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const instr = String(req.instrucoes == null ? '' : req.instrucoes).slice(0, 8000);
+  const a = aba('projetos');
+  if (req.id) {
+    const achou = a.getRange('A:A').createTextFinder(String(req.id)).matchEntireCell(true).findNext();
+    if (!achou) return { ok: false, erro: 'Projeto não encontrado' };
+    if (nome) a.getRange(achou.getRow(), 2, 1, 1).setValue(seguro(nome));
+    if (req.instrucoes !== undefined) a.getRange(achou.getRow(), 3, 1, 1).setValue(seguro(instr));
+    a.getRange(achou.getRow(), 5, 1, 1).setValue("'" + agora());
+    return { ok: true, id: req.id };
+  }
+  if (!nome) return { ok: false, erro: 'Dá um nome pro projeto' };
+  const id = 'pj' + Date.now().toString(36);
+  a.appendRow([id, seguro(nome), seguro(instr), "'" + agora(), "'" + agora()]);
+  return { ok: true, id: id };
+}
+function arquivoProjeto(req) {
+  const proj = String(req.projeto || ''), nome = String(req.nome || '').trim().slice(0, 120);
+  const conteudo = String(req.conteudo || '').slice(0, 45000);
+  if (!proj || !nome || !conteudo) return { ok: false, erro: 'Faltou o projeto, o nome ou o conteúdo' };
+  if (temDadoSensivel(conteudo)) return { ok: false, erro: 'O arquivo tem CPF ou telefone de cliente; dado de cliente não vai pra nuvem' };
+  const a = aba('projeto_arquivos');
+  const n = a.getLastRow();
+  if (n >= 2) {
+    const vals = a.getRange(2, 1, n - 1, 2).getDisplayValues();
+    const i = vals.findIndex(v => v[0] === proj && v[1] === nome);
+    if (i >= 0) { a.getRange(i + 2, 3, 1, 2).setValues([[seguro(conteudo), "'" + agora()]]); return { ok: true, trocou: true }; }
+  }
+  a.appendRow([proj, seguro(nome), seguro(conteudo), "'" + agora()]);
+  return { ok: true };
+}
+function tirarArquivoProjeto(req) {
+  const a = aba('projeto_arquivos');
+  const n = a.getLastRow();
+  if (n < 2) return { ok: false };
+  const vals = a.getRange(2, 1, n - 1, 2).getDisplayValues();
+  const i = vals.findIndex(v => v[0] === String(req.projeto) && v[1] === String(req.nome));
+  if (i < 0) return { ok: false, erro: 'Arquivo não encontrado' };
+  a.deleteRow(i + 2);
+  return { ok: true };
+}
+/** Instruções + arquivos do projeto, pro sistema da conversa (cabe no limite: corta os arquivos grandes). */
+function contextoProjeto(projId) {
+  if (!projId) return '';
+  const p = linhas('projetos').find(l => l[0] === projId);
+  if (!p) return '';
+  const arqs = linhas('projeto_arquivos').filter(a => a[0] === projId);
+  let txt = '\n\n### PROJETO "' + p[1] + '" (esta conversa faz parte dele)';
+  if (String(p[2]).trim()) txt += '\nINSTRUÇÕES DO PROJETO (siga sempre nesta conversa):\n' + p[2];
+  let sobra = 24000;
+  arqs.forEach(a => {
+    if (sobra < 300) return;
+    const c = String(a[2]).slice(0, sobra);
+    txt += '\n\n--- ARQUIVO DO PROJETO: ' + a[1] + ' ---\n' + c + (c.length < String(a[2]).length ? '\n[...cortado]' : '');
+    sobra -= c.length;
+  });
+  passo('Usou o projeto "' + p[1] + '" (instruções' + (arqs.length ? ' + ' + arqs.length + ' arquivo' + (arqs.length > 1 ? 's' : '') : '') + ')');
+  return txt;
+}
+
+/* ============================================================
+ *  DISPOSITIVOS: o que tá ligado no PC de casa
+ * ============================================================ */
+
+function testarUrl(url, opts) {
+  try {
+    const r = UrlFetchApp.fetch(url, Object.assign({ muteHttpExceptions: true, followRedirects: true }, opts || {}));
+    return { cod: r.getResponseCode(), txt: r.getContentText().slice(0, 4000) };
+  } catch (e) { return { cod: 0, txt: String(e.message || e) }; }
+}
+function dispositivos() {
+  const out = [];
+  const pc = String(prop('PC_URL') || '').trim().replace(/\/+$/, '');
+  if (pc) {
+    const r = testarUrl(pc + '/api/tags');
+    let det = '';
+    try { det = JSON.parse(r.txt).models.map(m => m.name).slice(0, 6).join(', '); } catch (e) { /* ok */ }
+    out.push({ nome: 'Ollama (cérebro do PC)', ok: r.cod === 200, detalhe: r.cod === 200 ? det : 'desligado ou fora do ar' });
+  }
+  const comfy = String(prop('COMFY_URL') || '').trim().replace(/\/+$/, '');
+  if (comfy) {
+    const r = testarUrl(comfy + '/system_stats');
+    let det = '';
+    try { const d = JSON.parse(r.txt).devices[0]; det = d.name.replace(/^cuda:\d+\s*/, '') + ' · ' + Math.round(d.vram_free / 1073741824 * 10) / 10 + ' GB livres'; } catch (e) { /* ok */ }
+    out.push({ nome: 'ComfyUI (imagens)', ok: r.cod === 200, detalhe: r.cod === 200 ? det : 'fechado' });
+  }
+  if (prop('PONTE_URL')) {
+    try { const s = ponte('status'); out.push({ nome: 'Ponte (acesso ao PC)', ok: true, detalhe: s.nome + ' · ' + (s.pastas || []).map(p => p.caminho.split(/[\\/]/).pop() + (p.escrever ? ' ✎' : '')).join(', ') }); }
+    catch (e) { out.push({ nome: 'Ponte (acesso ao PC)', ok: false, detalhe: String(e.message || e).slice(0, 80) }); }
+  } else out.push({ nome: 'Ponte (acesso ao PC)', ok: false, detalhe: 'não instalada' });
+  return { ok: true, dispositivos: out, pc: 'DESKTOP-UL41KIJ' };
+}
+
+/* ============================================================
+ *  PONTE DO PC (programinha no Windows, pelo Tailscale Funnel)
+ *  Propriedades: PONTE_URL (link do Funnel com caminho secreto) e
+ *  PONTE_SEGREDO (vai no cabeçalho X-Zico-Ponte). Só pastas liberadas
+ *  no config.json do PC; nunca apaga; não sobrescreve (cria "nome (2)").
+ * ============================================================ */
+
+function ponte(acao, dados) {
+  const url = String(prop('PONTE_URL') || '').trim().replace(/\/+$/, '');
+  if (!url) throw new Error('A ponte do PC não está instalada (falta PONTE_URL)');
+  const r = UrlFetchApp.fetch(url + '/', { method: 'post', contentType: 'application/json', headers: { 'X-Zico-Ponte': String(prop('PONTE_SEGREDO') || '') }, payload: JSON.stringify(Object.assign({ acao: acao }, dados || {})), muteHttpExceptions: true, followRedirects: true });
+  const cod = r.getResponseCode(), txt = r.getContentText();
+  if (cod === 401 || cod === 403) throw new Error('Ponte recusou o segredo');
+  if (cod !== 200 || !/^\s*\{/.test(txt)) throw new Error(cod >= 500 || cod === 0 ? 'PC desligado ou ponte fechada' : 'Ponte respondeu ' + cod);
+  const j = JSON.parse(txt);
+  if (!j.ok) throw new Error(j.erro || 'Ponte deu erro');
+  return j;
+}
+/** Olha uma imagem (print da tela, foto do PC) com um cérebro que enxerga e devolve o que tem nela. */
+function descreverImagem(b64, mime, pergunta) {
+  const msgs = [{ role: 'user', content: [{ type: 'text', text: (pergunta || 'Descreva o que aparece nesta imagem, com os textos importantes, em português.') }, { type: 'image_url', image_url: { url: 'data:' + (mime || 'image/png') + ';base64,' + b64 } }] }];
+  for (const nome of ['gemini', 'mistral']) {
+    if (!temCerebro(nome) || motivoNaoCabe(nome, CEREBROS[nome], 3000)) continue;
+    try { const t = chamarCompat(CEREBROS[nome], msgs, 1200); registrarUso(nome, 3000); return t; }
+    catch (e) { if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); }
+  }
+  const pc = cerebroPC();
+  if (pc) { try { return chamarCompat(pc, msgs, 1200); } catch (e) { marcarPCdesligado(); } }
+  return '(não consegui olhar a imagem agora)';
+}
+function salvarBase64Drive(b64, mime, nome) {
+  return salvarImagemDrive(Utilities.newBlob(Utilities.base64Decode(b64), mime || 'image/jpeg', nome));
+}
+
+
+/* ============================================================
  *  AGENTES EM SEGUNDO PLANO
  *  Pedido grande vira linha na aba "tarefas". Um gatilho dispara
  *  ~1 min depois e roda o agente: planeja, executa etapas
@@ -2434,6 +2649,13 @@ const FERRAMENTAS = {
   gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() },
   ler_meu_codigo: { desc: 'Lê trechos do MEU PRÓPRIO código (Apps Script) ligados a um termo: funções inteiras, com nome. Use antes de editar. args: {termo}', run: a => trechosDoCodigo(String(a.termo || '')) },
   editar_meu_codigo: { desc: 'Edita o MEU PRÓPRIO código e publica: faz backup, aplica as trocas (cada "procurar" tem que existir UMA vez, copiado exato), confere sintaxe, testa a versão nova e só então publica; se falhar, volta sozinho. args: {edicoes: [{procurar, trocar}], motivo}', run: (a, ctx) => { const r = autoMelhorar(a.edicoes || [], String(a.motivo || ''), ctx); return r.ok ? 'PUBLICADO: versão ' + r.versao + ' (backup ' + r.backup + ')' + (r.github ? ', salvo no GitHub' : '') : 'ERRO: ' + r.erro; } },
+  pc_status: { desc: 'PC do Thiago: nome, pastas liberadas (✎ = pode escrever) e espaço livre. args: {}', run: () => { const s = ponte('status'); return 'PC ' + s.nome + ' (' + s.hora + ')\nPastas: ' + s.pastas.map(p => p.caminho + (p.escrever ? ' (lê e escreve)' : ' (só lê)')).join('; ') + (s.disco ? '\nDisco: ' + s.disco : ''); } },
+  pc_listar: { desc: 'Lista uma pasta do PC (só as liberadas). args: {pasta}', run: a => { const r = ponte('listar', { pasta: String(a.pasta || '') }); return r.pasta + ':\n' + (r.itens.map(i => (i.tipo === 'pasta' ? '📁 ' : '📄 ') + i.nome + (i.tipo === 'pasta' ? '' : ' (' + Math.ceil(i.tamanho / 1024) + ' KB, ' + i.modificado + ')')).join('\n') || '(vazia)'); } },
+  pc_ler: { desc: 'Lê um arquivo do PC: texto volta inteiro; imagem é olhada e descrita. args: {arquivo, pergunta (opcional, pra imagem)}', run: a => { const r = ponte('ler', { arquivo: String(a.arquivo || '') }); if (r.base64) return 'Imagem ' + r.arquivo + ':\n' + descreverImagem(r.base64, r.mime, a.pergunta); return r.arquivo + ':\n' + String(r.texto).slice(0, 15000); } },
+  pc_escrever: { desc: 'Cria um arquivo de texto no PC (só na pasta ZicoAI ou outra liberada pra escrever; nunca sobrescreve: se existir, vira "nome (2)"). args: {arquivo, conteudo}', run: a => { const r = ponte('escrever', { arquivo: String(a.arquivo || ''), conteudo: String(a.conteudo || '') }); return 'salvo em ' + r.arquivo; } },
+  pc_print: { desc: 'Tira print da tela do PC, guarda no Drive e diz o que aparece. args: {pergunta (opcional: o que procurar na tela)}', run: a => { const r = ponte('print'); const link = salvarBase64Drive(r.base64, r.mime, 'print-pc-' + Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd-HHmmss') + '.jpg'); return 'Print salvo: ' + link + '\n(pra mostrar pro Thiago use ![print da tela](' + link + '))\nO que aparece: ' + descreverImagem(r.base64, r.mime, a.pergunta ? 'Olhe este print da tela do PC e responda: ' + a.pergunta : 'Descreva este print da tela do PC: programas abertos, janelas e textos importantes.'); } },
+  pc_abrir: { desc: 'Abre no PC um site (https://...), um programa da lista (bloco de notas, calculadora, chrome, explorador, comfyui) ou um arquivo de pasta liberada (txt, pdf, imagem, planilha). args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }); return 'aberto: ' + r.aberto; } },
+  pc_comando: { desc: 'Roda um comando SEGURO da lista no PC: espaco_disco, processos, gpu, ip, sistema, ollama_modelos. args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }); return String(r.saida).slice(0, 6000); } },
   dividir_em_agentes: { desc: 'Divide um pedido GRANDE em 2 a 4 partes independentes que outros agentes fazem AO MESMO TEMPO (ex.: pesquisar 4 lojas, uma por agente). Você espera e recebe todos os resultados juntos pra montar a resposta final. args: {partes: ["descrição completa da parte 1", "parte 2", ...]}', run: (a, ctx) => {
     const partes = (Array.isArray(a.partes) ? a.partes : []).map(x => String(x || '').trim()).filter(x => x.length >= 8).slice(0, 4);
     if (partes.length < 2) return 'ERRO: mande de 2 a 4 partes, cada uma com a descrição completa do que fazer';
@@ -2475,7 +2697,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
         if (motivo) { if (!/do minuto|castigo/.test(motivo)) soMinuto = false; tentou = true; continue; }
         tentou = true;
         try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome }; }
-        catch (e) { if (/\b429\b|rate limit|quota/i.test(String(e.message))) castigo(nome, e.message); }
+        catch (e) { if (/\b429\b|rate limit|quota/i.test(String(e.message))) castigo(nome, e.message); else if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); }
       }
       const pc = (!soMinuto || rodada === 2) ? cerebroPCcodigo() : null;
       if (pc) {
@@ -2495,7 +2717,9 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   };
   const ctx = { id: id, chatId: chatId, aparelho: aparelho, pai: pai, est: est };
   if (!est.msgs) {
-    const sistema = montarSistema(pedido, true) + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
+    let proj = '';
+    try { proj = chatId ? contextoProjeto(projetoDoChat(chatId)) : ''; } catch (e) { /* ok */ }
+    const sistema = montarSistema(pedido, true) + proj + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
     est.msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
     anota('Começou a trabalhar');
   } else anota('Continuou de onde parou (rodada ' + est.rodadas + ')');

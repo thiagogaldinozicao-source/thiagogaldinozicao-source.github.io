@@ -89,6 +89,7 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .passos li{position:relative;font-size:13px;color:var(--cinza);padding:3px 0}
 .passos li::before{content:'';position:absolute;left:-17px;top:10px;width:8px;height:8px;border-radius:50%;background:var(--borda2)}
 .passos li:last-child::before{background:var(--ouro)}
+.passos .ic-p{display:inline-block;width:20px;margin-right:4px;text-align:center}
 
 /* trabalhando */
 .trab ol{list-style:none;border-left:2px solid var(--borda2);padding-left:12px;margin:2px 0 0 4px}
@@ -243,6 +244,36 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 
 #veu{display:none}
 
+/* ---------- igual o app do Claude: menu da conversa, projetos, dispositivos ---------- */
+header{display:flex}
+@media (min-width:900px){ #bMenu{visibility:hidden} }
+.menu-topo{top:52px;bottom:auto;right:10px;width:220px;position:fixed}
+.menu-topo button{display:flex;gap:10px;align-items:center;font-size:15px}
+.menu-topo hr{border:none;border-top:1px solid var(--borda2);margin:4px 6px}
+.menu-topo .perigo{color:var(--erro)}
+.chat-item .pin{color:var(--ouro);font-size:12px;flex-shrink:0}
+.chat-item .gira{width:12px;height:12px;border:2px solid var(--borda2);border-top-color:var(--ouro);border-radius:50%;animation:gira 1s linear infinite;flex-shrink:0}
+.chat-item .pj{font-size:11px;color:var(--cinza2);flex-shrink:0;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes gira{to{transform:rotate(360deg)}}
+.pj-card{display:block;width:100%;text-align:left;padding:12px;border:1px solid var(--borda2);border-radius:14px;background:var(--bg);margin-top:8px}
+.pj-card b{display:block;font-size:16px}
+.pj-card small{color:var(--cinza2)}
+.pj-caixa{border:1px solid var(--borda2);border-radius:14px;padding:12px;margin-top:10px;background:var(--bg)}
+.pj-caixa textarea{width:100%;min-height:90px;background:transparent;border:none;color:var(--txt);font:inherit;font-size:15px;resize:vertical;outline:none}
+.pj-linha{display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid var(--borda);font-size:14px}
+.pj-linha:last-child{border-bottom:none}
+.pj-linha .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.pj-linha small{color:var(--cinza2)}
+.pj-linha .x{color:var(--cinza);width:28px;height:28px;border-radius:8px}
+.pj-btn{display:block;width:100%;padding:12px;border-radius:12px;border:1px dashed var(--borda2);color:var(--ouro2);margin-top:8px;font-weight:600}
+.disp{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--borda)}
+.disp i{width:9px;height:9px;border-radius:50%;margin-top:7px;flex-shrink:0;background:var(--erro)}
+.disp.ok i{background:var(--verde)}
+.disp small{display:block;color:var(--cinza);font-size:13px}
+#pagina{display:none;align-items:center;gap:8px;margin:2px 4px 6px;padding:7px 10px;border:1px solid #4a3c12;background:var(--ouro-fundo);border-radius:12px;font-size:13px;color:var(--ouro2)}
+#pagina span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.boas .proj{font-size:13px;color:var(--ouro2);border:1px solid #4a3c12;border-radius:20px;padding:3px 12px;margin-top:4px}
+
 @media (max-width:899px){
   #lado{position:fixed;inset:0 auto 0 0;z-index:20;transform:translateX(-100%);transition:transform .22s ease;width:min(84vw,320px)}
   body.lado-aberto #lado{transform:none}
@@ -263,6 +294,8 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
   <div class="lado-tit">Conversas</div>
   <div id="lista"><div class="lado-vazio">Carregando...</div></div>
   <div class="lado-pe">
+    <button id="bProj">📁 Projetos</button>
+    <button id="bDisp">💻 Dispositivos</button>
     <button id="bMem">🧠 Memória</button>
     <button id="bApps">🧩 Meus apps</button>
     <button id="bTarefas2">⧉ Tarefas em segundo plano <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
@@ -275,6 +308,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
   <header>
     <button class="btn-ic" id="bMenu" aria-label="Conversas">☰</button>
     <div class="titulo" id="tituloTopo">ZicoAI</div>
+    <button class="btn-ic" id="bConv" aria-label="Opções da conversa" title="Opções da conversa">⋯</button>
     <button class="btn-ic" id="bTarefas" aria-label="Tarefas em segundo plano" title="Tarefas em segundo plano">⧉</button>
     <button class="btn-ic" id="bNovo2" aria-label="Nova conversa">✎</button>
   </header>
@@ -285,6 +319,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
     <div class="caixa">
       <div id="editando">🧩 Editando o app <b id="editandoNome"></b> (ela devolve o arquivo inteiro alterado)<button id="pararEdicao">✕ sair</button></div>
       <div id="previa"><img id="previaImg" alt=""><button id="tiraFoto">✕ remover foto</button></div>
+      <div id="pagina">📄 <span id="paginaNome"></span><button id="tiraPagina" title="Tirar">✕</button></div>
       <textarea id="txt" rows="1" placeholder="Pergunta qualquer coisa pra ZicoAI"></textarea>
       <div class="caixa-pe">
         <button class="chip-ic" id="bFoto" title="Foto">📷</button>
@@ -310,6 +345,33 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
     <div id="linhaTarefas"><span class="pontos"><i></i><i></i><i></i></span><span id="txtTarefas">1 tarefa em execução</span><span style="margin-left:auto">ver ›</span></div>
     <div class="dica">A ZicoAI aprende com vc. Não mande CPF nem telefone de cliente aqui.</div>
   </footer>
+</div>
+
+<div class="menu menu-topo" id="menuConv">
+  <button id="mcFixar">📌 <span>Fixar</span></button>
+  <hr>
+  <button id="mcCompartilhar">⇪ Compartilhar</button>
+  <button id="mcRenomear">✎ Renomear</button>
+  <button id="mcProjeto">📁 Mudar projeto</button>
+  <hr>
+  <button id="mcExcluir" class="perigo">🗑 Excluir</button>
+</div>
+
+<div class="modal" id="mProj">
+  <div class="painel">
+    <div id="pjConteudo"></div>
+    <div class="linha-btn"><button class="btn cinza" id="pjFechar">Fechar</button></div>
+  </div>
+</div>
+<input type="file" id="pjArq" accept=".txt,.md,.csv,.json,.tsv,.html,.js,.gs,.css,.xml,text/plain" hidden>
+
+<div class="modal" id="mDisp">
+  <div class="painel">
+    <h3>Dispositivos</h3>
+    <div id="dLista"><p class="aviso">Conferindo o PC...</p></div>
+    <p class="aviso">A ponte deixa a ZicoAI ler e criar arquivos nas pastas liberadas, tirar print da tela e abrir programas no PC. Ela nunca apaga nada.</p>
+    <div class="linha-btn"><button class="btn cinza" id="dFechar">Fechar</button><button class="btn ouro" id="dAtualizar">Atualizar</button></div>
+  </div>
 </div>
 
 <div class="modal" id="mCfg">
@@ -383,6 +445,9 @@ let mensagens = LS.get('msgs_' + atual, []);
 let foto = null, miniatura = null;
 let modo = 'auto';
 let controle = null;                        // pra botão parar
+let projetos = LS.get('projetos', []);       // [{id,nome,instrucoes,arquivos,conversas}]
+let projAtual = null;                       // projeto da conversa nova
+let pagina = null;                          // página aberta no Chrome (extensão)
 
 /* ---------- servidor ---------- */
 async function api(corpo, sinal){
@@ -552,8 +617,10 @@ function desenhaLista(){
   chats.forEach(c => {
     const d = document.createElement('div');
     d.className = 'chat-item' + (c.id === atual ? ' ativo' : '');
-    d.innerHTML = '<button class="t"></button><button class="x" title="Apagar">🗑</button>';
+    const pj = c.projeto ? projetos.find(p => p.id === c.projeto) : null;
+    d.innerHTML = (c.fixada ? '<span class="pin">📌</span>' : '') + '<button class="t"></button>' + (pj ? '<span class="pj"></span>' : '') + (c.trabalhando ? '<span class="gira" title="Trabalhando…"></span>' : '') + '<button class="x" title="Apagar">🗑</button>';
     d.querySelector('.t').textContent = c.titulo || 'Conversa';
+    if(pj) d.querySelector('.pj').textContent = pj.nome;
     d.querySelector('.t').onclick = () => abrir(c.id);
     d.querySelector('.x').onclick = () => apagar(c.id);
     l.appendChild(d);
@@ -587,8 +654,9 @@ async function apagar(id){
   desenhaLista();
   try{ await api({ acao:'apagarChat', chatId: id }); }catch(e){}
 }
-function novaConversa(){
+function novaConversa(proj){
   if(controle) return;
+  projAtual = typeof proj === 'string' ? proj : null;
   atual = null; mensagens = []; LS.set('atual', null);
   desenha(); desenhaLista(); fechaLado(); $('txt').focus();
 }
@@ -598,9 +666,10 @@ function desenha(){
   const t = $('trilho');
   t.innerHTML = '';
   const c = chats.find(x => x.id === atual);
-  $('tituloTopo').textContent = c ? c.titulo : 'ZicoAI';
+  const pjAberto = projetos.find(p => p.id === ((c && c.projeto) || projAtual));
+  $('tituloTopo').textContent = c ? c.titulo : (pjAberto ? pjAberto.nome : 'ZicoAI');
   if(!mensagens.length){
-    t.innerHTML = '<div class="boas"><h2>E aí, Thiago</h2><p>Bora criar? App, jogo, imagem, ideia nova. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
+    t.innerHTML = '<div class="boas">' + (pjAberto ? '<span class="proj">📁 ' + esc(pjAberto.nome) + '</span>' : '') + '<h2>E aí, Thiago</h2><p>Bora criar? App, jogo, imagem, ideia nova. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
       [['Criar app','Faz um jogo da cobrinha em 1 arquivo HTML, modo escuro, pra celular'],
        ['Imagem','Gera um sprite de personagem estilo pixel art, fundo transparente'],
        ['Agente','Pesquisa as 5 melhores ideias de app simples pra loja e monta um plano'],
@@ -627,7 +696,7 @@ function balao(m, ultima){
   if(m.passos && m.passos.length){
     const det = document.createElement('details');
     det.className = 'passos';
-    det.innerHTML = '<summary>Como respondi</summary><ol>' + m.passos.map(p => '<li>' + esc(p) + '</li>').join('') + '</ol>';
+    det.innerHTML = '<summary>Como respondi</summary><ol>' + m.passos.map(p => '<li><span class="ic-p">' + iconePasso(p) + '</span>' + esc(p) + '</li>').join('') + '</ol>';
     corpo.appendChild(det);
   }
   const md = document.createElement('div');
@@ -635,6 +704,7 @@ function balao(m, ultima){
   md.innerHTML = renderMd(m.content);
   corpo.appendChild(md);
   trataImagens(corpo);
+  if(m._digitar){ delete m._digitar; digita(md); }
   if(ultima && !m.erro) setTimeout(() => md.querySelectorAll('.bloco').forEach(b => { if(b.querySelector('.testar')) autoTesta(b); }), 50);
 
   const ac = document.createElement('div');
@@ -752,6 +822,43 @@ if(temGravador){
 }
 function rola(){ const c = $('chat'); requestAnimationFrame(() => c.scrollTop = c.scrollHeight); }
 
+/* ---------- resumo: ícone pra cada tipo de passo (igual o painel do Claude) ---------- */
+function iconePasso(p){
+  const t = String(p).toLowerCase();
+  const tabela = [
+    [/falhou|erro|n[aã]o conseguiu|n[aã]o respondeu|caiu/, '⚠️'], [/castigo|limite|sobrecarregad|esperou|pulado/, '⏳'],
+    [/pesquis|web|google|duckduckgo|bing/, '🔎'], [/leu a p[aá]gina|link|site/, '🌐'], [/foto|print/, '📷'],
+    [/imagem|comfyui/, '🎨'], [/agente|tarefa|partes/, '🧠'], [/🔧|ferramenta/, '🔧'], [/pc |computador|ponte/, '💻'],
+    [/perfil|aprendizad|lembran|mem[oó]ria|trecho|base|exemplo/, '📚'], [/pre[cç]o|tabela|calcul|d[oó]lar|conta/, '🧮'],
+    [/c[oó]digo|programa/, '⌨️'], [/agenda|e-?mail|gmail|drive/, '📅'], [/respondeu|escreveu/, '💬']
+  ];
+  for(const [re, ic] of tabela) if(re.test(t)) return ic;
+  return '•';
+}
+
+/* ---------- resposta aparecendo enquanto "escreve" (o servidor manda tudo de uma vez; aqui só o efeito) ---------- */
+function digita(el){
+  const nos = [];
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement && n.parentElement.closest('pre, .bloco-top, button') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  while(w.nextNode()) nos.push(w.currentNode);
+  const textos = nos.map(n => n.nodeValue);
+  const total = textos.reduce((a, t) => a + t.length, 0);
+  if(total < 40 || total > 6000 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  nos.forEach(n => n.nodeValue = '');
+  const porQuadro = Math.max(2, Math.ceil(total / 100));   // ~1,5 s no total
+  let i = 0, k = 0, q = 0;
+  (function tick(){
+    let falta = porQuadro;
+    while(falta > 0 && i < nos.length){
+      const t = textos[i], pega = Math.min(falta, t.length - k);
+      nos[i].nodeValue += t.substr(k, pega); k += pega; falta -= pega;
+      if(k >= t.length){ i++; k = 0; }
+    }
+    if(++q % 6 === 0) rola();
+    if(i < nos.length) requestAnimationFrame(tick); else rola();
+  })();
+}
+
 /* ---------- "trabalhando" (etapas enquanto espera) ---------- */
 function mostraTrabalhando(etapas){
   const d = document.createElement('div');
@@ -807,20 +914,27 @@ async function envia(refazendo){
   const novo = !atual;
   try{
     const hist = mensagens.filter(m => !m.erro).slice(-12).map(m => ({ role: m.role, content: m.content }));
+    if(pagina && !refazendo && hist.length){
+      const u = hist[hist.length - 1];
+      u.content += '\n\n---\nPÁGINA ABERTA NO CHROME: ' + pagina.titulo + ' (' + pagina.url + ')\n' + (pagina.selecao ? 'TRECHO SELECIONADO:\n' + pagina.selecao + '\n\nPÁGINA:\n' : '') + pagina.texto.slice(0, 12000);
+      tiraPagina();
+    }
+    const cAtual = chats.find(x => x.id === atual);
+    const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
-      acao:'chat', chatId: atual || undefined, mensagens: hist,
+      acao:'chat', chatId: atual || undefined, mensagens: hist, projeto: projEnvio,
       imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
     if(novo && j.chatId){
       atual = j.chatId; LS.set('atual', atual);
-      chats.unshift({ id: j.chatId, titulo: j.titulo || 'Conversa', atualizada: '' });
+      chats.unshift({ id: j.chatId, titulo: j.titulo || 'Conversa', atualizada: '', projeto: projEnvio || '' });
     } else {
       const c = chats.find(x => x.id === atual);
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms });
+    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms, _digitar: true });
     status(true);
   }catch(e){
     para();
@@ -947,7 +1061,7 @@ $('bEnviar').onclick = () => { if(controle) controle.abort(); else envia(); };
 function guarda(){
   if(!atual) return;
   // fotos só ficam neste aparelho e em tamanho pequeno
-  LS.set('msgs_' + atual, mensagens.slice(-80));
+  LS.set('msgs_' + atual, mensagens.slice(-80).map(m => { if(!m._digitar) return m; const c = Object.assign({}, m); delete c._digitar; return c; }));
 }
 
 /* ---------- modos ---------- */
@@ -1018,12 +1132,178 @@ $('txt').addEventListener('paste', e => {
   $('arquivo').files = dt.files; $('arquivo').onchange({ target: $('arquivo') });
 });
 
+/* ---------- menu da conversa (⋯): fixar, compartilhar, renomear, mudar projeto, excluir ---------- */
+function fechaMenuConv(){ $('menuConv').style.display = 'none'; }
+$('bConv').onclick = e => {
+  e.stopPropagation();
+  const m = $('menuConv');
+  if(m.style.display === 'block'){ fechaMenuConv(); return; }
+  const c = chats.find(x => x.id === atual);
+  if(!c){ alert('Abre ou começa uma conversa primeiro.'); return; }
+  $('mcFixar').querySelector('span').textContent = c.fixada ? 'Desafixar' : 'Fixar';
+  m.style.display = 'block';
+};
+document.addEventListener('click', e => { if(!e.target.closest('#menuConv')) fechaMenuConv(); });
+async function metaConversa(campos){
+  const c = chats.find(x => x.id === atual); if(!c) return;
+  Object.assign(c, campos);
+  if('fixada' in campos) chats.sort((a, b) => (a.fixada === b.fixada ? 0 : a.fixada ? -1 : 1));
+  LS.set('chats', chats); desenhaLista(); desenha();
+  try{ await api(Object.assign({ acao:'chatMeta', chatId: atual }, campos)); }catch(e){ alert('Não salvou: ' + e.message); }
+}
+$('mcFixar').onclick = () => { fechaMenuConv(); const c = chats.find(x => x.id === atual); if(c) metaConversa({ fixada: !c.fixada }); };
+$('mcRenomear').onclick = () => {
+  fechaMenuConv();
+  const c = chats.find(x => x.id === atual); if(!c) return;
+  const t = prompt('Novo nome da conversa', c.titulo || '');
+  if(t && t.trim()) metaConversa({ titulo: t.trim().slice(0, 80) });
+};
+$('mcCompartilhar').onclick = async () => {
+  fechaMenuConv();
+  const c = chats.find(x => x.id === atual);
+  const texto = mensagens.filter(m => !m.erro).map(m => (m.role === 'user' ? 'Thiago: ' : 'ZicoAI: ') + m.content).join('\n\n');
+  try{
+    if(navigator.share) await navigator.share({ title: c ? c.titulo : 'ZicoAI', text: texto });
+    else { await navigator.clipboard.writeText(texto); alert('Conversa copiada. É só colar onde quiser.'); }
+  }catch(e){ if(e.name !== 'AbortError'){ try{ await navigator.clipboard.writeText(texto); alert('Conversa copiada.'); }catch(_){} } }
+};
+$('mcProjeto').onclick = async () => {
+  fechaMenuConv();
+  await carregaProjetos();
+  const c = chats.find(x => x.id === atual); if(!c) return;
+  abreProjetos('mover');
+};
+$('mcExcluir').onclick = () => { fechaMenuConv(); if(atual) apagar(atual); };
+
+/* ---------- projetos (instruções + arquivos que entram em toda conversa do projeto) ---------- */
+async function carregaProjetos(){
+  try{ const j = await api({ acao:'projetos' }); projetos = j.projetos; LS.set('projetos', projetos); }catch(e){}
+  return projetos;
+}
+function abreProjetos(modoTela){
+  fechaLado();
+  $('mProj').classList.add('aberto');
+  desenhaProjetos(modoTela);
+  carregaProjetos().then(() => { if($('mProj').classList.contains('aberto') && !$('pjConteudo').dataset.pj) desenhaProjetos(modoTela); });
+}
+function desenhaProjetos(modoTela){
+  const box = $('pjConteudo'); delete box.dataset.pj;
+  const mover = modoTela === 'mover';
+  box.innerHTML = '<h3>' + (mover ? 'Mudar de projeto' : 'Projetos') + '</h3><p class="aviso">' + (mover ? 'Escolhe pra onde vai esta conversa.' : 'Cada projeto tem instruções e arquivos que a ZicoAI lê em todas as conversas dele.') + '</p>';
+  if(mover){
+    const sem = document.createElement('button'); sem.className = 'pj-card'; sem.innerHTML = '<b>Sem projeto</b><small>conversa solta</small>';
+    sem.onclick = () => { metaConversa({ projeto: '' }); $('mProj').classList.remove('aberto'); };
+    box.appendChild(sem);
+  }
+  projetos.forEach(p => {
+    const b = document.createElement('button'); b.className = 'pj-card';
+    b.innerHTML = '<b></b><small></small>';
+    b.querySelector('b').textContent = '📁 ' + p.nome;
+    b.querySelector('small').textContent = p.conversas + ' conversa' + (p.conversas === 1 ? '' : 's') + ' · ' + p.arquivos.length + ' arquivo' + (p.arquivos.length === 1 ? '' : 's') + (p.instrucoes ? ' · com instruções' : '');
+    b.onclick = () => { if(mover){ metaConversa({ projeto: p.id }); $('mProj').classList.remove('aberto'); } else abreProjeto(p.id); };
+    box.appendChild(b);
+  });
+  const novo = document.createElement('button'); novo.className = 'pj-btn'; novo.textContent = '＋ Novo projeto';
+  novo.onclick = async () => {
+    const nome = prompt('Nome do projeto (ex.: Loja, ZicoAI, Obra)'); if(!nome || !nome.trim()) return;
+    try{ const j = await api({ acao:'projetoSalvar', nome: nome.trim() }); await carregaProjetos(); if(mover){ metaConversa({ projeto: j.id }); $('mProj').classList.remove('aberto'); } else abreProjeto(j.id); }
+    catch(e){ alert(e.message); }
+  };
+  box.appendChild(novo);
+}
+function abreProjeto(id){
+  const p = projetos.find(x => x.id === id); if(!p) return;
+  const box = $('pjConteudo'); box.dataset.pj = id;
+  box.innerHTML = '<button class="sel" id="pjVolta">‹ Projetos</button><h3></h3>' +
+    '<button class="pj-btn" id="pjNovaConv">＋ Nova conversa neste projeto</button>' +
+    '<div class="sec">Instruções</div><div class="pj-caixa"><textarea id="pjInstr" placeholder="Ex.: responda sempre com o preço no Pix e no cartão em 12x; tom informal"></textarea></div>' +
+    '<div class="linha-btn" style="margin-top:8px"><button class="btn cinza" id="pjRenomear">Renomear</button><button class="btn ouro" id="pjSalvarInstr">Salvar instruções</button></div>' +
+    '<div class="aviso" id="pjAviso"></div>' +
+    '<div class="sec">Arquivos</div><div class="pj-caixa" id="pjArqs"></div><button class="pj-btn" id="pjAddArq">📎 Adicionar arquivo (.txt, .md, .csv...)</button>' +
+    '<div class="sec">Conversas</div><div class="pj-caixa" id="pjConvs"></div>';
+  box.querySelector('h3').textContent = '📁 ' + p.nome;
+  $('pjInstr').value = p.instrucoes || '';
+  $('pjVolta').onclick = () => desenhaProjetos();
+  $('pjNovaConv').onclick = () => { $('mProj').classList.remove('aberto'); novaConversa(id); };
+  $('pjSalvarInstr').onclick = async () => {
+    $('pjAviso').textContent = 'Salvando...';
+    try{ await api({ acao:'projetoSalvar', id, instrucoes: $('pjInstr').value }); p.instrucoes = $('pjInstr').value; LS.set('projetos', projetos); $('pjAviso').style.color = 'var(--verde)'; $('pjAviso').textContent = 'Salvo. Vale pra todas as conversas do projeto.'; }
+    catch(e){ $('pjAviso').style.color = 'var(--erro)'; $('pjAviso').textContent = e.message; }
+  };
+  $('pjRenomear').onclick = async () => {
+    const n = prompt('Novo nome do projeto', p.nome); if(!n || !n.trim()) return;
+    try{ await api({ acao:'projetoSalvar', id, nome: n.trim() }); p.nome = n.trim(); LS.set('projetos', projetos); abreProjeto(id); desenhaLista(); }catch(e){ alert(e.message); }
+  };
+  const arqs = $('pjArqs');
+  if(!p.arquivos.length) arqs.innerHTML = '<p class="aviso" style="margin:0">Nenhum arquivo ainda.</p>';
+  p.arquivos.forEach(a => {
+    const l = document.createElement('div'); l.className = 'pj-linha';
+    l.innerHTML = '<span>📄</span><span class="n"></span><small></small><button class="x" title="Tirar do projeto">✕</button>';
+    l.querySelector('.n').textContent = a.nome; l.querySelector('small').textContent = Math.max(1, Math.round(a.tamanho / 1000)) + ' mil letras';
+    l.querySelector('.x').onclick = async () => {
+      if(!confirm('Tirar "' + a.nome + '" do projeto?')) return;
+      try{ await api({ acao:'projetoTirarArquivo', projeto: id, nome: a.nome }); p.arquivos = p.arquivos.filter(x => x !== a); LS.set('projetos', projetos); abreProjeto(id); }catch(e){ alert(e.message); }
+    };
+    arqs.appendChild(l);
+  });
+  $('pjAddArq').onclick = () => { $('pjArq').dataset.pj = id; $('pjArq').click(); };
+  const convs = $('pjConvs');
+  const lista = chats.filter(c => c.projeto === id);
+  if(!lista.length) convs.innerHTML = '<p class="aviso" style="margin:0">Nenhuma conversa ainda.</p>';
+  lista.forEach(c => {
+    const l = document.createElement('button'); l.className = 'pj-linha'; l.style.width = '100%';
+    l.innerHTML = '<span>💬</span><span class="n"></span><small></small>';
+    l.querySelector('.n').textContent = c.titulo || 'Conversa';
+    l.querySelector('small').textContent = c.trabalhando ? 'Trabalhando…' : (c.atualizada || '').slice(5, 16).replace(' ', ' às ');
+    l.onclick = () => { $('mProj').classList.remove('aberto'); abrir(c.id); };
+    convs.appendChild(l);
+  });
+}
+$('pjArq').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; const id = $('pjArq').dataset.pj;
+  if(!f || !id) return;
+  if(f.size > 300000){ alert('Arquivo grande demais (máx. 300 KB).'); return; }
+  const texto = await f.text();
+  $('pjAviso').style.color = 'var(--cinza)'; $('pjAviso').textContent = 'Enviando ' + f.name + '...';
+  try{ const j = await api({ acao:'projetoArquivo', projeto: id, nome: f.name, conteudo: texto }); await carregaProjetos(); abreProjeto(id); $('pjAviso').style.color = 'var(--verde)'; $('pjAviso').textContent = (j.trocou ? 'Atualizado: ' : 'Adicionado: ') + f.name; }
+  catch(err){ $('pjAviso').style.color = 'var(--erro)'; $('pjAviso').textContent = err.message; }
+};
+$('bProj').onclick = () => abreProjetos();
+$('pjFechar').onclick = () => $('mProj').classList.remove('aberto');
+
+/* ---------- dispositivos (o PC de casa) ---------- */
+async function abreDispositivos(){
+  fechaLado();
+  $('mDisp').classList.add('aberto');
+  $('dLista').innerHTML = '<p class="aviso">Conferindo o PC...</p>';
+  try{
+    const j = await api({ acao:'dispositivos' });
+    $('dLista').innerHTML = '<div class="sec">💻 ' + esc(j.pc || 'PC de casa') + '</div>' + j.dispositivos.map(d =>
+      '<div class="disp' + (d.ok ? ' ok' : '') + '"><i></i><div><b>' + esc(d.nome) + '</b><small>' + (d.ok ? 'Conectado' : 'Desconectado') + (d.detalhe ? ' · ' + esc(d.detalhe) : '') + '</small></div></div>').join('');
+  }catch(e){ $('dLista').innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
+}
+$('bDisp').onclick = abreDispositivos;
+$('dAtualizar').onclick = abreDispositivos;
+$('dFechar').onclick = () => $('mDisp').classList.remove('aberto');
+
+/* ---------- extensão do Chrome: "usar esta página" ---------- */
+function tiraPagina(){ pagina = null; $('pagina').style.display = 'none'; }
+$('tiraPagina').onclick = tiraPagina;
+window.addEventListener('message', e => {
+  const d = e.data;
+  if(!d || d.tipo !== 'zicoai-pagina' || !/^chrome-extension:\/\//.test(e.origin)) return;
+  pagina = { titulo: String(d.titulo || 'Página').slice(0, 200), url: String(d.url || '').slice(0, 500), texto: String(d.texto || ''), selecao: String(d.selecao || '').slice(0, 6000) };
+  $('paginaNome').textContent = (pagina.selecao ? 'Trecho de: ' : '') + pagina.titulo;
+  $('pagina').style.display = 'flex';
+  $('txt').focus();
+});
+
 /* ---------- lateral no celular ---------- */
 function fechaLado(){ document.body.classList.remove('lado-aberto'); }
 $('bMenu').onclick = () => { document.body.classList.add('lado-aberto'); carregaLista(); };
 $('veu').onclick = fechaLado;
-$('bNovo').onclick = novaConversa;
-$('bNovo2').onclick = novaConversa;
+$('bNovo').onclick = () => novaConversa();
+$('bNovo2').onclick = () => novaConversa();
 
 /* ---------- configurar ---------- */
 $('bCfg').onclick = () => {
@@ -1124,7 +1404,7 @@ status();
 mostraModelo();
 desenhaLista();
 desenha();
-if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); }
+if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); setTimeout(() => carregaProjetos().then(desenhaLista), 1200); }
 else setTimeout(() => $('bCfg').onclick(), 300);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>

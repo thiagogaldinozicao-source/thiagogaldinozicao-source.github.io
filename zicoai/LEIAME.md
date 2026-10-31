@@ -106,12 +106,25 @@ Abas e colunas:
 - `precos`: Produto | Condição | Capacidade | Cor | Preço Pix | Preço 12x | Estoque | Obs. ÚNICA fonte de preço: entra no sistema quando a pergunta fala de preço/valor/estoque ou cita produto (filtra pelo número do modelo). Vazia → a IA é avisada pra não dar preço.
 - `exemplos`: Data | Pergunta | Resposta | Cérebro | Assunto (respostas aprovadas com 👍)
 - `treino`: Data | Tipo | Nota | Detalhe (prova rápida, revisão do dia, pergunta do dia, perguntas novas, exportação)
+- `chats`: Conversa | Título | Criada | Atualizada | Aparelho | Fixada ("sim") | Projeto (id)
+- `projetos`: Id | Nome | Instruções | Criado | Atualizado
+- `projeto_arquivos`: Projeto | Nome | Conteúdo (texto, até 45 mil letras) | Data
 - `tarefas`: Id | Criada | Conversa | Pedido | Status (pendente/rodando/esperando/concluída/erro/cancelada) | Passos | Resultado | Atualizada | Aparelho | Pai (id do agente chefe, nas partes)
 - `vetores`: Aba | Texto | Vetor (cache dos embeddings `gemini-embedding-001`, 256 dimensões, arredondados). Preenchida sozinha, até 20 trechos novos por resposta.
 - `config`: Chave | Valor
 - `prova`: Nº | Grupo | Pergunta exata | Critérios nota 10 | Erro mais provável | Última nota | Última data | Observação (20 perguntas da prova semanal; gabarito feito em 30/10)
 
 Datas com `'` na frente pra não virarem número. Texto começando com `= + - @` leva `'` (função `seguro`).
+
+## Versão 36 (30/10 noite): igual o app do Claude + acesso ao PC
+- **Conversa (⋯ no topo)**: Fixar/Desafixar, Compartilhar (navigator.share ou copia), Renomear, Mudar projeto, Excluir. Ação `chatMeta {chatId, titulo?, fixada?, projeto?}`. `listarChats` devolve `fixada`, `projeto` e `trabalhando` (tem tarefa pendente/rodando/esperando) e põe as fixadas primeiro. Lateral: 📌, nome do projeto e bolinha girando.
+- **Projetos (📁 na lateral)**: instruções + arquivos de texto por projeto. `contextoProjeto(id)` entra no sistema de toda conversa do projeto (o app manda `projeto` na conversa nova; depois vale a coluna Projeto da aba chats) e também no agente. Ações: `projetos`, `projetoSalvar {id?, nome, instrucoes}`, `projetoArquivo {projeto, nome, conteudo}` (mesmo nome troca; CPF/telefone barrado), `projetoTirarArquivo`, `projetoArquivoLer`.
+- **Dispositivos (💻 na lateral)**: ação `dispositivos` testa Ollama (`PC_URL/api/tags`), ComfyUI (`COMFY_URL/system_stats`) e a ponte (`status`).
+- **Ponte do PC** (`zicoai/pc/ponte.ps1`, Windows PowerShell 5.1, sem instalar nada): servidor TCP só em 127.0.0.1:8790, exposto pelo Tailscale Funnel num caminho secreto (`--set-path=/ponte-…`). Cabeçalho `X-Zico-Ponte` = segredo do `config.json` (em `%USERPROFILE%\ZicoAI-Ponte`). Ações: `status`, `listar`, `ler` (texto até 2 MB; imagem até 8 MB em base64), `escrever` (só pasta com `escrever: true`; nunca sobrescreve, cria "nome (2)"), `print` (tela inteira, JPEG 1600 px), `abrir` (site https, programas da lista, arquivo de pasta liberada sem .exe/.bat), `comando` (lista fixa: espaco_disco, processos, gpu, ip, sistema, ollama_modelos). Nunca apaga. Log em `ponte-log.txt`. Liga sozinha pelo atalho na pasta Inicializar.
+  - Instalar/atualizar (no PowerShell do PC): `irm https://raw.githubusercontent.com/thiagogaldinozicao-source/thiagogaldinozicao-source.github.io/main/zicoai/pc/instalar.ps1 | iex`. Ele baixa a ponte, cria o config (só na 1ª vez), o atalho, liga, abre o caminho no Funnel, baixa a extensão do Chrome pra `%USERPROFILE%\ZicoAI\extensao-chrome` e mostra `PONTE_URL` e `PONTE_SEGREDO`, que vão nas Propriedades do script.
+  - Cérebro: `ponte(acao, dados)`; ferramentas do agente `pc_status`, `pc_listar`, `pc_ler`, `pc_escrever`, `pc_print` (salva no Drive e descreve com `descreverImagem`: Gemini → Mistral → PC), `pc_abrir`, `pc_comando`. Pedido de PC no chat vira `[[TAREFA]]`.
+- **Extensão do Chrome** (`zicoai/extensao/`, Manifest V3, painel lateral): o painel abre o app num iframe (`?ext=1`, precisa configurar link e PIN uma vez lá dentro) e tem "📄 Usar esta página" / "✂️ Usar trecho selecionado" (`chrome.scripting`), que mandam `{tipo:'zicoai-pagina', titulo, url, texto, selecao}` por postMessage. O app mostra um chip "📄 Página" e junta o texto à próxima pergunta. Instalar: chrome://extensions → Modo do desenvolvedor → Carregar sem compactação → pasta `extensao-chrome`.
+- **Ajustes**: Gemini (ou outro) com 502/503/"high demand" fica 90 s fora (`ehSobrecarga`), no chat e no agente; pesquisa reserva quando o `browser_search` do Groq falha (`pesquisaReserva`: DuckDuckGo → Bing lidos pelo r.jina.ai, um cérebro responde só com os resultados); "Como respondi" com ícone por tipo de passo (`iconePasso`); efeito de digitação na resposta nova (`digita`, só texto fora de blocos de código; o servidor continua mandando tudo de uma vez).
 
 ## Testar sem internet
 ```
@@ -136,6 +149,7 @@ node t17.js  # erros de digitação: busca tolerante, abreviações, regra
 node t18.js  # auto-melhoria: ler, editar, testar, publicar, desfazer o próprio código
 node t19.js  # já existe parecido (apps publicados e pedidos antigos)
 node t20.js  # imagem com pedido detalhado, NVIDIA reserva, 3 agentes juntos, tarefa longa que continua, agente chefe, PC reserva
+node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado
 ```
 Teste do app no navegador (Playwright, simula o servidor): ver `scratchpad/ui.js` da sessão de 30/10 — confere tempo, 👍/👎, ▶ Testar e que o localStorage da ZicoAI fica intacto.
 `harness.js` simula SpreadsheetApp, UrlFetchApp, PropertiesService, CacheService, LockService e ScriptApp. Os dados de exemplo não são do Thiago.

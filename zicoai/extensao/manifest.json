@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "ZicoAI",
+  "version": "1.0",
+  "description": "A ZicoAI do lado de qualquer site: lê a página aberta e conversa sobre ela.",
+  "permissions": ["sidePanel", "activeTab", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "side_panel": { "default_path": "painel.html" },
+  "action": { "default_title": "Abrir a ZicoAI" },
+  "background": { "service_worker": "fundo.js" },
+  "icons": { "128": "icone-128.png" }
+}
