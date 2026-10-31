@@ -261,6 +261,11 @@ function doPost(e) {
       return saida({ ok: true });
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    // ponte do PC: usa o segredo dela, não o PIN
+    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta') {
+      if (!ponteSegredoOk(req.segredo)) return saida({ ok: false, erro: 'segredo errado' });
+      return saida(req.acao === 'ponteBuscar' ? ponteBuscar(req) : ponteResposta(req));
+    }
     const cache = CacheService.getScriptCache();
     if (cache.get('pin_bloqueado')) return saida({ ok: false, erro: 'Muitas tentativas de PIN. Espera 10 minutos.' });
     if (!req.pin || String(req.pin) !== String(prop('PIN'))) {
@@ -2398,7 +2403,7 @@ function dispositivos() {
     try { const d = JSON.parse(r.txt).devices[0]; det = d.name.replace(/^cuda:\d+\s*/, '').replace(/\s*:\s*\w+$/, '') + ' · ' + Math.round(d.vram_free / 1073741824 * 10) / 10 + ' GB livres'; } catch (e) { /* ok */ }
     out.push({ nome: 'ComfyUI (imagens)', ok: r.cod === 200, detalhe: r.cod === 200 ? det : 'fechado' });
   }
-  if (prop('PONTE_URL')) {
+  if (prop('PONTE_SEGREDO')) {
     try { const s = ponte('status'); out.push({ nome: 'Ponte (acesso ao PC)', ok: true, detalhe: s.nome + ' · ' + (s.pastas || []).map(p => p.caminho.split(/[\\/]/).pop() + (p.escrever ? ' ✎' : '')).join(', ') }); }
     catch (e) { out.push({ nome: 'Ponte (acesso ao PC)', ok: false, detalhe: String(e.message || e).slice(0, 80) }); }
   } else out.push({ nome: 'Ponte (acesso ao PC)', ok: false, detalhe: 'não instalada' });
@@ -2406,22 +2411,77 @@ function dispositivos() {
 }
 
 /* ============================================================
- *  PONTE DO PC (programinha no Windows, pelo Tailscale Funnel)
- *  Propriedades: PONTE_URL (link do Funnel com caminho secreto) e
- *  PONTE_SEGREDO (vai no cabeçalho X-Zico-Ponte). Só pastas liberadas
- *  no config.json do PC; nunca apaga; não sobrescreve (cria "nome (2)").
+ *  PONTE DO PC (v2): o PC é que BUSCA os pedidos aqui (nada aberto no PC,
+ *  sem Funnel). Propriedade: PONTE_SEGREDO (o mesmo do config.json do PC).
+ *  - ponte(acao, dados): põe o pedido na fila (cache) e espera a resposta (até 45 s).
+ *  - PC chama doPost {acao:'ponteBuscar', segredo}: espera até 20 s por pedido (long-poll).
+ *  - PC chama doPost {acao:'ponteResposta', segredo, id, resultado}: resposta em pedaços no cache.
+ *  Só pastas liberadas no config.json do PC; nunca apaga; não sobrescreve.
  * ============================================================ */
 
+const PONTE_PEDACO = 90000;
+function ponteSegredoOk(seg) { const s = prop('PONTE_SEGREDO'); return !!s && String(seg || '') === String(s); }
+function ponteFila(fn) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(8000)) throw new Error('fila da ponte ocupada');
+  try {
+    const c = CacheService.getScriptCache();
+    const f = JSON.parse(c.get('ponte_fila') || '[]');
+    const r = fn(f);
+    c.put('ponte_fila', JSON.stringify(f), 600);
+    return r;
+  } finally { lock.releaseLock(); }
+}
+function ponteBuscar(req) {
+  const c = CacheService.getScriptCache();
+  c.put('ponte_nome', String(req.nome || 'PC').slice(0, 60), 21600);
+  if (req.versao) c.put('ponte_versao', String(req.versao).slice(0, 20), 21600);
+  const fim = Date.now() + 20000;
+  while (true) {
+    c.put('ponte_visto', String(Date.now()), 21600);
+    const agoraMs = Date.now();
+    const peds = ponteFila(f => f.splice(0, f.length)).filter(p => p.ate > agoraMs);
+    if (peds.length || Date.now() > fim) return { ok: true, pedidos: peds };
+    Utilities.sleep(800);
+  }
+}
+function ponteResposta(req) {
+  const id = String(req.id || '');
+  if (!/^p[a-z0-9]+$/.test(id)) return { ok: false, erro: 'id inválido' };
+  const t = String(req.resultado || '');
+  const c = CacheService.getScriptCache();
+  const n = Math.max(1, Math.ceil(t.length / PONTE_PEDACO));
+  for (let i = 0; i < n; i++) c.put('pres_' + id + '_' + i, t.slice(i * PONTE_PEDACO, (i + 1) * PONTE_PEDACO), 300);
+  c.put('pres_' + id + '_n', String(n), 300);
+  return { ok: true };
+}
+function ponteVisto() {
+  const v = parseInt(CacheService.getScriptCache().get('ponte_visto') || '0', 10);
+  return v ? Date.now() - v : -1;
+}
 function ponte(acao, dados) {
-  const url = String(prop('PONTE_URL') || '').trim().replace(/\/+$/, '');
-  if (!url) throw new Error('A ponte do PC não está instalada (falta PONTE_URL)');
-  const r = UrlFetchApp.fetch(url + '/', { method: 'post', contentType: 'application/json', headers: { 'X-Zico-Ponte': String(prop('PONTE_SEGREDO') || '') }, payload: JSON.stringify(Object.assign({ acao: acao }, dados || {})), muteHttpExceptions: true, followRedirects: true });
-  const cod = r.getResponseCode(), txt = r.getContentText();
-  if (cod === 401 || cod === 403) throw new Error('Ponte recusou o segredo');
-  if (cod !== 200 || !/^\s*\{/.test(txt)) throw new Error((cod === 502 || cod === 503 || cod === 504 || cod === 0 ? 'PC desligado ou ponte fechada' : 'Ponte respondeu fora do formato') + ' (' + cod + ': ' + String(txt).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) + ')');
-  const j = JSON.parse(txt);
-  if (!j.ok) throw new Error(j.erro || 'Ponte deu erro');
-  return j;
+  if (!prop('PONTE_SEGREDO')) throw new Error('A ponte do PC não está instalada');
+  const visto = ponteVisto();
+  if (visto < 0 || visto > 90000) throw new Error('PC desligado ou ponte fechada' + (visto > 0 ? ' (última vez há ' + Math.round(visto / 60000) + ' min)' : ''));
+  const c = CacheService.getScriptCache();
+  const id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  const limite = Date.now() + 45000;
+  ponteFila(f => { f.push({ id: id, acao: acao, dados: dados || {}, ate: limite }); });
+  while (Date.now() < limite) {
+    Utilities.sleep(700);
+    const n = parseInt(c.get('pres_' + id + '_n') || '0', 10);
+    if (!n) continue;
+    let t = '';
+    for (let i = 0; i < n && t !== null; i++) { const p = c.get('pres_' + id + '_' + i); t = p == null ? null : t + p; }
+    if (t === null) continue;
+    for (let i = 0; i < n; i++) c.remove('pres_' + id + '_' + i);
+    c.remove('pres_' + id + '_n');
+    const j = JSON.parse(t);
+    if (!j.ok) throw new Error(j.erro || 'Ponte deu erro');
+    return j;
+  }
+  try { ponteFila(f => { const i = f.findIndex(x => x.id === id); if (i >= 0) f.splice(i, 1); }); } catch (e) { /* ok */ }
+  throw new Error('O PC não respondeu a tempo');
 }
 /** Olha uma imagem (print da tela, foto do PC) com um cérebro que enxerga e devolve o que tem nela. */
 function descreverImagem(b64, mime, pergunta) {

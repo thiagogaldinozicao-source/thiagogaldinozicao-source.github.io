@@ -1,20 +1,26 @@
-﻿# ZicoAI - ponte do PC (Windows PowerShell 5.1, sem instalar nada)
-# Escuta só em 127.0.0.1 (o Tailscale Funnel leva até aqui, com caminho secreto).
+﻿# ZicoAI - ponte do PC (Windows PowerShell 5.1, sem instalar nada) - versão 2
+# O PC é que BUSCA os pedidos na ZicoAI (nada fica aberto no PC, não precisa de Funnel).
 # Regras: só pastas liberadas no config.json; NUNCA apaga; NUNCA sobrescreve (cria "nome (2)");
 # comandos só da lista segura. Cada pedido fica anotado em ponte-log.txt.
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $Dir) { $Dir = Join-Path $HOME 'ZicoAI-Ponte' }
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '1.1'
-$cfg = Get-Content -Raw -Encoding UTF8 $CfgArq | ConvertFrom-Json
-$Porta = [int]$cfg.porta
-if (-not $Porta) { $Porta = 8790 }
+$Versao = '2.0'
 
-# só uma ponte por vez: se a porta já estiver em uso (outra ponte rodando), esta sai sozinha
+function Log($t) {
+  $linha = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t
+  try { [IO.File]::AppendAllText($LogArq, $linha + "`r`n", (New-Object Text.UTF8Encoding($false))) }
+  catch { try { [IO.File]::AppendAllText((Join-Path $env:TEMP 'zicoai-ponte-log.txt'), $linha + "`r`n") } catch {} }
+}
 
-function Log($t) { try { Add-Content -Path $LogArq -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t) -Encoding UTF8 } catch {} }
+try { $cfg = [IO.File]::ReadAllText($CfgArq, [Text.Encoding]::UTF8) | ConvertFrom-Json }
+catch { Log ('não li o config.json: ' + $_.Exception.Message); exit }
+if (-not $cfg.exec -or -not $cfg.segredo) { Log 'config.json sem exec ou segredo'; exit }
 
 function Raizes {
   $out = @()
@@ -76,11 +82,11 @@ function Ler($p) {
   $f = Get-Item -LiteralPath $l.caminho
   $ext = $f.Extension.ToLower()
   if ($Imagem.ContainsKey($ext)) {
-    if ($f.Length -gt 8MB) { throw 'Imagem grande demais (máx. 8 MB)' }
+    if ($f.Length -gt 1MB) { throw 'Imagem grande demais (máx. 1 MB)' }
     return @{ ok = $true; arquivo = $f.FullName; mime = $Imagem[$ext]; base64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($f.FullName)) }
   }
   if ($Texto -contains $ext) {
-    if ($f.Length -gt 2MB) { throw 'Arquivo de texto grande demais (máx. 2 MB)' }
+    if ($f.Length -gt 1MB) { throw 'Arquivo de texto grande demais (máx. 1 MB)' }
     return @{ ok = $true; arquivo = $f.FullName; texto = [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8) }
   }
   throw ('Tipo de arquivo que eu não leio: ' + $ext + ' (' + [math]::Ceiling($f.Length / 1KB) + ' KB)')
@@ -89,7 +95,7 @@ function Ler($p) {
 function Escrever($p) {
   $l = Liberado ([string]$p.arquivo) $true
   $conteudo = [string]$p.conteudo
-  if ($conteudo.Length -gt 2000000) { throw 'Conteúdo grande demais' }
+  if ($conteudo.Length -gt 1000000) { throw 'Conteúdo grande demais' }
   $alvo = $l.caminho
   $pasta = Split-Path -Parent $alvo
   if (-not (Test-Path -LiteralPath $pasta)) { New-Item -ItemType Directory -Path $pasta -Force | Out-Null }
@@ -157,117 +163,53 @@ function Comando($p) {
   return @{ ok = $true; saida = (($s | Out-String).Trim()) }
 }
 
-function Responder($stream, [int]$cod, [string]$json) {
-  $corpo = [Text.Encoding]::UTF8.GetBytes($json)
-  $txtCod = 'OK'
-  if ($cod -eq 401) { $txtCod = 'Unauthorized' } elseif ($cod -eq 400) { $txtCod = 'Bad Request' } elseif ($cod -ne 200) { $txtCod = 'Error' }
-  $cab = 'HTTP/1.1 ' + $cod + ' ' + $txtCod + "`r`nContent-Type: application/json; charset=utf-8`r`nContent-Length: " + $corpo.Length + "`r`nConnection: close`r`n`r`n"
-  $b = [Text.Encoding]::ASCII.GetBytes($cab)
-  $stream.Write($b, 0, $b.Length); $stream.Write($corpo, 0, $corpo.Length); $stream.Flush()
+
+# Chama a ZicoAI (Apps Script) e devolve o JSON. Texto sempre em UTF-8 (acentos e o "ã" do Zicão).
+function Chamar($obj) {
+  $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -Compress -Depth 8 $obj))
+  $r = Invoke-WebRequest -UseBasicParsing -Uri ([string]$cfg.exec) -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8' -TimeoutSec 90
+  $txt = [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+  return ($txt | ConvertFrom-Json)
 }
 
-function LerPedido($stream) {
-  # cabeçalho até a linha em branco (máx. 32 KB)
-  $buf = New-Object System.Collections.Generic.List[byte]
-  $um = New-Object byte[] 1
-  while ($buf.Count -lt 32768) {
-    $n = $stream.Read($um, 0, 1)
-    if ($n -le 0) { break }
-    $buf.Add($um[0])
-    $c = $buf.Count
-    if ($c -ge 4 -and $buf[$c - 4] -eq 13 -and $buf[$c - 3] -eq 10 -and $buf[$c - 2] -eq 13 -and $buf[$c - 1] -eq 10) { break }
-  }
-  $cab = [Text.Encoding]::ASCII.GetString($buf.ToArray())
-  $linhas = $cab -split "`r`n"
-  $h = @{}
-  foreach ($l in ($linhas | Select-Object -Skip 1)) { $i = $l.IndexOf(':'); if ($i -gt 0) { $h[$l.Substring(0, $i).Trim().ToLower()] = $l.Substring($i + 1).Trim() } }
-  # o Tailscale às vezes manda o corpo "em pedaços" (Transfer-Encoding: chunked) em vez de Content-Length
-  if ($h.ContainsKey('transfer-encoding') -and $h['transfer-encoding'] -match 'chunked') {
-    $ms = New-Object IO.MemoryStream
-    while ($true) {
-      $tamTxt = (LerLinha $stream).Split(';')[0].Trim()
-      if (-not $tamTxt) { break }
-      $pedaco = [Convert]::ToInt32($tamTxt, 16)
-      if ($pedaco -le 0) { LerLinha $stream | Out-Null; break }
-      if ($ms.Length + $pedaco -gt 30MB) { throw 'Pedido grande demais' }
-      $b = LerBytes $stream $pedaco
-      $ms.Write($b, 0, $b.Length)
-      LerLinha $stream | Out-Null
-    }
-    $arr = $ms.ToArray()
-    return @{ linha = $linhas[0]; cab = $h; corpo = [Text.Encoding]::UTF8.GetString($arr, 0, $arr.Length) }
-  }
-  $tam = 0
-  if ($h.ContainsKey('content-length')) { $tam = [int]$h['content-length'] }
-  if ($tam -gt 30MB) { throw 'Pedido grande demais' }
-  $corpo = LerBytes $stream $tam
-  return @{ linha = $linhas[0]; cab = $h; corpo = [Text.Encoding]::UTF8.GetString($corpo, 0, $corpo.Length) }
-}
-
-function LerBytes($stream, [int]$tam) {
-  $buf = New-Object byte[] $tam
-  $lido = 0
-  while ($lido -lt $tam) { $n = $stream.Read($buf, $lido, $tam - $lido); if ($n -le 0) { break }; $lido += $n }
-  if ($lido -lt $tam) { $menor = New-Object byte[] $lido; [Array]::Copy($buf, $menor, $lido); return ,$menor }
-  return ,$buf
-}
-
-function LerLinha($stream) {
-  $l = New-Object System.Collections.Generic.List[byte]
-  $um = New-Object byte[] 1
-  while ($l.Count -lt 1024) {
-    $n = $stream.Read($um, 0, 1)
-    if ($n -le 0) { break }
-    if ($um[0] -eq 10) { break }
-    if ($um[0] -ne 13) { $l.Add($um[0]) }
-  }
-  return [Text.Encoding]::ASCII.GetString($l.ToArray())
-}
-
-$listener = New-Object System.Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $Porta)
-try { $listener.Start() } catch { Log ('não ligou (porta ' + $Porta + ' em uso?): ' + $_.Exception.Message); exit }
-Log ('ponte ligada na porta ' + $Porta)
-$errosSegredo = 0
-while ($true) {
-  $cli = $listener.AcceptTcpClient()
-  $st = $null
+function Executar($p) {
+  $acao = [string]$p.acao
+  $d = $p.dados
+  if (-not $d) { $d = New-Object PSObject }
+  Log ('pedido: ' + $acao + ' ' + ([string]$d.pasta) + ([string]$d.arquivo) + ([string]$d.alvo) + ([string]$d.nome))
   try {
-    $cli.ReceiveTimeout = 20000; $cli.SendTimeout = 20000
-    $st = $cli.GetStream()
-    $ped = LerPedido $st
-    $seg = ''
-    if ($ped.cab.ContainsKey('x-zico-ponte')) { $seg = $ped.cab['x-zico-ponte'] }
-    if (-not $cfg.segredo -or $seg -ne [string]$cfg.segredo) {
-      $errosSegredo++
-      Log ('RECUSADO (segredo errado): ' + $ped.linha)
-      if ($errosSegredo -gt 30) { Start-Sleep -Seconds 5 }
-      Responder $st 401 '{"ok":false,"erro":"segredo errado"}'
-    } elseif ($ped.linha -notmatch '^POST ') {
-      Responder $st 200 (ConvertTo-Json -Compress -Depth 6 (Status))
-    } else {
-      $p = $ped.corpo | ConvertFrom-Json
-      $acao = [string]$p.acao
-      Log ('pedido: ' + $acao + ' ' + ([string]$p.pasta) + ([string]$p.arquivo) + ([string]$p.alvo) + ([string]$p.nome))
-      try {
-        switch ($acao) {
-          'status'   { $r = Status }
-          'listar'   { $r = Listar $p }
-          'ler'      { $r = Ler $p }
-          'escrever' { $r = Escrever $p }
-          'print'    { $r = TirarPrint }
-          'abrir'    { $r = Abrir $p }
-          'comando'  { $r = Comando $p }
-          default    { $r = @{ ok = $false; erro = ('Ação desconhecida: ' + $acao) } }
-        }
-      } catch { $r = @{ ok = $false; erro = $_.Exception.Message } }
-      Responder $st 200 (ConvertTo-Json -Compress -Depth 6 $r)
+    switch ($acao) {
+      'status'   { return (Status) }
+      'listar'   { return (Listar $d) }
+      'ler'      { return (Ler $d) }
+      'escrever' { return (Escrever $d) }
+      'print'    { return (TirarPrint) }
+      'abrir'    { return (Abrir $d) }
+      'comando'  { return (Comando $d) }
+      default    { return @{ ok = $false; erro = ('Ação desconhecida: ' + $acao) } }
+    }
+  } catch { return @{ ok = $false; erro = $_.Exception.Message } }
+}
+
+Log ('ponte ' + $Versao + ' ligada (busca pedidos na ZicoAI)')
+$falhas = 0
+$conectou = $false
+while ($true) {
+  try {
+    $r = Chamar @{ acao = 'ponteBuscar'; segredo = [string]$cfg.segredo; nome = $env:COMPUTERNAME; versao = $Versao }
+    if (-not $r.ok) { Log ('a ZicoAI recusou: ' + $r.erro); Start-Sleep -Seconds 60; continue }
+    if (-not $conectou) { Log 'conectado na ZicoAI'; $conectou = $true }
+    $falhas = 0
+    foreach ($p in @($r.pedidos)) {
+      if (-not $p) { continue }
+      $res = Executar $p
+      try { Chamar @{ acao = 'ponteResposta'; segredo = [string]$cfg.segredo; id = [string]$p.id; resultado = (ConvertTo-Json -Compress -Depth 6 $res) } | Out-Null }
+      catch { Log ('não consegui mandar a resposta: ' + $_.Exception.Message) }
     }
   } catch {
-    Log ('erro: ' + $_.Exception.Message)
-    try { if ($st) { Responder $st 400 '{"ok":false,"erro":"pedido inválido"}' } } catch {}
-  } finally {
-    try { $cli.Client.Shutdown([Net.Sockets.SocketShutdown]::Send) } catch {}
-    try { $cli.ReceiveTimeout = 300; $lixo = New-Object byte[] 4096; while ($st -and $st.DataAvailable -and $st.Read($lixo, 0, 4096) -gt 0) {} } catch {}
-    try { $cli.Close() } catch {}
+    $falhas++
+    $conectou = $false
+    Log ('sem conexão com a ZicoAI: ' + $_.Exception.Message)
+    Start-Sleep -Seconds ([math]::Min(60, 5 * $falhas))
   }
 }
