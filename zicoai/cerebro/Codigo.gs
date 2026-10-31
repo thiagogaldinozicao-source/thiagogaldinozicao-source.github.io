@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 48 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 49 (31/10/2026, pendente de publicação)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -155,7 +155,8 @@ const ABAS = {
   chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Fixada', 'Projeto'],
   projetos:     ['Id', 'Nome', 'Instruções', 'Criado', 'Atualizado'],
   projeto_arquivos: ['Projeto', 'Nome', 'Conteúdo', 'Data'],
-  mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho', 'Passos'],
+  mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho', 'Passos', 'DetalhesId'],
+  detalhes: ['Id'].concat(Array.from({length: 13}, (_, i) => 'Parte' + i)),
   historico:    ['Data', 'Aba', 'Assunto', 'Antes', 'Depois', 'Origem'],
   feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
   prova:        ['Nº', 'Grupo', 'Pergunta exata', 'Critérios nota 10 (2,5 pontos cada)', 'Erro mais provável', 'Última nota', 'Última data', 'Observação'],
@@ -241,11 +242,100 @@ const PERSONA = [
 
 /** Lista do que a ZicoAI fez em cada resposta (aparece no app em "Como respondi"). */
 let PASSOS = [];
+let DETALHES = [];
+let TAREFA_DETALHE = "";
 let CHAT_ATUAL = null;
 let REQ_VIVO = '';
 function passo(t) {
-  PASSOS.push(t);
+  PASSOS.push(mascarar(t));
   if (REQ_VIVO) try { CacheService.getScriptCache().put('vivo_' + REQ_VIVO, JSON.stringify(PASSOS.slice(-40)), 300); } catch (e) { /* ok */ }
+}
+
+
+/** Diagnóstico público: mascara ANTES de cortar, armazenar ou transmitir. */
+function mascarar(valor) {
+  const sensivel = /(?:key|token|segredo|secret|senha|password|pin|authorization|cookie|credential)/i;
+  const limpar = v => {
+    if (v && typeof v === 'object') {
+      if (Array.isArray(v)) return v.map(limpar);
+      const o = {}; Object.keys(v).forEach(k => { o[k] = sensivel.test(k) ? '•••' : (/^(base64|audio|imagem)$/i.test(k) ? '[binário omitido]' : limpar(v[k])); }); return o;
+    }
+    if (typeof v !== 'string') return v;
+    return texto(v);
+  };
+  function texto(t) {
+    // Valores conhecidos também são ocultados quando aparecem sem rótulo.
+    let props = {};
+    try { const ps = PropertiesService.getScriptProperties(); if (ps.getProperties) props = ps.getProperties(); } catch (e) { /* fallback abaixo */ }
+    ['PIN','PONTE_SEGREDO','PONTE_SEGREDO_MAC','PROXY_SEGREDO','TELEGRAM_TOKEN','TELEGRAM_SEGREDO','GITHUB_TOKEN','CF_TOKEN','GROQ_KEY','GEMINI_KEY','CEREBRAS_KEY','MISTRAL_KEY','NVIDIA_KEY','PC_URL','PROXY_URL'].forEach(k => { try { if (!props[k]) props[k] = prop(k); } catch (e) { /* sem propriedade */ } });
+    Object.keys(props).forEach(k => {
+      if (!sensivel.test(k) && !/^(PC_URL|PROXY_URL)$/.test(k)) return;
+      const v = String(props[k] || '');
+      if (v.length >= 4) [v, encodeURIComponent(v)].forEach(x => { t = t.split(x).join('•••'); });
+    });
+    return t
+      .replace(/data:[^;\s]+;base64,[A-Za-z0-9+/=]+/gi, '[imagem/áudio omitido]')
+      .replace(/\b(?:sk-[\w-]{8,}|gsk_[\w-]{8,}|AIza[\w-]{12,}|gh[pousr]_[\w]{8,}|github_pat_[\w]{8,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)\b/g, '•••')
+      .replace(/\bBearer\s+[^\s"',}]+/gi, 'Bearer •••')
+      .replace(/([?&](?:[^=&#]*(?:key|token|secret|segredo|pin|senha)[^=&#]*)=)[^&#\s"']*/gi, '$1•••')
+      .replace(/((?:["']?[\w.-]{0,64}(?:api[_-]?key|token|segredo|secret|senha|password|pin|authorization|cookie)[\w.-]{0,64}["']?)\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,}\]\n]+)/gi, '$1•••')
+      .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '•••')
+      .replace(/(?:\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}\b/g, '•••')
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ' ');
+  }
+  if (typeof valor === 'string') {
+    try { return JSON.stringify(limpar(JSON.parse(valor)), null, 2); } catch (e) { return texto(valor); }
+  }
+  return JSON.stringify(limpar(valor == null ? '' : valor), null, 2);
+}
+function textoDetalhe(v) { const t = mascarar(v); return t.length > 2000 ? t.slice(0, 1999) + '…' : t; }
+function detalhesSeguros(ds) {
+  return (Array.isArray(ds) ? ds : []).slice(0, 60).map(d => ({
+    tipo: textoDetalhe(d.tipo || 'passo').slice(0, 40), titulo: textoDetalhe(d.titulo || 'Passo').slice(0, 160),
+    pedido: textoDetalhe(d.pedido), resposta: textoDetalhe(d.resposta), ms: Number.isFinite(Number(d.ms)) ? Math.max(0, Number(d.ms)) : 0
+  }));
+}
+function guardarDetalhes(id, ds) {
+  if (!id) return;
+  const a = aba('detalhes'), texto = JSON.stringify(detalhesSeguros(ds));
+  const achou = a.getRange('A:A').createTextFinder(id).matchEntireCell(true).findNext();
+  const partes = Array.from({length: 13}, (_, i) => texto.slice(i * 40000, (i + 1) * 40000));
+  if (achou) a.getRange(achou.getRow(), 2, 1, 13).setValues([partes]);
+  else a.appendRow([id].concat(partes));
+}
+function lerDetalhes(id) {
+  if (!id) return [];
+  const l = linhas('detalhes').find(x => x[0] === id);
+  try { return detalhesSeguros(JSON.parse(l ? l.slice(1).join('') : '[]')); } catch (e) { return []; }
+}
+function publicarDetalhes() {
+  const seguros = detalhesSeguros(DETALHES); DETALHES.splice(0, DETALHES.length, ...seguros);
+  if (TAREFA_DETALHE) guardarDetalhes(TAREFA_DETALHE, DETALHES);
+  if (REQ_VIVO) try {
+    const c = CacheService.getScriptCache(), txt = JSON.stringify(DETALHES), partes = Math.ceil(txt.length / 16000);
+    for (let i = 0; i < partes; i++) c.put('vd_' + REQ_VIVO + '_' + i, txt.slice(i * 16000, (i + 1) * 16000), 300);
+    c.put('vd_' + REQ_VIVO + '_n', String(partes), 300);
+  } catch (e) { /* cache pode expirar; a resposta final continua contendo os detalhes */ }
+}
+function detalhesAoVivo(id) {
+  const c = CacheService.getScriptCache(), n = Number(c.get('vd_' + id + '_n')) || 0;
+  let t = ''; for (let i = 0; i < n; i++) { const p = c.get('vd_' + id + '_' + i); if (p === null) return []; t += p; }
+  try { return detalhesSeguros(JSON.parse(t || '[]')); } catch (e) { return []; }
+}
+function passoDetalhe(d) {
+  if (DETALHES.length >= 60) return -1;
+  DETALHES.push(detalhesSeguros([d])[0]); publicarDetalhes(); return DETALHES.length - 1;
+}
+function observarDetalhe(tipo, titulo, pedido, fn) {
+  const inicio = Date.now(), i = passoDetalhe({tipo: tipo, titulo: titulo, pedido: pedido, resposta: '(aguardando resposta)', ms: 0});
+  const lista = DETALHES, tarefa = TAREFA_DETALHE, vivo = REQ_VIVO;
+  let resposta;
+  try { resposta = fn(); return resposta; }
+  catch (e) { resposta = {erro: String(e && e.message || e)}; throw e; }
+  finally {
+    if (DETALHES !== lista) { DETALHES = lista; TAREFA_DETALHE = tarefa; REQ_VIVO = vivo; }
+    if (i >= 0) { DETALHES[i].resposta = textoDetalhe(resposta); DETALHES[i].ms = Date.now() - inicio; publicarDetalhes(); }
+  }
 }
 
 /* ============================================================
@@ -257,7 +347,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PASSOS = [];
+  PASSOS = []; DETALHES = []; TAREFA_DETALHE = ""; REQ_VIVO = "";
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -295,7 +385,7 @@ function doPost(e) {
       case 'teste':         return saida({ ok: true, msg: 'Conectado ✅', cotas: cotas() });
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
       case 'sincronizarAulas': return saida(sincronizarAulas());
-      case 'aoVivo':        return saida({ ok: true, passos: JSON.parse(CacheService.getScriptCache().get('vivo_' + String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)) || '[]') });
+      case 'aoVivo':        return saida({ ok: true, detalhes: detalhesAoVivo(String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)), passos: JSON.parse(CacheService.getScriptCache().get('vivo_' + String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)) || '[]') });
       case 'chat':          { REQ_VIVO = String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40); const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
@@ -310,7 +400,7 @@ function doPost(e) {
       case 'cancelarTarefa': return saida({ ok: true, cancelada: cancelarTarefa(req.id) });
       case 'publicar':      return saida(publicarApp(req.nome, req.html));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
-      case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS });
+      case 'contexto':      return saida({ ok: true, sistema: montarSistema(String(req.pergunta || ''), false), passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
       case 'registrar':     return saida(registrar(req, aparelho));
       case 'chats':         return saida({ ok: true, chats: listarChats() });
       case 'abrir':         return saida({ ok: true, mensagens: abrirChat(req.chatId) });
@@ -331,11 +421,13 @@ function doPost(e) {
       default:              return saida({ ok: false, erro: 'Ação desconhecida' });
     }
   } catch (err) {
-    return saida({ ok: false, erro: String(err && err.message || err), passos: PASSOS });
+    return saida({ ok: false, erro: String(err && err.message || err), passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
   }
 }
 
 function saida(obj) {
+  if (obj.passos) obj.passos = obj.passos.map(mascarar);
+  if (obj.detalhes) obj.detalhes = detalhesSeguros(obj.detalhes);
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -386,7 +478,7 @@ function chat(req, aparelho) {
     passo('Criou uma tarefa em segundo plano');
     gravarMensagem(chatId, 'zicoai', txt, 'agente', aparelho);
     tocarChat(chatId);
-    return { ok: true, chatId: chatId, titulo: titulo, resposta: txt, cerebro: 'agente', salvou: ['tarefa'], passos: PASSOS, tarefaId: t.id };
+    return { ok: true, chatId: chatId, titulo: titulo, resposta: txt, cerebro: 'agente', salvou: ['tarefa'], passos: PASSOS, detalhes: detalhesSeguros(DETALHES), tarefaId: t.id };
   }
 
   if (temFoto) passo('Analisou a foto');
@@ -424,7 +516,7 @@ function chat(req, aparelho) {
   if (capricho) passo('Modo capricho: pergunta difícil, vai pensar mais e revisar antes de responder');
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema, capricho);
   if (capricho && resultado && resultado.ok && !req.imagem) { try { resultado = revisarResposta(pergunta, resultado, extraSistema); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
-  if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS });
+  if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
 
   const proc = processarTags(resultado.texto, aparelho);
   let textoFinal = proc.texto;
@@ -439,7 +531,7 @@ function chat(req, aparelho) {
   tocarChat(chatId);
   try { compactarSePrecisar(chatId); } catch (e) { /* compactação nunca derruba a resposta */ }
 
-  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, opcoes: proc.opcoes || undefined };
+  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, detalhes: detalhesSeguros(DETALHES), opcoes: proc.opcoes || undefined };
 }
 
 /* ---------- feedback (👍 / 👎 + reclamação) ---------- */
@@ -478,7 +570,7 @@ function linhaDoChat(chatId) {
   const achou = a.getRange('A:A').createTextFinder(chatId).matchEntireCell(true).findNext();
   return achou ? achou.getRow() : 0;
 }
-function resumoDaConversa(chatId) {
+function resumoDaConversaSemDetalhe(chatId) {
   if (!chatId) return '';
   const r = linhaDoChat(chatId);
   if (!r) return '';
@@ -530,7 +622,7 @@ function registrar(req, aparelho) {
   const cerebro = String(req.cerebro || 'PC').slice(0, 60);
   gravarMensagem(chatId, 'zicoai', proc.texto, cerebro, aparelho);
   tocarChat(chatId);
-  return { ok: true, chatId: chatId, titulo: titulo, resposta: proc.texto, cerebro: cerebro, salvou: proc.salvou, passos: PASSOS };
+  return { ok: true, chatId: chatId, titulo: titulo, resposta: proc.texto, cerebro: cerebro, salvou: proc.salvou, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) };
 }
 
 /* ---------- conversa normal ---------- */
@@ -608,7 +700,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   return { ok: false, erro: 'Nenhum cérebro respondeu agora. ' + erros.join(' | ') };
 }
 
-function chamarCompat(c, msgs, maxSaida, extras) {
+function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
   const chave = c.chave ? prop(c.chave) : 'ollama';
   if (!chave) throw new Error('Falta a chave ' + c.chave + ' nas Propriedades do script');
   let url = c.url;
@@ -643,7 +735,7 @@ function chamarCompat(c, msgs, maxSaida, extras) {
 /* ---------- pesquisa na web ---------- */
 
 /** Busca reserva, sem chave: resultados do DuckDuckGo (ou Bing) em texto, e um cérebro responde com eles. */
-function resultadosBusca(pergunta) {
+function resultadosBuscaSemDetalhe(pergunta) {
   const q = encodeURIComponent(String(pergunta).replace(/\s+/g, ' ').trim().slice(0, 200));
   for (const url of ['https://html.duckduckgo.com/html/?q=' + q + '&kl=br-pt', 'https://www.bing.com/search?q=' + q + '&setlang=pt-br&cc=BR']) {
     const t = lerPagina(url);
@@ -678,7 +770,7 @@ function pesquisaReserva(sistema, historico, pergunta) {
 
 const DOMINIOS_FORA = /(duckduckgo|bing\.com|microsoft|go\.microsoft|google\.[a-z.]+\/(search|url)|youtube\.com\/results|facebook\.com|instagram\.com|tiktok\.com|x\.com|twitter\.com|pinterest)/i;
 /** Busca e devolve links de verdade (título + url), sem repetir site. */
-function buscarLinks(consulta, max) {
+function buscarLinksSemDetalhe(consulta, max) {
   const q = encodeURIComponent(String(consulta).replace(/\s+/g, ' ').trim().slice(0, 200));
   const links = [], vistos = {};
   for (const url of ['https://html.duckduckgo.com/html/?q=' + q + '&kl=br-pt', 'https://www.bing.com/search?q=' + q + '&setlang=pt-br&cc=BR']) {
@@ -705,7 +797,7 @@ function buscarLinks(consulta, max) {
   return links;
 }
 /** Abre várias páginas ao mesmo tempo (fetchAll) e devolve o texto de cada uma. */
-function lerPaginas(urls) {
+function lerPaginasSemDetalhe(urls) {
   const pedidos = urls.map(u => ({ url: 'https://r.jina.ai/' + u, muteHttpExceptions: true, headers: { Accept: 'text/plain', 'X-Return-Format': 'text' }, followRedirects: true }));
   let resp = [];
   try { resp = UrlFetchApp.fetchAll ? UrlFetchApp.fetchAll(pedidos) : pedidos.map(p => UrlFetchApp.fetch(p.url, p)); }
@@ -913,8 +1005,8 @@ function aulasPara(pergunta, limite, vetor) {
   else if (vq) { try { va = vetoresAulas(); } catch (e) { va = {}; } }
   return idx.map((x, i) => {
     const cs = vq && va[x[0]] ? cosseno(vq, va[x[0]]) : 0;
-    return { x: x, i: i, ok: bm[i] >= corte || cs >= AULAS_COS_MIN, p: bm[i] / max + PESO_SIGNIFICADO * cs };
-  }).filter(o => o.ok).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
+    return { x: x, i: i, bm: bm[i], cs: cs, corte: corte, ok: bm[i] >= corte || cs >= AULAS_COS_MIN, p: bm[i] / max + PESO_SIGNIFICADO * cs };
+  }).filter(o => o.ok).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => { const x = o.x.slice(); x.motivo = {palavra: o.bm >= o.corte, significado: o.cs >= AULAS_COS_MIN, bm25: o.bm, cosseno: o.cs}; return x; });
 }
 /** Traz as aulas públicas (A, B, D) do GitHub (zicoai/aulas/aulas.json) pra aba `aulas`: atualiza pelo ID ou acrescenta.
  *  Não mexe nas aulas privadas (C, E e as que só existem na planilha). Roda sozinha a cada 12 h (garantirRotinasTreino). */
@@ -942,6 +1034,7 @@ function sincronizarAulas() {
 
 function contextoAulas(pergunta, limite, talvez) {
   const lista = aulasPara(pergunta, (limite || 2) + (talvez === undefined ? 3 : talvez));
+  passoDetalhe({tipo: 'aulas', titulo: 'Busca de aulas: palavra e significado', pedido: pergunta, resposta: lista.map(x => ({id: x[0], titulo: x[1], motivo: x.motivo})), ms: 0});
   if (!lista.length) return '';
   const fortes = lista.slice(0, limite || 2), outras = lista.slice(limite || 2);
   passo('📚 Aula(s) que se aplicam: ' + fortes.map(x => x[0] + ' ' + x[1]).join(' · ') + (outras.length ? ' (+' + outras.length + ' talvez)' : ''));
@@ -1005,7 +1098,7 @@ function contextoMeusCerebros(pergunta) {
 }
 
 
-function pesquisar(historico, pergunta, extraSistema) {
+function pesquisarSemDetalhe(historico, pergunta, extraSistema) {
   const sistema = montarSistema(pergunta, true) + (extraSistema || '') +
     '\n\nVocê tem acesso à pesquisa na web. Pesquise, confira e responda com os dados atuais. Diga a data da informação quando fizer diferença (preço, cotação).';
 
@@ -1042,7 +1135,7 @@ function pesquisar(historico, pergunta, extraSistema) {
   return null;
 }
 
-function geminiComGoogle(sistema, historico) {
+function geminiComGoogleSemDetalhe(sistema, historico) {
   const chave = prop('GEMINI_KEY');
   if (!chave) return null;
   const contents = historico.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
@@ -1242,6 +1335,7 @@ function montarSistema(pergunta, enxuto) {
     passo('Modo cliente: só informação confirmada da loja');
   }
 
+  passoDetalhe({tipo: 'memoria', titulo: 'Perfil, aprendizados, memória e base usados', pedido: pergunta, resposta: {perfil: perfilUsado, aprendizados: aprUsado, memoria: memUsada, base: base}, ms: 0});
   const pl = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
   passo('Leu o perfil e ' + pl(aprUsado.length, 'aprendizado', 'aprendizados'));
   passo('Consultou ' + pl(memUsada.length, 'lembrança', 'lembranças') + (base.length ? ' e ' + pl(base.length, 'trecho', 'trechos') + ' da base' : ''));
@@ -1259,7 +1353,7 @@ function assuntoDe(t) {
 }
 
 /** Exemplos de respostas que o Thiago aprovou (👍), ligados à pergunta. Servem de modelo pros cérebros. */
-function exemplosPara(pergunta, limite) {
+function exemplosParaSemDetalhe(pergunta, limite) {
   const ex = linhas('exemplos');
   if (!ex.length) return '';
   const assunto = assuntoDe(pergunta);
@@ -1293,7 +1387,7 @@ function reordenarPorNota(ordem, pc) {
 }
 
 /** Linhas da aba precos ligadas à pergunta (ou aviso de tabela vazia quando perguntam preço). */
-function tabelaPrecos(pergunta, modoCliente) {
+function tabelaPrecosSemDetalhe(pergunta, modoCliente) {
   const s = normalizar(pergunta);
   const falaPreco = /(preco|preço|quanto|valor|custa|tabela|estoque|tem o |tem um |vcs tem|voces tem|a vista|pix|parcel|12x|promo)/.test(s);
   const tabela = linhas('precos');
@@ -1319,7 +1413,7 @@ function tabelaPrecos(pergunta, modoCliente) {
 const EMBED_MODELO = 'gemini-embedding-001';
 const EMBED_DIM = 256;
 
-function embutir(textos) {
+function embutirSemDetalhe(textos) {
   const chave = prop('GEMINI_KEY');
   if (!chave || !textos.length) return null;
   if (CacheService.getScriptCache().get('embed_off')) return null;
@@ -1589,7 +1683,9 @@ function listarMemorias() {
  * ============================================================ */
 
 function gravarMensagem(chatId, quem, texto, cerebro, aparelho) {
-  aba('mensagens').appendRow([chatId, "'" + agora(), quem, seguro(String(texto).slice(0, 45000)), cerebro || '', aparelho, quem === 'zicoai' ? seguro(PASSOS.join(' | ').slice(0, 2000)) : '']);
+  const detalheId = quem === 'zicoai' && DETALHES.length ? 'msg_' + Date.now() + '_' + Utilities.getUuid() : '';
+  if (detalheId) guardarDetalhes(detalheId, DETALHES);
+  aba('mensagens').appendRow([chatId, "'" + agora(), quem, seguro(String(texto).slice(0, 45000)), cerebro || '', aparelho, quem === 'zicoai' ? seguro(mascarar(PASSOS.join(' | ')).slice(0, 2000)) : '', detalheId]);
 }
 
 function tocarChat(chatId) {
@@ -1610,7 +1706,7 @@ function abrirChat(chatId) {
   if (!chatId) return [];
   const doArquivo = chatTemArquivo(chatId) ? linhasArquivo('mensagens').filter(l => l[0] === chatId) : [];
   return doArquivo.concat(linhas('mensagens').filter(l => l[0] === chatId))
-    .map(l => ({ role: l[2] === 'thiago' ? 'user' : 'assistant', content: l[3], cerebro: l[4] }));
+    .map(l => ({ role: l[2] === 'thiago' ? 'user' : 'assistant', content: l[3], cerebro: l[4], passos: mascarar(String(l[6] || '')).split(' | ').filter(Boolean), detalhes: lerDetalhes(l[7]) }));
 }
 
 /** Editar mensagem (igual GPT/Claude): mantém as `manter` primeiras mensagens da conversa e apaga o resto. */
@@ -1676,7 +1772,7 @@ function criarTitulo(t) {
  *  Tudo só entra no sistema quando a pergunta fala do assunto.
  * ============================================================ */
 
-function contextoConectores(pergunta) {
+function contextoConectoresSemDetalhe(pergunta) {
   const s = normalizar(pergunta);
   let extra = '';
   try { const c = calculadora(pergunta); if (c) { extra += '\n\n### CÁLCULO EXATO (feito por código)\n' + c; passo('Fez a conta por código'); } } catch (e) { /* sem conta */ }
@@ -1915,7 +2011,7 @@ function calculadora(pergunta) {
  *  MEMÓRIA EPISÓDICA: procura nas conversas antigas
  * ============================================================ */
 
-function buscarConversas(pergunta, limite) {
+function buscarConversasSemDetalhe(pergunta, limite) {
   // procura também nas conversas antigas que foram pra planilha de arquivo
   const todas = linhasArquivo('mensagens').concat(linhas('mensagens')).filter(l => l[2] === 'thiago' && String(l[3]).length > 15);
   if (!todas.length) return '';
@@ -2021,7 +2117,7 @@ function noticias(pergunta) {
 }
 
 /** Lê uma página da web em texto limpo (Jina Reader, grátis, 20/min sem chave). */
-function lerPagina(url) {
+function lerPaginaSemDetalhe(url) {
   try {
     const cache = CacheService.getScriptCache();
     const k = 'pg_' + Utilities.base64EncodeWebSafe(url).slice(0, 200);
@@ -2070,7 +2166,7 @@ function ntfy(titulo, texto, prioridade) {
  *  ÁUDIO → TEXTO (Groq Whisper, grátis, mesma GROQ_KEY)
  * ============================================================ */
 
-function transcrever(audioBase64, tipo) {
+function transcreverSemDetalhe(audioBase64, tipo) {
   const chave = prop('GROQ_KEY');
   if (!chave) return { ok: false, erro: 'Falta GROQ_KEY' };
   if (!audioBase64) return { ok: false, erro: 'Sem áudio' };
@@ -2307,7 +2403,7 @@ function detalharPromptImagem(prompt) {
   return prompt;
 }
 
-function gerarImagemPC(prompt) {
+function gerarImagemPCSemDetalhe(prompt) {
   const base = String(prop('COMFY_URL') || '').trim().replace(/\/+$/, '');
   const wf = prop('COMFY_WORKFLOW');
   if (!base || !wf) return null;
@@ -2843,7 +2939,7 @@ function tirarArquivoProjeto(req) {
   return { ok: true };
 }
 /** Instruções + arquivos do projeto, pro sistema da conversa (cabe no limite: corta os arquivos grandes). */
-function contextoProjeto(projId) {
+function contextoProjetoSemDetalhe(projId) {
   if (!projId) return '';
   const p = linhas('projetos').find(l => l[0] === projId);
   if (!p) return '';
@@ -2956,7 +3052,7 @@ function ponteVisto(disp) {
   const v = parseInt(CacheService.getScriptCache().get(ponteChave('ponte_visto', disp)) || '0', 10);
   return v ? Date.now() - v : -1;
 }
-function ponte(acao, dados, esperaMs, disp) {
+function ponteSemDetalhe(acao, dados, esperaMs, disp) {
   disp = disp === 'mac' ? 'mac' : 'pc';
   const quem = disp === 'mac' ? 'Mac' : 'PC';
   if (!prop(disp === 'mac' ? 'PONTE_SEGREDO_MAC' : 'PONTE_SEGREDO')) throw new Error('A ponte do ' + quem + ' não está instalada');
@@ -3300,7 +3396,7 @@ function atualizarTarefa(id, campos) {
   const r = linhaTarefa(id);
   if (!r) return;
   const a = aba('tarefas');
-  Object.keys(campos).forEach(k => { const col = { status: 5, passos: 6, resultado: 7 }[k]; if (col) a.getRange(r, col, 1, 1).setValue(seguro(String(campos[k]).slice(0, k === 'resultado' ? 45000 : 4000))); });
+  Object.keys(campos).forEach(k => { const col = { status: 5, passos: 6, resultado: 7 }[k]; if (col) a.getRange(r, col, 1, 1).setValue(seguro((k === 'passos' ? mascarar(String(campos[k])) : String(campos[k])).slice(0, k === 'resultado' ? 45000 : 4000))); });
   a.getRange(r, 8, 1, 1).setValue("'" + agora());
 }
 function statusTarefa(id) {
@@ -3312,7 +3408,7 @@ function tarefaCancelada(id) {
   return r ? statusTarefa(id) === 'cancelada' : true;
 }
 function listarTarefas() {
-  return linhas('tarefas').slice(-40).reverse().map(l => ({ id: l[0], criada: l[1], chatId: l[2], pedido: l[3], status: l[4], passos: String(l[5] || '').split(' | ').filter(Boolean), resultado: l[6], atualizada: l[7], pai: l[9] || '' }));
+  return linhas('tarefas').slice(-40).reverse().map(l => ({ id: l[0], criada: l[1], chatId: l[2], pedido: l[3], status: l[4], passos: mascarar(String(l[5] || '')).split(' | ').filter(Boolean), detalhes: lerDetalhes(l[0]), resultado: l[6], atualizada: l[7], pai: l[9] || '' }));
 }
 function cancelarTarefa(id) {
   const st = statusTarefa(id);
@@ -3515,11 +3611,12 @@ const PROMPT_AGENTE = [
 function agente(id, pedido, chatId, aparelho, prazo, pai) {
   prazo = prazo || (Date.now() + PRAZO_RODADA);
   const salvo = estadoLer(id);
+  DETALHES = detalhesSeguros(salvo && salvo.detalhes || lerDetalhes(id)); TAREFA_DETALHE = id; REQ_VIVO = '';
   const est = salvo || { msgs: null, usadas: 0, erroJson: 0, log: [], cerebro: '', passos: 0, rodadas: 0 };
   est.rodadas = (est.rodadas || 0) + 1;
   // passos cabem em 4 mil letras: se passar, mantém os 3 primeiros e os mais recentes
   const compacto = log => { let l = log.map(x => String(x).replace(/ \| /g, ' · ')); while (l.join(' | ').length > 3900 && l.length > 6) l = l.slice(0, 3).concat(['…'], l.slice(5)); return l.join(' | ').slice(0, 3990); };
-  const anota = t => { est.log.push(t); atualizarTarefa(id, { passos: compacto(est.log) }); };
+  const anota = t => { est.log.push(mascarar(t)); est.detalhes = detalhesSeguros(DETALHES); atualizarTarefa(id, { passos: compacto(est.log) }); };
   const PAUSA = 'PAUSA_PRAZO';
   // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo.
   // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
@@ -3588,6 +3685,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     try { ntfy('🧠 Tarefa pronta', pedido.slice(0, 200), 'default'); } catch (e) { /* ok */ }
   };
   const pausar = motivo => {
+    est.detalhes = detalhesSeguros(DETALHES);
     est.salvou = true;
     estadoSalvar(id, est);
     anota('Pausou ' + motivo + '; continua sozinha na próxima rodada');
@@ -3617,7 +3715,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
       else {
         est.usadas++;
         const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
-        try { obs = String(f.run(j.args || {}, ctx) || '(sem retorno)'); }
+        try { obs = String(observarDetalhe('ferramenta', nome, {nome: nome, args: j.args || {}}, () => f.run(j.args || {}, ctx)) || '(sem retorno)'); }
         catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
         const pens = String(j.pensamento || j.porque || '').replace(/\s+/g, ' ').trim();
         if (pens) est.log.push('💭 ' + pens.slice(0, 90));
@@ -3632,6 +3730,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
           return;
         }
       }
+      if (!f || (nome === 'dividir_em_agentes' && pai) || /^LIMITE:/.test(obs)) passoDetalhe({tipo: 'ferramenta', titulo: nome, pedido: j.args || {}, resposta: obs, ms: 0});
       msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: 'RESULTADO de ' + nome + ':\n' + obs.slice(0, 6000) });
     }
     msgs.push({ role: 'user', content: 'Acabou o tempo. Termine agora com {"resposta": ...} usando o que já tem.' });
@@ -4040,3 +4139,65 @@ function instalar() {
   } catch (e) { log.push('Pesquisa no Google: ERRO → ' + e.message); }
   Logger.log(log.join('\n'));
 }
+
+function chamarCompat(c, msgs, maxSaida, extras) {
+  return observarDetalhe('cerebro', 'Cérebro: ' + c.nome + ' · ' + c.modelo, {modelo: c.modelo, mensagens: msgs, maxSaida: maxSaida, extras: extras}, () => chamarCompatSemDetalhe(c, msgs, maxSaida, extras));
+}
+
+function ponte(acao, dados, esperaMs, disp) {
+  return observarDetalhe('ponte', 'Ponte ' + (disp === 'mac' ? 'Mac' : 'PC') + ': ' + acao, {aparelho: disp === 'mac' ? 'mac' : 'pc', acao: acao, dados: dados}, () => ponteSemDetalhe(acao, dados, esperaMs, disp));
+}
+
+function buscarLinks(consulta, max) {
+  return observarDetalhe('web', 'Pesquisa web: links', {consulta: consulta}, () => buscarLinksSemDetalhe(consulta, max));
+}
+
+function resultadosBusca(pergunta) {
+  return observarDetalhe('web', 'Pesquisa web: reserva', {consulta: pergunta}, () => resultadosBuscaSemDetalhe(pergunta));
+}
+
+function pesquisar(historico, pergunta, extraSistema) {
+  return observarDetalhe('web', 'Pesquisa web', {consulta: pergunta}, () => pesquisarSemDetalhe(historico, pergunta, extraSistema));
+}
+
+function geminiComGoogle(sistema, historico) {
+  return observarDetalhe('web', 'Cérebro Gemini: Google Search', {modelo: CEREBROS.gemini.modelo, sistema: sistema, historico: historico}, () => geminiComGoogleSemDetalhe(sistema, historico));
+}
+
+function lerPaginas(urls) {
+  return observarDetalhe('web', 'Leitura de páginas', {links: urls}, () => lerPaginasSemDetalhe(urls));
+}
+
+function lerPagina(url) {
+  return observarDetalhe('web', 'Leitura de página', {url: url}, () => lerPaginaSemDetalhe(url));
+}
+
+function embutir(textos) {
+  return observarDetalhe('cerebro', 'Cérebro: embedding de significado', {modelo: 'gemini-embedding-001', textos: textos}, () => embutirSemDetalhe(textos));
+}
+
+function contextoConectores(pergunta) {
+  return observarDetalhe('memoria', 'Conectores consultados', pergunta, () => contextoConectoresSemDetalhe(pergunta));
+}
+
+function buscarConversas(pergunta, limite) {
+  return observarDetalhe('memoria', 'Busca em conversas antigas', pergunta, () => buscarConversasSemDetalhe(pergunta, limite));
+}
+
+function exemplosPara(pergunta, limite) {
+  return observarDetalhe('memoria', 'Exemplos aprovados', pergunta, () => exemplosParaSemDetalhe(pergunta, limite));
+}
+
+function contextoProjeto(id) {
+  return observarDetalhe('memoria', 'Instruções e arquivos do projeto', id, () => contextoProjetoSemDetalhe(id));
+}
+
+function tabelaPrecos(pergunta, forcar) {
+  return observarDetalhe('memoria', 'Tabela de preços', pergunta, () => tabelaPrecosSemDetalhe(pergunta, forcar));
+}
+
+function transcrever(audioBase64, tipo) { return observarDetalhe("cerebro", "Transcrição de áudio", {modelo: "whisper-large-v3-turbo", tipo: tipo, audio: "[binário omitido]"}, () => transcreverSemDetalhe(audioBase64, tipo)); }
+
+function gerarImagemPC(prompt) { return observarDetalhe("ponte", "Geração de imagem no PC", {aparelho: "pc", prompt: prompt}, () => gerarImagemPCSemDetalhe(prompt)); }
+
+function resumoDaConversa(chatId) { return observarDetalhe("memoria", "Resumo da conversa usado", {chatId: chatId}, () => resumoDaConversaSemDetalhe(chatId)); }

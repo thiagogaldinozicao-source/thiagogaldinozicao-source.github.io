@@ -117,4 +117,6 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D24 | [medir com placar antes e depois de mudar](D/D24-placar-antes-de-mudar.md) | Reproduza o número de hoje, mude uma coisa, meça de novo, leia os erros; só fica o que subir. Prova imita o uso real. |
 | D25 | [o que um treino LoRA de 8B ensina](D/D25-o-que-o-treino-ensina.md) | Treino pequeno ensina jeito e raciocínio, não decora fato; exemplo bom traz a aula e o porquê; prova justa com a aula; salvar cedo no Colab. |
 
+| D26 | [progresso com solicitação e resposta](D/D26-progresso-com-pedido-e-resposta.md) | Registrar no ponto da chamada, mascarar antes de gravar, manter passos antigos e conferir ao vivo e pronto. |
+
 `aulas.json` (gerado destas aulas) é o que o cérebro baixa (`sincronizarAulas`, a cada 12 h) pra aba `aulas`.

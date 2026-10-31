@@ -265,3 +265,12 @@ Escopo novo (Gmail, Agenda, Drive, gatilhos) exige que o Thiago autorize de novo
 - Nada que mexa com dinheiro no sistema Zicão Gestão sem aprovação dele.
 - Não apagar nada no PC dele.
 - Nunca inventar endereço, horário, garantia ou preço: perguntar.
+
+## v49 (PR, sem publicação): solicitação e resposta em cada passo
+- `passo(texto)` permanece compatível. `passoDetalhe({tipo,titulo,pedido,resposta,ms})` acrescenta `detalhes` ao chat, ao `aoVivo`, às mensagens reabertas e às tarefas. Até 60 registros; pedido/resposta até 2.000 caracteres com “…” no corte.
+- Chamadas de cérebro (inclusive reserva/erro e embeddings), ferramentas do agente, aulas (IDs + sinais BM25/cosseno), memória/base/contexto, pesquisa e páginas e ponte PC/Mac têm diagnóstico. A entrada começa “aguardando resposta” e é atualizada ao concluir.
+- `mascarar()` é aplicada antes de truncar, persistir ou enviar diagnóstico: propriedades secretas conhecidas, campos sensíveis, tokens, links com key/token, CPF e telefone. Binário é omitido. Não altera a entrada nem a saída funcional das ferramentas. A máscara não é autorização para guardar dados de cliente na nuvem.
+- Nova aba `detalhes` criada automaticamente: Id + Parte0…Parte12 (JSON em células de até 40 mil caracteres). Mensagens ganham referência em H (`DetalhesId`); tarefas usam seu ID, preservando as colunas anteriores. A retomada mantém os detalhes; o histórico reaberto e arquivado preserva a referência. Cache ao vivo é dividido em partes de 16 mil caracteres para respeitar o limite por entrada.
+- App: linha expansível com ícone/título/seta, Solicitação e Resposta em blocos monoespaçados com rolagem e copiar; mesma renderização em progresso/tarefas/resposta. Segunda máscara no app; conteúdo inserido como texto. Mensagens antigas continuam usando `passos`. Cache PWA: `zicoai-v23`.
+- Testes: `t1.js` a `t33.js`; `t33` verifica máscara, limites, cache, persistência e compatibilidade. `progresso.playwright.cjs` usa API falsa, 390/1440 de largura, sem acessar conta/ponte reais. Workflow do PR: “ZicoAI detalhes e progresso” (não publica).
+- Publicação do Apps Script fica com o Claude após revisão. Requisições ao Apps Script real e PC/Mac físicos não foram testadas nesta alteração. Aula: D26.

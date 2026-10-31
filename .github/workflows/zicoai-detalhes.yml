@@ -1,0 +1,26 @@
+name: ZicoAI detalhes e progresso
+on:
+  pull_request:
+    paths: ['zicoai/**', '.github/workflows/zicoai-detalhes.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Testes antigos e novos (t1 a t33)
+        run: |
+          set -e
+          for n in $(seq 1 33); do node "zicoai/cerebro/testes/t$n.js"; done
+      - run: npm install --prefix /tmp/zicoai-playwright --no-audit --no-fund playwright@1.64.1
+      - run: node /tmp/zicoai-playwright/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Playwright 390 e 1440 com API falsa
+        env:
+          ZICO_PLAYWRIGHT: /tmp/zicoai-playwright/node_modules/playwright
+        run: node zicoai/cerebro/testes/progresso.playwright.cjs

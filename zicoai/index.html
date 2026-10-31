@@ -439,6 +439,25 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 
+
+/* Detalhes compartilhados pelo chat, progresso e agentes. */
+.detalhes-passos{min-width:0;max-width:100%;padding-inline-start:0!important;border:0!important}
+.detalhes-passos>li{display:block!important;min-width:0;max-width:100%;padding:.25rem 0!important}
+.detalhes-passos>li::before{display:none!important}
+.passo-detalhe{min-width:0;max-width:100%;border-bottom:1px solid var(--borda2);padding:.35rem 0}
+.passo-detalhe>summary{display:flex!important;align-items:center;gap:.6rem;cursor:pointer;list-style:none;width:100%;color:var(--cinza)}
+.passo-detalhe>summary::before{display:none!important}
+.passo-detalhe>summary::-webkit-details-marker{display:none}
+.det-titulo{flex:1;min-width:0;overflow-wrap:anywhere}
+.det-seta{color:var(--ouro);transition:transform .15s}
+.passo-detalhe[open]>summary .det-seta{transform:rotate(90deg)}
+.det-bloco{min-width:0;max-width:100%;margin-block:.6rem;border:1px solid var(--borda2);border-radius:.5rem;overflow:hidden;background:var(--fundo,#111)}
+.det-bloco>div{display:flex;justify-content:space-between;gap:.5rem;padding:.5rem .7rem;align-items:center;font-size:.8rem}
+.det-bloco button{background:none;border:1px solid var(--borda2);color:var(--ouro);border-radius:.35rem;padding:.3rem .6rem;cursor:pointer}
+.det-bloco pre{box-sizing:border-box;display:block;min-width:0;max-width:100%;max-height:16rem;overflow:auto;margin:0;padding:.7rem;white-space:pre;font-family:monospace;font-size:.8rem}
+.det-bloco code{font:inherit;white-space:inherit}
+.msg-ia .corpo,.vivo,#progressoPainel,.tarefa{min-width:0;max-width:100%;box-sizing:border-box}
+
 </style>
 </head>
 <body>
@@ -649,7 +668,7 @@ async function api(corpo, sinal){
   const t = await r.text();
   let j;
   try{ j = JSON.parse(t); }catch(e){ throw new Error('O script não respondeu direito. Confere se publicou com acesso "Qualquer pessoa".'); }
-  if(!j.ok){ const er = new Error(j.erro || 'Erro desconhecido'); er.passos = j.passos; throw er; }
+  if(!j.ok){ const er = new Error(j.erro || 'Erro desconhecido'); er.passos = j.passos; er.detalhes = j.detalhes; throw er; }
   return j;
 }
 function status(ok){
@@ -928,11 +947,11 @@ function balao(m, ultima){
   d.className = 'msg-ia';
   d.innerHTML = '<div class="ava"></div><div class="corpo' + (m.erro ? ' erro' : '') + '"></div>';
   const corpo = d.querySelector('.corpo');
-  if(m.passos && m.passos.length){
+  if((m.passos && m.passos.length) || (m.detalhes && m.detalhes.length)){
     const det = document.createElement('details');
     det.className = 'passos';
-    const sm = document.createElement('summary'); sm.className = 'rz-tit'; sm.textContent = tituloResumo(m.passos);
-    det.appendChild(sm); det.appendChild(listaResumo(m.passos));
+    const sm = document.createElement('summary'); sm.className = 'rz-tit'; sm.textContent = tituloResumo(m.passos || []);
+    det.appendChild(sm); det.appendChild(listaResumo(m.passos || [], false, m.detalhes));
     corpo.appendChild(det);
   }
   const md = document.createElement('div');
@@ -1073,7 +1092,7 @@ const FERR = {
 };
 const VERBO_ICONE = { '🔎': 'pesquisou na web', '🌐': 'leu uma página', '📚': 'leu a memória', '🧮': 'fez contas', '🎨': 'gerou imagem', '💻': 'usou o PC', '📅': 'usou agenda/e-mail', '🧠': 'chamou um agente', '⌨️': 'escreveu código', '📷': 'olhou a foto' };
 function lerPasso(p){
-  p = String(p);
+  p = mascaraDetalheUI(String(p));
   if(/^💭 /.test(p)) return { tipo:'pens', ic:'●', texto: p.slice(3) };
   const f = p.match(/^🔧 (\w+) ?(\{[\s\S]*?\})? ?(?:· ([^→]*))?(?:→ ([\s\S]*))?$/);
   if(f){
@@ -1097,7 +1116,54 @@ function tituloResumo(passos){
   if(frases.length > 3) t += ' (+' + (frases.length - 3) + ')';
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
-function listaResumo(passos, vivo){
+
+// Defesa na tela: o servidor já mascara; aqui não se injeta HTML nos diagnósticos.
+function mascaraDetalheUI(v){
+  const sensivel = /key|token|segredo|secret|senha|password|pin|authorization|cookie|credential/i;
+  const limpar = x => {
+    if(Array.isArray(x)) return x.map(limpar);
+    if(x && typeof x === 'object'){ const o = {}; Object.keys(x).forEach(k => o[k] = sensivel.test(k) ? '•••' : limpar(x[k])); return o; }
+    return x;
+  };
+  let t;
+  if(typeof v === 'string'){ try{ t = JSON.stringify(limpar(JSON.parse(v)), null, 2); }catch(e){ t = v; } }
+  else t = JSON.stringify(limpar(v == null ? '' : v), null, 2);
+  [cfg.pin, cfg.url].filter(x => x && String(x).length >= 4).forEach(x => { t = t.split(String(x)).join('•••'); });
+  t = t.replace(/\b(?:sk-[\w-]{8,}|gsk_[\w-]{8,}|AIza[\w-]{12,}|gh[pousr]_[\w]{8,}|github_pat_[\w]{8,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)\b/g,'•••')
+    .replace(/\bBearer\s+[^\s"',}]+/gi,'Bearer •••')
+    .replace(/([?&][^=&#]*(?:key|token|secret|segredo|pin|senha)[^=&#]*=)[^&#\s"']*/gi,'$1•••')
+    .replace(/((?:["']?[\w.-]{0,64}(?:api[_-]?key|token|segredo|secret|senha|password|pin|authorization|cookie)[\w.-]{0,64}["']?)\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,}\]\n]+)/gi,'$1•••')
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g,'•••')
+    .replace(/(?:\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}\b/g,'•••');
+  return t.length > 2000 ? t.slice(0,1999) + '…' : t;
+}
+const detalhesAbertos = new Set();
+function listaDetalhes(detalhes, vivo){
+  const ol = document.createElement('ol'); ol.className = 'rz detalhes-passos';
+  detalhes.slice(0,60).forEach((d,i) => {
+    const li = document.createElement('li'), det = document.createElement('details'); det.className = 'passo-detalhe';
+    const titulo = mascaraDetalheUI(d.titulo || 'Passo'), chave = i + ':' + titulo;
+    det.open = detalhesAbertos.has(chave);
+    det.addEventListener('toggle', () => { if(!det.isConnected) return; if(det.open) detalhesAbertos.add(chave); else detalhesAbertos.delete(chave); });
+    const sum = document.createElement('summary'), ic = document.createElement('span'), nome = document.createElement('span'), seta = document.createElement('span');
+    ic.textContent = ({cerebro:'🧠',web:'🌐',aulas:'📚',memoria:'🗂',ponte:'💻',ferramenta:'🔧'})[d.tipo] || '⚙️';
+    nome.textContent = titulo; nome.className = 'det-titulo'; seta.textContent = '▸'; seta.className = 'det-seta';
+    sum.append(ic,nome,seta); det.appendChild(sum);
+    ['pedido','resposta'].forEach(campo => {
+      const bloco = document.createElement('div'); bloco.className = 'det-bloco';
+      const cab = document.createElement('div'), label = document.createElement('b'), bt = document.createElement('button'), pre = document.createElement('pre'), code = document.createElement('code');
+      label.textContent = campo === 'pedido' ? 'Solicitação' : 'Resposta';
+      bt.type = 'button'; bt.textContent = 'Copiar'; bt.setAttribute('aria-label','Copiar ' + label.textContent.toLowerCase());
+      const texto = mascaraDetalheUI(d[campo]); code.textContent = texto; bt.onclick = () => copiar(texto, bt);
+      cab.append(label,bt); pre.appendChild(code); bloco.append(cab,pre); det.appendChild(bloco);
+    });
+    if(Number(d.ms) >= 0){ const tempo = document.createElement('small'); tempo.textContent = Math.round(Number(d.ms)) + ' ms'; det.appendChild(tempo); }
+    li.appendChild(det); ol.appendChild(li);
+  });
+  return ol;
+}
+function listaResumo(passos, vivo, detalhes){
+  if(Array.isArray(detalhes) && detalhes.length) return listaDetalhes(detalhes, vivo);
   const ol = document.createElement('ol'); ol.className = 'rz';
   passos.forEach((p, i) => {
     const x = lerPasso(p);
@@ -1166,14 +1232,14 @@ function mostraTrabalhando(etapas, reqId){
       if(parado) return;
       try{
         const j = await api({ acao:'aoVivo', reqId });
-        if(!parado && j.passos && j.passos.length){
+        if(!parado && ((j.passos && j.passos.length) || (j.detalhes && j.detalhes.length))){
           const corpo = d.querySelector('.corpo');
           const card = document.createElement('div'); card.className = 'vivo';
           const tit = document.createElement('div'); tit.className = 'rz-tit'; tit.innerHTML = '<span class="pontos"><i></i><i></i><i></i></span>';
-          tit.appendChild(document.createTextNode(tituloResumo(j.passos)));
-          card.appendChild(tit); card.appendChild(listaResumo(j.passos, true));
+          tit.appendChild(document.createTextNode(tituloResumo(j.passos || [])));
+          card.appendChild(tit); card.appendChild(listaResumo(j.passos || [], true, j.detalhes));
           corpo.innerHTML = ''; corpo.appendChild(card); rola();
-          mostraProgresso(j.passos, true);
+          mostraProgresso(j.passos || [], true, j.detalhes);
           clearTimeout(tmr);
         }
       }catch(e){}
@@ -1287,12 +1353,12 @@ async function envia(refazendo){
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
+    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, detalhes: Array.isArray(j.detalhes) ? j.detalhes.slice(0,60).map(d => ({tipo: mascaraDetalheUI(d.tipo), titulo: mascaraDetalheUI(d.titulo), pedido: mascaraDetalheUI(d.pedido), resposta: mascaraDetalheUI(d.resposta), ms: d.ms})) : [], ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
     status(true);
   }catch(e){
     para();
     const parou = e.name === 'AbortError';
-    mensagens.push({ role:'assistant', erro:true, passos: e.passos,
+    mensagens.push({ role:'assistant', erro:true, passos: e.passos, detalhes: e.detalhes,
       content: parou ? 'Parei. (Se ela já tinha começado, a resposta aparece quando vc abrir a conversa de novo.)' : '⚠️ ' + e.message });
     if(!parou) status(false);
   }
@@ -1375,7 +1441,7 @@ function desenhaTarefas(){
       d.innerHTML = '<div class="tit"><span class="ic"></span><span class="nome"></span>' + (t.status === 'pendente' || t.status === 'rodando' || t.status === 'esperando' ? '<button class="parar" title="Parar">■</button>' : '') + '</div><div class="meta"></div><ol></ol>' + (t.resultado ? '<a class="ver" href="#">Ver resultado</a><div class="res md"></div>' : '');
       d.querySelector('.nome').textContent = t.pedido.length > 70 ? t.pedido.slice(0, 68) + '…' : t.pedido;
       d.querySelector('.meta').textContent = 'Agente · ' + t.status + ' · ' + (t.atualizada || t.criada).slice(5, 16).replace(' ', ' às ');
-      d.querySelector('ol').replaceWith(listaResumo(t.passos, t.status === 'rodando'));
+      d.querySelector('ol').replaceWith(listaResumo(t.passos || [], t.status === 'rodando', t.detalhes));
       d.querySelector('.meta').textContent += ' · ' + tituloResumo(t.passos);
       const parar = d.querySelector('.parar'); if(parar) parar.onclick = async () => { parar.disabled = true; try{ await api({ acao:'cancelarTarefa', id: t.id }); }catch(e){} atualizaTarefas(); };
       const ver = d.querySelector('.ver'); if(ver){ ver.onclick = e => { e.preventDefault(); const r = d.querySelector('.res'); if(!r.innerHTML) { r.innerHTML = renderMd(t.resultado); trataImagens(r); } r.classList.toggle('aberto'); ver.textContent = r.classList.contains('aberto') ? 'Esconder' : 'Ver resultado'; }; }
@@ -1409,7 +1475,7 @@ function vivoTarefaNaConversa(){
   tit.innerHTML = '<span class="pontos"><i></i><i></i><i></i></span>';
   tit.appendChild(document.createTextNode(t.status === 'pendente' ? 'Na fila…' : t.status === 'esperando' ? 'Esperando os outros agentes · ' + tituloResumo(t.passos) : tituloResumo(t.passos)));
   card.appendChild(tit);
-  if(t.passos.length) card.appendChild(listaResumo(t.passos, t.status === 'rodando'));
+  if(t.passos.length || (t.detalhes && t.detalhes.length)) card.appendChild(listaResumo(t.passos || [], t.status === 'rodando', t.detalhes));
   $('trilho').appendChild(d);
 }
 function abreTarefas(){ fechaLado(); $('mTarefas').classList.add('aberto'); desenhaTarefas(); atualizaTarefas(); }
@@ -1847,16 +1913,17 @@ function cartaoOpcoes(m){
 }
 
 /* ---------- painel de contexto: dados observados em toda a conversa ---------- */
-let progressoAtual = [], progressoAtivo = false;
-function mostraProgresso(passos, ativo){
+let progressoAtual = [], progressoAtivo = false, progressoDetalhes = [];
+function mostraProgresso(passos, ativo, detalhes){
+  progressoDetalhes = Array.isArray(detalhes) ? detalhes : [];
   progressoAtual = Array.isArray(passos) ? passos : []; progressoAtivo = ativo;
   const box = $('progressoPainel'); box.replaceChildren();
-  if(progressoAtual.length) box.appendChild(listaResumo(progressoAtual, ativo));
+  if(progressoAtual.length || progressoDetalhes.length) box.appendChild(listaResumo(progressoAtual, ativo, progressoDetalhes));
   else { const p = document.createElement('p'); p.className = 'painel-vazio'; p.textContent = ativo ? 'Aguardando os passos do cérebro…' : 'Nenhuma resposta em andamento.'; box.appendChild(p); }
 }
 function urlSegura(valor){ try{ const u = new URL(valor); return /^https?:$/.test(u.protocol) ? u.href : ''; }catch(e){ return ''; } }
 function desenhaPainel(){
-  mostraProgresso(progressoAtual, progressoAtivo);
+  mostraProgresso(progressoAtual, progressoAtivo, progressoDetalhes);
   const usos = $('usosPainel'); usos.replaceChildren();
   const grupos = [
     ['🧠','Cérebros',/gemini|groq|mistral|nvidia|nemotron|gpt|claude|qwen|llama|c[eé]rebro|modelo/i],
@@ -1890,7 +1957,7 @@ function desenhaPainel(){
     const ic = document.createElement('span'); ic.textContent = g.ic; sum.appendChild(ic);
     const tx = document.createElement('span'); tx.textContent = g.nome;
     const sm = document.createElement('small');
-    const nomes = g.nome === 'Cérebros' ? [...new Set(g.passos.flatMap(p => p.match(/gemini|groq|mistral|nvidia|nemotron|gpt[\w.-]*|claude|qwen|llama/ig) || []))] : [];
+    const nomes = g.nome === 'Cérebros' ? [...new Set(g.passos.flatMap(p => p.match(/gemini|groq|mistral|nvidia|nemotron|gpt[\w.-]{0,64}|claude|qwen|llama/ig) || []))] : [];
     sm.textContent = nomes.length ? nomes.join(', ') : g.passos.length + ' registro' + (g.passos.length === 1 ? '' : 's');
     tx.appendChild(sm); sum.appendChild(tx); det.appendChild(sum); det.appendChild(listaResumo(g.passos)); usos.appendChild(det);
   });
