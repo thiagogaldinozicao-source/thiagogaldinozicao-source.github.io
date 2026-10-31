@@ -27,3 +27,40 @@ async function pegarPagina(soTrecho) {
 }
 document.getElementById('usar').onclick = () => pegarPagina(false);
 document.getElementById('trecho').onclick = () => pegarPagina(true);
+
+/* ---------- Conectar a ZicoAI ao Chrome (v2.0): segredo e link guardados só neste Chrome ---------- */
+const URL_PADRAO = 'https://script.google.com/macros/s/AKfycbzQXrIM8oV2Gygqm_4DA-_4li3mdicbmfnThdieLvNEvsNYoj6jyVPKWo-6CBSyP-aOow/exec';
+const $ = id => document.getElementById(id);
+function mostrarEstado(e, temSegredo) {
+  const vivo = e && e.ok && Date.now() - e.quando < 90000;
+  $('bola').className = 'bola' + (vivo ? ' ok' : '');
+  $('estado').textContent = !temSegredo ? 'Conectar a ZicoAI ao Chrome' : vivo ? 'ZicoAI conectada ao Chrome' : (e && e.msg ? e.msg : 'Conectando...');
+}
+async function carregarConexao() {
+  const c = await chrome.storage.local.get(['zicoUrl', 'zicoSegredo', 'zicoEstado']);
+  $('url').value = c.zicoUrl || URL_PADRAO;
+  $('segredo').value = c.zicoSegredo ? '••••••••' : '';
+  $('con').open = !c.zicoSegredo;
+  mostrarEstado(c.zicoEstado, !!c.zicoSegredo);
+}
+$('salvar').onclick = async () => {
+  const seg = $('segredo').value.trim(), url = $('url').value.trim() || URL_PADRAO;
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)) { $('estado').textContent = 'Link do cérebro estranho: tem que terminar em /exec'; return; }
+  const novo = { zicoUrl: url };
+  if (seg && seg !== '••••••••') novo.zicoSegredo = seg;
+  else if (!(await chrome.storage.local.get('zicoSegredo')).zicoSegredo) { $('estado').textContent = 'Cole o segredo primeiro.'; return; }
+  await chrome.storage.local.set(novo);
+  $('estado').textContent = 'Conectando...';
+  chrome.runtime.sendMessage({ tipo: 'zicoai-ligar' }).catch(() => {});
+  $('segredo').value = '••••••••';
+};
+$('desligar').onclick = async () => {
+  await chrome.storage.local.remove(['zicoSegredo', 'zicoEstado']);
+  $('segredo').value = '';
+  mostrarEstado(null, false);
+};
+chrome.storage.onChanged.addListener((mud, area) => {
+  if (area === 'local' && (mud.zicoEstado || mud.zicoSegredo)) chrome.storage.local.get(['zicoSegredo', 'zicoEstado']).then(c => mostrarEstado(c.zicoEstado, !!c.zicoSegredo));
+});
+setInterval(() => chrome.storage.local.get(['zicoSegredo', 'zicoEstado']).then(c => mostrarEstado(c.zicoEstado, !!c.zicoSegredo)), 15000);
+carregarConexao();

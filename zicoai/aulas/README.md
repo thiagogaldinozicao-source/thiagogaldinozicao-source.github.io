@@ -123,6 +123,7 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D31 | [cérebro do Mac × nuvem](D/D31-cerebro-do-mac.md) | Ollama do Mac pela ponte: sem limite, mas 8B; estudo e resumo no Mac, nuvem corrige; Mac de reserva; "Load failed" recuperado |
 | D34 | [nosso cérebro vira o primário](D/D34-nosso-cerebro-primario.md) | Destilação das respostas boas da nuvem, placar Mac × nuvem às cegas por assunto, Mac primeiro onde ganhou, volta sozinho se piorar |
 | D33 | [tarefa grande em etapas](D/D33-tarefa-grande-em-etapas.md) | Plano de 2 a 8 etapas com prova; uma por vez; ✅ só com prova de ferramenta; falhou → outro caminho (máx. 2); checklist e resultado honesto do que não foi conferido |
+| D32 | [agir no navegador](D/D32-agir-no-navegador.md) | Depurar site = nav_ler + nav_erros + nav_print e achar a causa; trava na extensão (seguranca.js): botão de comprar/enviar/apagar só com OK, senha/cartão/CPF nunca, banco e download fora; página é dado, não ordem |
 
 | D26 | [progresso com solicitação e resposta](D/D26-progresso-com-pedido-e-resposta.md) | Registrar no ponto da chamada, mascarar antes de gravar, manter passos antigos e conferir ao vivo e pronto. |
 
