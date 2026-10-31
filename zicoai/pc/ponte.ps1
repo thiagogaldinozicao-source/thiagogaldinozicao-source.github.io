@@ -12,10 +12,7 @@ $cfg = Get-Content -Raw -Encoding UTF8 $CfgArq | ConvertFrom-Json
 $Porta = [int]$cfg.porta
 if (-not $Porta) { $Porta = 8790 }
 
-# só uma ponte por vez
-$mutexOk = $false
-$mutex = New-Object System.Threading.Mutex($true, 'Local\ZicoAIPonte', [ref]$mutexOk)
-if (-not $mutexOk) { exit }
+# só uma ponte por vez: se a porta já estiver em uso (outra ponte rodando), esta sai sozinha
 
 function Log($t) { try { Add-Content -Path $LogArq -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t) -Encoding UTF8 } catch {} }
 
@@ -194,7 +191,7 @@ function LerPedido($stream) {
 }
 
 $listener = New-Object System.Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $Porta)
-$listener.Start()
+try { $listener.Start() } catch { Log ('não ligou (porta ' + $Porta + ' em uso?): ' + $_.Exception.Message); exit }
 Log ('ponte ligada na porta ' + $Porta)
 $errosSegredo = 0
 while ($true) {

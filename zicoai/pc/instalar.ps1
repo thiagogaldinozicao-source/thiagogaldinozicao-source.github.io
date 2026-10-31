@@ -52,11 +52,16 @@ Write-Host '[ok] liga sozinha com o Windows'
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*ZicoAI-Ponte*ponte.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Milliseconds 500
 Start-Process powershell.exe -ArgumentList $argsPonte -WindowStyle Hidden
-Start-Sleep -Seconds 3
-try {
-  $t = Invoke-RestMethod -Uri ('http://127.0.0.1:' + $cfg.porta + '/') -Method Post -Body '{"acao":"status"}' -ContentType 'application/json' -Headers @{ 'X-Zico-Ponte' = $cfg.segredo }
-  Write-Host ('[ok] ponte respondendo: ' + $t.nome + ' · ' + $t.disco) -ForegroundColor Green
-} catch { Write-Host ('[ERRO] a ponte não respondeu: ' + $_.Exception.Message) -ForegroundColor Red }
+$t = $null
+for ($i = 0; $i -lt 10 -and -not $t; $i++) {
+  Start-Sleep -Seconds 2
+  try { $t = Invoke-RestMethod -Uri ('http://127.0.0.1:' + $cfg.porta + '/') -Method Post -Body '{"acao":"status"}' -ContentType 'application/json' -Headers @{ 'X-Zico-Ponte' = $cfg.segredo } } catch {}
+}
+if ($t) { Write-Host ('[ok] ponte respondendo: ' + $t.nome + ' · ' + $t.disco) -ForegroundColor Green }
+else {
+  Write-Host '[ERRO] a ponte não respondeu. Rodando ela visível pra mostrar o erro (Ctrl+C fecha):' -ForegroundColor Red
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'ponte.ps1')
+}
 
 # 5) caminho secreto no Tailscale Funnel (o mesmo que já leva até o Ollama)
 $ts = 'C:\Program Files\Tailscale\tailscale.exe'
