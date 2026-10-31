@@ -32,6 +32,8 @@ Erros que ocorreram de verdade nesta implementação:
 3. Os testes da ponte simulam outra requisição dentro da chamada atual. Essa requisição zerava o array global e o fechamento do detalhe tentava atualizar um índice inexistente. A pilha de erro mostrou `observarDetalhe`; preservei o contexto da chamada antes de atualizar o resultado. Os mesmos testes passaram depois.
 4. O Chromium não estava instalado neste ambiente e o download retornou um arquivo inválido. Isso impede afirmar teste visual local. O workflow de PR executa o roteiro no runner do GitHub; o resultado final deve ser conferido lá.
 
+5. Subi o rótulo da versão do cérebro antes da publicação; o CI encontrou uma asserção antiga que exige a versão 48. Li a falha no t32 e mantive o rótulo original: esta entrega é PR, a publicação fica para depois. Também completei os stubs de Markdown do roteiro conforme os métodos que o app realmente chama (`Renderer`, `setOptions` e `addHook`).
+
 ## Como conferir
 - Na pasta `zicoai/cerebro/testes`, executar `node t1.js` até `node t33.js` em processos separados.
 - Instalar Playwright e Chromium num ambiente de testes e executar `node zicoai/cerebro/testes/progresso.playwright.cjs` na raiz; ou conferir o workflow “ZicoAI detalhes e progresso” no PR.

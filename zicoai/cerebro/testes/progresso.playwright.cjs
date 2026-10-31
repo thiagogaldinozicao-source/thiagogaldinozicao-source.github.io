@@ -24,7 +24,7 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
         window.__copiado=''; Object.defineProperty(navigator,'clipboard',{value:{writeText:async t=>{window.__copiado=t}}});
       });
       // Bibliotecas externas não são necessárias para diagnosticar o progresso.
-      await page.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({contentType:'application/javascript',body:r.request().url().includes('marked')?'window.marked={parse:s=>s};':r.request().url().includes('purify')?'window.DOMPurify={sanitize:s=>s};':''}));
+      await page.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({contentType:'application/javascript',body:r.request().url().includes('marked')?'window.marked={parse:s=>s,Renderer:function(){},setOptions:()=>{}};':r.request().url().includes('purify')?'window.DOMPurify={sanitize:s=>s,addHook:()=>{}};':''}));
       await page.route('https://fonts.**',r=>r.abort());
       await page.route('https://example.invalid/brain',async route=>{
         const req=route.request().postDataJSON(); let data={ok:true};
