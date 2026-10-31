@@ -41,6 +41,8 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 
 - **6xx — projeto "Missões do João"** (jogo de missões): B601–B609 (3 peças: Pages + Apps Script + planilha, publicar sem mudar o link, subir pro GitHub, testar com Playwright simulando o servidor, prova e aprovação, teto/baú/combo, temporada, conquistas validadas no servidor, meta grande em marcos), E601–E602 (economia de pontos x orçamento, missões que dá pra provar), A601–A603 (explicar a escolha de arquitetura, resumo vivo do projeto, manter a regra mesmo com reclamação). Senha e detalhes pessoais tirados.
 
+- **7xx — projeto "ZOMBIES"** (Zicão Zombies na Unreal 5.8): B701–B711 (GDD como documento-mestre, catálogo de assets em vez de procurar na mão, sem gambiarra quando falta asset, regras vindas dos scripts originais, layout do mapa como HISM, importar mapa em nível novo, zumbis com animação e desmembramento, índice de animações antes de importar, ligar texturas pelo nome, listar .7z sem executar, mobilidade calibrada por medida), A701–A704 (dividir tarefas entre agentes sem conflito, PROMPT_MESTRE em etapas com regras duras, ciclo agente rápido + Thiago testa, dono de cada tarefa).
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
