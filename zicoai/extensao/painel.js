@@ -1,5 +1,6 @@
 const ORIGEM = 'https://thiagogaldinozicao-source.github.io';
-const aviso = t => { document.getElementById('aviso').textContent = t; };
+let avisoTmr = null;
+const aviso = t => { const a = document.getElementById('aviso'); a.textContent = t; a.classList.add('on'); clearTimeout(avisoTmr); avisoTmr = setTimeout(() => a.classList.remove('on'), 5000); };
 
 async function pegarPagina(soTrecho) {
   aviso('Lendo a página...');
@@ -38,13 +39,17 @@ const $ = id => document.getElementById(id);
 function mostrarEstado(e, temSegredo) {
   const vivo = e && e.ok && Date.now() - e.quando < 90000;
   $('bola').className = 'bola' + (vivo ? ' ok' : '');
-  $('estado').textContent = !temSegredo ? 'Conectar a ZicoAI ao Chrome' : vivo ? 'ZicoAI conectada ao Chrome' : (e && e.msg ? e.msg : 'Conectando...');
+  $('estado').textContent = !temSegredo ? 'Conectar ao Chrome' : vivo ? 'Conectada' : (e && e.msg ? String(e.msg).slice(0, 40) : 'Conectando...');
+  $('bEstado').title = !temSegredo ? 'Conectar a ZicoAI ao Chrome' : vivo ? 'ZicoAI conectada ao Chrome (toque pra ver a conexão)' : (e && e.msg) || 'Conectando...';
+  if (vivo && fecharQuandoLigar) { $('con').classList.remove('on'); fecharQuandoLigar = false; }
 }
+let fecharQuandoLigar = false;
+$('bEstado').onclick = () => $('con').classList.toggle('on');
 async function carregarConexao() {
   const c = await chrome.storage.local.get(['zicoUrl', 'zicoSegredo', 'zicoEstado']);
   $('url').value = c.zicoUrl || URL_PADRAO;
   $('segredo').value = c.zicoSegredo ? '••••••••' : '';
-  $('con').open = !c.zicoSegredo;
+  $('con').classList.toggle('on', !c.zicoSegredo);   // segredo já salvo: a caixa fica escondida
   mostrarEstado(c.zicoEstado, !!c.zicoSegredo);
 }
 $('salvar').onclick = async () => {
@@ -54,7 +59,7 @@ $('salvar').onclick = async () => {
   if (seg && seg !== '••••••••') novo.zicoSegredo = seg;
   else if (!(await chrome.storage.local.get('zicoSegredo')).zicoSegredo) { $('estado').textContent = 'Cole o segredo primeiro.'; return; }
   await chrome.storage.local.set(novo);
-  $('estado').textContent = 'Conectando...';
+  $('estado').textContent = 'Conectando...'; fecharQuandoLigar = true;
   chrome.runtime.sendMessage({ tipo: 'zicoai-ligar' }).catch(() => {});
   $('segredo').value = '••••••••';
 };

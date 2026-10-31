@@ -6,27 +6,37 @@
 <style>
   html, body { margin: 0; height: 100%; background: #0a0a0a; color: #f2f2f2; font-family: system-ui, sans-serif; }
   body { display: flex; flex-direction: column; }
-  .barra { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #262626; }
-  .barra button, .con button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #4a3c12; background: #1c1706; color: #F4CB63; font-weight: 600; font-size: 14px; cursor: pointer; }
-  .barra button:active, .con button:active { transform: scale(.98); }
-  #aviso { font-size: 12px; color: #9a9a9a; padding: 0 10px 6px; min-height: 0; }
-  details.con { border-bottom: 1px solid #262626; padding: 6px 10px; font-size: 13px; }
-  details.con summary { cursor: pointer; color: #cfcfcf; list-style: none; display: flex; align-items: center; gap: 6px; }
-  details.con summary::-webkit-details-marker { display: none; }
-  .bola { width: 8px; height: 8px; border-radius: 50%; background: #6b6b6b; display: inline-block; }
-  .bola.ok { background: #3ecf6a; }
+  /* uma linha só no topo: status + usar página + trecho (o resto da altura é da ZicoAI) */
+  .topo { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid #1f1f1f; align-items: center; }
+  .topo button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 999px; border: 1px solid #2a2a2a; background: #151515; color: #e8e8e8; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .topo button:active { transform: scale(.97); }
+  .topo .acao { color: #F4CB63; border-color: #4a3c12; background: #1c1706; }
+  .topo .esp { flex: 1; }
+  .topo svg { width: 15px; height: 15px; }
+  .bola { width: 8px; height: 8px; border-radius: 50%; background: #6b6b6b; display: inline-block; flex: none; }
+  .bola.ok { background: #3ecf6a; box-shadow: 0 0 0 3px rgba(62,207,106,.15); }
+  #aviso { font-size: 12px; color: #9a9a9a; padding: 4px 10px; display: none; }
+  #aviso.on { display: block; }
+  .con { display: none; border-bottom: 1px solid #1f1f1f; padding: 8px 10px 10px; font-size: 13px; }
+  .con.on { display: block; }
   .con label { display: block; margin: 8px 0 3px; color: #9a9a9a; font-size: 12px; }
   .con input { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #333; background: #141414; color: #f2f2f2; font-size: 13px; }
   .con .linha { display: flex; gap: 8px; margin-top: 8px; }
-  .con .fraco { background: #141414; border-color: #333; color: #bdbdbd; }
+  .con .linha button { flex: 1; padding: 9px; border-radius: 10px; border: 1px solid #4a3c12; background: #1c1706; color: #F4CB63; font-weight: 600; cursor: pointer; }
+  .con .fraco { background: #141414 !important; border-color: #333 !important; color: #bdbdbd !important; }
   .con p { color: #9a9a9a; font-size: 12px; margin: 6px 0 0; line-height: 1.4; }
   iframe { flex: 1; width: 100%; border: 0; }
 </style>
 </head>
 <body>
-  <details class="con" id="con">
-    <summary><span class="bola" id="bola"></span><span id="estado">Conectar a ZicoAI ao Chrome</span></summary>
-    <label for="segredo">Segredo do Chrome (o mesmo da propriedade PONTE_SEGREDO_NAV)</label>
+  <div class="topo">
+    <button id="bEstado" title="Conexão com o Chrome"><span class="bola" id="bola"></span><span id="estado">Conectar</span></button>
+    <span class="esp"></span>
+    <button id="usar" class="acao" title="Manda o texto da página aberta pra ZicoAI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>Usar página</button>
+    <button id="trecho" class="acao" title="Manda só o trecho que vc selecionou"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></svg>Trecho</button>
+  </div>
+  <div class="con" id="con">
+    <label for="segredo">Segredo do Chrome (o mesmo da propriedade PONTE_SEGREDO_NAV) · fica salvo, só cola 1 vez</label>
     <input id="segredo" type="password" autocomplete="off" placeholder="cole aqui">
     <label for="url">Link do cérebro (deixe como está)</label>
     <input id="url" type="url" autocomplete="off">
@@ -34,11 +44,7 @@
       <button id="salvar">Conectar</button>
       <button id="desligar" class="fraco">Desligar</button>
     </div>
-    <p>Com isso a ZicoAI consegue ler o site aberto, achar erros, tirar print, clicar e preencher quando vc pedir. Ela nunca preenche senha, cartão, CPF ou conta, não mexe em banco/pagamento e só aperta botão de comprar/enviar/apagar com o seu OK.</p>
-  </details>
-  <div class="barra">
-    <button id="usar" title="Manda o texto da página aberta pra ZicoAI">📄 Usar esta página</button>
-    <button id="trecho" title="Manda só o trecho que vc selecionou">✂️ Usar trecho selecionado</button>
+    <p>Com isso a ZicoAI lê o site aberto, acha erros, tira print, clica e preenche quando vc pedir. Nunca preenche senha, cartão, CPF ou conta, não mexe em banco/pagamento e só aperta botão de comprar/enviar/apagar com o seu OK.</p>
   </div>
   <div id="aviso"></div>
   <iframe id="app" src="https://thiagogaldinozicao-source.github.io/zicoai/?ext=1" allow="microphone; clipboard-write"></iframe>
