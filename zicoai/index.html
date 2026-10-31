@@ -177,7 +177,7 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .tarefa{border:1px solid var(--borda2);border-radius:14px;padding:12px;margin:8px 0;background:var(--card2)}
 .tarefa .tit{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
 .tarefa .tit .ic{width:10px;height:10px;border-radius:50%;background:var(--cinza2);flex-shrink:0}
-.tarefa.rodando .tit .ic{background:var(--ouro);box-shadow:0 0 0 4px rgba(235,181,51,.2);animation:pisca 1s infinite}
+.tarefa.rodando .tit .ic,.tarefa.esperando .tit .ic{background:var(--ouro);box-shadow:0 0 0 4px rgba(235,181,51,.2);animation:pisca 1s infinite}
 .tarefa.concluída .tit .ic{background:var(--verde)}
 .tarefa.erro .tit .ic,.tarefa.cancelada .tit .ic{background:var(--erro)}
 .tarefa .tit .parar{margin-left:auto;width:28px;height:28px;border-radius:8px;border:1px solid var(--borda2);display:grid;place-items:center;font-size:12px}
@@ -299,8 +299,8 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
             <button data-c="auto"><b>Auto</b><span>Nuvem primeiro (Gemini, Groq); PC de casa só como reserva</span></button>
             <button data-c="gemini"><b>Gemini</b><span>Textos grandes, fotos e conversa</span></button>
             <button data-c="groq"><b>Groq</b><span>Programação com raciocínio alto e pesquisa</span></button>
-            <button data-c="nvidia"><b>NVIDIA</b><span>Mesmo modelo do Groq, limite maior (precisa da chave)</span></button>
-            <button data-c="mistral"><b>Mistral</b><span>Texto e foto, reserva do Gemini (precisa da chave)</span></button>
+            <button data-c="nvidia"><b>NVIDIA</b><span>Nemotron 120B, reserva grátis com limite maior</span></button>
+            <button data-c="mistral"><b>Mistral</b><span>Texto e foto, reserva do Gemini</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
           </div>
         </div>
@@ -890,7 +890,7 @@ mostraEdicao();
 /* ---------- tarefas em segundo plano (agentes) ---------- */
 let tarefas = [], tmrTarefas = null, vistas = LS.get('tarefas_vistas', {});
 function desenhaTarefas(){
-  const rodando = tarefas.filter(t => t.status === 'pendente' || t.status === 'rodando');
+  const rodando = tarefas.filter(t => t.status === 'pendente' || t.status === 'rodando' || t.status === 'esperando');
   const linha = $('linhaTarefas');
   linha.classList.toggle('on', rodando.length > 0);
   $('txtTarefas').textContent = rodando.length + (rodando.length === 1 ? ' tarefa em execução' : ' tarefas em execução') + (rodando[0] && rodando[0].passos.length ? ' · ' + rodando[0].passos[rodando[0].passos.length - 1] : '');
@@ -905,7 +905,7 @@ function desenhaTarefas(){
     const sec = document.createElement('div'); sec.className = 'sec'; sec.textContent = g[0] + ' (' + g[1].length + ')'; l.appendChild(sec);
     g[1].forEach(t => {
       const d = document.createElement('div'); d.className = 'tarefa ' + t.status;
-      d.innerHTML = '<div class="tit"><span class="ic"></span><span class="nome"></span>' + (t.status === 'pendente' || t.status === 'rodando' ? '<button class="parar" title="Parar">■</button>' : '') + '</div><div class="meta"></div><ol></ol>' + (t.resultado ? '<a class="ver" href="#">Ver resultado</a><div class="res md"></div>' : '');
+      d.innerHTML = '<div class="tit"><span class="ic"></span><span class="nome"></span>' + (t.status === 'pendente' || t.status === 'rodando' || t.status === 'esperando' ? '<button class="parar" title="Parar">■</button>' : '') + '</div><div class="meta"></div><ol></ol>' + (t.resultado ? '<a class="ver" href="#">Ver resultado</a><div class="res md"></div>' : '');
       d.querySelector('.nome').textContent = t.pedido.length > 70 ? t.pedido.slice(0, 68) + '…' : t.pedido;
       d.querySelector('.meta').textContent = 'Agente · ' + t.status + ' · ' + (t.atualizada || t.criada).slice(5, 16).replace(' ', ' às ');
       d.querySelector('ol').innerHTML = t.passos.map(p => '<li>' + esc(p) + '</li>').join('');
@@ -925,7 +925,7 @@ async function atualizaTarefas(){
     });
     desenhaTarefas();
   }catch(e){}
-  const rodando = tarefas.some(t => t.status === 'pendente' || t.status === 'rodando');
+  const rodando = tarefas.some(t => t.status === 'pendente' || t.status === 'rodando' || t.status === 'esperando');
   clearTimeout(tmrTarefas);
   if(rodando) tmrTarefas = setTimeout(atualizaTarefas, 8000);
 }

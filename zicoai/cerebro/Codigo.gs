@@ -31,8 +31,9 @@ const CEREBROS = {
   github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true, aposentado: true },
   // Mistral "Experiment" (grátis, sem cartão)
   mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, opcional: true },
-  // NVIDIA NIM (grátis, ~40 pedidos/min)
-  nvidia:   { url: 'https://integrate.api.nvidia.com/v1/chat/completions', chave: 'NVIDIA_KEY', modelo: 'openai/gpt-oss-120b', nome: 'NVIDIA GPT-OSS 120B', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 30, rpd: 3000, opcional: true },
+  // NVIDIA NIM (grátis, ~40 pedidos/min). O gpt-oss-120b saiu do ar lá em 03/09/2026 (erro 410).
+  // Se o modelo principal sair do ar (404/410), tenta o "reserva" sozinho.
+  nvidia:   { url: 'https://integrate.api.nvidia.com/v1/chat/completions', chave: 'NVIDIA_KEY', modelo: 'nvidia/nemotron-3.5-super-vl-120b-a12b', reserva: 'google/gemma-4-31b-it', nome: 'NVIDIA Nemotron 120B', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 30, rpd: 3000, opcional: true },
   // Cloudflare Workers AI (10 mil "neurons" por dia grátis). Precisa de CF_ACCOUNT_ID e CF_TOKEN.
   cloudflare: { url: '', chave: 'CF_TOKEN', modelo: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', nome: 'Cloudflare Llama 70B', limite: 20000, maxSaida: 2048, tpm: 60000, rpm: 20, rpd: 150, opcional: true },
   // PC de casa (Ollama pelo Tailscale Funnel). Endereço e modelo vêm das Propriedades do script.
@@ -157,7 +158,7 @@ const ABAS = {
   precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
   exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
-  tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho'],
+  tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho', 'Pai'],
   vetores:      ['Aba', 'Texto', 'Vetor']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
@@ -578,6 +579,10 @@ function chamarCompat(c, msgs, maxSaida, extras) {
     if (/models\.github\.ai/.test(c.url) && !viaProxy) throw new Error(c.nome + ': bloqueado pelo GitHub; configure PROXY_URL + PROXY_SEGREDO');
     throw new Error(c.nome + ': respondeu fora do formato (' + txt.slice(0, 40).replace(/\s+/g, ' ') + ')');
   }
+  if ((cod === 404 || cod === 410) && c.reserva && c.reserva !== c.modelo) {
+    passo(c.nome + ': modelo saiu do ar (' + cod + '), usou o reserva ' + c.reserva);
+    return chamarCompat(Object.assign({}, c, { modelo: c.reserva, reserva: null, nome: c.nome + ' (reserva)' }), msgs, maxSaida, extras);
+  }
   if (cod !== 200) throw new Error(c.nome + ' ' + cod + ': ' + resumoErro(txt));
   let j;
   try { j = JSON.parse(txt); } catch (e) { throw new Error(c.nome + ' respondeu fora do formato: ' + txt.slice(0, 80).replace(/\s+/g, ' ')); }
@@ -983,7 +988,7 @@ function processarTags(texto, aparelho) {
     }
   }
   texto = texto.replace(/\[\[IMAGEM:\s*([\s\S]*?)\]\]/gi, (_, t) => {
-    const prompt = t.trim();
+    const prompt = detalharPromptImagem(t.trim());
     // 1) PC de casa com ComfyUI (ilimitado, qualidade do Krea). 2) reserva: Pollinations.
     try {
       const url = gerarImagemPC(prompt);
@@ -1735,6 +1740,39 @@ function restaurarApp(slug, sha) {
  *  (pasta "ZicoAI Imagens") e volta como link.
  * ============================================================ */
 
+/** Pedido curto de imagem ("iphone dourado na mesa") vira um pedido detalhado em inglês,
+ *  igual um bom prompt de Gemini/Midjourney: assunto com detalhes reais, cenário, ângulo,
+ *  luz, lente, estilo. Pedido que já veio detalhado (45+ palavras) passa igual.
+ *  Se nenhum cérebro responder, segue com o pedido original. */
+const PROMPT_DETALHAR_IMAGEM = [
+  'You write prompts for an image generation model (FLUX/Krea style). Rewrite the request below as ONE English prompt of 60 to 110 words.',
+  'Include: the main subject with precise, realistic details (for real products such as iPhones, describe the real design: camera layout, colors, materials, ports); setting and background; composition and camera angle; lighting; lens and depth of field; style and quality words.',
+  'Keep every detail the user gave and keep the style they asked (photo, illustration, 3D, pixel art, logo...). If no style was given, use professional photography.',
+  'Do not add text, logos, watermarks or people unless asked. If the user wants text in the image, put the exact text in double quotes.',
+  'Answer with the prompt only: no title, no quotes around it, no explanation.'
+].join('\n');
+
+function detalharPromptImagem(prompt) {
+  prompt = String(prompt || '').trim();
+  const palavras = prompt.split(/\s+/).filter(Boolean).length;
+  if (!prompt || palavras >= 45) return prompt;
+  const msgs = [{ role: 'system', content: PROMPT_DETALHAR_IMAGEM }, { role: 'user', content: prompt }];
+  const tk = estimarTokens(JSON.stringify(msgs)) + 400;
+  for (const nome of ['gemini', 'groq', 'groq2', 'mistral', 'nvidia']) {
+    if (!temCerebro(nome) || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
+    try {
+      let t = chamarCompat(CEREBROS[nome], msgs, 400, { temperature: 0.4 });
+      registrarUso(nome, tk);
+      t = String(t || '').replace(/^\s*(prompt\s*:)?\s*["“]?/i, '').replace(/["”]\s*$/, '').replace(/\s+/g, ' ').trim();
+      if (t.split(' ').length >= 15 && !/\[\[|\]\]/.test(t)) {
+        passo('Detalhou o pedido da imagem (' + CEREBROS[nome].nome + '): ' + t.slice(0, 160) + (t.length > 160 ? '…' : ''));
+        return t.slice(0, 1200);
+      }
+    } catch (e) { if (/\b429\b|rate limit|quota/i.test(String(e.message))) castigo(nome, e.message); }
+  }
+  return prompt;
+}
+
 function gerarImagemPC(prompt) {
   const base = String(prop('COMFY_URL') || '').trim().replace(/\/+$/, '');
   const wf = prop('COMFY_WORKFLOW');
@@ -2196,11 +2234,18 @@ function exportarTreino() {
  *  resultado na conversa e avisa no Telegram/ntfy.
  * ============================================================ */
 
-function criarTarefa(pedido, chatId, aparelho) {
+const MAX_AGENTES_JUNTOS = 3;       // quantos agentes trabalham ao mesmo tempo
+const MAX_FERRAMENTAS = 30;         // ferramentas por tarefa (somando todas as rodadas)
+const MAX_PASSOS_AGENTE = 45;       // vezes que o agente chama o cérebro numa tarefa
+const PRAZO_RODADA = 270000;        // 4,5 min por rodada (o Apps Script corta em 6); passou disso, salva e continua na próxima
+
+function criarTarefa(pedido, chatId, aparelho, pai) {
   pedido = String(pedido || '').trim().slice(0, 4000);
   if (pedido.length < 8) return { ok: false, erro: 'Pedido curto demais' };
   const id = 'tf' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
-  aba('tarefas').appendRow([id, "'" + agora(), String(chatId || ''), seguro(pedido), 'pendente', 'Na fila', '', "'" + agora(), aparelho || '']);
+  const a = aba('tarefas');
+  if (pai && a.getRange(1, 10, 1, 1).getDisplayValues()[0][0] !== 'Pai') a.getRange(1, 10, 1, 1).setValue('Pai');
+  a.appendRow([id, "'" + agora(), String(chatId || ''), seguro(pedido), 'pendente', 'Na fila', '', "'" + agora(), aparelho || '', pai || '']);
   agendarRodada();
   return { ok: true, id: id };
 }
@@ -2216,49 +2261,123 @@ function atualizarTarefa(id, campos) {
   Object.keys(campos).forEach(k => { const col = { status: 5, passos: 6, resultado: 7 }[k]; if (col) a.getRange(r, col, 1, 1).setValue(seguro(String(campos[k]).slice(0, k === 'resultado' ? 45000 : 4000))); });
   a.getRange(r, 8, 1, 1).setValue("'" + agora());
 }
+function statusTarefa(id) {
+  const r = linhaTarefa(id);
+  return r ? aba('tarefas').getRange(r, 5, 1, 1).getDisplayValues()[0][0] : '';
+}
 function tarefaCancelada(id) {
   const r = linhaTarefa(id);
-  return r ? aba('tarefas').getRange(r, 5, 1, 1).getDisplayValues()[0][0] === 'cancelada' : true;
+  return r ? statusTarefa(id) === 'cancelada' : true;
 }
 function listarTarefas() {
-  return linhas('tarefas').slice(-40).reverse().map(l => ({ id: l[0], criada: l[1], chatId: l[2], pedido: l[3], status: l[4], passos: String(l[5] || '').split(' | ').filter(Boolean), resultado: l[6], atualizada: l[7] }));
+  return linhas('tarefas').slice(-40).reverse().map(l => ({ id: l[0], criada: l[1], chatId: l[2], pedido: l[3], status: l[4], passos: String(l[5] || '').split(' | ').filter(Boolean), resultado: l[6], atualizada: l[7], pai: l[9] || '' }));
 }
 function cancelarTarefa(id) {
-  const r = linhaTarefa(id);
-  if (!r) return false;
-  const st = aba('tarefas').getRange(r, 5, 1, 1).getDisplayValues()[0][0];
-  if (st === 'concluída' || st === 'erro') return false;
+  const st = statusTarefa(id);
+  if (!st || st === 'concluída' || st === 'erro' || st === 'cancelada') return false;
   atualizarTarefa(id, { status: 'cancelada', passos: 'Cancelada pelo Thiago' });
+  // cancela junto as partes que ela mandou pros outros agentes
+  linhas('tarefas').filter(l => l[9] === id && ['pendente', 'rodando', 'esperando'].indexOf(l[4]) >= 0).forEach(l => atualizarTarefa(l[0], { status: 'cancelada', passos: 'Cancelada junto com a tarefa principal' }));
+  estadoApagar(id);
   return true;
 }
 
-/** Garante um gatilho pra rodar a fila daqui a ~1 minuto (sem acumular gatilhos). */
-function agendarRodada() {
-  const cache = CacheService.getScriptCache();
-  if (cache.get('rodada_agendada')) return;
+/* ---------- progresso salvo (tarefa longa continua na próxima rodada) ---------- */
+
+function pastaTarefas() {
+  const nome = 'ZicoAI Tarefas (progresso)';
+  const it = DriveApp.getFoldersByName(nome);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(nome);
+}
+function estadoSalvar(id, estado) {
+  const txt = JSON.stringify(estado);
+  const pasta = pastaTarefas();
+  const it = pasta.getFilesByName(id + '.json');
+  if (it.hasNext()) it.next().setContent(txt);
+  else pasta.createFile(id + '.json', txt, 'application/json');
+}
+function estadoLer(id) {
   try {
+    const it = pastaTarefas().getFilesByName(id + '.json');
+    return it.hasNext() ? JSON.parse(it.next().getBlob().getDataAsString()) : null;
+  } catch (e) { return null; }
+}
+function estadoApagar(id) {
+  try { const it = pastaTarefas().getFilesByName(id + '.json'); while (it.hasNext()) it.next().setTrashed(true); } catch (e) { /* ok */ }
+}
+
+/* ---------- fila: até MAX_AGENTES_JUNTOS rodadas ao mesmo tempo, cada uma com o próprio gatilho ---------- */
+
+/** Liga mais um "trabalhador" (gatilho) se ainda não tiver o máximo. */
+function agendarRodada() {
+  try {
+    const ja = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rodarTarefas').length;
+    const rodando = linhas('tarefas').filter(l => l[4] === 'rodando').length;
+    if (ja + rodando >= MAX_AGENTES_JUNTOS) return;
     ScriptApp.newTrigger('rodarTarefas').timeBased().after(1000).create();
-    cache.put('rodada_agendada', '1', 90);
   } catch (e) { Logger.log('não agendou rodada: ' + e.message); }
 }
 
-function rodarTarefas() {
-  // limpa os gatilhos desta função (já dispararam) e libera nova agenda
-  try { ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rodarTarefas').forEach(t => ScriptApp.deleteTrigger(t)); } catch (e) { /* ok */ }
-  CacheService.getScriptCache().remove('rodada_agendada');
+/** Tarefa "rodando" sem sinal de vida há 8 min = a rodada morreu no meio. Volta pra fila. */
+function destravarTarefas() {
+  const limite = Date.now() - 8 * 60000;
+  linhas('tarefas').forEach(l => {
+    if (l[4] !== 'rodando') return;
+    const t = new Date(String(l[7]).replace(' ', 'T') + '-03:00').getTime();
+    if (t && t < limite) atualizarTarefa(l[0], { status: 'pendente', passos: (l[5] ? l[5] + ' | ' : '') + 'Rodada anterior caiu; voltou pra fila' });
+  });
+}
+
+/** Pega a próxima tarefa da fila (com trava, pra dois trabalhadores não pegarem a mesma). */
+function pegarProxima() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return null;
+  try {
+    const l = linhas('tarefas').find(x => x[4] === 'pendente');
+    if (!l) return null;
+    atualizarTarefa(l[0], { status: 'rodando' });
+    return l;
+  } finally { lock.releaseLock(); }
+}
+
+function rodarTarefas(e) {
+  // apaga só o gatilho que acordou esta rodada (os outros trabalhadores continuam agendados)
+  try {
+    const uid = e && e.triggerUid;
+    const meus = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rodarTarefas' && (!uid || (t.getUniqueId && t.getUniqueId() === uid)));
+    if (meus.length) ScriptApp.deleteTrigger(meus[0]);
+  } catch (err) { /* ok */ }
   const inicio = Date.now();
-  const pendentes = linhas('tarefas').filter(l => l[4] === 'pendente');
-  for (const l of pendentes) {
-    if (Date.now() - inicio > 240000) { agendarRodada(); break; }   // deixa o resto pra próxima rodada (limite de 6 min)
-    const lock = LockService.getScriptLock();
-    if (!lock.tryLock(2000)) continue;
-    try {
-      if (aba('tarefas').getRange(linhaTarefa(l[0]), 5, 1, 1).getDisplayValues()[0][0] !== 'pendente') continue;
-      atualizarTarefa(l[0], { status: 'rodando', passos: 'Começou' });
-    } finally { lock.releaseLock(); }
-    try { agente(l[0], l[3], l[2], l[8]); }
-    catch (e) { atualizarTarefa(l[0], { status: 'erro', resultado: '⚠️ ' + String(e.message || e).slice(0, 500) }); }
+  destravarTarefas();
+  while (Date.now() - inicio < 200000) {
+    const l = pegarProxima();
+    if (!l) break;
+    // ainda tem fila? chama mais um trabalhador pra rodar em paralelo
+    if (linhas('tarefas').some(x => x[4] === 'pendente')) agendarRodada();
+    try { agente(l[0], l[3], l[2], l[8], inicio + PRAZO_RODADA, l[9] || ''); }
+    catch (err) { atualizarTarefa(l[0], { status: 'erro', resultado: '⚠️ ' + String(err.message || err).slice(0, 500) }); avisarPai(l[9]); }
   }
+  if (linhas('tarefas').some(x => x[4] === 'pendente')) agendarRodada();
+}
+
+/** Uma parte terminou: se todas as partes do pai acabaram, junta os resultados e acorda o pai. */
+function avisarPai(pai) {
+  if (!pai) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return;
+  try {
+    if (statusTarefa(pai) !== 'esperando') return;
+    const partes = linhas('tarefas').filter(l => l[9] === pai);
+    if (partes.some(l => ['pendente', 'rodando', 'esperando'].indexOf(l[4]) >= 0)) return;
+    const est = estadoLer(pai);
+    if (!est) { atualizarTarefa(pai, { status: 'erro', resultado: '⚠️ Perdi o progresso da tarefa principal' }); return; }
+    const junta = partes.map((l, i) => '### Parte ' + (i + 1) + ' (' + l[4] + '): ' + String(l[3]).replace(/^\[parte de \w+\]\s*/, '').slice(0, 150) + '\n' + String(l[6] || '(sem resultado)').slice(0, Math.floor(16000 / partes.length))).join('\n\n');
+    est.msgs.push({ role: 'user', content: 'RESULTADO de dividir_em_agentes:\n' + junta });
+    est.log.push('✅ ' + partes.length + ' agentes terminaram as partes');
+    estadoSalvar(pai, est);
+    atualizarTarefa(pai, { status: 'pendente', passos: est.log.join(' | ') });
+    agendarRodada();
+  } finally { lock.releaseLock(); }
 }
 
 /* ---------- FERRAMENTAS DO AGENTE (ela escolhe uma por vez, vê o resultado e decide a próxima) ---------- */
@@ -2315,6 +2434,12 @@ const FERRAMENTAS = {
   gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() },
   ler_meu_codigo: { desc: 'Lê trechos do MEU PRÓPRIO código (Apps Script) ligados a um termo: funções inteiras, com nome. Use antes de editar. args: {termo}', run: a => trechosDoCodigo(String(a.termo || '')) },
   editar_meu_codigo: { desc: 'Edita o MEU PRÓPRIO código e publica: faz backup, aplica as trocas (cada "procurar" tem que existir UMA vez, copiado exato), confere sintaxe, testa a versão nova e só então publica; se falhar, volta sozinho. args: {edicoes: [{procurar, trocar}], motivo}', run: (a, ctx) => { const r = autoMelhorar(a.edicoes || [], String(a.motivo || ''), ctx); return r.ok ? 'PUBLICADO: versão ' + r.versao + ' (backup ' + r.backup + ')' + (r.github ? ', salvo no GitHub' : '') : 'ERRO: ' + r.erro; } },
+  dividir_em_agentes: { desc: 'Divide um pedido GRANDE em 2 a 4 partes independentes que outros agentes fazem AO MESMO TEMPO (ex.: pesquisar 4 lojas, uma por agente). Você espera e recebe todos os resultados juntos pra montar a resposta final. args: {partes: ["descrição completa da parte 1", "parte 2", ...]}', run: (a, ctx) => {
+    const partes = (Array.isArray(a.partes) ? a.partes : []).map(x => String(x || '').trim()).filter(x => x.length >= 8).slice(0, 4);
+    if (partes.length < 2) return 'ERRO: mande de 2 a 4 partes, cada uma com a descrição completa do que fazer';
+    const ids = partes.map(x => criarTarefa('[parte de ' + ctx.id + '] ' + x, '', 'agente', ctx.id)).filter(r => r.ok).map(r => r.id);
+    return 'ESPERANDO_PARTES: ' + ids.length + ' agentes trabalhando ao mesmo tempo (' + ids.join(', ') + ')';
+  } },
   desfazer_meu_codigo: { desc: 'Volta meu código pro último backup e publica. args: {}', run: () => { const r = desfazerCodigo(); return r.ok ? 'restaurado e publicado: versão ' + r.versao : 'ERRO: ' + r.erro; } }
 };
 
@@ -2326,17 +2451,23 @@ const PROMPT_AGENTE = [
   '  pra usar ferramenta: {"ferramenta":"nome","args":{...},"porque":"motivo curto"}',
   '  pra terminar: {"resposta":"texto final completo pro Thiago (markdown; código em bloco ```html completo)"}',
   'Pedido que começa com "MELHORAR MEU CÓDIGO": 1) ler_meu_codigo com o termo certo (pode ler 2 ou 3 trechos); 2) editar_meu_codigo com o MÍNIMO de trocas, "procurar" copiado EXATAMENTE do trecho lido (com espaços e aspas) e único; 3) na resposta final, explique pro Thiago em linguagem de leigo o que mudou e a versão publicada. Se a edição falhar, leia de novo e tente uma troca menor. Nunca mexa em doPost, PIN, chaves ou nas funções de auto-melhoria.',
-  'Regras: máximo 12 ferramentas; nunca invente resultado de ferramenta; se uma falhar, tente outro caminho ou explique; não apague nada (pra neutralizar uma linha, escreva "[IGNORAR] ..." nela); dado de cliente (CPF, telefone) não entra na planilha; preço só da aba precos; termine com {"resposta"} assim que tiver o suficiente.'
+  'Pedido com várias partes que não dependem uma da outra (várias lojas, vários produtos, vários assuntos pra pesquisar): use dividir_em_agentes logo no começo, que fica bem mais rápido. Pedido simples: faça você mesma.',
+  'Regras: máximo ' + MAX_FERRAMENTAS + ' ferramentas; nunca invente resultado de ferramenta; se uma falhar, tente outro caminho ou explique; não apague nada (pra neutralizar uma linha, escreva "[IGNORAR] ..." nela); dado de cliente (CPF, telefone) não entra na planilha; preço só da aba precos; termine com {"resposta"} assim que tiver o suficiente.'
 ].join('\n');
 
-function agente(id, pedido, chatId, aparelho) {
-  const log = [];
-  const anota = t => { log.push(t); atualizarTarefa(id, { passos: log.join(' | ') }); };
-  // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo
-  const chamar = (msgs, maxSaida, temp) => {
+function agente(id, pedido, chatId, aparelho, prazo, pai) {
+  prazo = prazo || (Date.now() + PRAZO_RODADA);
+  const salvo = estadoLer(id);
+  const est = salvo || { msgs: null, usadas: 0, erroJson: 0, log: [], cerebro: '', passos: 0, rodadas: 0 };
+  est.rodadas = (est.rodadas || 0) + 1;
+  const anota = t => { est.log.push(t); atualizarTarefa(id, { passos: est.log.join(' | ') }); };
+  const PAUSA = 'PAUSA_PRAZO';
+  // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo.
+  // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
+  const chamar = (msgs, maxSaida, temp, semPrazo) => {
     for (let rodada = 0; rodada < 3; rodada++) {
       let soMinuto = true, tentou = false;
-      for (const nome of ['gemini', 'github', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
+      for (const nome of ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
         if (!temCerebro(nome)) continue;
         const tk = estimarTokens(JSON.stringify(msgs));
         if (tk + maxSaida > CEREBROS[nome].limite) continue;
@@ -2346,58 +2477,96 @@ function agente(id, pedido, chatId, aparelho) {
         try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome }; }
         catch (e) { if (/\b429\b|rate limit|quota/i.test(String(e.message))) castigo(nome, e.message); }
       }
+      const pc = (!soMinuto || rodada === 2) ? cerebroPCcodigo() : null;
+      if (pc) {
+        const tk = estimarTokens(JSON.stringify(msgs));
+        if (tk + maxSaida <= pc.limite) {
+          try { const t = chamarCompat(pc, msgs, maxSaida, { temperature: temp }); return { texto: t, cerebro: pc.nome }; }
+          catch (e) { marcarPCdesligado(); }
+        }
+      }
       if (!tentou || !soMinuto || rodada === 2) break;
       const espera = 60000 - (Date.now() % 60000) + 800;
+      if (!semPrazo && Date.now() + espera + 40000 > prazo) throw new Error(PAUSA);
       anota('Esperou ' + Math.ceil(espera / 1000) + 's pelo limite do minuto');
       Utilities.sleep(espera);
     }
     throw new Error('nenhum cérebro disponível agora');
   };
-  const ctx = { id: id, chatId: chatId, aparelho: aparelho };
-  const sistema = montarSistema(pedido, true) + '\n\n' + PROMPT_AGENTE;
-  const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
-  let usadas = 0, erroJson = 0, cerebro = '';
+  const ctx = { id: id, chatId: chatId, aparelho: aparelho, pai: pai, est: est };
+  if (!est.msgs) {
+    const sistema = montarSistema(pedido, true) + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
+    est.msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
+    anota('Começou a trabalhar');
+  } else anota('Continuou de onde parou (rodada ' + est.rodadas + ')');
+  const msgs = est.msgs;
   const finalizar = texto => {
     const final = processarTags(texto, aparelho || 'agente').texto;
-    atualizarTarefa(id, { status: 'concluída', resultado: final, passos: log.concat(['Concluída com ' + cerebro + ' (' + usadas + ' ferramenta' + (usadas === 1 ? '' : 's') + ')']).join(' | ') });
+    atualizarTarefa(id, { status: 'concluída', resultado: final, passos: est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')']).join(' | ') });
+    if (est.salvou) estadoApagar(id);
+    if (pai) { avisarPai(pai); return; }   // parte de tarefa maior: quem avisa o Thiago é o chefe
     if (chatId) {
-      PASSOS = ['Agente em segundo plano (' + usadas + ' ferramentas): ' + log.join(' → ')];
-      gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedido.slice(0, 80) + (pedido.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + cerebro, aparelho || 'agente');
+      PASSOS = ['Agente em segundo plano (' + est.usadas + ' ferramentas): ' + est.log.join(' → ')];
+      gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedido.slice(0, 80) + (pedido.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + est.cerebro, aparelho || 'agente');
       tocarChat(chatId);
     }
     try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, '🧠 Tarefa pronta: ' + pedido.slice(0, 80) + '\n\n' + final.slice(0, 3500)); } catch (e) { /* ok */ }
     try { ntfy('🧠 Tarefa pronta', pedido.slice(0, 200), 'default'); } catch (e) { /* ok */ }
   };
-  anota('Começou a trabalhar');
-  for (let i = 0; i < 14; i++) {
-    if (tarefaCancelada(id)) { anota('Parou: cancelada'); return; }
-    const r = chamar(msgs, 4000, 0.2);
-    cerebro = r.cerebro;
-    const j = lerJSON(r.texto);
-    if (!j) {
-      erroJson++;
-      if (erroJson >= 2) { finalizar(r.texto); return; }
-      msgs.push({ role: 'assistant', content: r.texto }, { role: 'user', content: 'Responda só com o JSON pedido ({"ferramenta":…} ou {"resposta":…}).' });
-      continue;
+  const pausar = motivo => {
+    est.salvou = true;
+    estadoSalvar(id, est);
+    anota('Pausou ' + motivo + '; continua sozinha na próxima rodada');
+    atualizarTarefa(id, { status: 'pendente' });
+  };
+  try {
+    while (est.passos < MAX_PASSOS_AGENTE) {
+      if (tarefaCancelada(id)) { anota('Parou: cancelada'); if (est.salvou) estadoApagar(id); return; }
+      if (Date.now() > prazo - 60000) { pausar('(limite de tempo do Google)'); return; }
+      est.passos++;
+      const r = chamar(msgs, 4000, 0.2);
+      est.cerebro = r.cerebro;
+      const j = lerJSON(r.texto);
+      if (!j) {
+        est.erroJson++;
+        if (est.erroJson >= 2) { finalizar(r.texto); return; }
+        msgs.push({ role: 'assistant', content: r.texto }, { role: 'user', content: 'Responda só com o JSON pedido ({"ferramenta":…} ou {"resposta":…}).' });
+        continue;
+      }
+      if (j.resposta !== undefined) { finalizar(String(j.resposta)); return; }
+      const nome = String(j.ferramenta || '');
+      const f = FERRAMENTAS[nome];
+      let obs;
+      if (!f) obs = 'ERRO: ferramenta "' + nome + '" não existe. Use uma da lista.';
+      else if (nome === 'dividir_em_agentes' && pai) obs = 'ERRO: você já é uma parte; faça sua parte sem dividir.';
+      else if (est.usadas >= MAX_FERRAMENTAS) obs = 'LIMITE: ' + MAX_FERRAMENTAS + ' ferramentas usadas. Termine com {"resposta"}.';
+      else {
+        est.usadas++;
+        const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
+        try { obs = String(f.run(j.args || {}, ctx) || '(sem retorno)'); }
+        catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
+        anota('🔧 ' + nome + ' ' + argsTxt + (j.porque ? ' · ' + String(j.porque).slice(0, 50) : '') + ' → ' + obs.replace(/\s+/g, ' ').slice(0, 60));
+        if (/^ESPERANDO_PARTES/.test(obs)) {
+          // chefe dividiu: dorme até as partes acabarem (avisarPai acorda com os resultados)
+          msgs.push({ role: 'assistant', content: JSON.stringify(j) });
+          est.salvou = true;
+          estadoSalvar(id, est);
+          atualizarTarefa(id, { status: 'esperando' });
+          avisarPai(id);   // se as partes já acabaram enquanto isso, acorda na hora
+          return;
+        }
+      }
+      msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: 'RESULTADO de ' + nome + ':\n' + obs.slice(0, 6000) });
     }
-    if (j.resposta !== undefined) { finalizar(String(j.resposta)); return; }
-    const nome = String(j.ferramenta || '');
-    const f = FERRAMENTAS[nome];
-    let obs;
-    if (!f) obs = 'ERRO: ferramenta "' + nome + '" não existe. Use uma da lista.';
-    else if (usadas >= 12) obs = 'LIMITE: 12 ferramentas usadas. Termine com {"resposta"}.';
-    else {
-      usadas++;
-      const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
-      try { obs = String(f.run(j.args || {}, ctx) || '(sem retorno)'); }
-      catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
-      anota('🔧 ' + nome + ' ' + argsTxt + (j.porque ? ' · ' + String(j.porque).slice(0, 50) : '') + ' → ' + obs.replace(/\s+/g, ' ').slice(0, 60));
-    }
-    msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: 'RESULTADO de ' + nome + ':\n' + obs.slice(0, 6000) });
+    msgs.push({ role: 'user', content: 'Acabou o tempo. Termine agora com {"resposta": ...} usando o que já tem.' });
+    const r = chamar(msgs, 4000, 0.2, true); const j = lerJSON(r.texto); est.cerebro = r.cerebro;
+    finalizar(j && j.resposta !== undefined ? String(j.resposta) : r.texto);
+  } catch (e) {
+    if (String(e.message) === PAUSA) { est.passos--; pausar('(todos os cérebros no limite do minuto)'); return; }
+    if (est.salvou) estadoApagar(id);
+    atualizarTarefa(id, { status: 'erro', resultado: '⚠️ ' + e.message });
+    avisarPai(pai);
   }
-  msgs.push({ role: 'user', content: 'Acabou o tempo. Termine agora com {"resposta": ...} usando o que já tem.' });
-  try { const r = chamar(msgs, 4000, 0.2); const j = lerJSON(r.texto); finalizar(j && j.resposta !== undefined ? String(j.resposta) : r.texto); }
-  catch (e) { atualizarTarefa(id, { status: 'erro', resultado: '⚠️ ' + e.message }); }
 }
 
 /* ============================================================
