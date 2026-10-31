@@ -23,3 +23,9 @@ run('CacheService.getScriptCache().remove("ponte_visto_nav")');
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'oque responder pra esse cliente?' }] });
 ok(!r.passos.some(p => /Leu a aba/.test(p)), 'extensão desligada: não tenta ler');
 ok(/versão (6\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 62');
+// v63: "este cliente", "o que respondo" também leem o Chrome
+run('CacheService.getScriptCache().put("ponte_visto_nav", String(Date.now()))');
+for (const frase of ['oque responder pra este cliente?', 'o que eu respondo pra ela?', 'responde pro cara aí']) {
+  const rr = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: frase }] });
+  ok(rr.passos.some(p => /Leu a aba aberta no Chrome/.test(p)), '"' + frase + '" lê o Chrome');
+}

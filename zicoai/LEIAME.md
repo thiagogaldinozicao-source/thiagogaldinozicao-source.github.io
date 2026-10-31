@@ -155,6 +155,8 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v63 (31/10): "este cliente", "o que respondo", "responde pra ela", "pro cara" também leem a aba do Chrome (no v62 só "esse cliente" lia).
+
 ## v62 (31/10): Chrome no chat + dado de cliente escondido
 - Chat: pedido curto que fala de Chrome/aba/site/WhatsApp/"esse cliente" e não trouxe a página → `ponte('ler')` na aba aberta (extensão ligada há < 90 s) e entra como "PÁGINA ABERTA NO CHROME". Regra: nunca dizer que não vê o Chrome.
 - `esconderPessoal`: telefone e CPF de cliente viram ••• na mensagem antes de ir pra nuvem e pra planilha (o número da loja fica).
