@@ -43,6 +43,8 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 
 - **7xx — projeto "ZOMBIES"** (Zicão Zombies na Unreal 5.8): B701–B711 (GDD como documento-mestre, catálogo de assets em vez de procurar na mão, sem gambiarra quando falta asset, regras vindas dos scripts originais, layout do mapa como HISM, importar mapa em nível novo, zumbis com animação e desmembramento, índice de animações antes de importar, ligar texturas pelo nome, listar .7z sem executar, mobilidade calibrada por medida), A701–A704 (dividir tarefas entre agentes sem conflito, PROMPT_MESTRE em etapas com regras duras, ciclo agente rápido + Thiago testa, dono de cada tarefa).
 
+- **8xx — projeto "Zicão Gestão"** (sistema da loja): A801–A804 (regra de ouro das mudanças, um chat por dia, como responder, texto pra cliente), B801–B809 (adaptador de banco, plano de revenda, trava de toque duplo, troca com id fixo, avisos na venda, WhatsApp em 3 campos, olho que esconde valores, estoque paginado, auditar o banco), C801–C807 (quem emite qual nota, regra dos acessórios, nota em duas partes, emitir notas pendentes, estoque do emissor bate com o Gestão, certificado A1 e CSC, troca de emissor adiada).
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
