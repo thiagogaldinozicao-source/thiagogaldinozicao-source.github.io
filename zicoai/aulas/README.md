@@ -30,6 +30,9 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 ### Aulas das conversas antigas (IDs 1xx, só na planilha)
 80 aulas tiradas das conversas antigas do Thiago com o Claude (A101–A124 jeito de trabalhar e prompts pro Gemini/GPT, B101–B174 apps/jogo/Supabase/catálogo, C103–C167 loja, E101–E162 pessoal). Como têm dado da loja e pessoal, ficam **só na aba `aulas` da planilha (privado)**. Repetidas entre si foram juntadas (ficou a mais completa).
 
+### Aulas por projeto (IDs 2xx, só na planilha)
+- **2xx — projeto "Maquina de cartão"** (simulador da maquininha): B201–B213 (app de 1 arquivo, parser de número BR, centavos, copiar texto, publicar, ícone, service worker, som, logo, copiar imagem, temas, testes, edição segura), C201–C202 (taxas e mensagem pro cliente), A201–A203 (prompt de revisão completa, jeito de trabalhar com o Thiago, regra do chat extenso).
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
