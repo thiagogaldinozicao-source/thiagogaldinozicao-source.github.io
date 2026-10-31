@@ -40,6 +40,8 @@ Erros que ocorreram de verdade nesta implementação:
 6. **(achado na revisão do Claude)** O simulador não mede custo de rede. `mascarar()` lia as propriedades do Apps Script a cada chamada, e `publicarDetalhes()` remascarava a lista inteira a cada passo novo (custo ao quadrado): **13.219 leituras de propriedades numa mensagem**, medidas contando chamadas no simulador. No Apps Script cada leitura vai pela rede, e `prop()` ainda lê a aba `config` quando falta a chave: a mensagem passaria dos 6 min. Conserto: segredos lidos 1 vez por execução, cada detalhe mascarado 1 vez ao entrar. Teste `t35` conta as leituras (agora 1). Lição: em código que roda na nuvem, conte chamadas a serviço (propriedades, planilha, rede), não só o resultado.
 7. **(revisão)** A aba `detalhes` crescia sem limite (até ~13 × 40 mil letras por resposta). Conserto: até 60 mil letras por resposta (encolhe pedido/resposta maiores primeiro), limpeza semanal mantendo as 300 mais novas, e o agente grava no máximo a cada 10 s e sempre no fim.
 
+8. **(v50, achado usando)** Guardar o diagnóstico como JSON picotado em colunas (Parte0…Parte12) funcionava pro app, mas o Thiago abriu a aba e viu "um CSV quebrado". Diagnóstico também é pra gente ler: v50 grava uma linha por passo, e o vetor de significado vira "1 vetor de 256 números" em vez dos números.
+
 ## Como conferir
 - Na pasta `zicoai/cerebro/testes`, executar `node t1.js` até `node t33.js` em processos separados.
 - Instalar Playwright e Chromium num ambiente de testes e executar `node zicoai/cerebro/testes/progresso.playwright.cjs` na raiz; ou conferir o workflow “ZicoAI detalhes e progresso” no PR.

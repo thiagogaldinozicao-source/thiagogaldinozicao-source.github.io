@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 49 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 50 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -156,7 +156,7 @@ const ABAS = {
   projetos:     ['Id', 'Nome', 'Instruções', 'Criado', 'Atualizado'],
   projeto_arquivos: ['Projeto', 'Nome', 'Conteúdo', 'Data'],
   mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho', 'Passos', 'DetalhesId'],
-  detalhes: ['Id'].concat(Array.from({length: 13}, (_, i) => 'Parte' + i)),
+  detalhes:     ['Data', 'Id', 'Nº', 'Tipo', 'Título', 'Solicitação', 'Resposta', 'ms'],
   historico:    ['Data', 'Aba', 'Assunto', 'Antes', 'Depois', 'Origem'],
   feedback:     ['Data', 'Conversa', 'Nota', 'Comentário', 'Cérebro', 'Resposta (início)', 'Aparelho'],
   prova:        ['Nº', 'Grupo', 'Pergunta exata', 'Critérios nota 10 (2,5 pontos cada)', 'Erro mais provável', 'Última nota', 'Última data', 'Observação'],
@@ -311,7 +311,7 @@ function detalhesSeguros(ds) {
     pedido: textoDetalhe(d.pedido), resposta: textoDetalhe(d.resposta), ms: Number.isFinite(Number(d.ms)) ? Math.max(0, Number(d.ms)) : 0
   }));
 }
-const DETALHES_MAX_LETRAS = 60000, DETALHES_MAX_LINHAS = 300;
+const DETALHES_MAX_LETRAS = 60000, DETALHES_MAX_LINHAS = 3000;
 /** Encolhe os campos maiores (pedido/resposta) até o JSON caber em DETALHES_MAX_LETRAS. */
 function encolherDetalhes(ds) {
   const lista = ds.map(d => Object.assign({}, d));
@@ -321,20 +321,51 @@ function encolherDetalhes(ds) {
   }
   return lista;
 }
+/** Aba `detalhes` legível: UMA LINHA POR PASSO (data, id da resposta/tarefa, nº, tipo, título, solicitação, resposta, ms).
+ *  Antes (v49) cada resposta virava um JSON picotado em 13 colunas (célula aguenta 50 mil letras): o app lia, gente não.
+ *  Se achar a aba no formato antigo, renomeia pra `detalhes_v49` (nada é apagado) e cria a nova. */
+function abaDetalhes() {
+  const ss = planilha(), velha = ss.getSheetByName('detalhes');
+  if (velha) {
+    let cab = '';
+    try { cab = String(velha.getRange(1, 2, 1, 1).getDisplayValues()[0][0]); } catch (e) { /* ok */ }
+    if (cab === 'Parte0') { try { velha.setName('detalhes_v49'); } catch (e) { /* segue com a nova */ } }
+  }
+  return aba('detalhes');
+}
+let DETALHES_POR_ID = null;
 function guardarDetalhes(id, ds) {
   if (!id) return;
-  const a = aba('detalhes'), texto = JSON.stringify(encolherDetalhes(ds));
-  const achou = a.getRange('A:A').createTextFinder(id).matchEntireCell(true).findNext();
-  const partes = Array.from({length: 13}, (_, i) => texto.slice(i * 39999, (i + 1) * 39999));
-  // Cada parte começa como texto: um '=' no meio do JSON nunca vira fórmula.
-  const celulas = partes.map(t => t ? "'" + t : '');
-  if (achou) a.getRange(achou.getRow(), 2, 1, 13).setValues([celulas]);
-  else a.appendRow([id].concat(celulas));
+  const a = abaDetalhes(), lista = encolherDetalhes(ds), n = a.getLastRow();
+  // tarefa do agente regrava: tira as linhas antigas desse id (de baixo pra cima, em blocos)
+  if (n >= 2) {
+    const ids = a.getRange(2, 2, n - 1, 1).getDisplayValues().map(l => l[0]);
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (ids[i] !== id) continue;
+      let j = i; while (j > 0 && ids[j - 1] === id) j--;
+      a.deleteRows(j + 2, i - j + 1); i = j;
+    }
+  }
+  if (lista.length) {
+    const quando = "'" + agora();
+    const linhasNovas = lista.map((d, k) => [quando, id, k + 1, d.tipo, seguro(d.titulo), seguro(d.pedido), seguro(d.resposta), d.ms || 0]);
+    a.getRange(a.getLastRow() + 1, 1, linhasNovas.length, 8).setValues(linhasNovas);
+  }
+  DETALHES_POR_ID = null;
 }
+/** Detalhes de uma resposta/tarefa. Lê a aba UMA vez por execução (abrir conversa com 40 mensagens = 1 leitura). */
 function lerDetalhes(id) {
   if (!id) return [];
-  const l = linhas('detalhes').find(x => x[0] === id);
-  try { return detalhesSeguros(JSON.parse(l ? l.slice(1).join('') : '[]')); } catch (e) { return []; }
+  if (!DETALHES_POR_ID) {
+    DETALHES_POR_ID = {};
+    try {
+      const a = abaDetalhes(), n = a.getLastRow();
+      if (n >= 2) a.getRange(2, 1, n - 1, 8).getDisplayValues().forEach(l => {
+        (DETALHES_POR_ID[l[1]] = DETALHES_POR_ID[l[1]] || []).push({ n: Number(l[2]) || 0, tipo: l[3], titulo: l[4], pedido: l[5], resposta: l[6], ms: Number(l[7]) || 0 });
+      });
+    } catch (e) { /* sem aba */ }
+  }
+  return detalhesSeguros((DETALHES_POR_ID[id] || []).slice().sort((x, y) => x.n - y.n));
 }
 let GRAVOU_DETALHE_EM = 0;
 /** Cada detalhe já entra mascarado (passoDetalhe/observarDetalhe): aqui só publica, sem remascarar a lista toda.
@@ -356,7 +387,7 @@ function passoDetalhe(d) {
   if (DETALHES.length >= 60) return -1;
   DETALHES.push(detalhesSeguros([d])[0]); publicarDetalhes(); return DETALHES.length - 1;
 }
-function observarDetalhe(tipo, titulo, pedido, fn) {
+function observarDetalhe(tipo, titulo, pedido, fn, resumo) {
   const inicio = Date.now(), i = passoDetalhe({tipo: tipo, titulo: titulo, pedido: pedido, resposta: '(aguardando resposta)', ms: 0});
   const lista = DETALHES, tarefa = TAREFA_DETALHE, vivo = REQ_VIVO;
   let resposta;
@@ -364,7 +395,7 @@ function observarDetalhe(tipo, titulo, pedido, fn) {
   catch (e) { resposta = {erro: String(e && e.message || e)}; throw e; }
   finally {
     if (DETALHES !== lista) { DETALHES = lista; TAREFA_DETALHE = tarefa; REQ_VIVO = vivo; }
-    if (i >= 0) { DETALHES[i].resposta = textoDetalhe(resposta); DETALHES[i].ms = Date.now() - inicio; publicarDetalhes(); }
+    if (i >= 0) { let r = resposta; try { if (resumo) r = resumo(resposta); } catch (e) { /* guarda a resposta como veio */ } DETALHES[i].resposta = textoDetalhe(r); DETALHES[i].ms = Date.now() - inicio; publicarDetalhes(); }
   }
 }
 
@@ -377,7 +408,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PASSOS = []; DETALHES = []; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0;
+  PASSOS = []; DETALHES = []; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -3392,9 +3423,9 @@ function chatTemArquivo(chatId) {
 function corteArquivo() { return Utilities.formatDate(new Date(Date.now() - DIAS_NO_ATIVO * 86400000), FUSO, 'yyyy-MM-dd'); }
 
 /** Domingo 5h: MOVE (copia, confere e só então tira) as mensagens com mais de 60 dias pra "ZicoAI Arquivo". Até 3 mil por vez. */
-/** Aba `detalhes` é diagnóstico: fica só o das últimas DETALHES_MAX_LINHAS respostas/tarefas (as mais antigas estão no topo). */
+/** Aba `detalhes` é diagnóstico: fica só as últimas DETALHES_MAX_LINHAS linhas (passos; as mais antigas estão no topo). */
 function limparDetalhes() {
-  const a = aba('detalhes'), n = a.getLastRow() - 1;
+  const a = abaDetalhes(), n = a.getLastRow() - 1;
   if (n <= DETALHES_MAX_LINHAS) return 0;
   const tirar = n - DETALHES_MAX_LINHAS;
   a.deleteRows(2, tirar);
@@ -4256,7 +4287,8 @@ function lerPagina(url) {
 }
 
 function embutir(textos) {
-  return observarDetalhe('cerebro', 'Cérebro: embedding de significado', {modelo: 'gemini-embedding-001', textos: textos}, () => embutirSemDetalhe(textos));
+  return observarDetalhe('cerebro', 'Cérebro: embedding de significado', {modelo: 'gemini-embedding-001', textos: textos}, () => embutirSemDetalhe(textos),
+    r => Array.isArray(r) ? r.length + ' vetor(es) de ' + ((r[0] || []).length) + ' números (omitidos: não servem pra ler)' : r);
 }
 
 function contextoConectores(pergunta) {

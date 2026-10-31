@@ -28,9 +28,9 @@ ok(JSON.stringify(enc).length <= 60000 && enc.length === 60, 'detalhes encolhem 
 
 // 3) limpeza: aba detalhes fica com as últimas 300
 const d = H.ctx.aba('detalhes'); d.rows.splice(1);
-for (let i = 0; i < 350; i++) d.appendRow(['msg_' + i, "'[]"]);
+for (let i = 0; i < 3050; i++) d.appendRow(["'2026-10-31", 'msg_' + i, 1, 'memoria', 'Passo', 'pedido', 'resposta', 0]);
 const tirou = vm.runInContext('limparDetalhes()', H.ctx);
-ok(tirou === 50 && d.rows.length === 301 && d.rows[1][0] === 'msg_50', 'limpeza deixa só as 300 mais novas (tirou ' + tirou + ')');
+ok(tirou === 50 && d.rows.length === 3001 && d.rows[1][1] === 'msg_50', 'limpeza deixa só as 3.000 linhas mais novas (tirou ' + tirou + ')');
 ok(/limparDetalhes\(\)/.test(vm.runInContext('arquivarMensagens.toString()', H.ctx)), 'limpeza roda na rotina semanal (arquivarMensagens)');
 
 // 4) agente: grava os detalhes no máximo a cada 10 s, e sempre no fim
