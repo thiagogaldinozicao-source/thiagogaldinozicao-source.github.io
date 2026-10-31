@@ -955,6 +955,44 @@ function contextoAulas(pergunta, limite, talvez) {
   return txt;
 }
 
+/** Importa aulas reescritas de um arquivo JSON do Drive pra aba `aulas`, sem redigitar nada:
+ *  {versao, aulas: {ID: {titulo, palavras, regra, conteudo}}}. Só mexe em aula privada (não nas do GitHub, que vêm do
+ *  sincronizarAulas, nem nas [IGNORAR]). O texto antigo vai pra aba `historico` (dá pra desfazer). Depois de gravar,
+ *  lê de volta e confere letra por letra. Rodar pelo editor: importarAulas() ou importarAulas('outro.json'). */
+function importarAulas(nome) {
+  nome = nome || 'aulas_professor.json';
+  const it = DriveApp.getFilesByName(nome);
+  if (!it.hasNext()) return { ok: false, erro: 'arquivo não achado no Drive: ' + nome };
+  let j;
+  try { j = JSON.parse(it.next().getBlob().getDataAsString('UTF-8')); } catch (e) { return { ok: false, erro: 'JSON inválido' }; }
+  const novas = (j && j.aulas) || {};
+  const a = aba('aulas'), tot = a.getLastRow();
+  if (tot < 2) return { ok: false, erro: 'aba aulas vazia' };
+  const ls = a.getRange(2, 1, tot - 1, 7).getDisplayValues();
+  const hist = [], gravadas = [], pulou = [];
+  ls.forEach((l, k) => {
+    const n = novas[l[0]];
+    if (!n) return;
+    if (/^GitHub/.test(String(l[6])) || l.some(c => /^\[IGNORAR\]/i.test(String(c)))) { pulou.push(l[0]); return; }
+    const v = [n.titulo, n.palavras, n.regra, n.conteudo].map(x => String(x == null ? '' : x));
+    if (!v[2] || !v[3]) { pulou.push(l[0]); return; }
+    hist.push(["'" + agora(), 'aulas', l[0] + ' (' + (j.versao || nome) + ')', seguro(String(l[4]) + '\n---\n' + String(l[5])), seguro(v[2]), 'importarAulas']);
+    a.getRange(k + 2, 3, 1, 4).setValues([v.map(seguro)]);
+    gravadas.push({ linha: k + 2, id: l[0], v: v });
+  });
+  if (hist.length) { const h = aba('historico'); h.getRange(h.getLastRow() + 1, 1, hist.length, 6).setValues(hist); }
+  try { SpreadsheetApp.flush(); } catch (e) { /* ok */ }
+  const difs = [];
+  gravadas.forEach(g => {
+    const lido = a.getRange(g.linha, 1, 1, 6).getDisplayValues()[0];
+    if (String(lido[0]) !== g.id || [2, 3, 4, 5].some((c, i) => String(lido[c]) !== g.v[i])) difs.push(g.id);
+  });
+  try { CacheService.getScriptCache().remove('aulas_idx_n'); } catch (e) { /* ok */ }
+  const r = { ok: !difs.length, gravadas: gravadas.length, conferidas: gravadas.length - difs.length, diferentes: difs, puladas: pulou, naoAchadas: Object.keys(novas).filter(id => !ls.some(l => l[0] === id)) };
+  Logger.log(JSON.stringify(r));
+  return r;
+}
+
 /** Placar da busca de aulas, com os vetores do Gemini (o que roda de verdade): lê o treino.jsonl da pasta
  *  "ZicoAI Treino" do Drive, passa cada pergunta pela busca e diz em quantas a aula certa vem em 1º, nas 2 e nas 5.
  *  Rodar pelo editor (Executar › placarAulas). Grava uma linha na aba `placar_aulas`. */
