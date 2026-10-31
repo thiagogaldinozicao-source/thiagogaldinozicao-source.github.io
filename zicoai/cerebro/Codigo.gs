@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 56 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 58 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -194,6 +194,8 @@ const ABAS = {
   aprendizados: ['Data', 'Erro', 'Certo', 'Assunto'],
   perfil:       ['Tópico', 'Informação'],
   base:         ['Assunto', 'Conteúdo'],
+  destilacao:   ['Data', 'Pergunta', 'Aulas', 'Resposta', 'Cérebro', 'Tipo', 'Status'],
+  placar_mac:   ['Data', 'Tipo', 'Provas', 'Mac ganhou', 'Empate', 'Nuvem ganhou', 'Decisão'],
   estudo_erros: ['Data', 'Conversa', 'Pedido', 'Resposta errada', 'Reclamação', 'Causa', 'Regra', 'Aula (rascunho)', 'Resposta certa', 'Fontes', 'Status'],
   chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Fixada', 'Projeto'],
   projetos:     ['Id', 'Nome', 'Instruções', 'Criado', 'Atualizado'],
@@ -674,6 +676,7 @@ function chat(req, aparelho) {
   }
 
   gravarMensagem(chatId, 'zicoai', textoFinal, resultado.cerebro, aparelho);
+  try { guardarDestilacao(pergunta, AULAS_USADAS, textoFinal, resultado.cerebro); } catch (e) { /* destilação nunca derruba a resposta */ }
   tocarChat(chatId);
   try { compactarSePrecisar(chatId); } catch (e) { /* compactação nunca derruba a resposta */ }
 
@@ -695,6 +698,7 @@ function feedback(req, aparelho) {
   const pergunta = String(req.pergunta || '').trim().slice(0, 1500);
   const respostaCheia = String(req.resposta || '').trim();
   if (nota === '👍' && pergunta && guardarExemplo(pergunta, respostaCheia, String(req.cerebro || ''), '👍 Thiago')) salvou.push('exemplo');
+  try { marcarDestilacao(respostaCheia || resposta, nota === '👍' ? 'aprovada' : 'reclamada'); } catch (e) { /* ok */ }
   // Reclamação escrita pelo Thiago vira aprendizado (é palavra dele, não dedução da IA). Curtida só registra.
   if (nota === '👎' && coment.length >= 8 && !temDadoSensivel(coment)) {
     const erro = resposta ? 'Resposta: "' + resposta.slice(0, 160).replace(/\s+/g, ' ') + (resposta.length > 160 ? '…' : '') + '"' : 'Resposta reprovada';
@@ -801,6 +805,8 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
   ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
   if (preferido === 'auto' || !preferido) { try { ordem = reordenarPorNota(ordem, pc); } catch (e) { /* segue a ordem padrão */ } }
+  // nosso cérebro primeiro onde ele já provou no placar (a nuvem vira reserva)
+  if (!imagem && !forte && (preferido === 'auto' || !preferido) && temCerebro('mac') && macPrimario(pergunta)) { ordem = ['mac'].concat(ordem.filter(n => n !== 'mac')); passo('Assunto em que o cérebro do Mac já ganhou da nuvem no placar: ele responde primeiro'); }
   // pedido difícil: o Gemini Flash (melhor, ~20/dia) vai na frente; acabou a cota do dia → segue a ordem normal
   if (forte && (preferido === 'auto' || !preferido) && temCerebro('geminiForte')) { ordem = ['geminiForte'].concat(ordem); passo('Pedido difícil: chamou o Gemini Flash (o melhor do grátis) primeiro'); }
 
@@ -1066,6 +1072,7 @@ function indiceAulas() {
  *  Nota = palavra/maior + PESO_SIGNIFICADO × cosseno. Conversa à toa ("oi", "valeu", "bom dia") não puxa aula.
  *  Placar (1.234 perguntas do treino, oficina do Mac, 31/10): só palavra com corte 18 = 72% nas 2 primeiras;
  *  corte menor + detector de conversa à toa = 76%; + significado = 79% nas 2 e 92% nas 5. */
+let AULAS_USADAS = [];
 const PESO_AULAS = { k: 2, r: 1, c: 1.5 }, AULAS_MIN = 10, PESO_SIGNIFICADO = 2, AULAS_COS_MIN = 0.55, AULAS_COS_FORTE = 0.74;
 const PALAVRAS_A_TOA = ['oi', 'ola', 'opa', 'eai', 'e', 'ai', 'bom', 'boa', 'dia', 'tarde', 'noite', 'valeu', 'vlw', 'obrigado', 'obrigada', 'obg', 'brigado', 'blz', 'beleza', 'ok', 'okay', 'show', 'massa', 'top', 'entendi', 'tudo', 'bem', 'certo', 'ta', 'to', 'tou', 'sim', 'nao', 'isso', 'perfeito', 'otimo', 'legal', 'tmj', 'fechou', 'fechado', 'bora', 'verdade', 'pode', 'crer', 'zica', 'zicoai', 'tranquilo', 'suave', 'joia', 'haha', 'rs', 'rsrs', 'aham', 'uhum', 'boa'];
 /** Mensagem curta só de cumprimento/agradecimento/concordância: não precisa de aula. */
@@ -1199,6 +1206,7 @@ function contextoAulas(pergunta, limite, talvez) {
   // Cosseno 0,6–0,7 aparece até em aula sem nada a ver (Gemini): essas viram só "talvez".
   const forte = x => !x.motivo || x.motivo.palavra || x.motivo.cosseno >= AULAS_COS_FORTE;
   const fortes = lista.filter(forte).slice(0, limite || 2), outras = lista.filter(x => fortes.indexOf(x) < 0).slice(0, 3);
+  AULAS_USADAS = fortes.map(x => x[0]);
   if (!fortes.length) { passo('📚 Nenhuma aula bate forte com isso' + (outras.length ? ' (' + outras.length + ' talvez)' : '')); return outras.length ? '\n\n### AULAS QUE TALVEZ SE APLIQUEM (use só se a situação for essa; senão ignore)\n' + outras.map(x => '[' + x[0] + '] ' + x[1] + ' — REGRA: ' + String(x[4]).slice(0, 300)).join('\n') : ''; }
   passo('📚 Aula(s) que se aplicam: ' + fortes.map(x => x[0] + ' ' + x[1]).join(' · ') + (outras.length ? ' (+' + outras.length + ' talvez)' : ''));
   const a = aba('aulas');
@@ -3744,6 +3752,86 @@ function arquivarMensagens() {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------- nosso cérebro virando o primário (destilação) ----------
+ * 1) Toda resposta da NUVEM que foi entregue vira candidata a aula do cérebro do Mac (aba destilacao, status ok).
+ *    👍 → aprovada; 👎 ou reclamação ("tá errado", "de onde vc tirou") → reclamada (não entra no treino).
+ * 2) placarMacRodada(): pega respostas boas de UM tipo (cliente, preço, loja, código, comparativo, geral), faz a mesma
+ *    pergunta pro Mac (com a mesma aula) e um juiz da nuvem compara às cegas. Acumula por tipo.
+ * 3) Tipo em que o Mac empata ou ganha de verdade (≥ 8 provas, Mac+empate ≥ 60%, nuvem ganhou ≤ 30%) entra em MAC_PRIMARIO:
+ *    ali o Mac responde PRIMEIRO e a nuvem vira reserva. Se piorar, sai sozinho. */
+const DESTILACAO_MAX = 5000;
+function guardarDestilacao(pergunta, aulasIds, resposta, cerebro) {
+  pergunta = String(pergunta || '').trim(); resposta = String(resposta || '').trim();
+  if (!pergunta || resposta.length < 15 || /Mac|PC|agente|erro/i.test(String(cerebro || ''))) return false;
+  if (ehConversaAToa(pergunta) || temDadoSensivel(pergunta + ' ' + resposta) || /^⚠️/.test(resposta)) return false;
+  const a = aba('destilacao');
+  a.appendRow(["'" + agora(), seguro(pergunta.slice(0, 4000)), (aulasIds || []).join(' '), seguro(resposta.slice(0, 6000)), String(cerebro || ''), tipoTarefa(pergunta), 'ok']);
+  if (a.getLastRow() > DESTILACAO_MAX + 200) a.deleteRows(2, 200);   // as mais antigas saem (o treino já usou)
+  return true;
+}
+function marcarDestilacao(resposta, status) {
+  const alvo = String(resposta || '').trim().slice(0, 160);
+  if (alvo.length < 15) return false;
+  const a = aba('destilacao'), n = a.getLastRow();
+  if (n < 2) return false;
+  const ini = Math.max(2, n - 300), vals = a.getRange(ini, 4, n - ini + 1, 1).getDisplayValues();
+  for (let i = vals.length - 1; i >= 0; i--) {
+    if (String(vals[i][0]).slice(0, 160) === alvo) { a.getRange(ini + i, 7).setValue(status); return true; }
+  }
+  return false;
+}
+const TIPOS_PLACAR_MAC = ['geral', 'loja', 'cliente', 'preço', 'comparativo', 'código'];
+function placarMacRodada(tipoForcado) {
+  if (!temCerebro('mac')) return { ok: false, motivo: 'Mac fora do ar' };
+  const props = PropertiesService.getScriptProperties();
+  const k = Number(props.getProperty('PLACAR_MAC_VEZ') || 0);
+  const tipo = tipoForcado || TIPOS_PLACAR_MAC[k % TIPOS_PLACAR_MAC.length];
+  props.setProperty('PLACAR_MAC_VEZ', String(k + 1));
+  const ls = linhas('destilacao').filter(l => l[5] === tipo && (l[6] === 'aprovada' || l[6] === 'ok') && !/```html/.test(l[3]));
+  if (ls.length < 3) return { ok: true, tipo: tipo, motivo: 'poucas respostas desse tipo ainda (' + ls.length + ')' };
+  const amostra = ls.slice(-30).sort(() => Math.random() - 0.5).slice(0, 3);
+  const res = { g: 0, e: 0, p: 0 };
+  const aba_ = aba('aulas'), todas = linhas('aulas');
+  amostra.forEach(l => {
+    let sis = 'Você é a ZicoAI, assistente do Thiago (Zicão Store). Responda curto e direto, começando pela resposta, informal ("vc"). Nunca invente preço, garantia, endereço ou horário.';
+    String(l[2] || '').split(/\s+/).filter(Boolean).slice(0, 2).forEach(id => { const a = todas.find(x => x[0] === id); if (a) sis += '\n\n### AULA\n[' + a[0] + '] ' + a[2] + '\nREGRA: ' + String(a[4]).slice(0, 600) + '\n' + String(a[5]).slice(0, 2000); });
+    let doMac = '';
+    try { doMac = chamarCompat(CEREBROS.mac, [{ role: 'system', content: sis }, { role: 'user', content: l[1] }], 1200, { temperature: 0.4 }); } catch (e) { return; }
+    const macPrimeiro = Math.random() < 0.5;
+    const A = macPrimeiro ? doMac : l[3], B = macPrimeiro ? l[3] : doMac;
+    const juiz = [{ role: 'system', content: 'Você é juiz. Compare duas respostas pro mesmo pedido do Thiago (dono de loja de celular). Vale: estar correta e sem inventar, resolver o que foi pedido, curta e no jeito dele. Responda SÓ JSON: {"melhor":"A"|"B"|"empate","motivo":"1 frase"}' },
+      { role: 'user', content: 'PEDIDO:\n' + String(l[1]).slice(0, 2000) + '\n\nRESPOSTA A:\n' + String(A).slice(0, 3000) + '\n\nRESPOSTA B:\n' + String(B).slice(0, 3000) }];
+    let v = null;
+    for (const nome of ['groq', 'nvidia', 'mistral', 'gemini']) {
+      const tkJ = estimarTokens(JSON.stringify(juiz)) + 300;
+      if (!temCerebro(nome) || motivoNaoCabe(nome, CEREBROS[nome], tkJ)) continue;
+      try { v = lerJSON(chamarCompat(CEREBROS[nome], juiz, 300, { temperature: 0 })); registrarUso(nome, tkJ); if (v && v.melhor) break; } catch (e) { /* próximo */ }
+    }
+    if (!v || !v.melhor) return;
+    if (v.melhor === 'empate') res.e++;
+    else if ((v.melhor === 'A') === macPrimeiro) res.g++; else res.p++;
+  });
+  // acumula as últimas ~24 provas desse tipo
+  const chave = 'PLACAR_MAC_' + normalizar(tipo).toUpperCase();
+  const acc = JSON.parse(props.getProperty(chave) || '{"g":0,"e":0,"p":0}');
+  ['g', 'e', 'p'].forEach(x => { acc[x] += res[x]; });
+  const tot = acc.g + acc.e + acc.p;
+  if (tot > 24) ['g', 'e', 'p'].forEach(x => { acc[x] = Math.round(acc[x] * 24 / tot); });
+  props.setProperty(chave, JSON.stringify(acc));
+  const n = acc.g + acc.e + acc.p, primarios = String(props.getProperty('MAC_PRIMARIO') || '').split(',').filter(Boolean);
+  let decisao = 'segue a nuvem';
+  if (n >= 8 && (acc.g + acc.e) / n >= 0.6 && acc.p / n <= 0.3) { if (primarios.indexOf(tipo) < 0) primarios.push(tipo); decisao = 'MAC PRIMEIRO'; }
+  else if (primarios.indexOf(tipo) >= 0 && acc.p / n > 0.4) { primarios.splice(primarios.indexOf(tipo), 1); decisao = 'voltou pra nuvem'; }
+  props.setProperty('MAC_PRIMARIO', primarios.join(','));
+  aba('placar_mac').appendRow(["'" + agora(), tipo, n, acc.g, acc.e, acc.p, decisao]);
+  return { ok: true, tipo: tipo, rodada: res, acumulado: acc, decisao: decisao };
+}
+/** Tipo de pedido em que o Mac já provou que dá conta: ele responde primeiro. */
+function macPrimario(pergunta) {
+  const lista = String(prop('MAC_PRIMARIO') || '').split(',').filter(Boolean);
+  return lista.length && lista.indexOf(tipoTarefa(pergunta)) >= 0;
+}
+
 /* ---------- estudo 24h ----------
  * Uma rodada = aprender com UM erro recente (se tiver) ou estudar UM tema na web.
  * Quem chama: o Mac (ponte, a cada 30 min, sem gastar a cota de gatilhos) e um gatilho de 4 em 4 horas (reserva com o Mac desligado).
@@ -3760,6 +3848,10 @@ function estudar() {
   try { r = aprenderComErros(); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
   if (r && r.aprendeu) return r;
   const n = Number(props.getProperty('ESTUDO_TEMA') || 0);
+  if (n % 2 === 1 && temCerebro('mac')) {   // uma rodada sim, outra não: mede o Mac contra a nuvem
+    props.setProperty('ESTUDO_TEMA', String(n + 1));
+    try { return { ok: true, erros: r, placarMac: placarMacRodada() }; } catch (e) { /* cai pro tema */ }
+  }
   props.setProperty('ESTUDO_TEMA', String(n + 1));
   const t = estudoNoturno(n);
   return { ok: true, erros: r, tema: t };
@@ -3801,6 +3893,7 @@ function aprenderComErros() {
   }
   if (!j || !j.regra) return { ok: false, aprendeu: false, motivo: 'nenhum cérebro livre agora (tenta na próxima rodada)' };
   props.setProperty('ERROS_ATE', rec[1]);
+  try { marcarDestilacao(errada[3], 'reclamada'); } catch (e) { /* ok */ }
   const aula = '**Regra:** ' + j.regra + '\n\n## Por quê\n' + (j.porque || '') + '\n\n## Situações em que aparece\n' + (Array.isArray(j.situacoes) ? j.situacoes.map(x => '- ' + x).join('\n') : '') + '\n\n## Exemplo (' + String(rec[1]).slice(0, 10) + ')\n- Pedido: ' + pedido.slice(0, 300) + '\n- Errou: ' + String(j.causa || '') + '\n\n## Erro comum\n- ' + (j.erro_comum || '');
   aba('estudo_erros').appendRow(["'" + agora(), rec[0], seguro(pedido), seguro(String(errada[3]).slice(0, 3000)), seguro(String(rec[3]).slice(0, 800)), seguro(String(j.causa || '')), seguro(String(j.regra)), seguro(aula.slice(0, 6000)), seguro(String(j.resposta_certa || '').slice(0, 4000)), fontes.join(' '), 'revisar']);
   if (pedido && j.resposta_certa) guardarExemplo(pedido, String(j.resposta_certa), autor, 'erro corrigido (revisar)', j.tipo);
@@ -4046,11 +4139,11 @@ const FERRAMENTAS = {
   pc_print: { desc: 'Tira print da tela do PC, guarda no Drive e diz o que aparece. args: {pergunta (opcional: o que procurar na tela)}', run: a => { const r = ponte('print'); const link = salvarBase64Drive(r.base64, r.mime, 'print-pc-' + Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd-HHmmss') + '.jpg'); return 'Print salvo: ' + link + '\n(pra mostrar pro Thiago use ![print da tela](' + link + '))\nO que aparece: ' + descreverImagem(r.base64, r.mime, a.pergunta ? 'Olhe este print da tela do PC e responda: ' + a.pergunta : 'Descreva este print da tela do PC: programas abertos, janelas e textos importantes.'); } },
   pc_abrir: { desc: 'Abre no PC um site (https://...), um programa da lista (bloco de notas, calculadora, chrome, explorador, comfyui) ou um arquivo de pasta liberada (txt, pdf, imagem, planilha). args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }); return 'aberto: ' + r.aberto; } },
   pc_testar: { desc: 'Roda os testes automáticos da ZicoAI no PC (baixa a versão do GitHub e roda node t*.js). Use DEPOIS de mudar seu código: só diga que funciona se passar. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000); return String(r.saida).slice(0, 6000); } },
-  pc_comando: { desc: 'Roda um comando SEGURO da lista no PC: espaco_disco, processos, gpu, ip, sistema, ollama_modelos. args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }); return String(r.saida).slice(0, 6000); } },
+  pc_comando: { desc: 'Roda um comando SEGURO da lista no PC: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, diagnostico (erros do Windows 24 h, log do Ollama, memória, disco, placa de vídeo: use pra DEPURAR o PC). args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }); return String(r.saida).slice(0, 6000); } },
   mac_status: { desc: 'Oficina 24h (Mac Mini M4): nome, pastas liberadas e espaço livre. args: {}', run: () => { const s = ponte('status', null, null, 'mac'); return 'Mac ' + s.nome + ' (' + s.hora + ')\nPastas: ' + s.pastas.map(p => p.caminho + (p.escrever ? ' (lê e escreve)' : ' (só lê)')).join('; ') + (s.disco ? '\n' + s.disco : ''); } },
   mac_testar: { desc: 'Roda os testes automáticos da ZicoAI na oficina (Mac, ligado 24h): baixa a versão do GitHub e roda node t*.js. Use quando o PC estiver desligado. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000, 'mac'); return String(r.saida).slice(0, 6000); } },
   mac_abrir: { desc: 'Abre no Mac um site (https://...) no navegador, um app da lista (safari, chrome, calculadora, textedit, finder) ou um arquivo de pasta liberada. args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }, null, 'mac'); return 'aberto no Mac: ' + r.aberto; } },
-  mac_comando: { desc: 'Roda um comando SEGURO da lista no Mac: espaco_disco, processos, gpu, ip, sistema, ollama_modelos. args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }, null, 'mac'); return String(r.saida).slice(0, 6000); } },
+  mac_comando: { desc: 'Roda um comando SEGURO da lista no Mac: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, testes_zicoai, diagnostico (memória, disco, mais pesados, serviços da ZicoAI, log do Ollama e da ponte, programas que travaram: use pra DEPURAR o Mac). args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }, null, 'mac'); return String(r.saida).slice(0, 6000); } },
   dividir_em_agentes: { desc: 'Divide um pedido GRANDE em 2 a 4 partes independentes que outros agentes fazem AO MESMO TEMPO (ex.: pesquisar 4 lojas, uma por agente). Você espera e recebe todos os resultados juntos pra montar a resposta final. args: {partes: ["descrição completa da parte 1", "parte 2", ...]}', run: (a, ctx) => {
     const partes = (Array.isArray(a.partes) ? a.partes : []).map(x => String(x || '').trim()).filter(x => x.length >= 8).slice(0, 4);
     if (partes.length < 2) return 'ERRO: mande de 2 a 4 partes, cada uma com a descrição completa do que fazer';

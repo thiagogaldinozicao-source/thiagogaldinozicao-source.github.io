@@ -10,7 +10,7 @@ $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Dir) { $Dir = Join-Path $HOME 'ZicoAI-Ponte' }
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '2.2'
+$Versao = '2.3'
 
 function Log($t) {
   $linha = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t
@@ -189,7 +189,25 @@ function Comando($p) {
       }
       $s = @(('TOTAL: ' + $total + ' testes ok, ' + $falhas.Count + ' arquivo(s) com falha')) + $falhas + $s
     }
-    default          { throw 'Comando fora da lista segura: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, testes_zicoai' }
+    'diagnostico'    {
+      # Só LÊ: erros do Windows nas últimas 24 h, log do Ollama, disco, memória, mais pesados e placa de vídeo. Pra ela depurar o PC sozinha.
+      $p = @()
+      $p += '== PC: ' + $env:COMPUTERNAME + ' · ligado desde ' + ((Get-CimInstance Win32_OperatingSystem).LastBootUpTime).ToString('dd/MM HH:mm') + ' · ponte ' + $Versao
+      $p += '== Disco: ' + ((Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -ne $null } | ForEach-Object { $_.Name + ': ' + [math]::Round($_.Free / 1GB, 1) + ' GB livres' }) -join ' | ')
+      $os = Get-CimInstance Win32_OperatingSystem
+      $p += '== Memória: ' + [math]::Round($os.FreePhysicalMemory / 1MB, 1) + ' GB livres de ' + [math]::Round($os.TotalVisibleMemorySize / 1MB, 1) + ' GB'
+      $p += '== Mais pesados:'
+      $p += (Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 | ForEach-Object { $_.ProcessName + ' - ' + [math]::Round($_.WorkingSet64 / 1MB) + ' MB' })
+      try { $p += '== Placa de vídeo: ' + ((& nvidia-smi --query-gpu=name,memory.used,memory.total,temperature.gpu --format=csv,noheader) -join ' | ') } catch { $p += '== Placa de vídeo: nvidia-smi indisponível' }
+      $p += '== Erros do Windows (24 h):'
+      try {
+        $p += (Get-WinEvent -FilterHashtable @{ LogName = @('System', 'Application'); Level = @(1, 2); StartTime = (Get-Date).AddDays(-1) } -MaxEvents 15 -ErrorAction Stop | ForEach-Object { $_.TimeCreated.ToString('dd/MM HH:mm') + ' ' + $_.ProviderName + ': ' + (($_.Message -split "`n")[0]).Substring(0, [math]::Min(140, (($_.Message -split "`n")[0]).Length)) })
+      } catch { $p += '(nenhum erro ou sem permissão pra ler)' }
+      $logO = Join-Path $env:LOCALAPPDATA 'Ollama\server.log'
+      if (Test-Path $logO) { $p += '== Últimas linhas do Ollama:'; $p += (Get-Content $logO -Tail 12) } else { $p += '== Log do Ollama: não achei' }
+      $s = $p
+    }
+    default          { throw 'Comando fora da lista segura: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, testes_zicoai, diagnostico' }
   }
   return @{ ok = $true; saida = (($s | Out-String).Trim()) }
 }

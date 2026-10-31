@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v58 (31/10): nosso cérebro virando o primário + depurar Mac e PC
+- Aba `destilacao` (toda resposta entregue pela nuvem; 👍 aprovada, 👎/reclamação reclamada; sem CPF, sem conversa à toa). `placarMacRodada` (no `estudar`, alternando): Mac × nuvem às cegas por tipo → `MAC_PRIMARIO` (≥ 8 provas, Mac+empate ≥ 60%, nuvem ≤ 30%; sai se nuvem > 40%) → `conversar` põe o Mac primeiro nesses tipos. Aba `placar_mac`.
+- `diagnostico` na lista segura da ponte do Mac (mac-1.5) e do PC (ponte 2.3): memória, disco, mais pesados, serviços, logs do Ollama/ponte, travamentos (Mac) e erros do Windows 24 h e placa de vídeo (PC). Só lê.
+- Mac: `~/ZicoAI/modelo/treino2/` (preparar.py + treino2.sh, MLX `mlx-community/Qwen3-8B-4bit`, prova justa no fim).
+- Teste t44. Aula D34.
+
 ## v56 (31/10): arquivo cortado continuado, botão sem toque é erro, app com ícones e Dispositivos/Arquivos igual Claude
 - `continuarCortado`: resposta com ```html aberto e nunca fechado (limite de saída; foi a calculadora 3D de 31/10 que veio cortada) → pede só o resto, até 2x, e cola até </html>; depois testa.
 - "✅ Testado…" escrito pelo próprio cérebro é apagado; só vale o selo do teste.
