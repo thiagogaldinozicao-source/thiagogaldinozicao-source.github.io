@@ -145,6 +145,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - Aba `base` ganhou 5 linhas "Manual de trabalho: …" (tarefa grande, mexer em código, publicar o cérebro, erros que o Claude já cometeu, escolher o cérebro certo).
 - Ferramenta `pc_testar`: pede pra ponte (comando `testes_zicoai`, ponte 2.2) baixar/atualizar a cópia do GitHub em `%USERPROFILE%\ZicoAI\repo` e rodar `node t*.js`; devolve "TOTAL: N testes ok, M arquivo(s) com falha". `ponte(acao, dados, esperaMs)` aceita espera maior (170 s aqui). Precisa de Git e Node no PC.
 
+## Resumo ao vivo e trajetórias (30/10 noite)
+- **Resumo igual o painel do Claude**: `passo()` também grava os passos no cache (`vivo_<reqId>`, 5 min); o app manda `reqId` no chat e consulta a ação `aoVivo` a cada 1,5 s enquanto espera, trocando as etapas de mentirinha pelos passos de verdade. Título automático ("Leu a memória e pesquisou na web", `tituloResumo`), linha do tempo com 💭 pensamentos, ferramentas com ícone e detalhe clicável (pedido + resultado) — `lerPasso`/`listaResumo` no app. Tarefa rodando na conversa aberta aparece como card ao vivo (`vivoTarefaNaConversa`).
+- Agente: cada JSON traz `"pensamento"` (frase curta no gerúndio) → passo `💭 …`; ferramenta → `🔧 nome {args} → resultado (160 letras)`. `compacto()` mantém os passos em 4 mil letras (3 primeiros + mais recentes).
+- **Trajetórias** (aba `trajetorias`: Data | Pedido | Passos | Lições | Autor): como o Claude resolveu tarefas reais. O agente recebe as 2 mais parecidas com o pedido (`### COMO TAREFAS PARECIDAS FORAM RESOLVIDAS`) e o passo "📚 Lembrou de N tarefa(s)…". Tarefa concluída com 2+ ferramentas vira trajetória "ZicoAI (revisar)". O Claude acrescenta uma trajetória a cada trabalho grande.
+
 ## Testar sem internet
 ```
 cd zicoai/cerebro/testes

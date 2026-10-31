@@ -163,6 +163,7 @@ const ABAS = {
   precos:       ['Produto', 'Condição', 'Capacidade', 'Cor', 'Preço Pix', 'Preço 12x', 'Estoque', 'Obs'],
   exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto', 'Tipo', 'Origem'],
   placar:       ['Data', 'Cérebro', 'Tipo', 'Nota', 'Pergunta nº', 'O que faltou'],
+  trajetorias:  ['Data', 'Pedido', 'Passos (ferramenta → resultado)', 'Lições', 'Autor'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
   tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho', 'Pai'],
   vetores:      ['Aba', 'Texto', 'Vetor']
@@ -234,7 +235,11 @@ const PERSONA = [
 /** Lista do que a ZicoAI fez em cada resposta (aparece no app em "Como respondi"). */
 let PASSOS = [];
 let CHAT_ATUAL = null;
-function passo(t) { PASSOS.push(t); }
+let REQ_VIVO = '';
+function passo(t) {
+  PASSOS.push(t);
+  if (REQ_VIVO) try { CacheService.getScriptCache().put('vivo_' + REQ_VIVO, JSON.stringify(PASSOS.slice(-40)), 300); } catch (e) { /* ok */ }
+}
 
 /* ============================================================
  *  ENTRADA
@@ -281,7 +286,8 @@ function doPost(e) {
     switch (req.acao) {
       case 'teste':         return saida({ ok: true, msg: 'Conectado ✅', cotas: cotas() });
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
-      case 'chat':          { const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
+      case 'aoVivo':        return saida({ ok: true, passos: JSON.parse(CacheService.getScriptCache().get('vivo_' + String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)) || '[]') });
+      case 'chat':          { REQ_VIVO = String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40); const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
       case 'aprenderTexto': return saida(aprenderTexto(req.texto, req.nome, aparelho));
@@ -2948,7 +2954,7 @@ const PROMPT_AGENTE = [
   'FERRAMENTAS (nome: o que faz e args):',
   Object.keys(FERRAMENTAS).map(k => '- ' + k + ': ' + FERRAMENTAS[k].desc).join('\n'),
   'Responda SEMPRE com UM JSON por vez, sem texto fora dele:',
-  '  pra usar ferramenta: {"ferramenta":"nome","args":{...},"porque":"motivo curto"}',
+  '  pra usar ferramenta: {"pensamento":"o que vc vai fazer agora, 1 frase curta no gerúndio (ex.: Lendo o código do app)","ferramenta":"nome","args":{...}}',
   '  pra terminar: {"resposta":"texto final completo pro Thiago (markdown; código em bloco ```html completo)"}',
   'RELATÓRIO FINAL (tarefa com várias partes), curto e sem contar passo a passo: 1 frase com o resultado geral; depois só as seções que tiverem conteúdo: **Já está valendo:** (o que já funciona e onde ver) | **Pronto, falta publicar:** (feito mas não no ar, e por quê) | **Precisa de você:** (o que só o Thiago faz, com o passo exato) | **Falta:** (o que travou e o motivo). Diga com honestidade o que não foi testado. Tarefa simples: só a resposta.',
   'Pedido que começa com "MELHORAR MEU CÓDIGO": 1) ler_meu_codigo com o termo certo (pode ler 2 ou 3 trechos); 2) editar_meu_codigo com o MÍNIMO de trocas, "procurar" copiado EXATAMENTE do trecho lido (com espaços e aspas) e único; 3) na resposta final, explique pro Thiago em linguagem de leigo o que mudou e a versão publicada. Se a edição falhar, leia de novo e tente uma troca menor. Nunca mexa em doPost, PIN, chaves ou nas funções de auto-melhoria.',
@@ -2961,7 +2967,9 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   const salvo = estadoLer(id);
   const est = salvo || { msgs: null, usadas: 0, erroJson: 0, log: [], cerebro: '', passos: 0, rodadas: 0 };
   est.rodadas = (est.rodadas || 0) + 1;
-  const anota = t => { est.log.push(t); atualizarTarefa(id, { passos: est.log.join(' | ') }); };
+  // passos cabem em 4 mil letras: se passar, mantém os 3 primeiros e os mais recentes
+  const compacto = log => { let l = log.map(x => String(x).replace(/ \| /g, ' · ')); while (l.join(' | ').length > 3900 && l.length > 6) l = l.slice(0, 3).concat(['…'], l.slice(5)); return l.join(' | ').slice(0, 3990); };
+  const anota = t => { est.log.push(t); atualizarTarefa(id, { passos: compacto(est.log) }); };
   const PAUSA = 'PAUSA_PRAZO';
   // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo.
   // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
@@ -2998,15 +3006,26 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   if (!est.msgs) {
     let proj = '';
     try { proj = chatId ? contextoProjeto(projetoDoChat(chatId)) : ''; } catch (e) { /* ok */ }
-    const sistema = montarSistema(pedido, true) + proj + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
+    // aprender por exemplo: como o Claude (ou ela mesma, aprovada) resolveu tarefas parecidas
+    let traj = '';
+    try {
+      const tr = relevantes(linhas('trajetorias'), pedido, 2, l => l[1] + ' ' + l[3]);
+      if (tr.length) {
+        traj = '\n\n### COMO TAREFAS PARECIDAS FORAM RESOLVIDAS (siga o método, adapte às suas ferramentas)\n' + tr.map(l => 'PEDIDO: ' + l[1] + '\nPASSOS: ' + String(l[2]).slice(0, 1800) + '\nLIÇÕES: ' + String(l[3]).slice(0, 600) + '\n(por ' + l[4] + ')').join('\n\n');
+        est.log.push('📚 Lembrou de ' + tr.length + ' tarefa(s) parecida(s) já resolvida(s)');
+      }
+    } catch (e) { /* sem trajetórias */ }
+    const sistema = montarSistema(pedido, true) + proj + traj + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
     est.msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
     anota('Começou a trabalhar');
   } else anota('Continuou de onde parou (rodada ' + est.rodadas + ')');
   const msgs = est.msgs;
   const finalizar = texto => {
     const final = processarTags(texto, aparelho || 'agente').texto;
-    atualizarTarefa(id, { status: 'concluída', resultado: final, passos: est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')']).join(' | ') });
+    atualizarTarefa(id, { status: 'concluída', resultado: final, passos: compacto(est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')'])) });
     if (est.salvou) estadoApagar(id);
+    // tarefa concluída com ferramentas vira trajetória "a revisar" (o Thiago aprova no painel Treino depois)
+    try { if (!pai && est.usadas >= 2) aba('trajetorias').appendRow(["'" + hoje(), seguro(pedido.slice(0, 600)), seguro(est.log.filter(x => /^(💭|🔧)/.test(x)).join(' → ').slice(0, 3000)), '', 'ZicoAI (revisar)']); } catch (e) { /* ok */ }
     if (pai) { avisarPai(pai); return; }   // parte de tarefa maior: quem avisa o Thiago é o chefe
     if (chatId) {
       PASSOS = ['Agente em segundo plano (' + est.usadas + ' ferramentas): ' + est.log.join(' → ')];
@@ -3048,7 +3067,9 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
         const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
         try { obs = String(f.run(j.args || {}, ctx) || '(sem retorno)'); }
         catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
-        anota('🔧 ' + nome + ' ' + argsTxt + (j.porque ? ' · ' + String(j.porque).slice(0, 50) : '') + ' → ' + obs.replace(/\s+/g, ' ').slice(0, 60));
+        const pens = String(j.pensamento || j.porque || '').replace(/\s+/g, ' ').trim();
+        if (pens) est.log.push('💭 ' + pens.slice(0, 90));
+        anota('🔧 ' + nome + ' ' + argsTxt + ' → ' + obs.replace(/\s+/g, ' ').slice(0, 160));
         if (/^ESPERANDO_PARTES/.test(obs)) {
           // chefe dividiu: dorme até as partes acabarem (avisarPai acorda com os resultados)
           msgs.push({ role: 'assistant', content: JSON.stringify(j) });

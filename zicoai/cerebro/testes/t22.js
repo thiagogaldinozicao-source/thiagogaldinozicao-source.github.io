@@ -65,3 +65,23 @@ ok(criados.join() === 'estudoNoturno@1,placarDiario@2', 'estudo (1h) e placar (2
 H.ctx.garantirRotinasTreino();
 ok(criados.length === 2, 'não cria de novo (fica anotado no cache)');
 H.ctx.ScriptApp.newTrigger = nt;
+
+// resumo ao vivo: passos vão pro cache enquanto a resposta é montada
+{
+  H.setFetch(() => resp('ok'));
+  const r = H.post({ pin: '1234', acao: 'chat', reqId: 'abc123', mensagens: [{ role: 'user', content: 'oi' }] });
+  const v = H.post({ pin: '1234', acao: 'aoVivo', reqId: 'abc123' });
+  ok(v.ok && v.passos.length > 0 && v.passos[v.passos.length - 1] === r.passos[r.passos.length - 1], 'aoVivo devolve os passos da resposta: ' + v.passos.length);
+  ok(H.post({ pin: '1234', acao: 'aoVivo', reqId: 'outro' }).passos.length === 0, 'pedido que não existe volta vazio');
+}
+
+// trajetórias: o agente recebe como o Claude resolveu tarefa parecida
+{
+  H.ctx.aba('trajetorias').appendRow(["'30/10/2026", 'Instalar a ponte do PC e conectar na ZicoAI', '🔧 pc_status → ...', 'Antivírus pode bloquear: liberar só a pasta. Funnel deu 502: o PC busca os pedidos.', 'Claude']);
+  let sysA = '';
+  H.setFetch((u, o) => { if (typeof (o || {}).payload !== 'string') return json({}); const b = JSON.parse(o.payload); sysA = b.messages[0].content; return resp('{"resposta":"feito"}'); });
+  const id = H.ctx.criarTarefa('a ponte do PC parou, conecta ela de novo', '', 'pc').id;
+  H.ctx.rodarTarefas();
+  ok(/### COMO TAREFAS PARECIDAS FORAM RESOLVIDAS/.test(sysA) && /Funnel deu 502/.test(sysA), 'agente recebeu a trajetória parecida do Claude');
+  ok(H.sheets.tarefas.rows.find(x => x[0] === id)[5].includes('📚 Lembrou de 1 tarefa'), 'passo mostra que lembrou');
+}

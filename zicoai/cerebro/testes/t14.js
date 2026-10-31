@@ -34,7 +34,7 @@ const t = H.sheets.tarefas.rows[1];
 ok(t[4] === 'pendente' && H.TRIGGERS.includes('rodarTarefas'), 'tarefa na fila com gatilho');
 H.ctx.rodarTarefas();
 const feita = H.sheets.tarefas.rows.find(x => x[0] === t[0]);
-ok(feita[4] === 'concluída' && /🔧 ler_planilha \{"aba":"precos"\} · ver nosso preço → 1: Produto/.test(feita[5]) && /🔧 ler_pagina/.test(feita[5]) && /🔧 calcular/.test(feita[5]) && /Concluída com Gemini \(6 ferramentas\)/.test(feita[5]), 'rastro das ferramentas gravado: ' + feita[5].slice(0, 120));
+ok(feita[4] === 'concluída' && /💭 ver nosso preço \| 🔧 ler_planilha \{"aba":"precos"\} → 1: Produto/.test(feita[5]) && /🔧 ler_pagina/.test(feita[5]) && /🔧 calcular/.test(feita[5]) && /Concluída com Gemini \(6 ferramentas\)/.test(feita[5]), 'rastro das ferramentas gravado: ' + feita[5].slice(0, 120));
 ok(/R\$ 300 mais baratos/.test(feita[6]) && !/\[\[MEMORIA/.test(feita[6]), 'resposta final gravada com tags processadas');
 ok(H.sheets.base.rows.some(x => x[0] === 'Concorrente Loja Z iPhone 15') && H.sheets.historico.rows.some(x => /agente:tf/.test(x[5])), 'escrita do agente na base com histórico');
 ok(H.sheets.memoria.rows.some(x => /Loja Z é R\$ 300 mais cara/.test(x[1])), 'tag MEMORIA do agente virou memória');
