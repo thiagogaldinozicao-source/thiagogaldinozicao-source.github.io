@@ -22,6 +22,7 @@ let r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content:
 ok(r.cerebro === 'Groq GPT-OSS 120B' && !H.fetchLog.some(f => /github|mistral|nvidia|cloudflare/.test(f.u)), 'sem chave, opcionais ficam fora');
 // GitHub Models foi aposentado: mesmo com token, nunca é chamado
 H.PROPS.GITHUB_TOKEN = 'ghp'; H.fetchLog.length = 0;
+for (const k of Object.keys(H.CACHE)) if (/^(tk|rq)_/.test(k)) delete H.CACHE[k]; // relógio fixo: zera o minuto pra o Groq caber de novo
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
 ok(r.cerebro === 'Groq GPT-OSS 120B' && !H.fetchLog.some(f => /github/.test(f.u)), 'GitHub aposentado não entra na fila');
 // texto comum continua no Gemini

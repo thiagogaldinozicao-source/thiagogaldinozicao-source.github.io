@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 42 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 43 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -233,6 +233,7 @@ const PERSONA = [
   '- Quando a seção CONVERSAS ANTIGAS aparecer, é o que o Thiago falou em outras conversas. Use pra responder "o que a gente combinou/falou sobre X".',
   '- PREÇO de produto só sai da seção TABELA DE PREÇOS. Se o produto não estiver lá (ou a tabela estiver vazia), diga que precisa confirmar o preço. Nunca estime.',
   '- MODO CLIENTE (quando a seção aparecer): a resposta é uma mensagem pro cliente da loja. Use só BASE, PROMESSAS e TABELA DE PREÇOS. Nada da vida pessoal do Thiago, dos projetos, da família ou de custo/lucro. O que estiver NÃO CONFIRMADO vira "deixa eu confirmar e te falo".',
+  '- PERGUNTA COM OPÇÕES: só se a decisão é do Thiago e errar sai caro, ou o pedido tem 2 leituras bem diferentes; senão decida e diga o que escolheu. No FINAL: [[OPCOES: pergunta || melhor opção (recomendado) :: o que acontece || outra :: o que acontece]] (2 a 4).',
   '- Não use essas linhas à toa. Não salve conversa fiada nem coisa passageira.'
 ].join('\n');
 
@@ -434,7 +435,7 @@ function chat(req, aparelho) {
   tocarChat(chatId);
   try { compactarSePrecisar(chatId); } catch (e) { /* compactação nunca derruba a resposta */ }
 
-  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS };
+  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, opcoes: proc.opcoes || undefined };
 }
 
 /* ---------- feedback (👍 / 👎 + reclamação) ---------- */
@@ -1317,9 +1318,21 @@ function processarTags(texto, aparelho) {
     passo('Mandou gerar a imagem (nuvem)');
     return '\n\n![imagem gerada](' + url + ')\n';
   });
+  // [[OPCOES: pergunta || rótulo :: descrição || ...]] → botões no app (e texto simples pra quem não tem botão)
+  let opcoes = null;
+  texto = texto.replace(/\[\[OPCOES:\s*([\s\S]*?)\]\]/gi, (_, t) => {
+    if (opcoes) return '';
+    const partes = t.split('||').map(x => x.trim()).filter(Boolean);
+    const pergunta = (partes.shift() || '').slice(0, 300);
+    const lista = partes.slice(0, 4).map(x => { const q = x.split('::'); return { rotulo: q[0].trim().slice(0, 80), descricao: (q.slice(1).join('::') || '').trim().slice(0, 200) }; }).filter(o => o.rotulo);
+    if (!pergunta || lista.length < 2) return '';
+    opcoes = { pergunta: pergunta, opcoes: lista };
+    passo('Fez uma pergunta com ' + lista.length + ' opções');
+    return '\n\n**' + pergunta + '**\n' + lista.map((o, i) => (i + 1) + '. ' + o.rotulo + (o.descricao ? ' — ' + o.descricao : '')).join('\n') + '\n';
+  });
   // linha [[...]] que não é tag conhecida (o modelo imitou o formato) no começo da resposta: tira
-  texto = texto.replace(/^\s*\[\[(?!\s*(MEMORIA|APRENDIZADO|ESQUECER|BASE|PERFIL|AGENDA|EMAIL_RASCUNHO|VENDA|TAREFA|IMAGEM)\b)[^\]\n]{1,160}\]\]\s*/i, () => { passo('Tirou uma marcação [[...]] perdida do começo da resposta'); return ''; });
-  return { texto: texto.replace(/\n{3,}/g, '\n\n').trim(), salvou: salvou };
+  texto = texto.replace(/^\s*\[\[(?!\s*(MEMORIA|APRENDIZADO|ESQUECER|BASE|PERFIL|AGENDA|EMAIL_RASCUNHO|VENDA|TAREFA|IMAGEM|OPCOES)\b)[^\]\n]{1,160}\]\]\s*/i, () => { passo('Tirou uma marcação [[...]] perdida do começo da resposta'); return ''; });
+  return { texto: texto.replace(/\n{3,}/g, '\n\n').trim(), salvou: salvou, opcoes: opcoes };
 }
 
 /** Cria ou substitui uma linha da base/perfil pelo assunto. Toda mudança vai pra aba historico (dá pra desfazer). */

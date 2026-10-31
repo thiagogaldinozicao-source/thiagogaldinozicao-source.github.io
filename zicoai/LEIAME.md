@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v43 (31/10): pergunta com opções
+- Tag `[[OPCOES: pergunta || rótulo (recomendado) :: descrição || rótulo :: descrição]]` (2 a 4). `processarTags` tira a tag, devolve `opcoes: {pergunta, opcoes:[{rotulo, descricao}]}` no `chat` e deixa na conversa uma lista simples (Telegram e conversa antiga continuam legíveis). Regra no sistema: só quando a decisão é do Thiago e errar sai caro, ou o pedido tem 2 leituras; senão decide e diz o que escolheu.
+- App: mostrar `opcoes` como cartão com botões (a recomendada destacada) + "Outra"; tocar manda o rótulo como mensagem.
+- Testes com relógio fixo (t4, t13) zeram a cota do minuto antes de chamar o Groq de novo (o sistema cresceu e somava no mesmo minuto).
+
 ## v42 (31/10): consertos do primeiro teste da v41
 - `VERSAO_CEREBRO` entra no sistema ("Seu cérebro está na versão N"). Regra: texto colado com data/versão antiga → avisar em 1 linha que pode estar desatualizado.
 - Regra de honestidade nova: nunca prometer ação sem ferramenta ("vou remover", "criarei", "o que farei agora"); ou faz agora (resposta ou [[TAREFA]]), ou diz o passo do Thiago.
@@ -206,6 +211,7 @@ node t23.js  # pesquisa profunda (buscas, páginas, fontes) e MEUS CÉREBROS
 node t22.js  # fase 1 do treino: tipos, placar, estudo noturno, revisão
 node t26.js  # várias planilhas: arquivo das mensagens antigas, abrir/buscar no arquivo, aprender 30 min
 node t27.js  # v42: não prometer ação sem ferramenta, versão no sistema (status antigo), [[...]] perdido, aviso do seletor
+node t28.js  # v43: pergunta com opções ([[OPCOES]] → campo opcoes no chat)
 node t25.js  # aulas: acha a aula certa, ignora conversa à toa, máx. 2, agente também lê
 node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado

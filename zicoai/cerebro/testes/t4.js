@@ -61,9 +61,11 @@ r = H.post({ pin: '1234', acao: 'chat', chatId: cid, mensagens: [{ role: 'user',
 ok(!chamadas.some(b => /Resuma a conversa/.test(b.messages[0].content)), 'não resume de novo antes de +20 mensagens');
 
 // 8) Cerebras só entra com chave; código usa reasoning high no gpt-oss
+for (const k of Object.keys(H.CACHE)) if (/^(tk|rq)_/.test(k)) delete H.CACHE[k]; // relógio fixo: zera o minuto (senão o Groq fica sem cota)
 H.fetchLog.length = 0; H.setFetch(() => resp('código'));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
 ok(!H.fetchLog.some(f => f.u.includes('cerebras')) && H.fetchLog[0].body.reasoning_effort === 'high', 'sem CEREBRAS_KEY não chama Cerebras; groq gpt-oss com reasoning high');
+for (const k of Object.keys(H.CACHE)) if (/^(tk|rq)_/.test(k)) delete H.CACHE[k];
 H.PROPS.CEREBRAS_KEY = 'c'; H.fetchLog.length = 0;
 H.setFetch(u => u.includes('groq') ? cai(429, '{"error":{"message":"limite"}}') : resp('código cerebras'));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
