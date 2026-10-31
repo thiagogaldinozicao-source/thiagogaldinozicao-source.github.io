@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v64 (31/10): Chrome lê tabelas e rede
+- Extensão 2.3: ações `tabelas` (até 5 tabelas visíveis, 500 linhas) e `rede` (performance resource: status, tempo, tamanho; com erro e lentas). Ferramentas `nav_tabelas` (lista de fornecedor → planilha) e `nav_rede` (depurar app junto do nav_erros).
+
 ## v63 (31/10): "este cliente", "o que respondo", "responde pra ela", "pro cara" também leem a aba do Chrome (no v62 só "esse cliente" lia).
 
 ## v62 (31/10): Chrome no chat + dado de cliente escondido

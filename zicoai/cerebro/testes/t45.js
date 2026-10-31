@@ -29,3 +29,7 @@ for (const frase of ['oque responder pra este cliente?', 'o que eu respondo pra 
   const rr = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: frase }] });
   ok(rr.passos.some(p => /Leu a aba aberta no Chrome/.test(p)), '"' + frase + '" lê o Chrome');
 }
+// v64: tabelas e rede do Chrome
+run('ponteSemDetalhe = function(acao, dados, espera, disp){ if (acao === "tabelas") return {ok:true, titulo:"Fornecedor", tabelas:[{n:1, linhas:2, colunas:2, dados:[["Modelo","Preço"],["iPhone 15","3.999"]]}]}; if (acao === "rede") return {ok:true, total:3, comErro:[{status:404, ms:20, tipo:"script", url:"https://x/app.js"}], lentas:[], ultimas:[]}; throw new Error("x"); };');
+ok(/iPhone 15 \| 3\.999/.test(run('FERRAMENTAS.nav_tabelas.run({}, {pedido:"x"})')), 'nav_tabelas traz a tabela em linhas/colunas');
+ok(/404 · 20 ms · script · https:\/\/x\/app\.js/.test(run('FERRAMENTAS.nav_rede.run({}, {pedido:"x"})')), 'nav_rede mostra a chamada que deu 404');

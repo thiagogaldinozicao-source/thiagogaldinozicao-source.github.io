@@ -1,6 +1,6 @@
 /* ZicoAI no Chrome v2.0: a "ponte do navegador" (aparelho "nav").
  * Igual a ponte do PC e do Mac: a extensão BUSCA os pedidos no cérebro (long-poll, nada aberto no PC),
- * faz no Chrome e devolve a resposta. Ações: status, abas, ler, erros, clicar, preencher, rolar, abrir, print.
+ * faz no Chrome e devolve a resposta. Ações: status, abas, ler, erros, clicar, preencher, rolar, abrir, print, tabelas, rede.
  *
  * LIMITAÇÃO do Chrome (MV3): o service worker "dorme" quando fica parado. Por isso:
  *  - um alarme (chrome.alarms) acorda a extensão a cada ~30 s e religa o laço;
@@ -84,7 +84,9 @@ async function laco() {
 }
 
 /* ---------- as ações ---------- */
-const ACOES = { status: acStatus, abas: acAbas, ler: acLer, erros: acErros, clicar: acClicar, preencher: acPreencher, rolar: acRolar, abrir: acAbrir, print: acPrint };
+async function acTabelas(d) { const aba = await abaAlvo(d); return naPagina(aba, 'tabelas', { linhas: d.linhas }); }
+async function acRede(d) { const aba = await abaAlvo(d); return naPagina(aba, 'rede', { max: d.max }); }
+const ACOES = { status: acStatus, abas: acAbas, ler: acLer, erros: acErros, clicar: acClicar, preencher: acPreencher, rolar: acRolar, abrir: acAbrir, print: acPrint, tabelas: acTabelas, rede: acRede };
 async function executar(acao, d) {
   const f = ACOES[acao];
   if (!f) return { ok: false, erro: 'Ação desconhecida no Chrome: ' + acao };

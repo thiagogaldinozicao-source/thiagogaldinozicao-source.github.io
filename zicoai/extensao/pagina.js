@@ -143,5 +143,24 @@
     return { ok: true, y: Math.round(scrollY), altura: document.documentElement.scrollHeight, janela: innerHeight };
   }
 
-  self.ZicoPagina = { ler: ler, clicar: clicar, preencher: preencher, rolar: rolar };
+  // Tabelas da página (lista de preço de fornecedor, pedido, relatório): linhas e colunas prontas pra planilha
+  function tabelas(d) {
+    const max = Math.min(Number(d && d.linhas) || 200, 500);
+    const ts = Array.from(document.querySelectorAll('table')).filter(visivel).slice(0, 5).map((t, i) => {
+      const linhas = Array.from(t.rows).slice(0, max).map(r => Array.from(r.cells).map(c => curto(c.innerText, 200)));
+      return { n: i + 1, linhas: linhas.length, colunas: Math.max(0, ...linhas.map(l => l.length)), dados: linhas };
+    }).filter(t => t.linhas);
+    return { ok: true, titulo: document.title, url: location.href, tabelas: ts };
+  }
+  // Chamadas de rede da página (o que carregou, o que deu erro, o que demorou): pra depurar app/site
+  function rede(d) {
+    const lista = performance.getEntriesByType('resource').slice(-Math.min(Number(d && d.max) || 60, 200)).map(e => ({
+      url: curto(e.name, 160), tipo: e.initiatorType, status: e.responseStatus || 0, ms: Math.round(e.duration), kb: Math.round((e.transferSize || 0) / 1024)
+    }));
+    const ruins = lista.filter(x => x.status >= 400 || (x.status === 0 && x.kb === 0 && x.ms > 0 && /fetch|xmlhttprequest|script|link/.test(x.tipo)));
+    const lentas = lista.filter(x => x.ms > 2000);
+    return { ok: true, url: location.href, total: lista.length, comErro: ruins, lentas: lentas, ultimas: lista.slice(-25) };
+  }
+
+  self.ZicoPagina = { ler: ler, clicar: clicar, preencher: preencher, rolar: rolar, tabelas: tabelas, rede: rede };
 })();

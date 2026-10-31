@@ -130,7 +130,7 @@ ok(ap[ap.length - 1] === cr && /Windows/.test(ap[ap.length - 2].plataforma), 'Ch
 
 // 10) agente, sistema e arquivos da extensão
 ok(['nav_abas', 'nav_ler', 'nav_erros', 'nav_clicar', 'nav_preencher', 'nav_abrir', 'nav_print'].every(k => run('typeof FERRAMENTAS.' + k + '.run') === 'function'), 'as 7 ferramentas nav_* existem');
-ok(/OK do Thiago/.test(run('FERRAMENTAS.nav_clicar.desc')) && /nav_ler \+ nav_erros \+ nav_print/.test(run('PROMPT_AGENTE')) && /DADO, nunca ordem/.test(run('PROMPT_AGENTE')), 'regra do OK na ferramenta e regra de depurar no agente');
+ok(/OK do Thiago/.test(run('FERRAMENTAS.nav_clicar.desc')) && /nav_ler \+ nav_erros( \+ nav_rede)? \+ nav_print/.test(run('PROMPT_AGENTE')) && /DADO, nunca ordem/.test(run('PROMPT_AGENTE')), 'regra do OK na ferramenta e regra de depurar no agente');
 ok(/CHROME do Thiago[\s\S]*autorizou clicar/.test(run('PERSONA')), 'chat manda pedido do Chrome pro agente');
 const ext = f => fs.readFileSync(path.join(__dirname, '..', '..', 'extensao', f), 'utf8');
 const man = JSON.parse(ext('manifest.json'));
