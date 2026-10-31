@@ -4,6 +4,9 @@ Cada trabalho que o Claude faz na ZicoAI vira uma **aula** aqui: o pedido do Thi
 
 A versão curta de cada aula também vai pra aba `trajetorias` da planilha "ZicoAI Memória". É dali que o agente puxa as 2 tarefas mais parecidas antes de começar uma nova.
 
+## Formato de professor (aulas novas, desde 31/10)
+Regra → **Por quê** (a causa de verdade, não só "porque sim") → **Como funciona por baixo** → **Situações em que aparece** (como a mensagem chega na vida real) → **Exemplo** → **Erro comum** → **Como conferir**. O "por quê" e as "situações" são o que fazem a ZicoAI acertar pergunta que nunca viu: quem entende o motivo aplica a regra numa situação nova; quem só decorou a regra não reconhece a situação (aula D23).
+
 ## Como ler uma aula
 1. **Pedido**: o que o Thiago pediu, com as palavras dele.
 2. **Entender**: o que ele quer de verdade (o pedido nem sempre diz tudo).
@@ -108,5 +111,10 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D18 | [modo capricho](D/D18-modo-capricho.md) | Pergunta difícil: cérebro forte, mais raciocínio e OUTRO cérebro revisa; o revisor nunca pode piorar a respost… |
 | D19 | [teste que quebra à meia-noite](D/D19-relogio-dos-testes.md) | Teste falhou? Primeiro "foi eu?" (guarda a mudança e roda de novo); teste não pode depender do dia de hoje. |
 | D20 | [treinar a ZicoAI com LoRA a partir das aulas](D/D20-treino-lora.md) | Aula vira exemplos, revisor confere todos, treino leve no Colab grátis, modelo pronto no Ollama; treino pro jeito, aula pros fatos. |
+| D21 | [montar a oficina 24h no Mac Mini](D/D21-oficina-24h-no-mac.md) | Diagnóstico antes de instalar, um passo por vez com teste, resultado em arquivo quando não dá pra digitar no terminal; launchd liga sozinho, repouso desligado. |
+| D22 | [uma ponte por aparelho (PC e Mac)](D/D22-ponte-por-aparelho.md) | Segredo e fila próprios por aparelho; fila única com dois buscando = pedido no lugar errado. O chat precisa da regra pra mandar o pedido do Mac pro agente. |
+| D23 | [achar a aula certa por palavra + significado](D/D23-achar-a-aula-certa.md) | Situação × princípio: palavra (BM25) + significado (vetores), 2 aulas + 3 "talvez", conversa à toa fora; vetores aos poucos no plano grátis. |
+| D24 | [medir com placar antes e depois de mudar](D/D24-placar-antes-de-mudar.md) | Reproduza o número de hoje, mude uma coisa, meça de novo, leia os erros; só fica o que subir. Prova imita o uso real. |
+| D25 | [o que um treino LoRA de 8B ensina](D/D25-o-que-o-treino-ensina.md) | Treino pequeno ensina jeito e raciocínio, não decora fato; exemplo bom traz a aula e o porquê; prova justa com a aula; salvar cedo no Colab. |
 
 `aulas.json` (gerado destas aulas) é o que o cérebro baixa (`sincronizarAulas`, a cada 12 h) pra aba `aulas`.
