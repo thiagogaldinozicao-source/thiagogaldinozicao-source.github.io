@@ -372,7 +372,10 @@ function chat(req, aparelho) {
   if (temFoto) passo('Analisou a foto');
 
   let resultado = null;
-  let querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && precisaPesquisar(pergunta));
+  // Texto grande colado (status, documento, conversa): é DOCUMENTO pra ler. Palavras soltas lá dentro
+  // ("dólar", "e-mail", links, "atualizado") não podem disparar pesquisa, e-mail, Drive ou leitura de link.
+  const colado = pergunta.length > 1500;
+  let querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && !colado && precisaPesquisar(pergunta));
   let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
@@ -383,7 +386,11 @@ function chat(req, aparelho) {
     const codigo = codigoDoApp(String(req.appSlug));
     if (codigo) { extraSistema += '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app; devolva o arquivo COMPLETO alterado num bloco ```html, mantendo tudo que não foi pedido pra mudar)\n```html\n' + codigo.slice(0, 60000) + '\n```'; passo('Abriu o código do app ' + req.appSlug); }
   }
-  try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
+  if (colado) {
+    extraSistema += '\n\n### TEXTO LONGO COLADO\nA última mensagem do Thiago é um texto grande que ele colou (documento, status, conversa ou código). Leia como DOCUMENTO: entenda do que se trata e responda ao que ele quer com isso (se ele não disse, resuma em poucas linhas e diga o que vc faria a seguir). Palavras, números e links dentro do texto NÃO são perguntas novas. Não mude de assunto por causa da conversa anterior.';
+    passo('Texto longo colado: leu como documento (sem pesquisar nem abrir links dele)');
+  }
+  if (!colado) try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
   // já tem dado ao vivo (dólar, clima, notícias)? então não precisa pesquisar na web
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
   if (querPesquisa && temDadoVivo && modo !== 'web') { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }

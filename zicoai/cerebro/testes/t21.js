@@ -131,3 +131,15 @@ H.PROPS.MISTRAL_KEY = 'mk'; const mods = [];
 H.setFetch((u, o) => { const b = JSON.parse(o.payload); mods.push(b.model); if (b.model === 'mistral-small-latest') return { getResponseCode: () => 429, getContentText: () => '{"message":"Service tier capacity exceeded for this model.","type":"service_tier_capacity_exceeded"}' }; return resp('oi do medium'); });
 ok(require('vm').runInContext('chamarCompat(CEREBROS.mistral, [{ role: "user", content: "oi" }], 50)', H.ctx) === 'oi do medium' && mods.join() === 'mistral-small-latest,mistral-medium-latest', 'Mistral lotado → reserva: ' + mods.join(' → '));
 delete H.PROPS.MISTRAL_KEY;
+
+// 9) texto longo colado vira documento: sem pesquisa, sem e-mail, sem abrir link de dentro
+{
+  let sys9 = ''; const urls9 = [];
+  H.setFetch((u, o) => { urls9.push(u); if (typeof (o || {}).payload === 'string') { const b = JSON.parse(o.payload); if (b.tools) return resp('pesquisou'); if (b.messages) { sys9 = b.messages[0].content; return resp('Entendi o status.'); } } return json({}); });
+  const status = '# ZicoAI — status\nGuia: https://github.com/x/y/LEIAME.md\n' + 'Pendência: ver o dólar, o e-mail do fornecedor e o preço atualizado. '.repeat(40);
+  const r9 = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: status }] });
+  ok(/### TEXTO LONGO COLADO/.test(sys9) && r9.passos.some(p => /leu como documento/.test(p)), 'texto longo colado é tratado como documento');
+  ok(!r9.passos.some(p => /Pesquis|Leu a caixa de entrada|Leu a página do link/.test(p)) && !urls9.some(u => /r\.jina\.ai|gmail/i.test(u)), 'não pesquisou, não leu e-mail nem abriu link de dentro do texto');
+  const r10 = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'quanto tá o dólar hoje?' }] });
+  ok(!/### TEXTO LONGO COLADO/.test(sys9), 'pergunta curta continua normal');
+}
