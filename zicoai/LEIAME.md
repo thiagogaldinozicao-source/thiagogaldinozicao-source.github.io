@@ -157,9 +157,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 
 ## v48 (31/10): aula certa por palavra + significado
 - `aulasPara(pergunta, limite, vetor?)`: nota = BM25/maior + `PESO_SIGNIFICADO` (2) × cosseno (vetores do Gemini, `gemini-embedding-001`, 256). Entra a aula com BM25 ≥ corte (`AULAS_MIN` 18 → 10) ou cosseno ≥ `AULAS_COS_MIN` (0,55). `ehConversaAToa()` (mensagem curta só de cumprimento/agradecimento) não puxa aula, no lugar do corte alto que jogava fora ~5 pontos.
-- Vetores das aulas na aba `vetores` (tipo `aulas`, chave `ID#hash` do texto; aula mudou → vetor novo). `vetorDaPergunta()`: 1 chamada por mensagem, memória e aulas dividem. BM25 calculado uma vez por execução (`bm25Aulas`).
+- Vetores das aulas na aba `vetores` (tipo `aulas`, chave `ID#hash` do texto; aula mudou → vetor novo). A conversa só LÊ os vetores guardados; `prepararVetoresAulas()` embute 20 por vez junto do `aprenderSozinha` (30 em 30 min), porque o Gemini grátis aceita ~30 mil tokens/min e ~1.000 pedidos/dia (embutir as 274 de uma vez deu 429). Todas prontas em ~7 h. `vetorDaPergunta()`: 1 chamada por mensagem, memória e aulas dividem. BM25 calculado uma vez por execução (`bm25Aulas`).
 - `contextoAulas`: 2 aulas completas + até 3 "talvez" só com título e regra; o cérebro grande escolhe a que serve.
-- `placarAulas()` (rodar pelo editor): lê `treino.jsonl` da pasta "ZicoAI Treino" do Drive, mede 1º/nas 2/nas 5 com os vetores do Gemini e grava na aba `placar_aulas`.
+- `placarAulas(amostra=150)` (rodar pelo editor): amostra fixa de 150 perguntas (150 pedidos de vetor, cabe no limite do dia), lê `treino.jsonl` da pasta "ZicoAI Treino" do Drive, mede 1º/nas 2/nas 5 com os vetores do Gemini e grava na aba `placar_aulas`.
 - Placar na oficina do Mac (1.234 perguntas, vetores do `qwen3-embedding:0.6b` no lugar do Gemini): antes 72,3% nas 2 / 79,3% nas 5; v48 78,1% nas 2 / **90,6% nas 5** (aula certa chega à conversa), conversa à toa 0/18. Scripts em `~/ZicoAI/placar` no Mac.
 
 ## v46 (31/10): oficina 24h no Mac Mini (ponte do Mac)

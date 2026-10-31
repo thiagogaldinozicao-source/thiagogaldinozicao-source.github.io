@@ -33,20 +33,30 @@ ok(vm.runInContext('ehConversaAToa("bom dia")', H.ctx) && !vm.runInContext('ehCo
 ok(busca('bom dia, quanto fica em 12x na maquininha?')[0] === 'B15', 'cumprimento junto com pedido de verdade ainda acha a aula');
 
 // 2) significado acha a aula da SITUAÇÃO, que palavra sozinha não acha
+for (let k = 0; k < 4; k++) run('prepararVetoresAulas()', '');
 const semVetor = run('aulasPara(__q, 2, null).map(x => x[0])', 'o upload da nota tá ok, pode falar pra ela');
 const comVetor = busca('o upload da nota tá ok, pode falar pra ela');
 ok(semVetor[0] !== 'A502' && comVetor[0] === 'A502', 'situação "tá ok, pode falar pra ela" → A502 só com significado (sem: ' + semVetor.join(',') + ')');
 ok(busca('reescreve o arquivo todo do app, é mais rápido')[0] === 'B506', 'reescrever tudo → B506');
 ok(busca('a tv box do cliente pediu ativação no vu player')[0] === 'C09', 'palavra continua funcionando (C09)');
 
-// 3) vetores das aulas ficam guardados (aba vetores) e a mensagem embute 1 vez só
+// 3) vetores das aulas: a conversa só lê; prepararVetoresAulas embute 20 por vez (limite grátis do Gemini)
+H.sheets.vetores.rows.splice(1);
+chamadasEmbed = 0; textosEmbed = 0;
+run('aulasPara(__q, 2).length', 'tv box ativação');
+ok(textosEmbed === 1, 'conversa não embute aula nenhuma, só a mensagem (' + textosEmbed + ' texto)');
+const prep = [];
+for (let k = 0; k < 4; k++) prep.push(run('prepararVetoresAulas().comVetor', ''));
+ok(prep.join(',') === '20,40,60,64', 'prepara 20 aulas por vez até completar (' + prep.join(',') + ')');
+ok(/prepararVetoresAulas\(\)/.test(vm.runInContext('aprenderSozinha.toString()', H.ctx)), 'preparo roda junto do aprenderSozinha (30 em 30 min)');
 chamadasEmbed = 0; textosEmbed = 0;
 run('aulasPara(__q, 2).length', 'quanto fica em 12x na maquininha?');
 ok(textosEmbed === 1, 'aulas já embutidas: só a mensagem vai pro Gemini (' + textosEmbed + ' texto)');
 const guardadas = H.sheets.vetores.rows.filter(r => r[0] === 'aulas').length;
 ok(guardadas === linhas.length, 'vetor de cada aula guardado na aba vetores (' + guardadas + ')');
 a.rows.find(r => r[0] === 'C09')[5] = 'Conteúdo novo da C09: devolve MAC e key em bloco de código.';
-run('aulasPara(__q, 2).length', 'tv box');
+vm.runInContext('CacheService.getScriptCache().remove("aulas_idx_n")', H.ctx);
+run('prepararVetoresAulas()', '');
 ok(H.sheets.vetores.rows.filter(r => r[0] === 'aulas' && /^C09#/.test(r[1])).length === 2, 'aula mudou → vetor refeito (chave com hash do texto)');
 chamadasEmbed = 0;
 run('vetorDaPergunta(__q); vetorDaPergunta(__q); aulasPara(__q, 2).length', 'quanto fica em 12x?');

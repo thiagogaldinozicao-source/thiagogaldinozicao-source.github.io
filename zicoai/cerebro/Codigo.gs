@@ -858,7 +858,9 @@ function pontosAulas(pergunta, idx) {
 function textoVetorAula(l) { return [l[2], l[3], l[4], String(l[5] || '').slice(0, 1500)].join('\n'); }
 /** Hash curto (troca quando o texto da aula muda, aí o vetor é refeito). */
 function hashCurto(t) { let h = 5381; t = String(t); for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h.toString(36); }
-/** Vetores das aulas (aba `vetores`, tipo "aulas", chave "ID#hash"). Embute as que faltam, até `maxNovas` por vez. */
+/** Vetores das aulas (aba `vetores`, tipo "aulas", chave "ID#hash"). Na conversa só LÊ os guardados (maxNovas vazio);
+ *  quem embute as que faltam é prepararVetoresAulas(), aos poucos, pra não estourar o limite grátis do Gemini
+ *  (~30 mil tokens/min e ~1.000 pedidos/dia; uma aula tem ~500 tokens). */
 let VETORES_AULAS = null;
 function vetoresAulas(maxNovas) {
   if (VETORES_AULAS && !maxNovas) return VETORES_AULAS;
@@ -868,9 +870,11 @@ function vetoresAulas(maxNovas) {
   const guard = {};
   linhas('vetores').forEach(l => { if (l[0] === 'aulas') guard[l[1]] = l[2]; });
   const chave = l => l[0] + '#' + hashCurto(textoVetorAula(l));
-  const faltam = ls.filter(l => !guard[chave(l)]).slice(0, maxNovas || 20);
-  for (let k = 0; k < faltam.length; k += 50) {
-    const lote = faltam.slice(k, k + 50), v = embutir(lote.map(textoVetorAula));
+  const faltam = ls.filter(l => !guard[chave(l)]).slice(0, maxNovas || 0);
+  for (let k = 0; k < faltam.length; k += 20) {
+    const lote = faltam.slice(k, k + 20);
+    let v = null;
+    try { v = embutir(lote.map(textoVetorAula)); } catch (e) { v = null; }
     if (!v) break;
     const va = aba('vetores');
     lote.forEach((l, i) => { if (v[i]) { const s = JSON.stringify(v[i].map(x => Math.round(x * 10000) / 10000)); va.appendRow(['aulas', chave(l), s]); guard[chave(l)] = s; } });
@@ -879,6 +883,13 @@ function vetoresAulas(maxNovas) {
   ls.forEach(l => { const g = guard[chave(l)]; if (g) out[l[0]] = typeof g === 'string' ? JSON.parse(g) : g; });
   VETORES_AULAS = out;
   return out;
+}
+/** Embute até 20 aulas sem vetor (novas ou que mudaram). Roda junto do aprenderSozinha (de 30 em 30 min):
+ *  as 274 aulas ficam prontas em ~7 h e depois só as que mudarem. Devolve quantas têm vetor / total. */
+function prepararVetoresAulas() {
+  const v = vetoresAulas(20);
+  const idx = indiceAulas();
+  return { comVetor: Object.keys(v).length, aulas: idx.length };
 }
 /** Vetor de significado da mensagem: uma chamada só por execução (memória e aulas usam o mesmo). */
 const VETOR_PERGUNTA = {};
@@ -947,7 +958,7 @@ function contextoAulas(pergunta, limite, talvez) {
 /** Placar da busca de aulas, com os vetores do Gemini (o que roda de verdade): lê o treino.jsonl da pasta
  *  "ZicoAI Treino" do Drive, passa cada pergunta pela busca e diz em quantas a aula certa vem em 1º, nas 2 e nas 5.
  *  Rodar pelo editor (Executar › placarAulas). Grava uma linha na aba `placar_aulas`. */
-function placarAulas() {
+function placarAulas(amostra) {
   const pasta = DriveApp.getFoldersByName('ZicoAI Treino');
   if (!pasta.hasNext()) return { ok: false, erro: 'pasta ZicoAI Treino não encontrada' };
   const arqs = pasta.next().getFilesByName('treino.jsonl');
@@ -956,10 +967,14 @@ function placarAulas() {
   idx.forEach(x => { tem[x[0]] = 1; });
   const ex = arqs.next().getBlob().getDataAsString('UTF-8').split('\n').filter(Boolean).map(l => JSON.parse(l))
     .map(e => ({ aula: e.aula, q: ((e.messages || []).filter(m => m.role === 'user')[0] || {}).content || '' })).filter(e => tem[e.aula] && e.q);
-  vetoresAulas(400);
+  // amostra sorteada sempre igual (150 perguntas = 150 pedidos de vetor; o limite grátis é ~1.000 por dia)
+  let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  ex.forEach(e => { e.r = rnd(); }); ex.sort((a, b) => a.r - b.r); ex.splice(Number(amostra) || 150);
+  const prontas = Object.keys(vetoresAulas()).length;
   const qs = ex.map(e => e.q), vq = {};
-  for (let k = 0; k < qs.length; k += 100) {
-    try { const v = embutir(qs.slice(k, k + 100)); if (v) v.forEach((x, i) => { vq[qs[k + i]] = x; }); } catch (e) { Utilities.sleep(2000); }
+  for (let k = 0; k < qs.length; k += 50) {
+    if (k) Utilities.sleep(20000);
+    try { const v = embutir(qs.slice(k, k + 50)); if (v) v.forEach((x, i) => { vq[qs[k + i]] = x; }); } catch (e) { break; }
   }
   let t1 = 0, t2 = 0, t5 = 0, so1 = 0, so2 = 0;
   ex.forEach(e => {
@@ -969,7 +984,7 @@ function placarAulas() {
     if (ps === 0) so1++; if (ps >= 0) so2++;
   });
   const pc = x => Math.round(1000 * x / ex.length) / 10;
-  const res = { ok: true, perguntas: ex.length, comVetor: Object.keys(vq).length, primeiro: pc(t1), nas2: pc(t2), nas5: pc(t5), soPalavra1: pc(so1), soPalavra2: pc(so2) };
+  const res = { ok: true, perguntas: ex.length, comVetor: Object.keys(vq).length, aulasComVetor: prontas + '/' + idx.length, primeiro: pc(t1), nas2: pc(t2), nas5: pc(t5), soPalavra1: pc(so1), soPalavra2: pc(so2) };
   try { aba('placar_aulas').appendRow(["'" + agora(), VERSAO_CEREBRO, res.perguntas, res.primeiro, res.nas2, res.nas5, res.soPalavra2]); } catch (e) { /* sem aba */ }
   Logger.log(JSON.stringify(res));
   return res;
@@ -2372,6 +2387,7 @@ const PROMPT_APRENDER = [
 
 function aprenderSozinha() {
   try { garantirRotinasTreino(); } catch (e) { /* ok */ }
+  try { prepararVetoresAulas(); } catch (e) { Logger.log('vetores das aulas: ' + e.message); }
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return;
   try {
