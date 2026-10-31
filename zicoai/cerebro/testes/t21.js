@@ -155,3 +155,16 @@ delete H.PROPS.MISTRAL_KEY;
   ok(antes === 4 && c.ok && c.apagadas === 2 && depois.length === 2 && depois[0] === 'pergunta um', 'cortar conversa mantém as 2 primeiras e apaga o resto');
   ok(H.post({ pin: '1234', acao: 'cortarConversa', chatId: '', manter: 0 }).ok === false, 'sem conversa: erro');
 }
+
+// 11) pc_testar: pede pra ponte rodar os testes e espera mais (até ~3 min)
+{
+  H.PROPS.PONTE_SEGREDO = 'seg123';
+  const vm2 = require('vm');
+  vm2.runInContext('CacheService.getScriptCache().put("ponte_visto", String(Date.now()), 600)', H.ctx);
+  const so = H.ctx.Utilities.sleep; let pedido = null;
+  H.ctx.Utilities.sleep = ms => { so(ms); const ps = vm2.runInContext('ponteFila(f => f.splice(0, f.length))', H.ctx); ps.forEach(p => { pedido = p; H.post({ acao: 'ponteResposta', segredo: 'seg123', id: p.id, resultado: JSON.stringify({ ok: true, saida: 'TOTAL: 335 testes ok, 0 arquivo(s) com falha' }) }); }); };
+  const out = vm2.runInContext('FERRAMENTAS', H.ctx).pc_testar.run({});
+  ok(/TOTAL: 335 testes ok/.test(out) && pedido.dados.nome === 'testes_zicoai' && pedido.ate - Date.now() > 100000, 'pc_testar roda os testes no PC com espera longa');
+  ok(/MÉTODO \(o mesmo do Claude\)/.test(vm2.runInContext('PROMPT_AGENTE', H.ctx)), 'agente recebeu o método de trabalho');
+  H.ctx.Utilities.sleep = so;
+}

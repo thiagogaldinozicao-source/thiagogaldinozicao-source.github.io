@@ -10,7 +10,7 @@ $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Dir) { $Dir = Join-Path $HOME 'ZicoAI-Ponte' }
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '2.1'
+$Versao = '2.2'
 
 function Log($t) {
   $linha = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t
@@ -168,7 +168,28 @@ function Comando($p) {
     'ip'             { $s = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | ForEach-Object { $_.InterfaceAlias + ': ' + $_.IPAddress } }
     'sistema'        { $o = Get-CimInstance Win32_OperatingSystem; $s = @($o.Caption, ('Ligado desde ' + $o.LastBootUpTime.ToString('dd/MM HH:mm')), ('RAM livre: ' + [math]::Round($o.FreePhysicalMemory / 1MB, 1) + ' GB de ' + [math]::Round($o.TotalVisibleMemorySize / 1MB, 1) + ' GB')) }
     'ollama_modelos' { $s = & ollama list 2>&1 }
-    default          { throw 'Comando fora da lista segura: espaco_disco, processos, gpu, ip, sistema, ollama_modelos' }
+    'testes_zicoai'  {
+      # baixa (ou atualiza) a cópia do GitHub na pasta ZicoAI\repo e roda os testes do cérebro
+      $ErrorActionPreference = 'Continue'
+      $repo = Join-Path $HOME 'ZicoAI\repo'
+      if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git não está instalado no PC' }
+      if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js não está instalado no PC' }
+      if (-not (Test-Path (Join-Path $repo '.git'))) { & git clone --depth 1 https://github.com/thiagogaldinozicao-source/thiagogaldinozicao-source.github.io $repo 2>&1 | Out-Null }
+      else { & git -C $repo pull --ff-only 2>&1 | Out-Null }
+      $pasta = Join-Path $repo 'zicoai\cerebro\testes'
+      if (-not (Test-Path $pasta)) { throw 'Não achei a pasta de testes' }
+      $total = 0; $falhas = @()
+      $s = foreach ($f in (Get-ChildItem $pasta -Filter 't*.js' | Sort-Object Name)) {
+        $o = & node $f.FullName 2>&1 | ForEach-Object { [string]$_ }
+        $ok = @($o | Where-Object { $_ -like 'PASS*' }).Count
+        $fa = @($o | Where-Object { $_ -like 'FAIL*' -or $_ -like '*Error*' })
+        $total += $ok
+        if ($fa.Count) { $falhas += ($f.Name + ': ' + (($fa | Select-Object -First 2) -join ' ; ')) }
+        $f.Name + ': ' + $ok + ' ok' + $(if ($fa.Count) { ' | FALHOU' } else { '' })
+      }
+      $s = @(('TOTAL: ' + $total + ' testes ok, ' + $falhas.Count + ' arquivo(s) com falha')) + $falhas + $s
+    }
+    default          { throw 'Comando fora da lista segura: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, testes_zicoai' }
   }
   return @{ ok = $true; saida = (($s | Out-String).Trim()) }
 }

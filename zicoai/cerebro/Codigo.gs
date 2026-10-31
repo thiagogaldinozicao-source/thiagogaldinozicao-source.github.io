@@ -2483,13 +2483,13 @@ function ponteVisto() {
   const v = parseInt(CacheService.getScriptCache().get('ponte_visto') || '0', 10);
   return v ? Date.now() - v : -1;
 }
-function ponte(acao, dados) {
+function ponte(acao, dados, esperaMs) {
   if (!prop('PONTE_SEGREDO')) throw new Error('A ponte do PC não está instalada');
   const visto = ponteVisto();
   if (visto < 0 || visto > 90000) throw new Error('PC desligado ou ponte fechada' + (visto > 0 ? ' (última vez há ' + Math.round(visto / 60000) + ' min)' : ''));
   const c = CacheService.getScriptCache();
   const id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
-  const limite = Date.now() + 45000;
+  const limite = Date.now() + (esperaMs || 45000);
   ponteFila(f => { f.push({ id: id, acao: acao, dados: dados || {}, ate: limite }); });
   while (Date.now() < limite) {
     Utilities.sleep(700);
@@ -2931,6 +2931,7 @@ const FERRAMENTAS = {
   pc_escrever: { desc: 'Cria um arquivo de texto no PC (só na pasta ZicoAI ou outra liberada pra escrever; nunca sobrescreve: se existir, vira "nome (2)"). args: {arquivo, conteudo}', run: a => { const r = ponte('escrever', { arquivo: String(a.arquivo || ''), conteudo: String(a.conteudo || '') }); return 'salvo em ' + r.arquivo; } },
   pc_print: { desc: 'Tira print da tela do PC, guarda no Drive e diz o que aparece. args: {pergunta (opcional: o que procurar na tela)}', run: a => { const r = ponte('print'); const link = salvarBase64Drive(r.base64, r.mime, 'print-pc-' + Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd-HHmmss') + '.jpg'); return 'Print salvo: ' + link + '\n(pra mostrar pro Thiago use ![print da tela](' + link + '))\nO que aparece: ' + descreverImagem(r.base64, r.mime, a.pergunta ? 'Olhe este print da tela do PC e responda: ' + a.pergunta : 'Descreva este print da tela do PC: programas abertos, janelas e textos importantes.'); } },
   pc_abrir: { desc: 'Abre no PC um site (https://...), um programa da lista (bloco de notas, calculadora, chrome, explorador, comfyui) ou um arquivo de pasta liberada (txt, pdf, imagem, planilha). args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }); return 'aberto: ' + r.aberto; } },
+  pc_testar: { desc: 'Roda os testes automáticos da ZicoAI no PC (baixa a versão do GitHub e roda node t*.js). Use DEPOIS de mudar seu código: só diga que funciona se passar. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000); return String(r.saida).slice(0, 6000); } },
   pc_comando: { desc: 'Roda um comando SEGURO da lista no PC: espaco_disco, processos, gpu, ip, sistema, ollama_modelos. args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }); return String(r.saida).slice(0, 6000); } },
   dividir_em_agentes: { desc: 'Divide um pedido GRANDE em 2 a 4 partes independentes que outros agentes fazem AO MESMO TEMPO (ex.: pesquisar 4 lojas, uma por agente). Você espera e recebe todos os resultados juntos pra montar a resposta final. args: {partes: ["descrição completa da parte 1", "parte 2", ...]}', run: (a, ctx) => {
     const partes = (Array.isArray(a.partes) ? a.partes : []).map(x => String(x || '').trim()).filter(x => x.length >= 8).slice(0, 4);
@@ -2943,6 +2944,7 @@ const FERRAMENTAS = {
 
 const PROMPT_AGENTE = [
   'Você é a ZicoAI trabalhando como AGENTE em segundo plano pro Thiago. Você resolve o pedido usando FERRAMENTAS, uma por vez: escolhe, vê o resultado, decide a próxima. Pense como um técnico: confira antes de afirmar, leia antes de escrever, teste o que der.',
+  'MÉTODO (o mesmo do Claude): 1) entenda o pedido; 2) plano curto; 3) LEIA antes de mexer (código, planilha, página); 4) mude pouco por vez; 5) TESTE cada mudança (código: pc_testar; app: ler_app de novo; planilha: ler_planilha de novo); 6) só diga que funciona depois de testar; se não deu pra testar, diga isso; 7) no fim: o que ficou pronto, o que falta e o que precisa do Thiago, curto. Erro numa ferramenta: leia a mensagem, ajuste e tente outro caminho; não repita igual.',
   'FERRAMENTAS (nome: o que faz e args):',
   Object.keys(FERRAMENTAS).map(k => '- ' + k + ': ' + FERRAMENTAS[k].desc).join('\n'),
   'Responda SEMPRE com UM JSON por vez, sem texto fora dele:',
