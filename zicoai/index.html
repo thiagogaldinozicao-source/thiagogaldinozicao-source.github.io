@@ -341,25 +341,127 @@ header{display:flex}
   .lado-top .logo{display:block}
 }
 @media (max-width:420px){ .sugs{grid-template-columns:1fr} .chip .rot{display:none} .chip{padding:7px 10px} }
+
+/* Workspace: conversa ao centro, contexto e saídas à direita. */
+:root{--lado-w:260px}
+button,input,textarea{font:inherit}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--ouro);outline-offset:3px}
+button:disabled{cursor:default;opacity:.6}
+[hidden]{display:none!important}
+body{isolation:isolate}
+#lado{min-height:0}
+.lado-top{gap:5px;padding:20px 12px 12px}
+.lado-top .logo{font-size:27px;margin:0 10px 16px}
+.novo{background:var(--ouro-fundo);border:1px solid #4a3c12;color:var(--ouro2);justify-content:flex-start;min-height:46px}
+.nav-lado{display:flex;flex-direction:column;gap:1px}
+.nav-lado>button,.procurar{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;min-height:44px;border-radius:9px;font-size:14px;color:#d0d0d0}
+.nav-lado>button:hover,.procurar:hover{background:var(--card2)}
+.busca-lado{width:100%;min-width:0;border:1px solid var(--borda2);background:var(--bg);color:var(--txt);padding:11px;border-radius:10px;font-size:16px}
+#lista{padding:0 10px 12px;overscroll-behavior:contain}
+.grupo-tit{display:flex;align-items:center;gap:6px;padding:18px 8px 6px;color:var(--cinza);font-size:12px;font-weight:600;letter-spacing:.03em}
+.grupo-tit button{min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 0}
+.grupo-todos{font-size:12px;color:var(--ouro2);padding:8px 12px;min-height:44px;text-align:left}
+.chat-item{padding:2px 6px;font-size:13px;min-height:44px}
+.chat-item .t{padding:10px 4px;min-height:44px}
+.chat-item .x{width:32px;height:36px}
+.lado-pe{padding:12px 14px calc(env(safe-area-inset-bottom) + 12px)}
+.perfil{display:flex;align-items:center;gap:9px;font-size:14px;padding:2px 4px 8px}
+.perfil-avatar{display:grid;place-items:center;width:29px;height:29px;border:1px solid #4a3c12;border-radius:50%;background:var(--ouro-fundo);color:var(--ouro)}
+.perfil #status{margin-left:auto}
+.lado-pe #bCfg{font-size:13px;min-height:44px}
+header{min-height:64px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;gap:6px}
+header .titulo{text-align:left;font-size:14px;font-weight:500;padding:10px 4px;min-height:44px}
+#bConv{font-size:18px}
+#bTarefas,#bNovo2{display:none}
+#bMenu{visibility:visible}
+#principal{overflow:hidden}
+.trilho{max-width:800px;padding:32px 24px 18px;gap:30px}
+.boas{min-height:54dvh}
+.boas h2{font-family:inherit;font-size:clamp(28px,4vw,40px);letter-spacing:-1px;font-weight:500}
+.boas p{font-size:15px;line-height:1.6;margin-top:10px}
+.msg-ia{gap:12px}.corpo{font-size:15px;line-height:1.75}
+.msg-eu{font-size:15px;background:#22211e;border-color:#323028;border-radius:18px}
+footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
+.caixa{border-radius:22px;padding:12px;background:#191918;border-color:#3a3730;box-shadow:0 6px 24px #0003}
+.caixa:focus-within{border-color:#827044}
+#txt{padding:6px 6px 14px;min-height:58px}
+.caixa-pe{gap:6px;position:relative}
+.anexar-wrap{position:relative}
+#bAnexar{width:44px;height:44px;font-size:25px;border:0;background:transparent}
+#menuAnexar{left:0;right:auto;width:230px;bottom:52px}
+#menuAnexar button{min-height:44px;font-size:14px}
+#menuAnexar button.on{color:var(--ouro);background:var(--ouro-fundo)}
+.sel-wrap{margin-left:auto}
+#bModelo{min-height:44px;max-width:140px}
+#capAtalho{min-width:44px;min-height:44px;font-size:19px;border-radius:12px}
+#capAtalho.on{color:var(--ouro);background:var(--ouro-fundo)}
+#bMic{width:44px;height:44px;border:0}
+.enviar{width:44px;height:44px;flex-shrink:0}
+.dica{margin-top:10px;font-size:10px}
+.bloco-top{flex-wrap:wrap;gap:8px}.bloco-top .acts{flex-wrap:wrap}.bloco pre{max-height:400px}
+.opcoes-card{margin:18px 0 8px;padding:16px;border:1px solid var(--borda2);border-radius:16px;background:var(--card)}
+.opcoes-pergunta{display:block;margin-bottom:12px;line-height:1.5}
+.opcao{display:block;text-align:left;width:100%;padding:12px;border:1px solid var(--borda2);border-radius:11px;margin-top:8px;min-height:48px}
+.opcao.recomendada{border-color:#786025;background:var(--ouro-fundo)}
+.opcao strong{display:block;font-size:14px}.opcao small{display:block;color:var(--cinza);font-size:13px;line-height:1.5;margin-top:4px}
+.selo{display:inline-block;color:var(--ouro2);font-size:10px;font-weight:500;margin-left:7px}
+.opcao.escolhida{border-color:var(--ouro);opacity:1}
+.outra-opcao{padding:10px 4px;min-height:44px;font-size:14px;color:var(--cinza)}
+#painelDireito{display:none;background:var(--lado);border-left:1px solid var(--borda);width:310px;flex-shrink:0;overflow-y:auto;padding:20px 18px calc(env(safe-area-inset-bottom) + 20px);overscroll-behavior:contain}
+.painel-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:15px;font-weight:600}
+.painel-secao{padding:18px 0;border-top:1px solid var(--borda)}
+.painel-secao h2{font-size:13px;font-weight:600;margin-bottom:12px;letter-spacing:.02em}
+.painel-vazio{font-size:13px;color:var(--cinza2);line-height:1.6}
+.uso{border-bottom:1px solid #1c1c1c;padding:4px 0}
+.uso summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;gap:9px;font-size:13px}
+.uso summary::-webkit-details-marker{display:none}.uso summary::after{content:'›';margin-left:auto;color:var(--cinza2)}
+.uso[open] summary::after{transform:rotate(90deg)}
+.uso summary small{display:block;font-size:11px;color:var(--cinza);margin-top:3px}
+.uso .rz li{font-size:12px}.uso .rz .ic{background:var(--lado)}
+.saida-card{border:1px solid var(--borda2);border-radius:12px;padding:12px;margin-top:8px;min-width:0;overflow-wrap:anywhere}
+.saida-card strong{font-size:13px;display:block;margin-bottom:8px}.saida-card .acts{display:flex;gap:6px;flex-wrap:wrap}
+.saida-card pre{display:none}.saida-card img{max-width:100%;border-radius:8px;margin-bottom:8px}
+.saida-card a{font-size:12px;word-break:break-word}
+#veuPainel{display:none}
+@media(max-width:999px){
+ #lado{position:fixed;inset:0 auto 0 0;z-index:20;transform:translateX(-100%);transition:transform .22s ease;width:min(87vw,320px)}
+ body.lado-aberto #lado{transform:none}body.lado-aberto #veu{display:block;position:fixed;inset:0;background:#0009;z-index:19}
+ .lado-top{padding-top:12px}.nav-lado>button,.procurar{padding-top:7px;padding-bottom:7px}
+ .trilho{padding:22px 16px 14px;gap:24px}footer{padding-left:10px;padding-right:10px}
+ header{padding-left:10px;padding-right:10px}.btn-ic{width:44px;height:44px}
+ .chat-item .x{opacity:.7}
+}
+@media(min-width:1000px){#bMenu{display:none}#lado{position:relative;transform:none;width:var(--lado-w)}body.lado-aberto #veu{display:none}}
+@media(min-width:1200px){#painelDireito{display:block}body.painel-fechado #painelDireito{display:none}#fecharPainel{display:none}}
+@media(max-width:1199px){
+ body.painel-aberto #painelDireito{display:block;position:fixed;inset:auto 0 0;width:100%;height:min(82dvh,760px);z-index:26;border:1px solid var(--borda2);border-radius:22px 22px 0 0;padding-top:12px}
+ body.painel-aberto #veuPainel{display:block;position:fixed;inset:0;background:#0009;z-index:25}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
 
-<aside id="lado">
+<aside id="lado" aria-label="Navegação e conversas">
   <div class="lado-top">
     <div class="logo">ZICO<b>AI</b></div>
     <button class="novo" id="bNovo">＋ Nova conversa</button>
+    <button class="procurar" id="bProcurar" aria-expanded="false" aria-controls="buscaConversas">⌕ Procurar</button>
+    <input class="busca-lado" id="buscaConversas" type="search" placeholder="Procurar conversas" aria-label="Procurar pelo título" hidden>
+    <nav class="nav-lado" aria-label="Ferramentas">
+      <button id="bProj">📁 Projetos</button>
+      <button id="bApps">🧩 Meus apps</button>
+      <button id="bTarefas2">⧉ Tarefas <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
+      <button id="bMem">🧠 Memória</button>
+      <button id="bTreino">📈 Treino</button>
+      <button id="bDisp">💻 Dispositivos</button>
+    </nav>
   </div>
-  <div class="lado-tit">Conversas</div>
   <div id="lista"><div class="lado-vazio">Carregando...</div></div>
   <div class="lado-pe">
-    <button id="bProj">📁 Projetos</button>
-    <button id="bDisp">💻 Dispositivos</button>
-    <button id="bMem">🧠 Memória</button>
-    <button id="bTreino">📈 Treino</button>
-    <button id="bApps">🧩 Meus apps</button>
-    <button id="bTarefas2">⧉ Tarefas em segundo plano <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
-    <button id="bCfg">⚙️ Configurar <span class="status" id="status" style="margin-left:auto"><i></i><span>—</span></span></button>
+    <div class="perfil"><span class="perfil-avatar">T</span><b>Thiago</b><span class="status" id="status"><i></i><span>—</span></span></div>
+    <button id="bCfg">⚙️ Configurar</button>
   </div>
 </aside>
 <div id="veu"></div>
@@ -367,10 +469,11 @@ header{display:flex}
 <div id="principal">
   <header>
     <button class="btn-ic" id="bMenu" aria-label="Conversas">☰</button>
-    <div class="titulo" id="tituloTopo">ZicoAI</div>
+    <button class="titulo" id="tituloTopo" aria-label="Opções da conversa">ZicoAI</button>
     <button class="btn-ic" id="bConv" aria-label="Opções da conversa" title="Opções da conversa">⋯</button>
     <button class="btn-ic" id="bTarefas" aria-label="Tarefas em segundo plano" title="Tarefas em segundo plano">⧉</button>
     <button class="btn-ic" id="bNovo2" aria-label="Nova conversa">✎</button>
+    <button class="btn-ic" id="bPainel" aria-label="Abrir painel da conversa" aria-controls="painelDireito" aria-expanded="false" title="Progresso, saídas e recursos">◫</button>
   </header>
 
   <div class="chat-area"><main id="chat"><div class="trilho" id="trilho"></div></main><button id="irFim" aria-label="Ir pro fim da conversa" title="Ir pro fim">↓</button></div>
@@ -383,12 +486,16 @@ header{display:flex}
       <div id="docAnexo" class="anexo-doc" style="display:none">📄 <span id="docNome"></span><button id="tiraDoc" title="Tirar">✕</button></div>
       <textarea id="txt" rows="1" placeholder="Pergunta qualquer coisa pra ZicoAI"></textarea>
       <div class="caixa-pe">
-        <button class="chip-ic" id="bFoto" title="Foto ou arquivo">📎</button>
-        <button class="chip-ic" id="bMic" title="Falar" style="display:none">🎤</button>
+        <div class="anexar-wrap">
+          <button class="chip-ic" id="bAnexar" aria-label="Adicionar foto ou ferramenta" aria-expanded="false" aria-controls="menuAnexar">＋</button>
+          <div class="menu" id="menuAnexar">
+            <button class="chip-ic" id="bFoto" title="Foto ou arquivo">📎 Foto/arquivo</button>
+            <button class="chip" id="cWeb" title="Pesquisar na web">🌐 Pesquisar</button>
+            <button class="chip" id="cImg" title="Gerar imagem">🎨 Imagem</button>
+            <button class="chip" id="cAgente" title="Mandar um agente fazer em segundo plano">🧠 Agente</button>
+          </div>
+        </div>
         <input type="file" id="arquivo" accept="image/*,.txt,.md,.csv,.json,.tsv,.html,.htm,.js,.css,.gs,.py,.xml,.log,text/plain" hidden>
-        <button class="chip" id="cWeb" title="Pesquisar na web">🌐<span class="rot"> Pesquisar</span></button>
-        <button class="chip" id="cImg" title="Gerar imagem">🎨<span class="rot"> Imagem</span></button>
-        <button class="chip" id="cAgente" title="Mandar um agente fazer em segundo plano">🧠<span class="rot"> Agente</span></button>
         <div class="sel-wrap">
           <button class="sel" id="bModelo"><b id="nomeModelo">Auto</b> ▾</button>
           <div class="menu" id="menuModelo">
@@ -402,6 +509,8 @@ header{display:flex}
             <button id="bCapricho" class="capricho"><b>✨ Capricho: <i id="txtCapricho">automático</i></b><span id="descCapricho">Pergunta difícil: pensa mais e outro cérebro revisa antes de responder</span></button>
           </div>
         </div>
+        <button id="capAtalho" title="Capricho" aria-label="Alternar modo capricho">✨</button>
+        <button class="chip-ic" id="bMic" title="Falar" aria-label="Falar" style="display:none">🎤</button>
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
       </div>
     </div>
@@ -409,6 +518,14 @@ header{display:flex}
     <div class="dica">A ZicoAI aprende com vc. Não mande CPF nem telefone de cliente aqui.</div>
   </footer>
 </div>
+
+<div id="veuPainel"></div>
+<aside id="painelDireito" aria-label="Contexto da conversa">
+  <div class="painel-cab">Nesta conversa <button class="btn-ic" id="fecharPainel" aria-label="Fechar painel">×</button></div>
+  <section class="painel-secao"><h2>Progresso</h2><div id="progressoPainel" aria-live="polite"></div></section>
+  <section class="painel-secao"><h2>Saídas</h2><div id="saidasPainel"></div></section>
+  <section class="painel-secao"><h2>Usados nesta conversa</h2><div id="usosPainel"></div></section>
+</aside>
 
 <div class="menu menu-topo" id="menuConv">
   <button id="mcFixar">📌 <span>Fixar</span></button>
@@ -624,11 +741,16 @@ async function publicarApp(html, botao){
   try{
     const j = await api({ acao:'publicar', nome, html });
     botao.textContent = '✓ Publicado';
+    const dono = mensagens.find(m => m.role === 'assistant' && m.content.includes(html));
+    if(dono && urlSegura(j.url)){
+      dono.appsPublicados = [...new Set([...(dono.appsPublicados || []), j.url])]; guarda();
+    }
     const bloco = botao.closest('.bloco');
     const aviso = document.createElement('div');
     aviso.style.cssText = 'padding:8px 12px;font-size:14px;border-top:1px solid var(--borda2)';
     aviso.innerHTML = '🌐 No ar em <a href="' + esc(j.url) + '" target="_blank" rel="noopener">' + esc(j.url) + '</a> <span style="color:var(--cinza2)">(' + esc(j.aviso || '') + ')</span>';
-    bloco.appendChild(aviso);
+    if(bloco) bloco.appendChild(aviso);
+    desenhaPainel();
   }catch(e){ botao.textContent = o; botao.disabled = false; alert(e.message); }
 }
 
@@ -690,20 +812,36 @@ $('pBaixar').onclick = () => {
 
 /* ---------- conversas (lateral) ---------- */
 function desenhaLista(){
-  const l = $('lista');
-  if(!chats.length){ l.innerHTML = '<div class="lado-vazio">Nenhuma conversa ainda.</div>'; return; }
-  l.innerHTML = '';
-  chats.forEach(c => {
-    const d = document.createElement('div');
-    d.className = 'chat-item' + (c.id === atual ? ' ativo' : '');
-    const pj = c.projeto ? projetos.find(p => p.id === c.projeto) : null;
-    d.innerHTML = (c.fixada ? '<span class="pin">📌</span>' : '') + '<button class="t"></button>' + (pj ? '<span class="pj"></span>' : '') + (c.trabalhando ? '<span class="gira" title="Trabalhando…"></span>' : '') + '<button class="x" title="Apagar">🗑</button>';
-    d.querySelector('.t').textContent = c.titulo || 'Conversa';
-    if(pj) d.querySelector('.pj').textContent = pj.nome;
-    d.querySelector('.t').onclick = () => abrir(c.id);
-    d.querySelector('.x').onclick = () => apagar(c.id);
-    l.appendChild(d);
+  const l = $('lista'); l.replaceChildren();
+  const termo = $('buscaConversas').value.trim().toLocaleLowerCase('pt-BR');
+  const filtradas = chats.filter(c => String(c.titulo || 'Conversa').toLocaleLowerCase('pt-BR').includes(termo));
+  const recentes = [...filtradas].sort((a,b) => String(b.atualizada || '').localeCompare(String(a.atualizada || '')));
+  function item(c){
+    const d = document.createElement('div'); d.className = 'chat-item' + (c.id === atual ? ' ativo' : '');
+    d.innerHTML = (c.fixada ? '<span class="pin">📌</span>' : '') + '<button class="t"></button>' + (c.trabalhando ? '<span class="gira" title="Trabalhando…"></span>' : '') + '<button class="x" title="Apagar conversa" aria-label="Apagar conversa">🗑</button>';
+    const b = d.querySelector('.t'); b.textContent = c.titulo || 'Conversa'; b.title = b.textContent; b.onclick = () => abrir(c.id);
+    if(c.id === atual) b.setAttribute('aria-current','page');
+    d.querySelector('.x').onclick = () => apagar(c.id); l.appendChild(d);
+  }
+  function titulo(texto, acao){
+    const h = document.createElement('div'); h.className = 'grupo-tit';
+    if(acao){ const b = document.createElement('button'); b.textContent = '📁 ' + texto; b.onclick = acao; h.appendChild(b); }
+    else h.textContent = texto;
+    l.appendChild(h);
+  }
+  const fixadas = recentes.filter(c => c.fixada);
+  if(fixadas.length){ titulo('Fixados'); fixadas.forEach(item); }
+  projetos.forEach(p => {
+    const grupo = recentes.filter(c => c.projeto === p.id && !c.fixada);
+    if(termo && !grupo.length) return;
+    titulo(p.nome, () => { abreProjetos(); abreProjeto(p.id); });
+    grupo.slice(0,4).forEach(item);
+    const ver = document.createElement('button'); ver.className = 'grupo-todos'; ver.textContent = 'Ver todos';
+    ver.onclick = () => { abreProjetos(); abreProjeto(p.id); }; l.appendChild(ver);
   });
+  const soltas = recentes.filter(c => !c.fixada && (!c.projeto || !projetos.some(p => p.id === c.projeto)));
+  if(soltas.length){ titulo('Recentes'); soltas.forEach(item); }
+  if(!filtradas.length){ const v = document.createElement('div'); v.className = 'lado-vazio'; v.textContent = termo ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa ainda.'; l.appendChild(v); }
 }
 async function carregaLista(){
   try{ const j = await api({ acao:'chats' }); chats = j.chats; LS.set('chats', chats); desenhaLista(); status(true); }
@@ -718,7 +856,7 @@ async function abrir(id){
   try{
     const j = await api({ acao:'abrir', chatId: id });
     if(atual !== id) return;
-    // mantém fotos e passos que só existem neste aparelho
+    // mantém fotos, passos, opções e saídas que só existem neste aparelho
     const locais = mensagens;
     mensagens = j.mensagens.map((m, i) => Object.assign({}, locais[i] && locais[i].content === m.content ? locais[i] : {}, m));
     LS.set('msgs_' + id, mensagens);
@@ -746,7 +884,8 @@ function desenha(){
   t.innerHTML = '';
   const c = chats.find(x => x.id === atual);
   const pjAberto = projetos.find(p => p.id === ((c && c.projeto) || projAtual));
-  $('tituloTopo').textContent = c ? c.titulo : (pjAberto ? pjAberto.nome : 'ZicoAI');
+  $('tituloTopo').textContent = (pjAberto ? pjAberto.nome + ' / ' : '') + (c ? c.titulo : 'Nova conversa');
+  desenhaPainel();
   if(!mensagens.length){
     t.innerHTML = '<div class="boas">' + (pjAberto ? '<span class="proj">📁 ' + esc(pjAberto.nome) + '</span>' : '') + '<h2>E aí, Thiago</h2><p>Bora criar? App, jogo, imagem, ideia nova. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
       [['Criar app','Faz um jogo da cobrinha em 1 arquivo HTML, modo escuro, pra celular'],
@@ -801,6 +940,7 @@ function balao(m, ultima){
   md.innerHTML = renderMd(m.content);
   corpo.appendChild(md);
   trataImagens(corpo);
+  const cartao = cartaoOpcoes(m); if(cartao) corpo.appendChild(cartao);
   if(m._digitar){ delete m._digitar; digita(md); }
   if(ultima && !m.erro) setTimeout(() => md.querySelectorAll('.bloco').forEach(b => { if(b.querySelector('.testar')) autoTesta(b); }), 50);
 
@@ -1033,6 +1173,7 @@ function mostraTrabalhando(etapas, reqId){
           tit.appendChild(document.createTextNode(tituloResumo(j.passos)));
           card.appendChild(tit); card.appendChild(listaResumo(j.passos, true));
           corpo.innerHTML = ''; corpo.appendChild(card); rola();
+          mostraProgresso(j.passos, true);
           clearTimeout(tmr);
         }
       }catch(e){}
@@ -1042,6 +1183,7 @@ function mostraTrabalhando(etapas, reqId){
   }
   d.innerHTML = '<div class="ava"></div><div class="corpo"><ol>' + etapas.map(e => '<li>' + esc(e) + '</li>').join('') + '</ol></div>';
   $('trilho').appendChild(d); rola();
+  mostraProgresso([], true);
   const itens = d.querySelectorAll('li');
   let i = 0;
   itens[0].classList.add('agora');
@@ -1055,7 +1197,7 @@ function mostraTrabalhando(etapas, reqId){
       proximo();
     }, tempos[Math.min(i, tempos.length - 1)]);
   })();
-  return () => { parado = true; clearTimeout(tmr); clearTimeout(vivoTmr); d.remove(); };
+  return () => { parado = true; clearTimeout(tmr); clearTimeout(vivoTmr); d.remove(); mostraProgresso([], false); };
 }
 function etapasPara(texto, temFoto){
   const e = ['Lendo seu perfil e a memória'];
@@ -1145,7 +1287,7 @@ async function envia(refazendo){
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms, _digitar: true });
+    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
     status(true);
   }catch(e){
     para();
@@ -1311,6 +1453,9 @@ function mostraModelo(){
   document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
   const cap = CAPRICHO[cfg.capricho] || CAPRICHO.auto;
   $('txtCapricho').textContent = cap[0]; $('descCapricho').textContent = cap[1];
+  $('capAtalho').classList.toggle('on', cfg.capricho === 'sempre');
+  $('capAtalho').title = 'Capricho: ' + cap[0];
+  $('capAtalho').setAttribute('aria-label', 'Capricho: ' + cap[0]);
 }
 /* modo capricho: automático (só pergunta difícil) → sempre → nunca */
 const CAPRICHO = {
@@ -1668,6 +1813,140 @@ $('mArq').onchange = async e => {
   }catch(er){ $('mAviso').style.color = 'var(--erro)'; $('mAviso').textContent = er.message; }
 };
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) m.classList.remove('aberto'); }));
+
+
+/* ---------- opções estruturadas: só metadados locais, histórico enviado continua role/content ---------- */
+function rotuloLimpo(rotulo){ return String(rotulo || '').replace(/\s*\(recomendado\)\s*$/i, '').trim(); }
+function normalizaOpcoes(valor){
+  if(!valor || typeof valor.pergunta !== 'string' || !Array.isArray(valor.opcoes) || valor.opcoes.length < 2 || valor.opcoes.length > 4) return null;
+  if(!valor.opcoes.every(o => o && typeof o.rotulo === 'string' && rotuloLimpo(o.rotulo) && typeof o.descricao === 'string')) return null;
+  return { pergunta: valor.pergunta, opcoes: valor.opcoes.map(o => ({rotulo:o.rotulo, descricao:o.descricao})) };
+}
+function cartaoOpcoes(m){
+  const op = normalizaOpcoes(m.opcoes); if(!op || m.erro) return null;
+  const card = document.createElement('div'); card.className = 'opcoes-card';
+  const pergunta = document.createElement('strong'); pergunta.className = 'opcoes-pergunta'; pergunta.textContent = op.pergunta; card.appendChild(pergunta);
+  const travado = Number.isInteger(m.opcaoEscolhida);
+  op.opcoes.forEach((o,i) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'opcao' + (i === 0 ? ' recomendada' : '') + (m.opcaoEscolhida === i ? ' escolhida' : '');
+    b.disabled = travado || !!controle; b.setAttribute('aria-pressed',String(m.opcaoEscolhida === i));
+    const nome = document.createElement('strong'); nome.textContent = (m.opcaoEscolhida === i ? '✓ ' : '') + rotuloLimpo(o.rotulo); b.appendChild(nome);
+    if(i === 0){ const selo = document.createElement('span'); selo.className = 'selo'; selo.textContent = 'Recomendado'; nome.appendChild(selo); }
+    const desc = document.createElement('small'); desc.textContent = o.descricao; b.appendChild(desc);
+    b.onclick = () => {
+      if(controle || Number.isInteger(m.opcaoEscolhida)) return;
+      // Usa o mesmo envio, incluindo anexos, modo e modelo selecionados pelo usuário.
+      m.opcaoEscolhida = i; guarda(); $('txt').value = rotuloLimpo(o.rotulo); envia();
+    };
+    card.appendChild(b);
+  });
+  const outra = document.createElement('button'); outra.className = 'outra-opcao'; outra.textContent = 'Outra…'; outra.disabled = travado || !!controle;
+  outra.onclick = () => $('txt').focus(); card.appendChild(outra);
+  return card;
+}
+
+/* ---------- painel de contexto: dados observados em toda a conversa ---------- */
+let progressoAtual = [], progressoAtivo = false;
+function mostraProgresso(passos, ativo){
+  progressoAtual = Array.isArray(passos) ? passos : []; progressoAtivo = ativo;
+  const box = $('progressoPainel'); box.replaceChildren();
+  if(progressoAtual.length) box.appendChild(listaResumo(progressoAtual, ativo));
+  else { const p = document.createElement('p'); p.className = 'painel-vazio'; p.textContent = ativo ? 'Aguardando os passos do cérebro…' : 'Nenhuma resposta em andamento.'; box.appendChild(p); }
+}
+function urlSegura(valor){ try{ const u = new URL(valor); return /^https?:$/.test(u.protocol) ? u.href : ''; }catch(e){ return ''; } }
+function desenhaPainel(){
+  mostraProgresso(progressoAtual, progressoAtivo);
+  const usos = $('usosPainel'); usos.replaceChildren();
+  const grupos = [
+    ['🧠','Cérebros',/gemini|groq|mistral|nvidia|nemotron|gpt|claude|qwen|llama|c[eé]rebro|modelo/i],
+    ['🌐','Busca na web',/pesquis|\bweb\b|ler_pagina|leu a p[aá]gina|duckduckgo|bing/i],
+    ['📚','Aulas lidas',/📚\s*Aula/i],
+    ['🗂','Memória',/mem[oó]ria|perfil|aprendizad|lembran|base|exemplo/i],
+    ['🔗','Conectores',/agenda|gmail|e-?mail|drive|planilha|telegram/i],
+    ['📎','Fotos/arquivos enviados',/foto|print|arquivo|anexo/i],
+    ['💻','PC',/\bpc\b|computador|ponte|localhost|ollama/i],
+    ['✨','Modo capricho',/capricho|revis[aã]o|revisor|revisou/i]
+  ].map(([ic,nome,re]) => ({ic,nome,re,passos:[]}));
+  const outros = {ic:'⚙️',nome:'Outros passos',passos:[]};
+  function adiciona(p){
+    const x = lerPasso(p); // mesma interpretação usada em Como respondi e no progresso ao vivo
+    const texto = [p,x.nome,x.frase,x.texto].filter(Boolean).join(' ');
+    const destinos = grupos.filter(g => g.re.test(texto));
+    (destinos.length ? destinos : [outros]).forEach(g => g.passos.push(String(p)));
+  }
+  mensagens.forEach(m => {
+    if(m.role === 'assistant'){
+      (Array.isArray(m.passos) ? m.passos : []).forEach(adiciona);
+      if(m.cerebro) grupos[0].passos.push('Cérebro: ' + m.cerebro);
+    } else {
+      if(m.foto || /\[📷 foto enviada\]/.test(m.content)) grupos[5].passos.push('📷 Foto enviada nesta conversa');
+      const arq = m.content.match(/\[📄 arquivo: ([^\]]+)/); if(arq) grupos[5].passos.push('📄 Arquivo enviado: ' + arq[1]);
+    }
+  });
+  [...grupos,outros].filter(g => g.passos.length).forEach(g => {
+    const det = document.createElement('details'); det.className = 'uso';
+    const sum = document.createElement('summary');
+    const ic = document.createElement('span'); ic.textContent = g.ic; sum.appendChild(ic);
+    const tx = document.createElement('span'); tx.textContent = g.nome;
+    const sm = document.createElement('small');
+    const nomes = g.nome === 'Cérebros' ? [...new Set(g.passos.flatMap(p => p.match(/gemini|groq|mistral|nvidia|nemotron|gpt[\w.-]*|claude|qwen|llama/ig) || []))] : [];
+    sm.textContent = nomes.length ? nomes.join(', ') : g.passos.length + ' registro' + (g.passos.length === 1 ? '' : 's');
+    tx.appendChild(sm); sum.appendChild(tx); det.appendChild(sum); det.appendChild(listaResumo(g.passos)); usos.appendChild(det);
+  });
+  if(!usos.children.length) usos.innerHTML = '<p class="painel-vazio">Os recursos usados aparecem aqui depois das respostas.</p>';
+  const saidas = $('saidasPainel'); saidas.replaceChildren();
+  const links = new Set();
+  function linkApp(url){
+    url = urlSegura(url); if(!url || links.has(url)) return; links.add(url);
+    const card = document.createElement('div'); card.className = 'saida-card';
+    const t = document.createElement('strong'); t.textContent = '↗ App publicado'; card.appendChild(t);
+    const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = url; card.appendChild(a); saidas.appendChild(card);
+  }
+  mensagens.filter(m => m.role === 'assistant' && !m.erro).forEach(m => {
+    const texto = String(m.content || '');
+    for(const bloco of texto.matchAll(/\x60{3}html?[^\n]*\n([\s\S]*?)\x60{3}/gi)){
+      const card = document.createElement('div'); card.className = 'saida-card bloco';
+      const t = document.createElement('strong'); const titulo = bloco[1].match(/<title>([^<]+)<\/title>/i); t.textContent = '⌘ ' + (titulo ? titulo[1] : 'App HTML'); card.appendChild(t);
+      const acts = document.createElement('div'); acts.className = 'acts';
+      acts.innerHTML = '<button class="testar">▶ Testar</button><button class="testar publicar">⬆ Publicar</button>';
+      card.appendChild(acts); const pre = document.createElement('pre'); pre.textContent = bloco[1]; card.appendChild(pre); saidas.appendChild(card);
+    }
+    const semCodigo = texto.replace(/\x60{3}[\s\S]*?\x60{3}/g,'');
+    for(const foto of semCodigo.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g)){
+      const url = urlSegura(foto[2]); if(!url) continue;
+      const card = document.createElement('div'); card.className = 'saida-card';
+      const img = document.createElement('img'); img.src = url; img.alt = foto[1] || 'Imagem da conversa'; img.loading = 'lazy'; card.appendChild(img);
+      const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Abrir imagem'; card.appendChild(a); saidas.appendChild(card);
+    }
+    (m.appsPublicados || []).forEach(linkApp);
+    for(const link of semCodigo.matchAll(/https?:\/\/[^\s<>"')\]]+/g)){
+      try{ const u = new URL(link[0]); if(/\/apps\//i.test(u.pathname)) linkApp(u.href); }catch(e){}
+    }
+    (m.passos || []).forEach(p => { const x = lerPasso(p); if(x.nome === 'publicar_app' && x.res) (x.res.match(/https?:\/\/[^\s<>"')\]]+/g) || []).forEach(linkApp); });
+  });
+  if(!saidas.children.length) saidas.innerHTML = '<p class="painel-vazio">Apps HTML, imagens e links publicados ficam aqui.</p>';
+}
+function sincronizaPainel(){
+  const aberto = matchMedia('(min-width:1200px)').matches ? !document.body.classList.contains('painel-fechado') : document.body.classList.contains('painel-aberto');
+  $('bPainel').setAttribute('aria-expanded',String(aberto));
+  $('bPainel').setAttribute('aria-label',(aberto ? 'Fechar' : 'Abrir') + ' painel da conversa');
+  $('painelDireito').inert = !aberto;
+}
+function fechaPainel(){ document.body.classList.remove('painel-aberto'); document.body.classList.add('painel-fechado'); sincronizaPainel(); $('bPainel').focus(); }
+$('bPainel').onclick = () => { document.body.classList.toggle(matchMedia('(min-width:1200px)').matches ? 'painel-fechado' : 'painel-aberto'); sincronizaPainel(); };
+$('fecharPainel').onclick = fechaPainel; $('veuPainel').onclick = fechaPainel;
+matchMedia('(min-width:1200px)').addEventListener('change', () => { document.body.classList.remove('painel-aberto'); sincronizaPainel(); });
+$('bProcurar').onclick = () => { const b = $('buscaConversas'); b.hidden = !b.hidden; $('bProcurar').setAttribute('aria-expanded',String(!b.hidden)); if(!b.hidden) b.focus(); else { b.value = ''; desenhaLista(); } };
+$('buscaConversas').oninput = desenhaLista;
+$('tituloTopo').onclick = e => $('bConv').onclick(e);
+function fechaAnexar(){ $('menuAnexar').classList.remove('aberto'); $('bAnexar').setAttribute('aria-expanded','false'); }
+$('bAnexar').onclick = () => { const aberto = $('menuAnexar').classList.toggle('aberto'); $('bAnexar').setAttribute('aria-expanded',String(aberto)); };
+$('menuAnexar').addEventListener('click',e => { if(e.target.closest('button')) fechaAnexar(); });
+document.addEventListener('click', e => { if(!e.target.closest('.anexar-wrap')) fechaAnexar(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fechaAnexar(); fechaMenuConv(); $('menuModelo').classList.remove('aberto'); if(document.body.classList.contains('painel-aberto')) fechaPainel(); fechaLado(); } });
+$('capAtalho').onclick = e => $('bCapricho').onclick(e);
+sincronizaPainel();
 
 /* ---------- início ---------- */
 // link de instalação: ...zicoai/#script=URL_DO_SCRIPT (preenche o link sozinho, só falta o PIN)
