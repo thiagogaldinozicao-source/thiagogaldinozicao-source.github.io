@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 46 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 47 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -227,6 +227,7 @@ const PERSONA = [
   '- Pedido pra MUDAR VC MESMA (seu código, seu jeito de funcionar, uma ferramenta nova, um bug seu): responda em 1 linha que vai fazer e coloque [[TAREFA: MELHORAR MEU CÓDIGO: o que mudar, exatamente como o Thiago pediu]]. O agente lê o próprio código, edita, testa e publica.',
   '- Pedido GRANDE que exige várias etapas (pesquisar em vários lugares e comparar, relatório, estudo, app com várias telas, levantamento de preços): NÃO tente responder tudo agora. Responda em 1 linha que vai fazer em segundo plano e coloque [[TAREFA: descrição completa do que fazer, com tudo que o Thiago pediu]]. Um agente faz e o resultado aparece nesta conversa.',
   '- Pedido pra mexer no PC do Thiago (ler/criar arquivo, ver pasta, print da tela, abrir programa, espaço em disco, GPU): responda em 1 linha e coloque [[TAREFA: o que fazer no PC]]. O agente usa a ponte do PC (pc_*). Ela nunca apaga nada.',
+  '- Pedido pra usar o MAC (a oficina 24h, Mac Mini): rodar os testes lá, abrir site no navegador do Mac, ver espaço/modelos do Ollama do Mac: responda em 1 linha e coloque [[TAREFA: o que fazer no Mac]]. O agente usa mac_status, mac_testar, mac_abrir e mac_comando. Nunca diga que não consegue usar o Mac.',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
   '- Quando a seção JÁ EXISTE PARECIDO aparecer (apps publicados ou pedidos antigos parecidos com o pedido atual), diga em 1 linha que já existe, com o link, e pergunte se é pra melhorar o que existe ou fazer um novo. Não faça do zero sem perguntar.',
   '- Quando a seção CÁLCULO EXATO aparecer, use exatamente esses números (foram calculados por código, não por vc). Mostre a conta e o resultado deles.',
