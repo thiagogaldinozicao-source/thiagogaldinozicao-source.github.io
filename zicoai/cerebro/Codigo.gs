@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 55 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 56 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -1426,7 +1426,15 @@ function testarNavegadorMac() {
 }
 /** Depois da resposta de código: aplica a edição (se for app existente), testa, e se quebrou manda consertar (até 2 vezes). */
 function programadora(resultado, codigoApp, pergunta) {
-  const texto = String(resultado.texto || '');
+  // "✅ Testado" escrito pelo próprio cérebro não vale: quem diz se testou é o selo do teste
+  let texto = String(resultado.texto || '').replace(/^[^\n]*✅\s*Testad[^\n]*\n?/gmi, '');
+  // resposta cortada no limite de saída (```html aberto e nunca fechado): pede a continuação e cola
+  const abre = texto.search(/```html[^\n]*\n/i);
+  if (abre >= 0 && !/```html[^\n]*\n[\s\S]*?```/i.test(texto)) {
+    const parcial = texto.slice(abre).replace(/^```html[^\n]*\n/i, '');
+    const inteiro = continuarCortado(parcial, pergunta);
+    if (inteiro) texto = texto.slice(0, abre) + '```html\n' + inteiro + '\n```';
+  }
   let html = '', explicacao = texto;
   if (codigoApp) {
     let ed = aplicarTrechos(codigoApp, texto);
@@ -1467,6 +1475,20 @@ function programadora(resultado, codigoApp, pergunta) {
   const corpo = veioPorTrechos ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
     : (voltas ? texto.replace(/```html[^\n]*\n[\s\S]*?```/i, () => '```html\n' + html + '\n```') : texto);
   return Object.assign({}, resultado, { texto: corpo + selo, testado: !teste.erros.length });
+}
+/** O arquivo veio cortado no meio (limite de saída do cérebro): pede só o resto, até 2 vezes, e cola. */
+function continuarCortado(parcial, pergunta) {
+  let t = String(parcial);
+  for (let i = 0; i < 2 && !/<\/html>\s*$/i.test(t.trim()); i++) {
+    passo('O arquivo veio cortado no meio (limite do cérebro): pediu a continuação (' + (i + 1) + '/2)');
+    const msg = 'PEDIDO DO THIAGO:\n' + String(pergunta).slice(0, 2000) + '\n\nVocê estava escrevendo um arquivo HTML e a resposta foi CORTADA no limite. Este é o FIM do que já saiu:\n<<<\n' + t.slice(-3000) + '\n>>>\n\nContinue EXATAMENTE da próxima letra depois do fim acima, sem repetir nada, sem explicação e sem ``` : só o código que falta até </html>.';
+    const r = conversar([{ role: 'user', content: msg }], 'continuar código: ' + String(pergunta).slice(0, 200), null, 'auto', '', true);
+    if (!r || !r.ok) break;
+    const resto = String(r.texto || '').replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/, '');
+    if (!resto.trim()) break;
+    t += resto;
+  }
+  return /<\/html>\s*$/i.test(t.trim()) ? t.trim() : null;
 }
 /** Pede o conserto com o código + os erros, em blocos de edição. Cérebro forte primeiro. */
 function consertarCodigo(codigo, problemas, pergunta, respostaAnterior) {
@@ -3314,7 +3336,30 @@ function dispositivos() {
     try { const s = ponte('status', null, null, 'mac'); out.push({ nome: 'Oficina (Mac)', ok: true, detalhe: s.nome + ' · ' + (s.disco || '') }); }
     catch (e) { out.push({ nome: 'Oficina (Mac)', ok: false, detalhe: String(e.message || e).slice(0, 80) }); }
   }
-  return { ok: true, dispositivos: out, pc: 'DESKTOP-UL41KIJ' };
+  let aparelhos = [];
+  try { aparelhos = aparelhosDaPonte(out); } catch (e) { /* tela antiga continua com "dispositivos" */ }
+  return { ok: true, dispositivos: out, pc: 'DESKTOP-UL41KIJ', aparelhos: aparelhos };
+}
+/** Um cartão por aparelho (igual a tela Dispositivos do Claude): conectado agora? visto quando? o que ele faz pra ela. */
+function aparelhosDaPonte(out) {
+  const c = CacheService.getScriptCache(), lista = [];
+  if (prop('PONTE_SEGREDO_MAC')) {
+    const v = ponteVisto('mac'), ok = v >= 0 && v < 90000;
+    const mac = { nome: c.get('ponte_nome_mac') || 'Mac mini', plataforma: 'macOS · oficina 24h', ok: ok, vistoMs: v, servicos: [{ nome: 'Ponte', ok: ok, detalhe: c.get('ponte_versao_mac') || '' }] };
+    if (ok) {
+      try {
+        const r = ponte('comando', { nome: 'ollama_modelos' }, 20000, 'mac');
+        const ms = String(r.saida || '').split('\n').slice(1).map(l => l.trim().split(/\s+/)[0]).filter(Boolean);
+        mac.servicos.push({ nome: 'Cérebro do Mac (Ollama)', ok: ms.length > 0, detalhe: ms.slice(0, 3).join(', ') || 'sem modelo' });
+      } catch (e) { mac.servicos.push({ nome: 'Cérebro do Mac (Ollama)', ok: false, detalhe: String(e.message || e).slice(0, 60) }); }
+    }
+    mac.servicos.push({ nome: 'Testa apps no navegador', ok: ok, detalhe: 'Chromium, tela de celular' }, { nome: 'Estudo 24h', ok: ok, detalhe: 'a cada 30 min' });
+    lista.push(mac);
+  }
+  const vp = ponteVisto('pc');
+  const servPc = (out || []).filter(d => !/Mac/.test(d.nome)).map(d => ({ nome: d.nome, ok: d.ok, detalhe: d.detalhe }));
+  lista.push({ nome: c.get('ponte_nome') || 'DESKTOP-UL41KIJ', plataforma: 'Windows · PC de casa', ok: (vp >= 0 && vp < 90000) || servPc.some(x => x.ok), vistoMs: vp, servicos: servPc });
+  return lista;
 }
 
 /* ============================================================

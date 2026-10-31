@@ -454,6 +454,25 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 
 
+/* Ícones SVG (v28) */
+.ico{display:inline-block;flex:none;vertical-align:middle}
+.btn-ic .ico,.chip-ic .ico{width:22px;height:22px}
+.nav-lado button,.lado-top .novo,.lado-top .procurar,.lado-pe>button,.menu button{display:flex;align-items:center;gap:10px}
+.acoes-msg button{display:inline-flex;align-items:center;gap:5px}
+#bEnviar{display:inline-flex;align-items:center;justify-content:center}
+#capAtalho{display:inline-flex;align-items:center;justify-content:center;color:var(--ouro)}
+.aparelho{border:1px solid var(--borda2);border-radius:14px;padding:12px;margin-bottom:10px;background:var(--card)}
+.ap-cab{display:flex;gap:12px;align-items:center}
+.ap-cab b{display:block;font-size:15px}
+.ap-cab small{display:flex;align-items:center;gap:6px;color:var(--cinza);font-size:13px}
+.ap-cab small i,.ap-serv i{width:8px;height:8px;border-radius:50%;background:var(--cinza);flex:none}
+.aparelho.ok .ap-cab small i,.ap-serv.ok i{background:#3fb950}
+.ap-serv{display:flex;align-items:center;gap:8px;margin:8px 0 0 34px;font-size:13px}
+.ap-serv small{color:var(--cinza);margin-left:auto;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
+.arq{display:flex;align-items:center;gap:12px;width:100%;padding:12px;margin-bottom:8px;border:1px solid var(--borda2);border-radius:14px;background:var(--card);color:var(--txt);text-align:left;cursor:pointer}
+.arq-ic{width:42px;height:42px;border-radius:10px;background:var(--fundo,#0b0b0b);display:flex;align-items:center;justify-content:center;color:var(--ouro);flex:none}
+.arq-tx{flex:1;min-width:0}.arq-tx b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.arq-tx small{color:var(--cinza)}
+
 /* Detalhes compartilhados pelo chat, progresso e agentes. */
 .detalhes-passos{min-width:0;max-width:100%;padding-inline-start:0!important;border:0!important}
 .detalhes-passos>li{display:block!important;min-width:0;max-width:100%;padding:.25rem 0!important}
@@ -490,6 +509,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
       <button id="bTarefas2">⧉ Tarefas <span class="status" id="badgeTarefas" style="margin-left:auto"><span></span></span></button>
       <button id="bMem">🧠 Memória</button>
       <button id="bTreino">📈 Treino</button>
+      <button id="bArquivos">Arquivos</button>
       <button id="bDisp">💻 Dispositivos</button>
     </nav>
   </div>
@@ -563,7 +583,9 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 </aside>
 
 <div class="menu menu-topo" id="menuConv">
-  <button id="mcFixar">📌 <span>Fixar</span></button>
+  <button id="mcNova">Nova conversa</button>
+  <hr>
+  <button id="mcFixar"><span>Fixar</span></button>
   <hr>
   <button id="mcCompartilhar">⇪ Compartilhar</button>
   <button id="mcRenomear">✎ Renomear</button>
@@ -589,11 +611,18 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   </div>
 </div>
 
+<div class="modal" id="mArquivos">
+  <div class="painel">
+    <h3>Arquivos</h3>
+    <div id="aqLista"></div>
+    <div class="linha-btn"><button class="btn cinza" id="aqFechar">Fechar</button><button class="btn ouro" id="aqTodos">Baixar todos</button></div>
+  </div>
+</div>
 <div class="modal" id="mDisp">
   <div class="painel">
     <h3>Dispositivos</h3>
-    <div id="dLista"><p class="aviso">Conferindo o PC...</p></div>
-    <p class="aviso">A ponte deixa a ZicoAI ler e criar arquivos nas pastas liberadas, tirar print da tela e abrir programas no PC. Ela nunca apaga nada.</p>
+    <div id="dLista"><p class="aviso">Conferindo...</p></div>
+    <p class="aviso">Pela ponte ela lê e cria arquivos nas pastas liberadas, testa apps no navegador e usa o cérebro do aparelho. Nunca apaga nada.</p>
     <div class="linha-btn"><button class="btn cinza" id="dFechar">Fechar</button><button class="btn ouro" id="dAtualizar">Atualizar</button></div>
   </div>
 </div>
@@ -964,6 +993,55 @@ function resumoNoTopo(){
   b.textContent = ult.querySelector('summary').textContent + ' ›'; b.hidden = false;
   b.onclick = () => { ult.open = true; ult.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
 }
+/* ---------- ícones de linha (estilo do app do Claude), um SVG só pra cada coisa ---------- */
+const ICO = {
+  menu:'<path d="M4 6h16M4 12h10M4 18h13"/>',
+  mais:'<circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/>',
+  novo:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  painel:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16"/>',
+  tarefas:'<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/>',
+  enviar:'<path d="M12 19V5M6 11l6-6 6 6"/>',
+  parar:'<rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/>',
+  brilho:'<path d="M12 3.5 13.8 9 19.5 11 13.8 13 12 18.5 10.2 13 4.5 11 10.2 9Z"/><path d="M19 3v4M17 5h4"/>',
+  copiar:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>',
+  refazer:'<path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5"/><path d="M20 3.5v5h-5"/>',
+  ouvir:'<path d="M11 5 6.5 9H3v6h3.5L11 19Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+  joia:'<path d="M7 10v11H4V10Z"/><path d="M7 10l4-7a2 2 0 0 1 3 2l-1 5h5.5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.3 21H7"/>',
+  ruim:'<path d="M17 14V3h3v11Z"/><path d="M17 14l-4 7a2 2 0 0 1-3-2l1-5H5.5a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 6.7 3H17"/>',
+  fixar:'<path d="M12 17v4"/><path d="M8 3h8l-1 6 3 3v2H6v-2l3-3Z"/>',
+  compartilhar:'<path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>',
+  lapis:'<path d="M15.5 4.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/><path d="M13.5 6.5l3 3"/>',
+  projeto:'<path d="M5 4h14M4 7.5h16"/><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2Z"/>',
+  lixo:'<path d="M4 7h16M9 7V4.5h6V7M18 7l-.8 12a2 2 0 0 1-2 2H8.8a2 2 0 0 1-2-2L6 7M10 11v6M14 11v6"/>',
+  buscar:'<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+  apps:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  memoria:'<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>',
+  treino:'<path d="M4 19h16"/><path d="M6 15l4-4 3 3 5-6"/><path d="M15 8h3v3"/>',
+  computador:'<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2.5 19.5h19"/>',
+  config:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  clipe:'<path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.3 3.3 0 0 1 4.7 4.7L9.2 17.2a1.7 1.7 0 0 1-2.4-2.4L14.5 7"/>',
+  web:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  imagem:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5L6 19.5"/>',
+  agente:'<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01"/>',
+  arquivos:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  baixar:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  fechar:'<path d="M6 6l12 12M18 6 6 18"/>'
+};
+function ico(nome, tam){ return '<svg class="ico" width="' + (tam || 20) + '" height="' + (tam || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICO[nome] || '') + '</svg>'; }
+/** Troca os ícones de texto/emoji da tela pelos SVG (o texto do botão fica). */
+function aplicaIcones(){
+  const com = (id, nome, texto) => { const b = $(id); if(b) b.innerHTML = ico(nome) + (texto ? '<span>' + texto + '</span>' : ''); };
+  com('bMenu','menu'); com('bConv','mais'); com('bTarefas','tarefas'); com('bNovo2','novo'); com('bPainel','painel');
+  com('bNovo','novo','Nova conversa'); com('bProcurar','buscar','Procurar');
+  com('bProj','projeto','Projetos'); com('bApps','apps','Meus apps'); com('bMem','memoria','Memória'); com('bTreino','treino','Treino'); com('bDisp','computador','Dispositivos'); com('bArquivos','arquivos','Arquivos'); com('bCfg','config','Configurar');
+  const t2 = $('bTarefas2'); if(t2){ const badge = t2.querySelector('.status'); t2.innerHTML = ico('tarefas') + '<span>Tarefas</span>'; if(badge) t2.appendChild(badge); }
+  com('bAnexar','plus'); com('bFoto','clipe','Foto ou arquivo'); com('cWeb','web','Pesquisar'); com('cImg','imagem','Imagem'); com('cAgente','agente','Agente');
+  com('capAtalho','brilho'); com('bMic','mic'); com('bEnviar','enviar');
+  com('mcNova','novo','Nova conversa'); com('mcCompartilhar','compartilhar','Compartilhar'); com('mcRenomear','lapis','Renomear'); com('mcProjeto','projeto','Mudar projeto'); com('mcExcluir','lixo','Excluir');
+  const f = $('mcFixar'); if(f){ const sp = f.querySelector('span'); f.innerHTML = ico('fixar'); f.appendChild(sp || Object.assign(document.createElement('span'), { textContent: 'Fixar' })); }
+}
 const MARCA_DOC = '\n\n[📄 arquivo: ';
 function balao(m, ultima){
   if(m.role === 'user'){
@@ -982,7 +1060,7 @@ function balao(m, ultima){
     d.appendChild(document.createTextNode(txt));
     w.appendChild(d);
     const ac = document.createElement('div'); ac.className = 'acoes-eu';
-    const bc = document.createElement('button'); bc.textContent = '⧉ Copiar'; bc.onclick = () => copiar(m.content, bc);
+    const bc = document.createElement('button'); bc.innerHTML = ico('copiar', 16) + '<span>Copiar</span>'; bc.onclick = () => copiar(m.content, bc);
     const be = document.createElement('button'); be.textContent = '✎ Editar'; be.onclick = () => editarMensagem(m, d, w);
     ac.appendChild(bc); if(!m.foto) ac.appendChild(be);
     w.appendChild(ac);
@@ -1013,23 +1091,23 @@ function balao(m, ultima){
   const ac = document.createElement('div');
   ac.className = 'acoes-msg';
   if(!m.erro){
-    const bc = document.createElement('button'); bc.innerHTML = '⧉ Copiar';
+    const bc = document.createElement('button'); bc.innerHTML = ico('copiar', 17) + '<span>Copiar</span>'; bc.setAttribute('aria-label', 'Copiar');
     bc.onclick = () => copiar(m.content.replace(/\n\n\*\*Fontes:\*\*[\s\S]*$/, ''), bc);
     ac.appendChild(bc);
   }
   if(ultima){
-    const br = document.createElement('button'); br.innerHTML = '↻ Refazer';
+    const br = document.createElement('button'); br.innerHTML = ico('refazer', 17) + '<span>Refazer</span>';
     br.onclick = () => refazer();
     ac.appendChild(br);
   }
   if(!m.erro && 'speechSynthesis' in window){
-    const bf = document.createElement('button'); bf.innerHTML = '🔊'; bf.title = 'Ouvir';
+    const bf = document.createElement('button'); bf.innerHTML = ico('ouvir', 17); bf.title = 'Ouvir'; bf.setAttribute('aria-label', 'Ouvir');
     bf.onclick = () => falar(m.content, bf);
     ac.appendChild(bf);
   }
   if(!m.erro){
-    const up = document.createElement('button'); up.innerHTML = '👍'; up.title = 'Boa resposta';
-    const down = document.createElement('button'); down.innerHTML = '👎'; down.title = 'Resposta ruim (me fala o porquê)';
+    const up = document.createElement('button'); up.innerHTML = ico('joia', 17); up.title = 'Boa resposta'; up.setAttribute('aria-label', 'Boa resposta');
+    const down = document.createElement('button'); down.innerHTML = ico('ruim', 17); down.title = 'Resposta ruim (me fala o porquê)'; down.setAttribute('aria-label', 'Resposta ruim');
     if(m.fb === 'up') up.classList.add('on'); if(m.fb === 'down') down.classList.add('on');
     const caixa = document.createElement('div'); caixa.className = 'fb-caixa';
     caixa.innerHTML = '<textarea placeholder="O que ela errou? Isso vira aprendizado e ela não repete."></textarea><button>Enviar</button>';
@@ -1609,8 +1687,8 @@ function refazer(){
 }
 function modoEnviando(sim){
   const b = $('bEnviar');
-  if(sim){ controle = new AbortController(); b.classList.add('parar'); b.innerHTML = '<span></span>'; b.setAttribute('aria-label','Parar'); }
-  else { controle = null; b.classList.remove('parar'); b.textContent = '➤'; b.setAttribute('aria-label','Enviar'); }
+  if(sim){ controle = new AbortController(); b.classList.add('parar'); b.innerHTML = ico('parar', 18); b.setAttribute('aria-label','Parar'); }
+  else { controle = null; b.classList.remove('parar'); b.innerHTML = ico('enviar', 20); b.setAttribute('aria-label','Enviar'); }
 }
 $('bEnviar').onclick = () => { if(controle) controle.abort(); else envia(); };
 function guarda(){
@@ -1728,6 +1806,7 @@ async function metaConversa(campos){
   LS.set('chats', chats); desenhaLista(); desenha();
   try{ await api(Object.assign({ acao:'chatMeta', chatId: atual }, campos)); }catch(e){ alert('Não salvou: ' + e.message); }
 }
+$('mcNova').onclick = () => { fechaMenuConv(); novaConversa(); };
 $('mcFixar').onclick = () => { fechaMenuConv(); const c = chats.find(x => x.id === atual); if(c) metaConversa({ fixada: !c.fixada }); };
 $('mcRenomear').onclick = () => {
   fechaMenuConv();
@@ -1893,11 +1972,57 @@ async function abreDispositivos(){
   $('dLista').innerHTML = '<p class="aviso">Conferindo o PC...</p>';
   try{
     const j = await api({ acao:'dispositivos' });
-    $('dLista').innerHTML = '<div class="sec">💻 ' + esc(j.pc || 'PC de casa') + '</div>' + j.dispositivos.map(d =>
-      '<div class="disp' + (d.ok ? ' ok' : '') + '"><i></i><div><b>' + esc(d.nome) + '</b><small>' + (d.ok ? 'Conectado' : 'Desconectado') + (d.detalhe ? ' · ' + esc(d.detalhe) : '') + '</small></div></div>').join('');
+    const quando = ms => ms < 0 ? 'nunca conectou' : ms < 90000 ? 'agora' : 'há ' + (ms < 3600000 ? Math.round(ms / 60000) + ' min' : Math.round(ms / 3600000) + ' h');
+    if(Array.isArray(j.aparelhos)){
+      $('dLista').innerHTML = j.aparelhos.map(a =>
+        '<div class="aparelho' + (a.ok ? ' ok' : '') + '"><div class="ap-cab">' + ico('computador', 22) + '<div><b>' + esc(a.nome) + '</b><small><i></i>' + (a.ok ? 'Conectado' : 'Desligado · visto ' + quando(a.vistoMs)) + ' · ' + esc(a.plataforma || '') + '</small></div></div>' +
+        (a.servicos || []).map(sv => '<div class="ap-serv' + (sv.ok ? ' ok' : '') + '"><i></i><span>' + esc(sv.nome) + '</span><small>' + esc(sv.detalhe || '') + '</small></div>').join('') + '</div>').join('');
+    } else {
+      $('dLista').innerHTML = '<div class="sec">' + esc(j.pc || 'PC de casa') + '</div>' + j.dispositivos.map(d =>
+        '<div class="disp' + (d.ok ? ' ok' : '') + '"><i></i><div><b>' + esc(d.nome) + '</b><small>' + (d.ok ? 'Conectado' : 'Desconectado') + (d.detalhe ? ' · ' + esc(d.detalhe) : '') + '</small></div></div>').join('');
+    }
   }catch(e){ $('dLista').innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
 }
 $('bDisp').onclick = abreDispositivos;
+
+/* ---------- arquivos da conversa (apps HTML e imagens), igual a folha "Arquivos" do Claude ---------- */
+function arquivosDaConversa(){
+  const lista = []; let n = 0;
+  mensagens.filter(m => m.role === 'assistant' && !m.erro).forEach(m => {
+    [...String(m.content || '').matchAll(/```html[^\n]*\n([\s\S]*?)```/gi)].forEach(b => {
+      const tit = (b[1].match(/<title>([^<]{1,60})<\/title>/i) || [])[1] || ('app-' + (++n));
+      lista.push({ tipo: 'html', nome: tit.trim(), conteudo: b[1] });
+    });
+    [...String(m.content || '').matchAll(/!\[[^\]]*\]\((https?:[^)\s]+)\)/g)].forEach(b => lista.push({ tipo: 'imagem', nome: 'Imagem ' + (++n), url: b[1] }));
+  });
+  // o mesmo app mandado várias vezes: fica só a última versão
+  const vistos = {}; return lista.reverse().filter(a => { const k = a.tipo + ':' + a.nome; if(vistos[k]) return false; vistos[k] = 1; return true; });
+}
+function baixarArquivo(a){
+  if(a.tipo === 'imagem'){ window.open(a.url, '_blank', 'noopener'); return; }
+  const nome = a.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
+  const url = URL.createObjectURL(new Blob([a.conteudo], { type: 'text/html' }));
+  const l = document.createElement('a'); l.href = url; l.download = nome + '.html'; document.body.appendChild(l); l.click(); l.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+function abreArquivos(){
+  fechaLado();
+  const arqs = arquivosDaConversa();
+  $('aqLista').innerHTML = '';
+  if(!arqs.length) $('aqLista').innerHTML = '<p class="aviso">Nada ainda nesta conversa. Apps HTML e imagens que ela fizer aparecem aqui.</p>';
+  arqs.forEach(a => {
+    const b = document.createElement('button'); b.className = 'arq';
+    b.innerHTML = '<span class="arq-ic">' + ico(a.tipo === 'html' ? 'arquivos' : 'imagem', 22) + '</span><span class="arq-tx"><b></b><small>' + (a.tipo === 'html' ? 'App · HTML' : 'Imagem') + '</small></span>' + ico('baixar', 18);
+    b.querySelector('b').textContent = a.nome;
+    b.onclick = () => baixarArquivo(a);
+    $('aqLista').appendChild(b);
+  });
+  $('aqTodos').style.display = arqs.length > 1 ? '' : 'none';
+  $('aqTodos').onclick = () => arqs.forEach((a, i) => setTimeout(() => baixarArquivo(a), i * 400));
+  $('mArquivos').classList.add('aberto');
+}
+$('bArquivos').onclick = abreArquivos;
+$('aqFechar').onclick = () => $('mArquivos').classList.remove('aberto');
 $('dAtualizar').onclick = abreDispositivos;
 $('dFechar').onclick = () => $('mDisp').classList.remove('aberto');
 
@@ -2157,6 +2282,8 @@ desenha();
 if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); setTimeout(() => carregaProjetos().then(desenhaLista), 1200); }
 else setTimeout(() => $('bCfg').onclick(), 300);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+try{ aplicaIcones(); }catch(e){}
 </script>
 </body>
 </html>

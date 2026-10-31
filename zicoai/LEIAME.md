@@ -155,6 +155,14 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v56 (31/10): arquivo cortado continuado, botão sem toque é erro, app com ícones e Dispositivos/Arquivos igual Claude
+- `continuarCortado`: resposta com ```html aberto e nunca fechado (limite de saída; foi a calculadora 3D de 31/10 que veio cortada) → pede só o resto, até 2x, e cola até </html>; depois testa.
+- "✅ Testado…" escrito pelo próprio cérebro é apagado; só vale o selo do teste.
+- Mac (`testar-html.js`): clica em até 12 botões; botão que não aceita toque (algo por cima/travado) vira erro ("ela não clica").
+- `dispositivos()` devolve também `aparelhos`: um cartão por aparelho (Mac e PC) com conectado/visto há X, plataforma e serviços (ponte e versão, Ollama e modelos, teste de apps, estudo).
+- App v28: ícones SVG de linha em tudo (topo, menu lateral, composer, ações da resposta, menu da conversa), menu da conversa igual o do Claude (Nova conversa, Fixar, Compartilhar, Renomear, Mudar projeto, Excluir), tela Dispositivos em cartões, tela Arquivos (apps e imagens da conversa, baixar um ou todos).
+- Testes t1–t41. 
+
 ## v55 (31/10): consertos do 1º uso real da programadora
 - Mac: `testar-html.js` acha o Playwright em `~/ZicoAI/oficina/node_modules` (no 1º uso deu "Playwright não encontrado" e ela só conferiu a sintaxe). `testarNavegadorMac()` pelo editor confere.
 - "faz uma calculadora … com botão" é app NOVO (não edição da anterior); resposta que veio com o arquivo inteiro (sem trechos) não sai com o html duplicado.
