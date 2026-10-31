@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 44 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 45 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -296,6 +296,7 @@ function doPost(e) {
       case 'chat':          { REQ_VIVO = String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40); const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
       case 'transcrever':   return saida(transcrever(req.audio, req.tipo));
+      case 'texto':         return saida(textoRapido(req));
       case 'aprenderTexto': return saida(aprenderTexto(req.texto, req.nome, aparelho));
       case 'tarefa':        return saida(criarTarefa(String(req.pedido || ''), req.chatId, aparelho));
       case 'apps':          return saida({ ok: true, apps: listarApps() });
@@ -985,6 +986,40 @@ const PROMPT_REVISOR_RESPOSTA = [
   'Se tiver problema, responda SÓ a versão final corrigida e COMPLETA (o Thiago vai ler direto, sem saber que houve revisão; mantenha as linhas especiais [[...]] do rascunho).'
 ].join('\n');
 /** Outro cérebro (de preferência de outra empresa) revisa o rascunho e devolve OK ou a versão corrigida. */
+/** Corrigir/reescrever um texto com um clique (caixa de mensagem ou resposta). Cérebro rápido, temperatura baixa, devolve SÓ o texto.
+ *  modo: corrigir | reescrever; estilo (reescrever): cliente | curto | formal | claro */
+const ESTILOS_TEXTO = {
+  cliente: 'Reescreva como mensagem do Thiago pra cliente da loja no WhatsApp: informal, "vc", simpático, direto, acentuação certa, no máximo 2 emojis. Não invente preço, prazo, garantia nem nenhuma informação que não está no texto.',
+  curto: 'Reescreva mais curto e direto, mantendo todas as informações e o tom.',
+  formal: 'Reescreva num tom educado e profissional, sem gíria, mantendo todas as informações.',
+  claro: 'Reescreva mais claro e organizado, frases curtas, mantendo todas as informações e o tom.'
+};
+function textoRapido(req) {
+  const texto = String(req.texto || '').trim();
+  if (!texto) return { ok: false, erro: 'Sem texto' };
+  if (texto.length > 6000) return { ok: false, erro: 'Texto grande demais (máx. 6000 letras)' };
+  const modo = req.modo === 'reescrever' ? 'reescrever' : 'corrigir';
+  const estilo = ESTILOS_TEXTO[req.estilo] ? req.estilo : 'claro';
+  const sistema = modo === 'corrigir'
+    ? 'Corrija só ortografia, acentuação, pontuação e letra trocada do texto em português do Brasil. Mantenha as mesmas palavras, a ordem, as gírias e abreviações de propósito ("vc", "kkk", "pq", "blz"), os emojis, os números e o sentido. Não acrescente nada. Devolva SÓ o texto corrigido, sem aspas e sem comentário.'
+    : ESTILOS_TEXTO[estilo] + ' Devolva SÓ o texto reescrito, sem aspas e sem comentário.';
+  const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: texto }];
+  const tk = estimarTokens(JSON.stringify(msgs)), saidaMax = Math.min(2000, estimarTokens(texto) * 2 + 200);
+  for (const nome of ['groq', 'gemini', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
+    const c = CEREBROS[nome];
+    if (!temCerebro(nome) || tk + saidaMax > c.limite || motivoNaoCabe(nome, c, tk + saidaMax)) continue;
+    try {
+      const r = String(chamarCompat(c, msgs, saidaMax, Object.assign({ temperature: modo === 'corrigir' ? 0 : 0.4 }, /gpt-oss/.test(c.modelo) ? { reasoning_effort: 'low' } : {})) || '').trim().replace(/^["“](.*)["”]$/s, '$1');
+      registrarUso(nome, tk + estimarTokens(r));
+      if (!r) continue;
+      // corrigir não pode virar outro texto: se mudou demais, é sinal de que o cérebro reescreveu
+      if (modo === 'corrigir' && Math.abs(r.length - texto.length) > Math.max(25, texto.length * 0.35)) continue;
+      return { ok: true, texto: r, modo: modo, estilo: modo === 'reescrever' ? estilo : undefined, cerebro: c.nome };
+    } catch (e) { if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); else if (/\b429\b/.test(e.message)) castigo(nome, e.message); }
+  }
+  return { ok: false, erro: 'Nenhum cérebro livre agora, tenta de novo em 1 minuto' };
+}
+
 function revisarResposta(pergunta, resultado, extraSistema) {
   const rascunho = String(resultado.texto || '');
   if (rascunho.length < 40) return resultado;

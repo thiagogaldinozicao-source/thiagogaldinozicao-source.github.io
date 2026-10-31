@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v45 (31/10): corrigir e reescrever com um clique
+- Ação `texto` {modo: 'corrigir'|'reescrever', estilo: 'cliente'|'curto'|'formal'|'claro', texto} → {ok, texto, modo, estilo, cerebro}. Cérebro rápido (Groq → Gemini → …), devolve só o texto.
+- Corrigir: só ortografia/acento/pontuação, mantém "vc", "kkk", emojis e números, temperatura 0; se o resultado mudar demais de tamanho (virou outro texto), recusa e tenta o próximo cérebro.
+- Reescrever "cliente": estilo do Thiago pro WhatsApp, proibido inventar preço, prazo ou garantia. Máx. 6000 letras.
+- App: botões "✓ Corrigir" e "✎ Reescrever ▾" em cima da caixa de mensagem (quando tem texto) e no menu de cada resposta; troca o texto com "Desfazer".
+
 ## v44 (31/10): busca de aulas nova (BM25)
 - Medição: as 1.284 perguntas do treino (cada uma sabe de qual aula veio) passaram pela busca. A antiga (palavra no título/palavras-chave) achava a aula certa entre as 2 lidas em **52,6%**; 21 aulas nunca apareciam.
 - `aulasPara` agora é BM25: palavra rara pesa mais que comum, lê título+palavras-chave (peso 2), conteúdo (1,5) e regra (1); raiz de 6 letras; corte de pontuação 18 (calibrado com 20 frases de conversa à toa, que ficam abaixo) que acompanha o tamanho do curso. Resultado: **72,4%** (1º lugar 61%), 11 aulas mortas.
@@ -218,6 +224,7 @@ node t26.js  # várias planilhas: arquivo das mensagens antigas, abrir/buscar no
 node t27.js  # v42: não prometer ação sem ferramenta, versão no sistema (status antigo), [[...]] perdido, aviso do seletor
 node t28.js  # v43: pergunta com opções ([[OPCOES]] → campo opcoes no chat)
 node t29.js  # v44: busca de aulas BM25 (palavra rara pesa mais, lê o conteúdo, conversa à toa fica de fora)
+node t30.js  # v45: corrigir/reescrever com um clique (acao 'texto')
 node t25.js  # aulas: acha a aula certa, ignora conversa à toa, máx. 2, agente também lê
 node t24.js  # modo capricho: ehDificil, revisor aprova/corrige/comenta/cai, capricho on/off
 node t21.js  # fixar/renomear/projeto da conversa, projetos, dispositivos, ponte do PC, pesquisa reserva, Gemini sobrecarregado
