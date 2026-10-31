@@ -155,6 +155,15 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v57 (31/10): agente em etapas
+- O agente de segundo plano agora trabalha como o Claude em tarefa grande: **plano** de 2 a 8 etapas (cada uma com "o que fazer" e "como confirmo"), **uma etapa por vez**, **conferência com prova** e **checklist** que o app mostra ao vivo nos passos.
+- Plano no estado da tarefa (`est.plano`, JSON no Drive; sem coluna nova): sobrevive entre rodadas e a tarefa continua da mesma etapa ("Continuou de onde parou (rodada 2, etapa 2 de 3)").
+- Regra no código: `etapaMarcar` só aceita ✅ com prova escrita E ferramenta que deu certo desde a última etapa; sem isso fica ☐ e o cérebro é avisado. `falhou` → "tente OUTRO caminho" (máx. 2) e depois ⚠️ de vez; `sem_prova` vira 🔸 "não conferida". Dá pra replanejar (troca só as etapas abertas).
+- Fim: quis terminar com etapa aberta é cobrada 1 vez; depois a **conferência final** compara cada ✅ com os resultados (pode rebaixar). O resultado ganha "📋 Conferência das etapas" com o que foi e o que **NÃO** foi conferido, montado pelo código.
+- Cérebro forte (Gemini Flash, ~18/dia) só 2 vezes por tarefa: 1ª chamada (plano) e conferência final; partes de `dividir_em_agentes` não usam. Sem cota, segue com os normais.
+- Rota automática no chat (`ehPedidoGrande`): "faz tudo isso", "várias coisas", "coloca agentes", "em etapas" ou lista de 3+ pedidos começando com verbo vira tarefa do agente direto.
+- Tarefa simples sem plano continua igual antes. Aula D33. Testes t1–t41 e t43 (t42 reservado).
+
 ## v56 (31/10): arquivo cortado continuado, botão sem toque é erro, app com ícones e Dispositivos/Arquivos igual Claude
 - `continuarCortado`: resposta com ```html aberto e nunca fechado (limite de saída; foi a calculadora 3D de 31/10 que veio cortada) → pede só o resto, até 2x, e cola até </html>; depois testa.
 - "✅ Testado…" escrito pelo próprio cérebro é apagado; só vale o selo do teste.
