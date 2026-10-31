@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v55 (31/10): consertos do 1º uso real da programadora
+- Mac: `testar-html.js` acha o Playwright em `~/ZicoAI/oficina/node_modules` (no 1º uso deu "Playwright não encontrado" e ela só conferiu a sintaxe). `testarNavegadorMac()` pelo editor confere.
+- "faz uma calculadora … com botão" é app NOVO (não edição da anterior); resposta que veio com o arquivo inteiro (sem trechos) não sai com o html duplicado.
+
 ## v54 (31/10): cérebro do Mac + app da conversa por trechos
 - `CEREBROS.mac` (`viaPonte`): Ollama do Mac pela ponte (`ollama_chat`, mac-1.3; `MAC_MODELO`, `MAC_CEREBRO=nao`). Ligado se a ponte do Mac foi vista há < 90 s. Estudo gera no Mac primeiro (nuvem corrige), resumo da conversa no Mac primeiro, conversa com o Mac por último (reserva quando a nuvem toda bate limite). Foto não vai pro Mac.
 - App que ela mandou antes NA CONVERSA (sem publicar): pedido de mudança edita o último html por trechos (igual app publicado). `programadora` roda em toda resposta com html (antes só se o pedido falava de programação) e também com foto.

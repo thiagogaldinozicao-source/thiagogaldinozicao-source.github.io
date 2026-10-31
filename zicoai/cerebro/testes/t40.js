@@ -30,4 +30,11 @@ r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'fa
 ok(r.ok && r.passos.some(p => /mudar o app que mandou antes/.test(p)) && /id="copiar"[\s\S]*<\/html>\n```/.test(r.resposta) && /id="display"/.test(r.resposta), 'muda o app da conversa por trechos e devolve inteiro');
 ok(/✅ Testei/.test(r.resposta), 'e testou antes de mandar');
 ok(/NUNCA diga que não dá pra testar/.test(run('PERSONA')), 'não diz mais "não dá pra testar"');
-ok(/versão 54/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 54');
+ok(/versão 5[4-9]/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 54 ou mais nova');
+// v55: "faz uma calculadora... com botão" é app NOVO; resposta sem trechos não duplica o html
+H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Aqui:\n```html\n<!doctype html>\n<html><body><button>2</button></body></html>\n```\nComo usar: salva e abre.' } }] }) }));
+r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz uma calculadora' }, { role: 'assistant', content: 'Aqui:\n```html\n' + appAnt + '\n```' }, { role: 'user', content: 'faz uma calculadora estilo iPhone com botão de copiar e histórico' }] });
+ok(!r.passos.some(p => /mudar o app que mandou antes/.test(p)), '"faz uma calculadora…" é app novo, não edição da anterior');
+ok((r.resposta.match(/```html/g) || []).length === 1, 'html não sai duplicado');
+r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz uma calculadora' }, { role: 'assistant', content: 'Aqui:\n```html\n' + appAnt + '\n```' }, { role: 'user', content: 'coloca temas nessa calculadora' }] });
+ok(r.passos.some(p => /mudar o app que mandou antes/.test(p)) && (r.resposta.match(/```html/g) || []).length === 1, 'mudança devolvendo o arquivo inteiro (sem trechos) também não duplica');

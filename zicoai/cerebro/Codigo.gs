@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 54 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 55 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -617,7 +617,8 @@ function chat(req, aparelho) {
     if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
   }
   // mudança no app que ela mesma mandou antes NESTA conversa (sem estar publicado): edita por trechos o último html
-  if (!codigoApp && pergunta.length < 1500 && /(muda|mude|coloca|coloque|poe|tira|tire|corrig|arruma|ajusta|adiciona|acrescenta|troca|melhora|aument|diminu|layout|botao|cor |fonte|visor|tela|historico|funcao|nao funciona|quebrou|erro)/.test(normalizar(pergunta))) {
+  const pedeAppNovo = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta)) && !/\b(nela|nele|nessa|nesse|dela|dele)\b/.test(normalizar(pergunta));
+  if (!codigoApp && !pedeAppNovo && pergunta.length < 1500 && /(muda|mude|coloca|coloque|poe|tira|tire|corrig|arruma|ajusta|adiciona|acrescenta|troca|melhora|aument|diminu|layout|botao|cor |fonte|visor|tela|historico|funcao|nao funciona|quebrou|erro)/.test(normalizar(pergunta))) {
     const antAssist = historico.slice(0, -1).reverse().find(m => m.role === 'assistant');
     const htmlAnt = antAssist ? extrairHtml(antAssist.content) : '';
     if (htmlAnt && /<\/html>\s*$/i.test(htmlAnt.trim())) {
@@ -1415,6 +1416,14 @@ function testarApp(html) {
   return { erros: erros, avisos: avisos, rodou: rodou };
 }
 const MAX_CONSERTOS = 2;
+/** Pelo editor: confere se o Mac abre app no navegador (app bom e app com erro). */
+function testarNavegadorMac() {
+  const bom = testarApp('<!doctype html><html><body><h1>Oi</h1><button onclick="document.body.append(1)">ok</button></body></html>');
+  const ruim = testarApp('<!doctype html><html><body><h1>Oi</h1><button onclick="naoExiste()">quebra</button></body></html>');
+  const r = { bom: bom, ruim: ruim, ok: bom.rodou && !bom.erros.length && ruim.rodou && ruim.erros.length > 0 };
+  Logger.log(JSON.stringify(r));
+  return r;
+}
 /** Depois da resposta de código: aplica a edição (se for app existente), testa, e se quebrou manda consertar (até 2 vezes). */
 function programadora(resultado, codigoApp, pergunta) {
   const texto = String(resultado.texto || '');
@@ -1454,7 +1463,8 @@ function programadora(resultado, codigoApp, pergunta) {
     ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ')
     : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
   html = String(html).replace(/\s+$/, '');
-  const corpo = codigoApp ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
+  const veioPorTrechos = codigoApp && explicacao !== texto;
+  const corpo = veioPorTrechos ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
     : (voltas ? texto.replace(/```html[^\n]*\n[\s\S]*?```/i, () => '```html\n' + html + '\n```') : texto);
   return Object.assign({}, resultado, { texto: corpo + selo, testado: !teste.erros.length });
 }
