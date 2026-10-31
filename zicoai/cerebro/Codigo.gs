@@ -727,6 +727,10 @@ function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
   if (cod !== 200) throw new Error(c.nome + ' ' + cod + ': ' + resumoErro(txt));
   let j;
   try { j = JSON.parse(txt); } catch (e) { throw new Error(c.nome + ' respondeu fora do formato: ' + txt.slice(0, 80).replace(/\s+/g, ' ')); }
+  if (extras && extras.tools && extras.tools.some(t => t.type === 'browser_search')) {
+    const links = JSON.stringify(j).match(/https?:\/\/[^\s"<>]+/g) || [];
+    passoDetalhe({tipo: 'web', titulo: 'Pesquisa do navegador do cérebro', pedido: {consulta: msgs[msgs.length - 1]}, resposta: {links: links, retorno: j}, ms: 0});
+  }
   const conteudo = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   if (!conteudo) throw new Error(c.nome + ' respondeu vazio');
   return String(conteudo).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
@@ -1335,7 +1339,7 @@ function montarSistema(pergunta, enxuto) {
     passo('Modo cliente: só informação confirmada da loja');
   }
 
-  passoDetalhe({tipo: 'memoria', titulo: 'Perfil, aprendizados, memória e base usados', pedido: pergunta, resposta: {perfil: perfilUsado, aprendizados: aprUsado, memoria: memUsada, base: base}, ms: 0});
+  [['Perfil usado', perfilUsado], ['Aprendizados usados', aprUsado], ['Memória usada', memUsada], ['Base usada', base]].forEach(par => passoDetalhe({tipo: 'memoria', titulo: par[0], pedido: pergunta, resposta: par[1], ms: 0}));
   const pl = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
   passo('Leu o perfil e ' + pl(aprUsado.length, 'aprendizado', 'aprendizados'));
   passo('Consultou ' + pl(memUsada.length, 'lembrança', 'lembranças') + (base.length ? ' e ' + pl(base.length, 'trecho', 'trechos') + ' da base' : ''));

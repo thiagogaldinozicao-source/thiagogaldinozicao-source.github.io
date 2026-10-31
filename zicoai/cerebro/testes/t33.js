@@ -40,6 +40,11 @@ assert(H.ctx.listarTarefas().every(t=>Array.isArray(t.detalhes)));
 const r=H.post({pin:'fake-pin-only',acao:'chat',reqId:'chat33',mensagens:[{role:'user',content:'oi'}],cerebro:'groq'});
 assert(r.ok);assert(Array.isArray(r.passos));assert(Array.isArray(r.detalhes));assert(r.detalhes.some(d=>d.tipo==='cerebro'));
 const live=H.post({pin:'fake-pin-only',acao:'aoVivo',reqId:'chat33'});assert(live.detalhes.length>0);assert(live.passos.length>0);
+// O motivo da seleção é o resultado real do ranking, não uma justificativa inventada.
+H.ctx.aba('aulas').appendRow(['D999','D','Diagnóstico seguro','diagnóstico progresso ferramenta','Mascarar diagnóstico antes de mostrar','Regra fictícia para teste','GitHub teste']);
+run('BM25_AULAS=null; VETORES_AULAS=null; CacheService.getScriptCache().remove("aulas_idx_n"); DETALHES=[]');
+H.ctx.contextoAulas('diagnóstico progresso ferramenta',2);
+assert(run('DETALHES.some(d=>d.tipo==="aulas" && d.resposta.includes("D999") && d.resposta.includes("palavra"))'));
 // O laço real do agente registra ferramenta e cérebro, inclusive erro.
 let seq=0;
 H.setFetch((url)=>({getResponseCode:()=>200,getContentText:()=>JSON.stringify({choices:[{message:{content:JSON.stringify(!/batchEmbedContents/.test(url) && ++seq===1?{ferramenta:'calcular',args:{conta:'2+3'}}:{resposta:'Resultado fictício 5'})}}]})}));

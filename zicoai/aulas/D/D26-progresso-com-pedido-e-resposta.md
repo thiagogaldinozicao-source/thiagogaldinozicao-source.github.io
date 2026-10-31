@@ -34,6 +34,8 @@ Erros que ocorreram de verdade nesta implementação:
 
 5. Subi o rótulo da versão do cérebro antes da publicação; o CI encontrou uma asserção antiga que exige a versão 48. Li a falha no t32 e mantive o rótulo original: esta entrega é PR, a publicação fica para depois. Também completei os stubs de Markdown do roteiro conforme os métodos que o app realmente chama (`Renderer`, `setOptions` e `addHook`).
 
+6. O primeiro Playwright chegou às verificações da tela, mas acusou `localStorage` bloqueado num iframe sandbox. A configuração falsa do teste estava sendo injetada também nos frames. Restringi a injeção à janela principal; não afrouxei o sandbox do app nem ignorei o erro.
+
 ## Como conferir
 - Na pasta `zicoai/cerebro/testes`, executar `node t1.js` até `node t33.js` em processos separados.
 - Instalar Playwright e Chromium num ambiente de testes e executar `node zicoai/cerebro/testes/progresso.playwright.cjs` na raiz; ou conferir o workflow “ZicoAI detalhes e progresso” no PR.

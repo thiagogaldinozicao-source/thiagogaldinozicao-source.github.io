@@ -18,6 +18,7 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       const page=await context.newPage(), errors=[];
       page.on('pageerror',e=>errors.push(e.message));
       await page.addInitScript(()=>{
+        if(window.top !== window) return; // a configuração pertence ao app, não aos iframes sandbox
         localStorage.setItem('zicoai_cfg',JSON.stringify({url:'https://example.invalid/brain',pin:'fake-pin-only',aparelho:'Teste',cerebro:'auto'}));
         localStorage.setItem('zicoai_atual',JSON.stringify('fake-chat'));
         localStorage.setItem('zicoai_chats',JSON.stringify([{id:'fake-chat',titulo:'Teste'}]));
