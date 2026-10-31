@@ -39,6 +39,8 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 
 - **5xx — projeto "Acerto Paraguai"** (app Acertos Zicão): B501–B508 (app num artifact só, banco do artifact com plano B local, contas de dólar e centavo, visual preto e dourado, texto pra copiar, editar sem quebrar, anexar nota, histórico com confirmação), C501–C503 (a % é taxa do freteiro e não margem, lançar pedido novo, nunca mostrar lucro pra terceiros), A501–A503 (rotina vira projeto, não presumir, estilo de resposta).
 
+- **6xx — projeto "Missões do João"** (jogo de missões): B601–B609 (3 peças: Pages + Apps Script + planilha, publicar sem mudar o link, subir pro GitHub, testar com Playwright simulando o servidor, prova e aprovação, teto/baú/combo, temporada, conquistas validadas no servidor, meta grande em marcos), E601–E602 (economia de pontos x orçamento, missões que dá pra provar), A601–A603 (explicar a escolha de arquitetura, resumo vivo do projeto, manter a regra mesmo com reclamação). Senha e detalhes pessoais tirados.
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
