@@ -161,6 +161,8 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - Resposta que falhou fica gravada ("⚠️ Não consegui responder: …"). Regra 12: nunca dizer que não dá pra testar; "testado" só com o selo ✅.
 - App: depois de "Load failed", confere a conversa por ~4 min e troca o aviso pela resposta (`recuperarResposta`). Cache `zicoai-v26`.
 - Testes t1–t40 (554 ok). Aula D31.
+- App v27 (layout igual o app do Claude): trabalhando = UMA linha "••• passo atual · N s ›" com brilho (toca e abre os passos); resposta pronta = linha "Usou… · N s · N passos ›" sem caixa; linha fininha no topo com o resumo da última resposta (toca e vai nos passos). Ponte mac-1.4 reinicia sozinha quando o arquivo dela muda no disco.
+- Prova justa do 1º treino (31/10, llama-server + adaptador, com a aula no contexto): treinada ~6/8, qwen3:8b puro ~7/8 (treinada esqueceu o link do APK em E301; as duas erraram A803, que pedia pergunta de volta). Treino 1 não vira cérebro; o Mac usa o qwen3:8b puro.
 
 ## v53 (31/10): programadora (edita por trechos, testa e conserta)
 - App existente (`appSlug`): `REGRA_EDICAO` pede trechos `<<<<<<< ANTES / ======= / >>>>>>> DEPOIS`; `aplicarTrechos` aplica (cada ANTES tem que aparecer 1 vez; falhou → 1 refazer); resposta = explicação + arquivo COMPLETO. Código do app no contexto até 150 mil letras (era 60 mil e cortava).

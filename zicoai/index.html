@@ -99,11 +99,11 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 
 /* como respondi */
 .passos{margin-bottom:8px}
-.passos summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--cinza);padding:6px 10px;border:1px solid var(--borda2);border-radius:8px;max-width:100%;box-sizing:border-box}
-.passos[open] summary{border-color:var(--ouro)}
+.passos summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--cinza);padding:4px 0;min-height:32px;max-width:100%;box-sizing:border-box}
+.passos summary::after{content:'›';font-size:16px;transition:transform .15s}
+.passos[open] summary::after{transform:rotate(90deg)}
 .passos summary::-webkit-details-marker{display:none}
-.passos summary::before{content:'▸';font-size:11px;transition:transform .15s}
-.passos[open] summary::before{transform:rotate(90deg)}
+.passos summary::before{content:none}
 .passos ol{list-style:none;margin:6px 0 4px 4px;border-left:2px solid var(--borda2);padding-left:12px}
 .passos li{position:relative;font-size:13px;color:var(--cinza);padding:3px 0}
 .passos li::before{content:'';position:absolute;left:-17px;top:10px;width:8px;height:8px;border-radius:50%;background:var(--borda2)}
@@ -128,6 +128,19 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .rz li.fim .tx{color:var(--verde)}
 .rz-tit{font-size:13px;color:var(--cinza)}
 .vivo{border:1px solid var(--borda2);border-radius:14px;padding:10px 12px;background:var(--card)}
+.vivo-linha>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--cinza2);font-size:15px;padding:4px 0;min-height:32px}
+.vivo-linha>summary::-webkit-details-marker{display:none}
+.vivo-linha .pontos{display:inline-flex;gap:3px;flex:none}
+.vivo-linha .pontos i{width:5px;height:5px;border-radius:50%;background:var(--ouro);animation:pisca 1s infinite}
+.vivo-linha .pontos i:nth-child(2){animation-delay:.2s}.vivo-linha .pontos i:nth-child(3){animation-delay:.4s}
+.vivo-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:linear-gradient(90deg,var(--cinza) 0%,var(--txt) 50%,var(--cinza) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:brilho 2s linear infinite}
+.vivo-t{flex:none;color:var(--cinza);font-size:13px}
+.vivo-seta{flex:none;color:var(--cinza);transition:transform .15s}
+.vivo-linha[open] .vivo-seta{transform:rotate(90deg)}
+.vivo-linha>ol{list-style:none;border-left:2px solid var(--borda2);padding-left:12px;margin:6px 0 0 4px}
+@keyframes brilho{from{background-position:200% 0}to{background-position:-200% 0}}
+.resumo-topo{position:sticky;top:0;z-index:5;display:block;width:100%;max-width:100%;box-sizing:border-box;padding:6px 16px;border:0;background:linear-gradient(var(--fundo,#0b0b0b) 70%,transparent);color:var(--cinza);font-size:13px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.resumo-topo[hidden]{display:none}
 .vivo .rz-tit{color:var(--ouro2);font-weight:600;margin-bottom:2px;display:flex;gap:8px;align-items:center}
 
 /* trabalhando */
@@ -498,7 +511,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     <button class="btn-ic" id="bPainel" aria-label="Abrir painel da conversa" aria-controls="painelDireito" aria-expanded="false" title="Progresso, saídas e recursos">◫</button>
   </header>
 
-  <div class="chat-area"><main id="chat"><div class="trilho" id="trilho"></div></main><button id="irFim" aria-label="Ir pro fim da conversa" title="Ir pro fim">↓</button></div>
+  <div class="chat-area"><main id="chat"><button class="resumo-topo" id="resumoTopo" hidden></button><div class="trilho" id="trilho"></div></main><button id="irFim" aria-label="Ir pro fim da conversa" title="Ir pro fim">↓</button></div>
 
   <footer>
     <div class="caixa">
@@ -922,6 +935,7 @@ function novaConversa(proj){
 function desenha(){
   const t = $('trilho');
   t.innerHTML = '';
+  if($('resumoTopo')) $('resumoTopo').hidden = true;
   const c = chats.find(x => x.id === atual);
   const pjAberto = projetos.find(p => p.id === ((c && c.projeto) || projAtual));
   $('tituloTopo').textContent = (pjAberto ? pjAberto.nome + ' / ' : '') + (c ? c.titulo : 'Nova conversa');
@@ -938,7 +952,17 @@ function desenha(){
   }
   mensagens.forEach((m, i) => t.appendChild(balao(m, i === mensagens.length - 1)));
   try{ vivoTarefaNaConversa(); }catch(e){}
+  resumoNoTopo();
   rola();
+}
+/** Linha fininha no topo com o que ela fez na última resposta; toca e vai pros passos dela (abertos). */
+function resumoNoTopo(){
+  const b = $('resumoTopo'); if(!b) return;
+  const tods = [...document.querySelectorAll('#trilho .msg-ia details.passos')];
+  const ult = tods[tods.length - 1];
+  if(!ult){ b.hidden = true; return; }
+  b.textContent = ult.querySelector('summary').textContent + ' ›'; b.hidden = false;
+  b.onclick = () => { ult.open = true; ult.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
 }
 const MARCA_DOC = '\n\n[📄 arquivo: ';
 function balao(m, ultima){
@@ -1289,47 +1313,69 @@ function digita(el){
 }
 
 /* ---------- "trabalhando" (etapas enquanto espera) ---------- */
+// Trabalhando: UMA linha igual a do Claude ("••• Pesquisando na web · 12 s ›"); toca e abre os passos com Solicitação/Resposta.
+function textoDoPasso(passos, detalhes){
+  const p = (passos || [])[passos.length - 1];
+  let t = '';
+  if(p){ const x = lerPasso(p); t = x.tipo === 'ferr' ? x.frase : x.texto; }
+  else if(detalhes && detalhes.length) t = detalhes[detalhes.length - 1].titulo || '';
+  t = String(t || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Pensando';
+}
+function linhaViva(corpo){
+  let det = corpo.querySelector('details.vivo-linha');
+  if(!det){
+    corpo.innerHTML = '';
+    det = document.createElement('details'); det.className = 'vivo-linha';
+    const sm = document.createElement('summary');
+    sm.innerHTML = '<span class="pontos"><i></i><i></i><i></i></span><span class="vivo-txt"></span><span class="vivo-t"></span><span class="vivo-seta">›</span>';
+    det.appendChild(sm); corpo.appendChild(det);
+  }
+  return det;
+}
 function mostraTrabalhando(etapas, reqId){
   const d = document.createElement('div');
   d.className = 'msg-ia trab';
-  let vivoTmr = null, parado = false;
+  d.innerHTML = '<div class="ava"></div><div class="corpo"></div>';
+  const corpo = d.querySelector('.corpo'), t0 = Date.now();
+  let vivoTmr = null, parado = false, temVivo = false;
+  const det = linhaViva(corpo);
+  const txt = det.querySelector('.vivo-txt'), seg = det.querySelector('.vivo-t');
+  const relogio = setInterval(() => { seg.textContent = Math.round((Date.now() - t0) / 1000) + ' s'; }, 1000);
+  // antes do primeiro "ao vivo": as etapas previstas, uma de cada vez
+  const ol = document.createElement('ol'); ol.innerHTML = etapas.map(e => '<li>' + esc(e) + '</li>').join(''); det.appendChild(ol);
+  const itens = ol.querySelectorAll('li');
+  let i = 0; itens[0].classList.add('agora'); txt.textContent = etapas[0];
+  const tempos = [900, 1400, 2200, 3500, 5000];
+  let tmr;
+  (function proximo(){
+    tmr = setTimeout(() => {
+      if(temVivo || i >= itens.length - 1) return;
+      itens[i].classList.remove('agora'); itens[i].classList.add('feito');
+      i++; itens[i].classList.add('agora'); txt.textContent = etapas[i];
+      proximo();
+    }, tempos[Math.min(i, tempos.length - 1)]);
+  })();
   if(reqId){
     const busca = async () => {
       if(parado) return;
       try{
         const j = await api({ acao:'aoVivo', reqId });
         if(!parado && ((j.passos && j.passos.length) || (j.detalhes && j.detalhes.length))){
-          const corpo = d.querySelector('.corpo');
-          const card = document.createElement('div'); card.className = 'vivo';
-          const tit = document.createElement('div'); tit.className = 'rz-tit'; tit.innerHTML = '<span class="pontos"><i></i><i></i><i></i></span>';
-          tit.appendChild(document.createTextNode(tituloResumo(j.passos || [])));
-          card.appendChild(tit); card.appendChild(listaResumo(j.passos || [], true, j.detalhes));
-          corpo.innerHTML = ''; corpo.appendChild(card); rola();
+          temVivo = true; clearTimeout(tmr);
+          txt.textContent = textoDoPasso(j.passos || [], j.detalhes);
+          [...det.children].forEach(x => { if(x.tagName !== 'SUMMARY') x.remove(); });
+          det.appendChild(listaResumo(j.passos || [], true, j.detalhes));
           mostraProgresso(j.passos || [], true, j.detalhes);
-          clearTimeout(tmr);
         }
       }catch(e){}
       if(!parado) vivoTmr = setTimeout(busca, 1500);
     };
     vivoTmr = setTimeout(busca, 1200);
   }
-  d.innerHTML = '<div class="ava"></div><div class="corpo"><ol>' + etapas.map(e => '<li>' + esc(e) + '</li>').join('') + '</ol></div>';
   $('trilho').appendChild(d); rola();
   mostraProgresso([], true);
-  const itens = d.querySelectorAll('li');
-  let i = 0;
-  itens[0].classList.add('agora');
-  const tempos = [900, 1400, 2200, 3500, 5000];
-  let tmr;
-  (function proximo(){
-    tmr = setTimeout(() => {
-      if(i >= itens.length - 1) return;
-      itens[i].classList.remove('agora'); itens[i].classList.add('feito');
-      i++; itens[i].classList.add('agora');
-      proximo();
-    }, tempos[Math.min(i, tempos.length - 1)]);
-  })();
-  return () => { parado = true; clearTimeout(tmr); clearTimeout(vivoTmr); d.remove(); mostraProgresso([], false); };
+  return () => { parado = true; clearTimeout(tmr); clearTimeout(vivoTmr); clearInterval(relogio); d.remove(); mostraProgresso([], false); };
 }
 function etapasPara(texto, temFoto){
   const e = ['Lendo seu perfil e a memória'];
