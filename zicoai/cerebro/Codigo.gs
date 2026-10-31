@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 47 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 48 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -168,7 +168,8 @@ const ABAS = {
   aulas:        ['ID', 'Módulo', 'Título', 'Palavras-chave', 'Regra', 'Conteúdo', 'Onde'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
   tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho', 'Pai'],
-  vetores:      ['Aba', 'Texto', 'Vetor']
+  vetores:      ['Aba', 'Texto', 'Vetor'],
+  placar_aulas: ['Quando', 'Versão', 'Perguntas', '1º lugar %', 'Nas 2 %', 'Nas 5 %', 'Só palavra nas 2 %']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
 ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte'];
@@ -807,15 +808,24 @@ function indiceAulas() {
   return idx;
 }
 
-/** As aulas que mais combinam com o pedido (BM25: palavra rara pesa mais que palavra comum).
- *  Pesos: título+palavras-chave 2, conteúdo 1,5, regra 1. Medido com as 1.284 perguntas do treino: acerta a aula em ~78% (era 53%). */
-const PESO_AULAS = { k: 2, r: 1, c: 1.5 }, AULAS_MIN = 18;
-function aulasPara(pergunta, limite) {
-  const q = raizesAulas(pergunta).filter((w, i, a) => a.indexOf(w) === i);
-  if (!q.length) return [];
-  const idx = indiceAulas();
-  if (!idx.length) return [];
-  // por aula e por campo: { raiz: quantas vezes } e o tamanho do campo
+/** As aulas que mais combinam com o pedido. Duas buscas somadas:
+ *  1) por PALAVRA (BM25: palavra rara pesa mais; pesos título+palavras-chave 2, conteúdo 1,5, regra 1);
+ *  2) por SIGNIFICADO (vetores do Gemini): acha a aula quando a mensagem descreve uma SITUAÇÃO e a aula ensina o
+ *     PRINCÍPIO ("pode dizer que tá testado" → aula de não dizer que testou sem testar), coisa que palavra não liga.
+ *  Nota = palavra/maior + PESO_SIGNIFICADO × cosseno. Conversa à toa ("oi", "valeu", "bom dia") não puxa aula.
+ *  Placar (1.234 perguntas do treino, oficina do Mac, 31/10): só palavra com corte 18 = 72% nas 2 primeiras;
+ *  corte menor + detector de conversa à toa = 76%; + significado = 79% nas 2 e 92% nas 5. */
+const PESO_AULAS = { k: 2, r: 1, c: 1.5 }, AULAS_MIN = 10, PESO_SIGNIFICADO = 2, AULAS_COS_MIN = 0.55;
+const PALAVRAS_A_TOA = ['oi', 'ola', 'opa', 'eai', 'e', 'ai', 'bom', 'boa', 'dia', 'tarde', 'noite', 'valeu', 'vlw', 'obrigado', 'obrigada', 'obg', 'brigado', 'blz', 'beleza', 'ok', 'okay', 'show', 'massa', 'top', 'entendi', 'tudo', 'bem', 'certo', 'ta', 'to', 'tou', 'sim', 'nao', 'isso', 'perfeito', 'otimo', 'legal', 'tmj', 'fechou', 'fechado', 'bora', 'verdade', 'pode', 'crer', 'zica', 'zicoai', 'tranquilo', 'suave', 'joia', 'haha', 'rs', 'rsrs', 'aham', 'uhum', 'boa'];
+/** Mensagem curta só de cumprimento/agradecimento/concordância: não precisa de aula. */
+function ehConversaAToa(t) {
+  const w = normalizar(t).replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean);
+  return !w.length || (w.length <= 5 && w.every(x => PALAVRAS_A_TOA.indexOf(x) >= 0 || /^(k{2,}|ha(ha)+|rs(rs)*)$/.test(x)));
+}
+/** Peças do BM25 (contagens por campo, df e médias): calculadas uma vez por execução e reaproveitadas. */
+let BM25_AULAS = null;
+function bm25Aulas(idx) {
+  if (BM25_AULAS && BM25_AULAS.idx === idx) return BM25_AULAS;
   const conta = t => { const m = {}; (t ? t.split(' ') : []).forEach(w => { const j = w.indexOf(':'); if (j > 0) m[w.slice(0, j)] = (m[w.slice(0, j)] || 0) + Number(w.slice(j + 1)); else m[w] = (m[w] || 0) + 1; }); return m; };
   const campos = idx.map(x => { const k = x[2] ? x[2].split(' ') : [], r = x[3] ? x[3].split(' ') : []; return { k: conta(x[2]), r: conta(x[3]), c: conta(x[6]), tam: { k: k.length, r: r.length, c: Number(x[7]) || 0 } }; });
   const N = campos.length, df = {}, media = { k: 0, r: 0, c: 0 };
@@ -824,21 +834,76 @@ function aulasPara(pergunta, limite) {
     ['k', 'r', 'c'].forEach(f => { media[f] += d.tam[f] / N; Object.keys(d[f]).forEach(w => { vistas[w] = 1; }); });
     Object.keys(vistas).forEach(w => { df[w] = (df[w] || 0) + 1; });
   });
-  const k1 = 1.2, b = 0.6;
-  // o corte acompanha o tamanho do curso (com poucas aulas toda palavra pesa menos); calibrado com 267 aulas
-  const corte = AULAS_MIN * Math.log(1 + (N - 0.5) / 1.5) / Math.log(1 + 266.5 / 1.5);
+  BM25_AULAS = { idx: idx, campos: campos, N: N, df: df, media: media };
+  return BM25_AULAS;
+}
+/** Pontuação por palavra de todas as aulas (sem corte). */
+function pontosAulas(pergunta, idx) {
+  const q = raizesAulas(pergunta).filter((w, i, a) => a.indexOf(w) === i);
+  const B = bm25Aulas(idx), k1 = 1.2, b = 0.6;
   return idx.map((x, i) => {
     let p = 0;
     q.forEach(w => {
-      if (!df[w]) return;
-      const idf = Math.log(1 + (N - df[w] + 0.5) / (df[w] + 0.5));
+      if (!B.df[w]) return;
+      const idf = Math.log(1 + (B.N - B.df[w] + 0.5) / (B.df[w] + 0.5));
       ['k', 'r', 'c'].forEach(f => {
-        const tf = campos[i][f][w] || 0;
-        if (tf) p += PESO_AULAS[f] * idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * campos[i].tam[f] / (media[f] || 1)));
+        const tf = B.campos[i][f][w] || 0;
+        if (tf) p += PESO_AULAS[f] * idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * B.campos[i].tam[f] / (B.media[f] || 1)));
       });
     });
-    return { x: x, p: p, i: i };
-  }).filter(o => o.p >= corte).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
+    return p;
+  });
+}
+/** Texto que representa a aula na busca por significado. */
+function textoVetorAula(l) { return [l[2], l[3], l[4], String(l[5] || '').slice(0, 1500)].join('\n'); }
+/** Hash curto (troca quando o texto da aula muda, aí o vetor é refeito). */
+function hashCurto(t) { let h = 5381; t = String(t); for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h.toString(36); }
+/** Vetores das aulas (aba `vetores`, tipo "aulas", chave "ID#hash"). Embute as que faltam, até `maxNovas` por vez. */
+let VETORES_AULAS = null;
+function vetoresAulas(maxNovas) {
+  if (VETORES_AULAS && !maxNovas) return VETORES_AULAS;
+  const a = aba('aulas'), tot = a.getLastRow();
+  if (tot < 2 || !prop('GEMINI_KEY')) return {};
+  const ls = a.getRange(2, 1, tot - 1, 7).getDisplayValues().filter(l => l[0] && l[4] && !l.some(c => /^\[IGNORAR\]/i.test(String(c))));
+  const guard = {};
+  linhas('vetores').forEach(l => { if (l[0] === 'aulas') guard[l[1]] = l[2]; });
+  const chave = l => l[0] + '#' + hashCurto(textoVetorAula(l));
+  const faltam = ls.filter(l => !guard[chave(l)]).slice(0, maxNovas || 20);
+  for (let k = 0; k < faltam.length; k += 50) {
+    const lote = faltam.slice(k, k + 50), v = embutir(lote.map(textoVetorAula));
+    if (!v) break;
+    const va = aba('vetores');
+    lote.forEach((l, i) => { if (v[i]) { const s = JSON.stringify(v[i].map(x => Math.round(x * 10000) / 10000)); va.appendRow(['aulas', chave(l), s]); guard[chave(l)] = s; } });
+  }
+  const out = {};
+  ls.forEach(l => { const g = guard[chave(l)]; if (g) out[l[0]] = typeof g === 'string' ? JSON.parse(g) : g; });
+  VETORES_AULAS = out;
+  return out;
+}
+/** Vetor de significado da mensagem: uma chamada só por execução (memória e aulas usam o mesmo). */
+const VETOR_PERGUNTA = {};
+function vetorDaPergunta(p) {
+  p = String(p || '').slice(0, 2000);
+  if (VETOR_PERGUNTA.hasOwnProperty(p)) return VETOR_PERGUNTA[p];
+  let v = null;
+  try { const r = embutir([p]); v = r && r[0] ? r[0] : null; } catch (e) { v = null; }
+  VETOR_PERGUNTA[p] = v;
+  return v;
+}
+function aulasPara(pergunta, limite, vetor) {
+  if (ehConversaAToa(pergunta)) return [];
+  const idx = indiceAulas();
+  if (!idx.length) return [];
+  const bm = pontosAulas(pergunta, idx), max = Math.max.apply(null, bm.concat([1e-9]));
+  // corte por palavra acompanha o tamanho do curso; calibrado com 267 aulas
+  const corte = AULAS_MIN * Math.log(1 + (idx.length - 0.5) / 1.5) / Math.log(1 + 266.5 / 1.5);
+  let vq = vetor === undefined ? null : vetor, va = {};
+  if (vetor === undefined) { try { vq = vetorDaPergunta(pergunta); if (vq) va = vetoresAulas(); } catch (e) { vq = null; } }
+  else if (vq) { try { va = vetoresAulas(); } catch (e) { va = {}; } }
+  return idx.map((x, i) => {
+    const cs = vq && va[x[0]] ? cosseno(vq, va[x[0]]) : 0;
+    return { x: x, i: i, ok: bm[i] >= corte || cs >= AULAS_COS_MIN, p: bm[i] / max + PESO_SIGNIFICADO * cs };
+  }).filter(o => o.ok).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => o.x);
 }
 /** Traz as aulas públicas (A, B, D) do GitHub (zicoai/aulas/aulas.json) pra aba `aulas`: atualiza pelo ID ou acrescenta.
  *  Não mexe nas aulas privadas (C, E e as que só existem na planilha). Roda sozinha a cada 12 h (garantirRotinasTreino). */
@@ -864,16 +929,50 @@ function sincronizarAulas() {
   return { ok: true, atualizadas: trocou, novas: novasQtd };
 }
 
-function contextoAulas(pergunta, limite) {
-  const lista = aulasPara(pergunta, limite);
+function contextoAulas(pergunta, limite, talvez) {
+  const lista = aulasPara(pergunta, (limite || 2) + (talvez === undefined ? 3 : talvez));
   if (!lista.length) return '';
-  passo('📚 Aula(s) que se aplicam: ' + lista.map(x => x[0] + ' ' + x[1]).join(' · '));
+  const fortes = lista.slice(0, limite || 2), outras = lista.slice(limite || 2);
+  passo('📚 Aula(s) que se aplicam: ' + fortes.map(x => x[0] + ' ' + x[1]).join(' · ') + (outras.length ? ' (+' + outras.length + ' talvez)' : ''));
   const a = aba('aulas');
-  return '\n\n### AULAS QUE SE APLICAM (o jeito certo de fazer isso; siga a REGRA)\n' + lista.map(x => {
+  let txt = '\n\n### AULAS QUE SE APLICAM (o jeito certo de fazer isso; siga a REGRA e entenda o PORQUÊ)\n' + fortes.map(x => {
     let cont = '';
     try { cont = String(a.getRange(x[5], 6, 1, 1).getDisplayValues()[0][0] || ''); } catch (e) { /* só a regra */ }
     return '[' + x[0] + '] ' + x[1] + '\nREGRA: ' + String(x[4]).slice(0, 600) + (cont ? '\n' + cont.slice(0, 3000) : '');
   }).join('\n\n');
+  if (outras.length) txt += '\n\n### OUTRAS AULAS QUE TALVEZ SE APLIQUEM (use só se a situação for essa; senão ignore)\n' + outras.map(x => '[' + x[0] + '] ' + x[1] + ' — REGRA: ' + String(x[4]).slice(0, 300)).join('\n');
+  return txt;
+}
+
+/** Placar da busca de aulas, com os vetores do Gemini (o que roda de verdade): lê o treino.jsonl da pasta
+ *  "ZicoAI Treino" do Drive, passa cada pergunta pela busca e diz em quantas a aula certa vem em 1º, nas 2 e nas 5.
+ *  Rodar pelo editor (Executar › placarAulas). Grava uma linha na aba `placar_aulas`. */
+function placarAulas() {
+  const pasta = DriveApp.getFoldersByName('ZicoAI Treino');
+  if (!pasta.hasNext()) return { ok: false, erro: 'pasta ZicoAI Treino não encontrada' };
+  const arqs = pasta.next().getFilesByName('treino.jsonl');
+  if (!arqs.hasNext()) return { ok: false, erro: 'treino.jsonl não encontrado' };
+  const idx = indiceAulas(), tem = {};
+  idx.forEach(x => { tem[x[0]] = 1; });
+  const ex = arqs.next().getBlob().getDataAsString('UTF-8').split('\n').filter(Boolean).map(l => JSON.parse(l))
+    .map(e => ({ aula: e.aula, q: ((e.messages || []).filter(m => m.role === 'user')[0] || {}).content || '' })).filter(e => tem[e.aula] && e.q);
+  vetoresAulas(400);
+  const qs = ex.map(e => e.q), vq = {};
+  for (let k = 0; k < qs.length; k += 100) {
+    try { const v = embutir(qs.slice(k, k + 100)); if (v) v.forEach((x, i) => { vq[qs[k + i]] = x; }); } catch (e) { Utilities.sleep(2000); }
+  }
+  let t1 = 0, t2 = 0, t5 = 0, so1 = 0, so2 = 0;
+  ex.forEach(e => {
+    const r = aulasPara(e.q, 5, vq[e.q] || null).map(x => x[0]), p = r.indexOf(e.aula);
+    if (p === 0) t1++; if (p >= 0 && p < 2) t2++; if (p >= 0) t5++;
+    const s = aulasPara(e.q, 2, null).map(x => x[0]), ps = s.indexOf(e.aula);
+    if (ps === 0) so1++; if (ps >= 0) so2++;
+  });
+  const pc = x => Math.round(1000 * x / ex.length) / 10;
+  const res = { ok: true, perguntas: ex.length, comVetor: Object.keys(vq).length, primeiro: pc(t1), nas2: pc(t2), nas5: pc(t5), soPalavra1: pc(so1), soPalavra2: pc(so2) };
+  try { aba('placar_aulas').appendRow(["'" + agora(), VERSAO_CEREBRO, res.perguntas, res.primeiro, res.nas2, res.nas5, res.soPalavra2]); } catch (e) { /* sem aba */ }
+  Logger.log(JSON.stringify(res));
+  return res;
 }
 
 function contextoMeusCerebros(pergunta) {
@@ -1246,7 +1345,7 @@ function semelhantes(nomeAba, pergunta, limite, jaTem) {
   if (todas.length < 3) return [];
   const chaveDe = l => String(l[0] + ' | ' + l[1]).slice(0, 500);
   const guard = vetoresDe(nomeAba, todas.map(chaveDe));
-  const q = embutir([pergunta]);
+  const q0 = vetorDaPergunta(pergunta), q = q0 ? [q0] : null;
   if (!q || !q[0]) return [];
   const jaSet = {};
   (jaTem || []).forEach(l => { jaSet[chaveDe(l)] = 1; });

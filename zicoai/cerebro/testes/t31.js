@@ -53,6 +53,6 @@ ok(vm.runInContext('JSON.parse(CacheService.getScriptCache().get("ponte_fila") |
 macVisto();
 const d = H.post({ pin: '1234', acao: 'dispositivos' });
 ok(d.ok && (d.dispositivos || []).some(x => x.nome === 'Oficina (Mac)' && x.ok), 'painel de dispositivos mostra a Oficina (Mac)');
-ok(/versão 47/.test(vm.runInContext('VERSAO_CEREBRO', H.ctx)), 'cérebro na versão 47');
+ok(Number((vm.runInContext('VERSAO_CEREBRO', H.ctx).match(/\d+/) || [0])[0]) >= 47, 'cérebro na versão 47 ou mais nova');
 const sistema = vm.runInContext('montarSistema("roda os testes na oficina do Mac", false)', H.ctx);
 ok(/Pedido pra usar o MAC/.test(sistema) && /mac_testar/.test(sistema) && /\[\[TAREFA: o que fazer no Mac\]\]/.test(sistema), 'chat sabe mandar pedido do Mac pro agente (tarefa com mac_*)');
