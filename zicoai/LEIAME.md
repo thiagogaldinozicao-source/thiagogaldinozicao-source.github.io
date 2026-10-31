@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v52 (31/10): o método do Claude
+- Seção `### MÉTODO` no sistema: entender → separar o que sabe (base/aula/pesquisa) do que acha → não preencher o que falta → fazer → conferir (modelo exato, origem de cada número, conta, código, contradição). Regra antiga "modelo fora da base: diga que não tem a ficha" trocada por "a ficha vem da pesquisa; nunca peça pro Thiago".
+- `geminiForte` (Gemini Flash, ~20/dia no grátis, limite 18): primeiro no capricho (pedido difícil e, agora, ficha técnica) e primeiro revisor. `testarModelos()` (1x por dia no `estudar`, ou pelo editor) grava `GEMINI_MODELO` (3.5-flash-lite, senão 3.1) e `GEMINI_FORTE` (3.8-flash, senão 3.6; vazio = desligado). `REGRA_REVISOR_FICHA`: revisor não troca número que veio da web.
+- Testes t1–t38. Aula D29.
+
 ## v51 (31/10): fato da web, foto, erro do app e estudo 24h
 - **Ficha técnica:** `ehFichaTecnica()` (aparelho + vs/compara/bateria/chip…, ou continuação de comparativo; preço fica de fora) liga a pesquisa e manda `REGRA_FICHA` (só número com fonte, "não confirmado" no resto, nunca dizer que não existe sem pesquisar). Pesquisa falhou → avisa, não chuta. Regra 3 do sistema: base vale pra loja e Thiago, não pra ficha de aparelho. Regra 5: modelo citado existe até a pesquisa provar o contrário. Regra 5b: falha só se explica com prova.
 - **Foto:** com imagem, `conversar` só tenta Gemini, Mistral e NVIDIA (VL); PC só com `PC_VISAO=sim`. App reenvia a última foto da conversa (`fotoRepetida`) quando a mensagem fala de foto/print/imagem; grava "[📷 mesma foto de antes]". Falou de foto sem foto → o sistema explica que ela só vê a foto da mensagem em que veio.

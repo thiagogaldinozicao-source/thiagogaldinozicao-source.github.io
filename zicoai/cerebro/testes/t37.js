@@ -73,4 +73,4 @@ ok(H.sheets.exemplos.rows.some(l => /duo/i.test(String(l[1])) && /erro corrigido
 ok(H.post({ acao: 'ponteEstudar', segredo: 'seg-mac' }).pulou, 'segunda rodada em menos de 20 min é pulada (cota grátis)');
 ok(H.post({ acao: 'ponteEstudar', segredo: 'errado' }).erro === 'segredo errado', 'estudar pela ponte exige o segredo');
 ok(run('TEMAS_ESTUDO.filter(t => t.tipo === "código").length') >= 10, 'estudo cobre 10+ temas de programação');
-ok(/versão 51/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 51');
+ok(/versão 5[1-9]/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 51 ou mais nova');

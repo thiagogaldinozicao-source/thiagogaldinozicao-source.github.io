@@ -118,6 +118,7 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D25 | [o que um treino LoRA de 8B ensina](D/D25-o-que-o-treino-ensina.md) | Treino pequeno ensina jeito e raciocínio, não decora fato; exemplo bom traz a aula e o porquê; prova justa com a aula; salvar cedo no Colab. |
 | D27 | [reescrever muitas aulas de uma vez sem estragar nenhuma](D/D27-reescrever-aulas-em-lote.md) | Fonte × prova, ajudantes em lote com guia, revisor separado, script dos números, gravar por arquivo + importarAulas que confere letra por letra. |
 | D28 | [fato do mundo vem da web, foto só pra quem enxerga, erro explicado com prova](D/D28-fato-do-mundo-vem-da-web.md) | Ficha/lançamento conferidos na web, base não é fonte de ficha, foto reenviada, "Load failed" vai pro cérebro, estudo 24h com os erros |
+| D29 | [o método antes de responder](D/D29-metodo-antes-de-responder.md) | Entender, separar sabe × acha, não preencher o que falta, conferir; Gemini Flash só no difícil; revisor que não troca número da web |
 
 | D26 | [progresso com solicitação e resposta](D/D26-progresso-com-pedido-e-resposta.md) | Registrar no ponto da chamada, mascarar antes de gravar, manter passos antigos e conferir ao vivo e pronto. |
 

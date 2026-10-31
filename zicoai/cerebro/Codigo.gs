@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 51 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 52 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -39,8 +39,39 @@ const CEREBROS = {
   // Cloudflare Workers AI (10 mil "neurons" por dia grátis). Precisa de CF_ACCOUNT_ID e CF_TOKEN.
   cloudflare: { url: '', chave: 'CF_TOKEN', modelo: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', nome: 'Cloudflare Llama 70B', limite: 20000, maxSaida: 2048, tpm: 60000, rpm: 20, rpd: 150, opcional: true },
   // PC de casa (Ollama pelo Tailscale Funnel). Endereço e modelo vêm das Propriedades do script.
-  pc:     { url: '', chave: null, modelo: '', nome: 'PC', limite: 16000, maxSaida: 4096, local: true }
+  pc:     { url: '', chave: null, modelo: '', nome: 'PC', limite: 16000, maxSaida: 4096, local: true },
+  // Gemini Flash "de verdade" (bem melhor que o Lite, mas só ~20 pedidos/dia no grátis): só pra pedido difícil e ficha técnica.
+  // O modelo vem de GEMINI_FORTE (testarModelos escolhe sozinho o que responde); vazio = desligado.
+  geminiForte: { url: GEMINI_COMPAT_URL, chave: 'GEMINI_KEY', modelo: '', nome: 'Gemini Flash', limite: 200000, maxSaida: 8192, tpm: 200000, rpm: 4, rpd: 18, opcional: true }
 };
+/** Modelos do Gemini escolhidos por testarModelos() (o Google troca/aposenta modelo sem avisar). Lido 1 vez por execução. */
+let _modelosOk = false;
+function aplicarModelos() {
+  if (_modelosOk) return; _modelosOk = true;
+  const gm = prop('GEMINI_MODELO'), gf = prop('GEMINI_FORTE');
+  if (gm) CEREBROS.gemini.modelo = gm;
+  CEREBROS.geminiForte.modelo = gf || '';
+}
+const CANDIDATOS_GEMINI = { forte: ['gemini-3.8-flash', 'gemini-3.6-flash'], leve: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] };
+/** Testa quais modelos do Gemini respondem e grava GEMINI_MODELO (leve, o do dia a dia) e GEMINI_FORTE. Roda 1x por dia no estudo; dá pra rodar pelo editor. */
+function testarModelos() {
+  const props = PropertiesService.getScriptProperties(), chave = props.getProperty('GEMINI_KEY');
+  if (!chave) return { ok: false, erro: 'sem GEMINI_KEY' };
+  const testa = m => {
+    try {
+      const r = UrlFetchApp.fetch(GEMINI_COMPAT_URL, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + chave }, muteHttpExceptions: true,
+        payload: JSON.stringify({ model: m, messages: [{ role: 'user', content: 'Responda só: ok' }], max_tokens: 5 }) });
+      return r.getResponseCode() === 200;
+    } catch (e) { return false; }
+  };
+  const res = { forte: '', leve: '' };
+  res.forte = CANDIDATOS_GEMINI.forte.find(testa) || '';
+  res.leve = CANDIDATOS_GEMINI.leve.find(testa) || '';
+  if (res.leve) props.setProperty('GEMINI_MODELO', res.leve);
+  props.setProperty('GEMINI_FORTE', res.forte);
+  _modelosOk = false; aplicarModelos();
+  return { ok: true, leve: res.leve || '(nenhum respondeu: ficou o de antes)', forte: res.forte || '(desligado)' };
+}
 
 /** Monta o cérebro do PC se ele estiver configurado e não tiver caído há pouco. */
 function cerebroPC() {
@@ -139,8 +170,10 @@ function msgsEnxutas(msgs, pergunta, extraSistema, imagem) {
 
 /** Cérebro de nuvem existe (tem chave)? Os opcionais só entram se a chave estiver configurada. */
 function temCerebro(nome) {
+  aplicarModelos();
   const c = CEREBROS[nome];
   if (!c) return false;
+  if (nome === 'geminiForte' && !c.modelo) return false;
   if (c.aposentado) return false;
   if (nome === 'cloudflare') return !!prop('CF_TOKEN') && !!prop('CF_ACCOUNT_ID');
   return !c.opcional || !!prop(c.chave);
@@ -201,11 +234,19 @@ const PERSONA = [
   '12. Programação: o Thiago NÃO sabe programar. Entregue o arquivo COMPLETO e funcionando e explique como leigo (nome do arquivo, onde salvar, como abrir). Modo escuro, mobile-first.',
   '13. Dados de cliente (CPF, telefone, endereço): se o Thiago mandar, avise em uma linha que isso é melhor fazer na ZicoAI do PC (offline) e não salve na memória.',
   '',
+  '### MÉTODO (como o Claude trabalha; faça isso por dentro, antes de escrever, sem mostrar os passos)',
+  '1. ENTENDA: o que exatamente ele quer? Qual o resultado que resolve? Se dá pra entender de 2 jeitos e errar custa caro, pergunte em UMA linha; senão vá no mais provável.',
+  '2. SEPARE o que você SABE do que você ACHA: fato da loja vem da base/tabela/aula; fato do mundo (lançamento, ficha, notícia, preço de fora) vem da pesquisa; o resto é opinião e se diz como opinião.',
+  '3. O QUE FALTA: se falta um fato e não veio pesquisa nem base, NÃO preencha com o que parece certo. Diga o que não sabe. Inventar com confiança é o pior erro que existe aqui.',
+  '4. FAÇA uma coisa de cada vez, no formato que ele usa (card de copiar, curto).',
+  '5. CONFIRA antes de mandar: (a) o modelo/nome é exatamente o que ele pediu? (b) cada número tem de onde veio? (c) a conta fecha refazendo? (d) o código roda de cabeça, linha por linha? (e) contradiz algo que você disse antes nesta conversa? Se sim, corrija e diga em 1 linha o que mudou.',
+  '6. ERROU? "Vc tem razão:" + o certo. Não troque um erro por outro: se não tem certeza do certo, diga que vai pesquisar/conferir.',
+  '',
   '### HONESTIDADE (obrigatório, vale mais que qualquer outra regra)',
   '- Só diga que gerou imagem, rodou código, salvou ou enviou algo se isso aconteceu de verdade nesta resposta.',
   '- Nada roda em segundo plano. Nunca diga "aguarde", "estou gerando", "em processamento".',
   '- Formulário ou campo sem informação: deixe EM BRANCO. Nunca invente dado pra completar.',
-  '- Especificação de produto só se estiver na BASE ou numa fonte verificada. Modelo que não está na base: diga que não tem a ficha.',
+  '- Especificação de produto só com fonte verificada (pesquisa na web desta resposta). Modelo que você não conhece: a ficha vem da pesquisa; se a pesquisa não trouxe, diga que não achou a ficha agora. Nunca peça pro Thiago te passar a ficha.',
   '- Não sabe? Diga "não sei" direto e peça só a informação que falta.',
   '- Nunca invente preço, estoque, garantia, endereço, horário, desconto, entrega ou condição de pagamento. Se a base diz NÃO CONFIRMADO, responda "deixa eu confirmar e te falo".',
   '- Preserve exatamente cores, fontes, números, nomes e textos que o Thiago escreveu.',
@@ -589,10 +630,10 @@ function chat(req, aparelho) {
   if (querPesquisa && !resultado) resultado = pesquisar(historico, pergunta, extraSistema);
   if (ficha && !resultado) { extraSistema += '\n\n### A PESQUISA FALHOU AGORA\nNão monte ficha nem comparativo com números de cabeça. Diga curto que a pesquisa na web falhou agora e peça pra tentar de novo em 1 minuto.'; passo('Pesquisa da ficha falhou: não vai chutar número'); }
   // MODO CAPRICHO: pedido difícil (ou o Thiago ligou): cérebro forte, pensando no máximo, e outro cérebro revisa antes de entregar
-  const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && ehDificil(pergunta, colado)));
+  const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && (ficha || ehDificil(pergunta, colado))));
   if (capricho) passo('Modo capricho: pergunta difícil, vai pensar mais e revisar antes de responder');
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema, capricho);
-  if (capricho && resultado && resultado.ok && !req.imagem) { try { resultado = revisarResposta(pergunta, resultado, extraSistema); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
+  if (capricho && resultado && resultado.ok && !req.imagem) { try { resultado = revisarResposta(pergunta, resultado, extraSistema + (ficha && resultado.pesquisou ? REGRA_REVISOR_FICHA : '')); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
   if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
 
   const proc = processarTags(resultado.texto, aparelho);
@@ -732,6 +773,8 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
   ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
   if (preferido === 'auto' || !preferido) { try { ordem = reordenarPorNota(ordem, pc); } catch (e) { /* segue a ordem padrão */ } }
+  // pedido difícil: o Gemini Flash (melhor, ~20/dia) vai na frente; acabou a cota do dia → segue a ordem normal
+  if (forte && (preferido === 'auto' || !preferido) && temCerebro('geminiForte')) { ordem = ['geminiForte'].concat(ordem); passo('Pedido difícil: chamou o Gemini Flash (o melhor do grátis) primeiro'); }
 
   const tokensCheio = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
   let enxutas = null;
@@ -1304,6 +1347,7 @@ function ehFichaTecnica(t, historico) {
   const ant = (historico || []).slice(0, -1).reverse().find(m => m.role === 'assistant');
   return !!(ant && /POR QUE LEVAR/.test(String(ant.content)) && s.length < 120 && !/^(ok|blz|beleza|valeu|obrigad|show|top)/.test(s));
 }
+const REGRA_REVISOR_FICHA = '\n\nATENÇÃO REVISOR: este rascunho é ficha técnica que veio da PESQUISA NA WEB. Seu conhecimento é mais velho que a pesquisa: NÃO troque número, chip nem modelo por outro que você acha. Corrija só: (1) o mesmo aparelho com dois valores diferentes na resposta, (2) modelo trocado (pediu Duo, veio 16), (3) formato do card, (4) vencedor de categoria que não bate com os números.';
 const REGRA_FICHA = '\n\n### FICHA TÉCNICA (comparativo/especificação de aparelho)\nUse SÓ números que aparecem nas fontes da pesquisa, do modelo EXATO pedido (17 Pro Max não é 16 Pro Max; 18 Pro Max tem o chip da geração 18). Dado que a fonte não traz: escreva "não confirmado", nunca chute. Trechos da base/memória sobre ficha podem estar errados: as fontes da pesquisa mandam. Se a pesquisa não achar o modelo, diga que não achou (não diga que não existe).';
 
 function precisaPesquisar(t) {
@@ -1374,7 +1418,7 @@ function revisarResposta(pergunta, resultado, extraSistema) {
   const msgs = [{ role: 'system', content: PROMPT_REVISOR_RESPOSTA + (contexto ? '\n\nINFORMAÇÕES QUE A ZICOAI TINHA (use pra conferir):' + contexto : '') }, { role: 'user', content: 'PEDIDO:\n' + String(pergunta).slice(0, 12000) + '\n\nRASCUNHO:\n' + rascunho.slice(0, 30000) }];
   const tk = estimarTokens(JSON.stringify(msgs));
   // revisor diferente de quem escreveu; código: gpt-oss pensando no máximo; o resto: Gemini (contexto grande)
-  let ordem = ehProgramacao(pergunta) ? ['groq', 'nvidia', 'gemini', 'mistral', 'groq2'] : ['gemini', 'groq', 'mistral', 'nvidia', 'groq2'];
+  let ordem = ehProgramacao(pergunta) ? ['groq', 'nvidia', 'geminiForte', 'gemini', 'mistral', 'groq2'] : ['geminiForte', 'gemini', 'groq', 'mistral', 'nvidia', 'groq2'];
   ordem = ordem.filter(n => temCerebro(n) && autor.indexOf(CEREBROS[n].nome) !== 0).concat(ordem.filter(n => temCerebro(n) && autor.indexOf(CEREBROS[n].nome) === 0));
   for (const nome of ordem) {
     const c = CEREBROS[nome];
@@ -3511,6 +3555,8 @@ function estudar() {
   const ultima = Number(props.getProperty('ESTUDO_ULTIMA') || 0);
   if (Date.now() - ultima < 20 * 60000) return { ok: true, pulou: 'estudou há menos de 20 min' };
   props.setProperty('ESTUDO_ULTIMA', String(Date.now()));
+  const dia = Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd');
+  if (props.getProperty('MODELOS_TESTADOS') !== dia) { try { const m = testarModelos(); props.setProperty('MODELOS_TESTADOS', dia); Logger.log('modelos: ' + JSON.stringify(m)); } catch (e) { /* tenta amanhã */ } }
   let r = null;
   try { r = aprenderComErros(); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
   if (r && r.aprendeu) return r;
