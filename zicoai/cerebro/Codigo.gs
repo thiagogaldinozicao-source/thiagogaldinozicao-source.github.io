@@ -587,11 +587,12 @@ function chat(req, aparelho) {
   else gravarMensagem(chatId, 'thiago', pergunta + (temFoto ? (req.fotoRepetida ? '\n[📷 mesma foto de antes]' : '\n[📷 foto enviada]') : ''), '', aparelho);
   CHAT_ATUAL = chatId;
 
-  // modo agente: o Thiago pediu explicitamente segundo plano
-  if (modo === 'agente') {
+  // modo agente: o Thiago pediu explicitamente segundo plano; ou o pedido é CLARAMENTE grande/multi-etapa (rota automática, v57)
+  const autoAgente = modo === 'auto' && !temFoto && !req.refazer && ehPedidoGrande(pergunta);
+  if (modo === 'agente' || autoAgente) {
     const t = criarTarefa(pergunta, chatId, aparelho);
-    const txt = t.ok ? '🧠 Agente trabalhando nisso em segundo plano (tarefa ' + t.id + '). O resultado aparece aqui quando terminar.' : '⚠️ ' + t.erro;
-    passo('Criou uma tarefa em segundo plano');
+    const txt = t.ok ? '🧠 Agente trabalhando nisso em segundo plano (tarefa ' + t.id + '), em etapas e conferindo cada uma. O resultado aparece aqui quando terminar.' : '⚠️ ' + t.erro;
+    passo(autoAgente ? 'Pedido grande com várias etapas: mandou direto pro agente (planeja, faz uma por vez e confere)' : 'Criou uma tarefa em segundo plano');
     gravarMensagem(chatId, 'zicoai', txt, 'agente', aparelho);
     tocarChat(chatId);
     return { ok: true, chatId: chatId, titulo: titulo, resposta: txt, cerebro: 'agente', salvou: ['tarefa'], passos: PASSOS, detalhes: detalhesSeguros(DETALHES), tarefaId: t.id };
@@ -4003,6 +4004,145 @@ function estadoApagar(id) {
   try { const it = pastaTarefas().getFilesByName(id + '.json'); while (it.hasNext()) it.next().setTrashed(true); } catch (e) { /* ok */ }
 }
 
+/* ---------- PLANO EM ETAPAS (v57): planeja, faz uma etapa por vez e confere cada uma com prova ----------
+ * Fica no estado da tarefa (est.plano, JSON no Drive), então sobrevive entre rodadas.
+ * est.plano = { etapas: [{fazer, como, st, prova, via, motivo, tentativas}], conferindo, conferido }
+ * st: pendente | tentando (falhou, vai tentar outro caminho) | feita | falhou | sem_prova
+ * Regra dura (no código, não só no prompt): "feita" só com prova escrita E com ferramenta que deu certo desde a última etapa. */
+const MAX_ETAPAS = 8;
+const TENTATIVAS_ETAPA = 2;          // caminhos alternativos depois da 1ª falha
+const curtoPlano = (t, n) => String(t || '').replace(/\s+/g, ' ').replace(/ \| /g, ' · ').trim().slice(0, n);
+function etapaAberta(e) { return e.st === 'pendente' || e.st === 'tentando'; }
+function etapaAtual(plano) { const i = plano ? plano.etapas.findIndex(etapaAberta) : -1; return i; }
+/** Lê a lista de etapas que o cérebro mandou (aceita {fazer, prova} ou texto solto). */
+function lerEtapas(lista) {
+  return (Array.isArray(lista) ? lista : []).map(x => typeof x === 'string' ? { fazer: x } : (x || {}))
+    .map(x => ({ fazer: curtoPlano(x.fazer || x.etapa || x.o_que || x.titulo, 120), como: curtoPlano(x.prova || x.como || x.conferir || x.confirmar, 120), st: 'pendente', prova: '', via: '', motivo: '', tentativas: 0 }))
+    .filter(x => x.fazer.length >= 3);
+}
+/** Grava o plano (primeira vez) ou replaneja (troca só as etapas que ainda não fecharam). */
+function planoGravar(est, lista) {
+  const novas = lerEtapas(lista);
+  if (!novas.length) return 'PLANO IGNORADO: mande "plano" como lista de {"fazer","prova"}.';
+  if (!est.plano) {
+    est.plano = { etapas: novas.slice(0, MAX_ETAPAS), conferindo: false, conferido: false };
+    est.log.push('📋 Fez o plano: ' + est.plano.etapas.length + ' etapa' + (est.plano.etapas.length === 1 ? '' : 's'));
+    return 'PLANO ANOTADO (' + est.plano.etapas.length + ' etapas).';
+  }
+  const fechadas = est.plano.etapas.filter(e => !etapaAberta(e));
+  est.plano.etapas = fechadas.concat(novas.slice(0, Math.max(1, MAX_ETAPAS - fechadas.length)));
+  est.plano.conferindo = false;
+  est.log.push('🗺️ Replanejou: ' + (est.plano.etapas.length - fechadas.length) + ' etapa(s) daqui pra frente');
+  return 'PLANO NOVO ANOTADO pras etapas que faltavam.';
+}
+/** O cérebro diz que uma etapa terminou. Só vira ✅ com prova; falha manda tentar outro caminho (máx. 2). */
+function etapaMarcar(est, e) {
+  const p = est.plano;
+  if (!p || !e) return '';
+  if (Array.isArray(e)) return e.map(x => etapaMarcar(est, x)).filter(Boolean).join('\n');
+  const atual = etapaAtual(p);
+  let n = parseInt(e.n || e.numero, 10);
+  if (!(n >= 1)) n = atual + 1;
+  const et = p.etapas[n - 1];
+  if (!et) return 'ETAPA ' + n + ' NÃO EXISTE no plano.';
+  const st = normalizar(String(e.status || e.st || '')).replace(/[^a-z_]/g, '');
+  const motivo = curtoPlano(e.motivo || e.erro || e.prova, 140);
+  if (!etapaAberta(et)) {
+    // na conferência dá pra REBAIXAR uma etapa (ex.: a prova não bate), nunca subir sem prova
+    if ((st === 'falhou' || st === 'sem_prova' || st === 'semprova') && et.st === 'feita') { et.st = st === 'falhou' ? 'falhou' : 'sem_prova'; et.motivo = motivo || 'a prova não bateu na conferência'; est.log.push('🔎 Conferência: etapa ' + n + ' não era ✅ (' + et.motivo + ')'); return 'ETAPA ' + n + ' rebaixada na conferência.'; }
+    return '';
+  }
+  if (st === 'feita' || st === 'ok' || st === 'pronta') {
+    const prova = curtoPlano(e.prova, 160);
+    const via = (est.okDesde || []);
+    if (prova.length < 8) { est.log.push('🚫 Etapa ' + n + ' sem prova: não marcou ✅'); return 'ETAPA ' + n + ' NÃO MARCADA: "feita" precisa de "prova" (o que o resultado de uma ferramenta mostrou). Confira com uma ferramenta ou marque "sem_prova" com o motivo.'; }
+    if (!via.length) { est.log.push('🚫 Etapa ' + n + ': nenhuma ferramenta mostrou isso ainda; não marcou ✅'); return 'ETAPA ' + n + ' NÃO MARCADA: nenhuma ferramenta deu certo desde a última etapa, então não tem prova de verdade. Use uma ferramenta que mostre o resultado (ler de volta, testar, abrir) ou marque "sem_prova" com o motivo.'; }
+    et.st = 'feita'; et.prova = prova; et.via = via.filter((x, i) => via.indexOf(x) === i).slice(-3).join(', ');
+    est.okDesde = [];
+    est.log.push('✅ Etapa ' + n + ' conferida (' + et.via + ')');
+    return 'ETAPA ' + n + ' ✅ conferida.';
+  }
+  if (st === 'falhou' || st === 'erro' || st === 'falha') {
+    et.tentativas = (et.tentativas || 0) + 1;
+    et.motivo = motivo || 'sem motivo';
+    est.okDesde = [];
+    if (et.tentativas <= TENTATIVAS_ETAPA) {
+      et.st = 'tentando';
+      est.log.push('⚠️ Etapa ' + n + ' falhou (' + et.motivo + '); tentando outro caminho ' + et.tentativas + '/' + TENTATIVAS_ETAPA);
+      return 'ETAPA ' + n + ' FALHOU (' + et.motivo + '). Tente OUTRO caminho, diferente do que já tentou (caminho ' + et.tentativas + ' de ' + TENTATIVAS_ETAPA + '). Se não tiver outro jeito, mande "plano" novo pras etapas que faltam.';
+    }
+    et.st = 'falhou';
+    est.log.push('⚠️ Etapa ' + n + ' falhou de vez (' + et.motivo + ')');
+    return 'ETAPA ' + n + ' FALHOU de vez (já tentou ' + (TENTATIVAS_ETAPA + 1) + ' caminhos). Deixe assim e siga pra próxima etapa (ou mande "plano" novo).';
+  }
+  if (/sem_?prova|nao_?conferid|naoconferid/.test(st)) {
+    et.st = 'sem_prova'; et.motivo = motivo || 'não deu pra conferir'; est.okDesde = [];
+    est.log.push('🔸 Etapa ' + n + ' feita sem prova (' + et.motivo + ')');
+    return 'ETAPA ' + n + ' anotada como NÃO CONFERIDA.';
+  }
+  return 'ETAPA ' + n + ': status "' + (e.status || '') + '" não existe; use feita (com prova), falhou (com motivo) ou sem_prova.';
+}
+/** Checklist que o Thiago vê (começo dos passos da tarefa). */
+function checklistPlano(plano) {
+  if (!plano || !plano.etapas || !plano.etapas.length) return [];
+  const ok = plano.etapas.filter(e => e.st === 'feita').length;
+  return ['📋 Plano: ' + ok + ' de ' + plano.etapas.length + ' etapas conferidas'].concat(plano.etapas.map((e, i) => {
+    const n = (i + 1) + '. ' + e.fazer;
+    if (e.st === 'feita') return '✅ ' + n + ' — prova: ' + e.prova;
+    if (e.st === 'falhou') return '⚠️ ' + n + ' — falhou: ' + e.motivo;
+    if (e.st === 'tentando') return '⚠️ ' + n + ' — falhou: ' + e.motivo + ' (tentando outro caminho ' + e.tentativas + '/' + TENTATIVAS_ETAPA + ')';
+    if (e.st === 'sem_prova') return '🔸 ' + n + ' — não conferida: ' + e.motivo;
+    return '☐ ' + n;
+  }).map(x => curtoPlano(x, 300)));
+}
+/** Lembrete que vai junto de cada resultado: em que etapa está e como confirmar. */
+function lembreteEtapa(plano) {
+  if (!plano) return '';
+  const i = etapaAtual(plano);
+  if (i < 0) return 'TODAS AS ETAPAS FECHADAS. Termine com {"resposta"}.';
+  const e = plano.etapas[i];
+  return 'ETAPA ATUAL: ' + (i + 1) + ' de ' + plano.etapas.length + ' — ' + e.fazer + (e.como ? ' (prova esperada: ' + e.como + ')' : '') + '. Quando terminar, mande "etapa":{"n":' + (i + 1) + ',"status":"feita","prova":"..."} (ou "falhou" com "motivo").';
+}
+/** Fim honesto: lista o que foi conferido e o que NÃO foi (montado pelo código, não pelo cérebro). */
+function conferenciaFinal(plano) {
+  if (!plano || !plano.etapas || !plano.etapas.length) return '';
+  const linhasC = plano.etapas.map((e, i) => {
+    const n = (i + 1) + '. ' + e.fazer;
+    if (e.st === 'feita') return '✅ ' + n + ' — prova: ' + e.prova + (e.via ? ' (' + e.via + ')' : '');
+    if (e.st === 'falhou') return '⚠️ ' + n + ' — falhou: ' + e.motivo;
+    if (e.st === 'sem_prova') return '🔸 ' + n + ' — feita, mas NÃO conferida: ' + e.motivo;
+    if (e.st === 'tentando') return '⚠️ ' + n + ' — falhou (' + e.motivo + ') e não deu tempo de outro caminho';
+    return '☐ ' + n + ' — não chegou a fazer';
+  });
+  const nao = plano.etapas.map((e, i) => e.st === 'feita' ? 0 : i + 1).filter(Boolean);
+  const ok = plano.etapas.length - nao.length;
+  return '\n\n---\n📋 **Conferência das etapas** (' + ok + ' de ' + plano.etapas.length + ' com prova)\n' + linhasC.join('\n') +
+    '\n\n' + (nao.length ? '**Não conferido:** etapa' + (nao.length > 1 ? 's ' : ' ') + nao.join(', ') + '. Não conte com isso como pronto sem olhar.' : '**Tudo conferido** com prova.');
+}
+/** Passos da tarefa = checklist do plano + rastro. Cabe em 4 mil letras: corta o rastro do meio, nunca o checklist. */
+function passosTarefa(est, log) {
+  const cab = checklistPlano(est && est.plano);
+  let l = (log || (est && est.log) || []).map(x => String(x).replace(/ \| /g, ' · '));
+  const tam = () => cab.concat(l).join(' | ').length;
+  while (tam() > 3900 && l.length > 6) l = l.slice(0, 3).concat(['…'], l.slice(5));
+  return cab.concat(l).join(' | ').slice(0, 3990);
+}
+
+/** Pedido no chat que é CLARAMENTE grande/multi-etapa: vai direto pro agente (sem o cérebro do chat decidir). */
+function ehPedidoGrande(texto) {
+  const t = String(texto || '');
+  if (t.length < 20 || t.length > 1500 || /```/.test(t)) return false;
+  const n = normalizar(t);
+  if (/\b(coloca|coloque|bota|usa|use|manda|mande|chama|chame)\s+(os\s+|uns\s+|mais\s+)?agentes?\b/.test(n)) return true;
+  if (/\b(faz|faca|fazer|vai fazendo|resolve)\b[^.?!]{0,40}\bem etapas\b|\bem etapas\s*:/.test(n)) return true;
+  if (/(^|[.!,;]\s*)(faz|faca) tudo\b|\b(faz|faca) tudo (isso|isto|ai|pra mim|de uma vez|sozinha)\b/.test(n)) return true;
+  if (/\bv[aá]rias (coisas|tarefas)\b/.test(n) && /\b(faz|faca|fazer|preciso|quero|resolve|resolver)\b/.test(n)) return true;
+  // lista de 3 ou mais PEDIDOS (1. … / 2) … / - …), cada item começando com verbo de ordem (lista de cores/nomes não conta)
+  const verbo = /^(e |depois |tambem |ai )?(faz|faca|fazer|cria|crie|criar|pesquisa|pesquise|pesquisar|compara|compare|comparar|atualiza|atualize|atualizar|coloca|coloque|manda|mande|arruma|arrume|corrige|corrija|conserta|muda|mude|troca|troque|adiciona|adicione|poe|bota|testa|teste|testar|le|ler|leia|verifica|verifique|confere|confira|calcula|calcule|gera|gere|monta|monte|escreve|escreva|publica|publique|organiza|organize|levanta|levante|procura|procure|busca|busque|ve|veja|deixa|deixe|tira|tire|separa|anota|anote|salva|salve|envia|envie|prepara|prepare|revisa|revise|melhora|melhore|ajusta|ajuste|lista|liste|resume|resuma|olha|olhe)\b/;
+  const itens = t.split('\n').map(l => l.match(/^\s*(?:\d{1,2}\s*[.)\-–]|[-•*])\s+(.{8,})$/)).filter(Boolean).filter(m => verbo.test(normalizar(m[1]).trim()));
+  return itens.length >= 3;
+}
+
 /* ---------- fila: até MAX_AGENTES_JUNTOS rodadas ao mesmo tempo, cada uma com o próprio gatilho ---------- */
 
 /** Liga mais um "trabalhador" (gatilho) se ainda não tiver o máximo. */
@@ -4072,7 +4212,7 @@ function avisarPai(pai) {
     est.msgs.push({ role: 'user', content: 'RESULTADO de dividir_em_agentes:\n' + junta });
     est.log.push('✅ ' + partes.length + ' agentes terminaram as partes');
     estadoSalvar(pai, est);
-    atualizarTarefa(pai, { status: 'pendente', passos: est.log.join(' | ') });
+    atualizarTarefa(pai, { status: 'pendente', passos: passosTarefa(est) });
     agendarRodada();
   } finally { lock.releaseLock(); }
 }
@@ -4161,6 +4301,7 @@ const PROMPT_AGENTE = [
   'Responda SEMPRE com UM JSON por vez, sem texto fora dele:',
   '  pra usar ferramenta: {"pensamento":"o que vc vai fazer agora, 1 frase curta no gerúndio (ex.: Lendo o código do app)","ferramenta":"nome","args":{...}}',
   '  pra terminar: {"resposta":"texto final completo pro Thiago (markdown; código em bloco ```html completo)"}',
+  'PLANO EM ETAPAS (tarefa com mais de 1 passo): na PRIMEIRA resposta mande o plano junto: "plano":[{"fazer":"o que fazer","prova":"como vc confirma que deu certo (resultado de ferramenta, arquivo lido de volta, teste passando, página aberta)"}, ...] com 2 a ' + MAX_ETAPAS + ' etapas (pode já vir com "ferramenta" pra começar a etapa 1). Faça UMA etapa por vez. Ao terminar uma etapa, mande no próximo JSON "etapa":{"n":1,"status":"feita","prova":"o que o resultado mostrou (ex.: ler_app mostrou o botão novo)"} ou "etapa":{"n":1,"status":"falhou","motivo":"..."}. Só é "feita" com PROVA vinda de uma ferramenta que deu certo; sem como conferir, use "status":"sem_prova" com o motivo (seja honesta). Falhou: tente OUTRO caminho (no máximo 2); não deu, siga pra próxima ou mande "plano" de novo pras etapas que faltam.',
   'RELATÓRIO FINAL (tarefa com várias partes), curto e sem contar passo a passo: 1 frase com o resultado geral; depois só as seções que tiverem conteúdo: **Já está valendo:** (o que já funciona e onde ver) | **Pronto, falta publicar:** (feito mas não no ar, e por quê) | **Precisa de você:** (o que só o Thiago faz, com o passo exato) | **Falta:** (o que travou e o motivo). Diga com honestidade o que não foi testado. Tarefa simples: só a resposta.',
   'Pedido que começa com "MELHORAR MEU CÓDIGO": 1) ler_meu_codigo com o termo certo (pode ler 2 ou 3 trechos); 2) editar_meu_codigo com o MÍNIMO de trocas, "procurar" copiado EXATAMENTE do trecho lido (com espaços e aspas) e único; 3) na resposta final, explique pro Thiago em linguagem de leigo o que mudou e a versão publicada. Se a edição falhar, leia de novo e tente uma troca menor. Nunca mexa em doPost, PIN, chaves ou nas funções de auto-melhoria.',
   'Pedido com várias partes que não dependem uma da outra (várias lojas, vários produtos, vários assuntos pra pesquisar): use dividir_em_agentes logo no começo, que fica bem mais rápido. Pedido simples: faça você mesma.',
@@ -4173,23 +4314,25 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   DETALHES = detalhesSeguros(salvo && salvo.detalhes || lerDetalhes(id)); TAREFA_DETALHE = id; REQ_VIVO = '';
   const est = salvo || { msgs: null, usadas: 0, erroJson: 0, log: [], cerebro: '', passos: 0, rodadas: 0 };
   est.rodadas = (est.rodadas || 0) + 1;
-  // passos cabem em 4 mil letras: se passar, mantém os 3 primeiros e os mais recentes
-  const compacto = log => { let l = log.map(x => String(x).replace(/ \| /g, ' · ')); while (l.join(' | ').length > 3900 && l.length > 6) l = l.slice(0, 3).concat(['…'], l.slice(5)); return l.join(' | ').slice(0, 3990); };
+  // passos = checklist do plano + rastro; cabem em 4 mil letras (corta o rastro do meio, nunca o checklist)
+  const compacto = log => passosTarefa(est, log);
   const anota = t => { est.log.push(mascarar(t)); est.detalhes = DETALHES; atualizarTarefa(id, { passos: compacto(est.log) }); };
   const PAUSA = 'PAUSA_PRAZO';
   // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo.
   // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
-  const chamar = (msgs, maxSaida, temp, semPrazo) => {
+  // forte=true (plano e conferência final): tenta o Gemini Flash primeiro (~18 por dia); sem cota, segue com os normais
+  const chamar = (msgs, maxSaida, temp, semPrazo, forte) => {
     for (let rodada = 0; rodada < 3; rodada++) {
       let soMinuto = true, tentou = false;
-      for (const nome of ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2']) {
+      for (const nome of (forte && rodada === 0 ? ['geminiForte'] : []).concat(['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2'])) {
         if (!temCerebro(nome)) continue;
         const tk = estimarTokens(JSON.stringify(msgs));
         if (tk + maxSaida > CEREBROS[nome].limite) continue;
         const motivo = motivoNaoCabe(nome, CEREBROS[nome], tk + maxSaida);
+        if (motivo && nome === 'geminiForte') continue;   // forte sem cota não muda a espera dos normais
         if (motivo) { if (!/do minuto|castigo/.test(motivo)) soMinuto = false; tentou = true; continue; }
         tentou = true;
-        try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome }; }
+        try { const t = chamarCompat(CEREBROS[nome], msgs, maxSaida, { temperature: temp }); registrarUso(nome, tk + estimarTokens(t)); return { texto: t, cerebro: CEREBROS[nome].nome, forte: nome === 'geminiForte' }; }
         catch (e) { if (/\b429\b|rate limit|quota/i.test(String(e.message))) castigo(nome, e.message); else if (ehSobrecarga(e.message)) CacheService.getScriptCache().put('off_' + nome, '1', 90); }
       }
       const pc = (!soMinuto || rodada === 2) ? cerebroPCcodigo() : null;
@@ -4223,13 +4366,13 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     } catch (e) { /* sem trajetórias */ }
     let aulas = '';
     try { aulas = contextoAulas(pedido, 2); if (aulas) est.log.push('📚 Leu ' + (aulas.match(/^\[[A-E]\d+\]/gm) || []).length + ' aula(s) do curso'); } catch (e) { /* sem aulas */ }
-    const sistema = montarSistema(pedido, true) + proj + traj + aulas + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes.' : '');
+    const sistema = montarSistema(pedido, true) + proj + traj + aulas + '\n\n' + PROMPT_AGENTE + (pai ? '\nVocê é UMA PARTE de uma tarefa maior: faça só a sua parte, bem feita, e termine com {"resposta"} trazendo os dados completos (o agente chefe junta tudo). Não use dividir_em_agentes. Não precisa mandar plano.' : '');
     est.msgs = [{ role: 'system', content: sistema }, { role: 'user', content: 'PEDIDO DO THIAGO: ' + pedido }];
     anota('Começou a trabalhar');
-  } else anota('Continuou de onde parou (rodada ' + est.rodadas + ')');
+  } else anota('Continuou de onde parou (rodada ' + est.rodadas + (est.plano && etapaAtual(est.plano) >= 0 ? ', etapa ' + (etapaAtual(est.plano) + 1) + ' de ' + est.plano.etapas.length : '') + ')');
   const msgs = est.msgs;
   const finalizar = texto => {
-    const final = processarTags(texto, aparelho || 'agente').texto;
+    const final = processarTags(texto, aparelho || 'agente').texto + conferenciaFinal(est.plano);
     atualizarTarefa(id, { status: 'concluída', resultado: final, passos: compacto(est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')'])) });
     if (est.salvou) estadoApagar(id);
     // tarefa concluída com ferramentas vira trajetória "a revisar" (o Thiago aprova no painel Treino depois)
@@ -4255,8 +4398,12 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
       if (tarefaCancelada(id)) { anota('Parou: cancelada'); if (est.salvou) estadoApagar(id); return; }
       if (Date.now() > prazo - 60000) { pausar('(limite de tempo do Google)'); return; }
       est.passos++;
-      const r = chamar(msgs, 4000, 0.2);
+      // cérebro forte só 2 vezes por tarefa: no plano (1ª chamada) e na conferência final
+      const querForte = !pai && ((est.passos === 1 && !est.plano) || (est.plano && est.plano.conferindo && !est.plano.conferido));
+      const r = chamar(msgs, 4000, 0.2, false, querForte);
       est.cerebro = r.cerebro;
+      if (querForte && est.plano && est.plano.conferindo) est.plano.conferido = true;
+      if (r.forte) { est.forte = (est.forte || 0) + 1; est.log.push('🧠 Usou o cérebro forte (' + r.cerebro + ') ' + (est.plano && est.plano.conferido ? 'pra conferência final' : 'pro plano')); }
       const j = lerJSON(r.texto);
       if (!j) {
         est.erroJson++;
@@ -4264,7 +4411,36 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
         msgs.push({ role: 'assistant', content: r.texto }, { role: 'user', content: 'Responda só com o JSON pedido ({"ferramenta":…} ou {"resposta":…}).' });
         continue;
       }
-      if (j.resposta !== undefined) { finalizar(String(j.resposta)); return; }
+      // plano e etapas vêm junto de qualquer resposta
+      let aviso = '';
+      if (Array.isArray(j.plano)) aviso += planoGravar(est, j.plano) + '\n';
+      if (j.etapa || j.etapas) aviso += etapaMarcar(est, j.etapa || j.etapas) + '\n';
+      aviso = aviso.trim();
+      if (est.plano && aviso) atualizarTarefa(id, { passos: compacto(est.log) });   // checklist novo já aparece no app
+      if (j.resposta !== undefined) {
+        const p = est.plano;
+        const abertas = p ? p.etapas.map((e, i) => etapaAberta(e) ? i + 1 : 0).filter(Boolean) : [];
+        // quer terminar com etapa aberta: cobra 1 vez (fecha cada uma ou continua)
+        if (p && abertas.length && !p.cobrouFim && est.passos < MAX_PASSOS_AGENTE - 2) {
+          p.cobrouFim = true;
+          msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: (aviso ? aviso + '\n' : '') + 'ANTES DE TERMINAR: etapa(s) ' + abertas.join(', ') + ' ainda sem fechar. Continue a etapa ' + abertas[0] + ' ou feche cada uma com "etapa" (feita + prova, falhou + motivo, ou sem_prova + motivo). Não diga que está pronto o que não foi conferido.' });
+          anota('Cobrou a(s) etapa(s) ' + abertas.join(', ') + ' antes de terminar');
+          continue;
+        }
+        // conferência final (1 vez, com o cérebro forte): confere cada ✅ contra os resultados das ferramentas
+        if (p && !p.conferido && !p.conferindo && p.etapas.some(e => e.st === 'feita') && est.passos < MAX_PASSOS_AGENTE - 1) {
+          p.conferindo = true;
+          msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: (aviso ? aviso + '\n' : '') + 'CONFERÊNCIA FINAL: compare cada etapa ✅ com os RESULTADOS das ferramentas acima. A prova bate de verdade? Se alguma não bate, rebaixe com "etapa":{"n":X,"status":"sem_prova","motivo":"..."}. Depois devolva {"resposta": relatório final honesto: o que ficou pronto e conferido, o que falhou e o que NÃO foi conferido}.\nCHECKLIST:\n' + checklistPlano(p).join('\n') });
+          anota('🔎 Conferindo as etapas antes de entregar');
+          continue;
+        }
+        finalizar(String(j.resposta)); return;
+      }
+      if (!j.ferramenta && aviso) {
+        // só mandou plano/etapa: anota e segue
+        msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: aviso + '\n' + lembreteEtapa(est.plano) });
+        continue;
+      }
       const nome = String(j.ferramenta || '');
       const f = FERRAMENTAS[nome];
       let obs;
@@ -4276,6 +4452,8 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
         const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
         try { obs = String(observarDetalhe('ferramenta', nome, {nome: nome, args: j.args || {}}, () => f.run(j.args || {}, ctx)) || '(sem retorno)'); }
         catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
+        // ferramenta que deu certo vira "prova possível" da etapa atual
+        if (!/^(ERRO|LIMITE)\b|indispon[ií]vel|n[ãa]o consegui|n[ãa]o achei/i.test(obs.slice(0, 120))) (est.okDesde = est.okDesde || []).push(nome);
         const pens = String(j.pensamento || j.porque || '').replace(/\s+/g, ' ').trim();
         if (pens) est.log.push('💭 ' + pens.slice(0, 90));
         anota('🔧 ' + nome + ' ' + argsTxt + ' → ' + obs.replace(/\s+/g, ' ').slice(0, 160));
@@ -4290,7 +4468,11 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
         }
       }
       if (!f || (nome === 'dividir_em_agentes' && pai) || /^LIMITE:/.test(obs)) passoDetalhe({tipo: 'ferramenta', titulo: nome, pedido: j.args || {}, resposta: obs, ms: 0});
-      msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: 'RESULTADO de ' + nome + ':\n' + obs.slice(0, 6000) });
+      // com plano: junto do resultado vai o aviso da etapa e em que etapa está; sem plano (1ª ferramenta), lembra 1 vez de planejar
+      let extra = '';
+      if (est.plano) extra = '\n\n' + (aviso ? aviso + '\n' : '') + lembreteEtapa(est.plano);
+      else if (!pai && !est.cobrouPlano) { est.cobrouPlano = true; extra = '\n\n(Se a tarefa tem mais de um passo, mande "plano" no próximo JSON, junto da ferramenta.)'; }
+      msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: 'RESULTADO de ' + nome + ':\n' + obs.slice(0, 6000) + extra });
     }
     msgs.push({ role: 'user', content: 'Acabou o tempo. Termine agora com {"resposta": ...} usando o que já tem.' });
     const r = chamar(msgs, 4000, 0.2, true); const j = lerJSON(r.texto); est.cerebro = r.cerebro;
