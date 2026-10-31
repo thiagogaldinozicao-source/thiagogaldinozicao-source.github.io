@@ -251,6 +251,7 @@ header{display:flex}
 .menu-topo button{display:flex;gap:10px;align-items:center;font-size:15px}
 .menu-topo hr{border:none;border-top:1px solid var(--borda2);margin:4px 6px}
 .menu-topo .perigo{color:var(--erro)}
+.menu-topo button span{display:inline;font-size:inherit;color:inherit}
 .chat-item .pin{color:var(--ouro);font-size:12px;flex-shrink:0}
 .chat-item .gira{width:12px;height:12px;border:2px solid var(--borda2);border-top-color:var(--ouro);border-radius:50%;animation:gira 1s linear infinite;flex-shrink:0}
 .chat-item .pj{font-size:11px;color:var(--cinza2);flex-shrink:0;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1254,7 +1255,8 @@ function abreProjeto(id){
     const l = document.createElement('button'); l.className = 'pj-linha'; l.style.width = '100%';
     l.innerHTML = '<span>💬</span><span class="n"></span><small></small>';
     l.querySelector('.n').textContent = c.titulo || 'Conversa';
-    l.querySelector('small').textContent = c.trabalhando ? 'Trabalhando…' : (c.atualizada || '').slice(5, 16).replace(' ', ' às ');
+    const dt = String(c.atualizada || '').match(/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2})/);
+    l.querySelector('small').textContent = c.trabalhando ? 'Trabalhando…' : (dt ? dt[2] + '/' + dt[1] + ' às ' + dt[3] : '');
     l.onclick = () => { $('mProj').classList.remove('aberto'); abrir(c.id); };
     convs.appendChild(l);
   });

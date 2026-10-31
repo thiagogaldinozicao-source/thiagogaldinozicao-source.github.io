@@ -2395,7 +2395,7 @@ function dispositivos() {
   if (comfy) {
     const r = testarUrl(comfy + '/system_stats');
     let det = '';
-    try { const d = JSON.parse(r.txt).devices[0]; det = d.name.replace(/^cuda:\d+\s*/, '') + ' · ' + Math.round(d.vram_free / 1073741824 * 10) / 10 + ' GB livres'; } catch (e) { /* ok */ }
+    try { const d = JSON.parse(r.txt).devices[0]; det = d.name.replace(/^cuda:\d+\s*/, '').replace(/\s*:\s*\w+$/, '') + ' · ' + Math.round(d.vram_free / 1073741824 * 10) / 10 + ' GB livres'; } catch (e) { /* ok */ }
     out.push({ nome: 'ComfyUI (imagens)', ok: r.cod === 200, detalhe: r.cod === 200 ? det : 'fechado' });
   }
   if (prop('PONTE_URL')) {
