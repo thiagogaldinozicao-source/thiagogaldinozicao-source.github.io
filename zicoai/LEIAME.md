@@ -155,6 +155,13 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v67 + extensão 2.6 (31/10): navegador próprio da ZicoAI + uma ZicoAI por aba
+- Mac: `navegador-zico.js` (ponte mac-1.7, ação `navegador`): Chrome dela com perfil próprio, janela visível, travas do `seguranca.js`/`pagina.js` do repo, mouse de verdade, print depois de cada ação. Precisa do `git pull` em `~/ZicoAI/repo`.
+- Cérebro: ferramentas `web_pesquisar/abrir/ler/clicar/digitar/tecla/rolar/voltar/erros`; print no cache `tela_vivo`, ações `aoVivo` (campo `tela`, com `desde`) e `telaVivo`. Regra no agente: navegador dela pra pesquisa/depurar, Chrome do Thiago só quando precisa da aba/login dele. `seguranca.js`: Implantar/Deploy precisa de OK.
+- App v30 (cache `zicoai-v30`): card "Navegador da ZicoAI" com o print ao vivo (chat e tarefa).
+- Extensão 2.6: ícone abre o painel só naquela aba (`painel.html?aba=ID`), conversa própria por aba, cérebro lê a aba do painel (`abaId`). Botões "Ler página" (texto, não print) e "Seleção" com explicação.
+- Teste t46, aula D35.
+
 ## Extensão 2.5 (31/10): igual o Claude no Chrome
 - Permissão `debugger`: ao clicar, liga o depurador na aba (barra do Chrome "ZicoAI começou a depurar este navegador [Cancelar]") e clica com o MOUSE DE VERDADE (`Input.dispatchMouseEvent`), o que funciona em site que ignora clique de script. As travas rodam antes (pagina.js `soOnde` devolve o ponto só se pode clicar). Solta sozinho com 60 s parada; sem depurador, volta pro clique de script.
 - Na página: borda dourada pulsando, cursor da ZicoAI andando até o botão, selo "⚡ ZicoAI: …" e botão "■ Parar ZicoAI". Parar ou "Cancelar" na barra = 10 min sem mexer no Chrome.

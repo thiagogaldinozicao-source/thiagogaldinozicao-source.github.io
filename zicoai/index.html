@@ -130,6 +130,15 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 .vivo{border:1px solid var(--borda2);border-radius:14px;padding:10px 12px;background:var(--card)}
 .vivo-linha>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--cinza2);font-size:15px;padding:4px 0;min-height:32px}
 .vivo-linha>summary::-webkit-details-marker{display:none}
+/* Navegador da ZicoAI: o print da tela dela ao vivo */
+.tela-zico{margin:6px 0 8px;border:1px solid var(--borda,#333);border-radius:12px;overflow:hidden;max-width:520px;background:#000}
+.tela-zico .tz-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;font-size:12px;color:var(--cinza2);background:rgba(255,255,255,.04)}
+.tela-zico .tz-bar b{color:var(--ouro);font-weight:600;white-space:nowrap}
+.tela-zico .tz-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tela-zico .tz-bar .tz-dot{width:7px;height:7px;border-radius:50%;background:#e5484d;flex:none;animation:pisca 1.2s infinite}
+.tela-zico img{display:block;width:100%;height:auto;cursor:zoom-in}
+.tela-zico.grande{position:fixed;inset:10px;max-width:none;z-index:999;overflow:auto}
+.tela-zico.grande img{cursor:zoom-out}
 .vivo-linha .pontos{display:inline-flex;gap:3px;flex:none}
 .vivo-linha .pontos i{width:5px;height:5px;border-radius:50%;background:var(--ouro);animation:pisca 1s infinite}
 .vivo-linha .pontos i:nth-child(2){animation-delay:.2s}.vivo-linha .pontos i:nth-child(3){animation-delay:.4s}
@@ -693,7 +702,15 @@ const LS = {
 
 let cfg = Object.assign({ url:'', pin:'', aparelho:'', cerebro:'auto', pcUrl:'http://localhost:11434', pcModelo:'zicoai' }, LS.get('cfg', {}));
 let chats = LS.get('chats', []);            // [{id,titulo,atualizada}]
-let atual = LS.get('atual', null);          // id da conversa aberta
+// painel da extensão: cada ABA do Chrome tem a sua conversa (?aba=ID); fora dela, a conversa aberta de sempre
+const ABA_EXT = Number((location.search.match(/[?&]aba=(\d+)/) || [])[1]) || 0;
+function lerAtual(){
+  if(!ABA_EXT) return LS.get('atual', null);
+  const x = LS.get('atual_aba_' + ABA_EXT, null);   // id de aba volta a existir depois de reiniciar o Chrome: vale só 12 h
+  return x && x.id && Date.now() - x.quando < 12 * 3600000 ? x.id : null;
+}
+function guardaAtual(){ if(ABA_EXT) LS.set('atual_aba_' + ABA_EXT, atual ? { id: atual, quando: Date.now() } : null); else LS.set('atual', atual); }
+let atual = lerAtual();          // id da conversa aberta
 let mensagens = LS.get('msgs_' + atual, []);
 let foto = null, miniatura = null, ultimaFoto = null;
 // aberta dentro do painel da extensão do Chrome (?ext=1): o cérebro sabe que tem um site aberto do lado
@@ -916,7 +933,7 @@ async function carregaLista(){
 async function abrir(id){
   fechaLado();
   if(controle) return;
-  atual = id; LS.set('atual', atual);
+  atual = id; guardaAtual();
   mensagens = LS.get('msgs_' + id, []);
   desenha(); desenhaLista();
   try{
@@ -958,7 +975,7 @@ async function apagar(id){
 function novaConversa(proj){
   if(controle) return;
   projAtual = typeof proj === 'string' ? proj : null;
-  atual = null; mensagens = []; LS.set('atual', null);
+  atual = null; mensagens = []; guardaAtual();
   desenha(); desenhaLista(); fechaLado(); $('txt').focus();
 }
 
@@ -1413,12 +1430,25 @@ function linhaViva(corpo){
   }
   return det;
 }
+// mostra (ou atualiza) o print do navegador da ZicoAI dentro de "onde"
+function mostraTela(onde, tela, antesDe){
+  if(!tela || !tela.img) return;
+  let c = onde.querySelector('.tela-zico');
+  if(!c){
+    c = document.createElement('div'); c.className = 'tela-zico';
+    c.innerHTML = '<div class="tz-bar"><i class="tz-dot"></i><b>Navegador da ZicoAI</b><span></span></div><img alt="tela do navegador da ZicoAI">';
+    c.querySelector('img').onclick = () => c.classList.toggle('grande');
+    if(antesDe && antesDe.parentNode === onde) onde.insertBefore(c, antesDe); else onde.appendChild(c);
+  }
+  c.querySelector('.tz-bar span').textContent = (tela.titulo || '') + (tela.url ? ' · ' + tela.url.replace(/^https?:\/\//, '') : '');
+  c.querySelector('img').src = 'data:image/jpeg;base64,' + tela.img;
+}
 function mostraTrabalhando(etapas, reqId){
   const d = document.createElement('div');
   d.className = 'msg-ia trab';
   d.innerHTML = '<div class="ava"></div><div class="corpo"></div>';
   const corpo = d.querySelector('.corpo'), t0 = Date.now();
-  let vivoTmr = null, parado = false, temVivo = false;
+  let vivoTmr = null, parado = false, temVivo = false, desdeTela = Date.now() - 5000;
   const det = linhaViva(corpo);
   const txt = det.querySelector('.vivo-txt'), seg = det.querySelector('.vivo-t');
   const relogio = setInterval(() => { seg.textContent = Math.round((Date.now() - t0) / 1000) + ' s'; }, 1000);
@@ -1440,7 +1470,8 @@ function mostraTrabalhando(etapas, reqId){
     const busca = async () => {
       if(parado) return;
       try{
-        const j = await api({ acao:'aoVivo', reqId });
+        const j = await api({ acao:'aoVivo', reqId, desde: desdeTela });
+        if(!parado && j.tela){ desdeTela = j.tela.quando + 1; mostraTela(corpo, j.tela, det); }
         if(!parado && ((j.passos && j.passos.length) || (j.detalhes && j.detalhes.length))){
           temVivo = true; clearTimeout(tmr);
           txt.textContent = textoDoPasso(j.passos || [], j.detalhes);
@@ -1538,12 +1569,12 @@ async function envia(refazendo){
     const cAtual = chats.find(x => x.id === atual);
     const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
-      acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio, naExtensao: NA_EXTENSAO || undefined,
+      acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio, naExtensao: NA_EXTENSAO || undefined, abaId: ABA_EXT || undefined,
       imagem: fotoEnvio || undefined, fotoRepetida: fotoRepetida || undefined, erroAnterior, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
     if(novo && j.chatId){
-      atual = j.chatId; LS.set('atual', atual);
+      atual = j.chatId; guardaAtual();
       chats.unshift({ id: j.chatId, titulo: j.titulo || 'Conversa', atualizada: '', projeto: projEnvio || '' });
     } else {
       const c = chats.find(x => x.id === atual);
@@ -1675,8 +1706,22 @@ function vivoTarefaNaConversa(){
   tit.innerHTML = '<span class="pontos"><i></i><i></i><i></i></span>';
   tit.appendChild(document.createTextNode(t.status === 'pendente' ? 'Na fila…' : t.status === 'esperando' ? 'Esperando os outros agentes · ' + tituloResumo(t.passos) : tituloResumo(t.passos)));
   card.appendChild(tit);
+  if(telaTarefa && telaTarefa.id === t.id) mostraTela(card, telaTarefa.tela);
   if(t.passos.length || (t.detalhes && t.detalhes.length)) card.appendChild(listaResumo(t.passos || [], t.status === 'rodando', t.detalhes));
   $('trilho').appendChild(d);
+  if(t.status === 'rodando' && !tmrTelaTarefa) buscaTelaTarefa(t);
+}
+// agente rodando nesta conversa: pega o print do navegador dela a cada 3 s (só vem quando muda)
+let telaTarefa = null, tmrTelaTarefa = null;
+async function buscaTelaTarefa(t){
+  tmrTelaTarefa = 1;
+  const desde = telaTarefa && telaTarefa.id === t.id ? telaTarefa.tela.quando + 1 : Date.parse(String(t.criada || '').replace(' ', 'T')) - 60000 || 0;
+  try{
+    const j = await api({ acao:'telaVivo', desde });
+    if(j.tela){ telaTarefa = { id: t.id, tela: j.tela }; const card = document.querySelector('#vivoTarefa .vivo'); if(card) mostraTela(card, j.tela, card.querySelector('.rz-tit') && card.querySelector('.rz-tit').nextSibling); }
+  }catch(e){}
+  const ainda = tarefas.some(x => x.id === t.id && x.status === 'rodando') && document.getElementById('vivoTarefa');
+  tmrTelaTarefa = ainda ? setTimeout(() => buscaTelaTarefa(t), 3000) : null;
 }
 function abreTarefas(){ fechaLado(); $('mTarefas').classList.add('aberto'); desenhaTarefas(); atualizaTarefas(); }
 $('bTarefas').onclick = abreTarefas; $('bTarefas2').onclick = abreTarefas; $('linhaTarefas').onclick = abreTarefas;

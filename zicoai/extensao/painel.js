@@ -1,11 +1,19 @@
 const ORIGEM = 'https://thiagogaldinozicao-source.github.io';
+// v2.6: este painel é DESTA aba (cada aba tem a sua ZicoAI e a sua conversa)
+const ABA = Number(new URLSearchParams(location.search).get('aba')) || 0;
+document.getElementById('app').src = ORIGEM + '/zicoai/?ext=1' + (ABA ? '&aba=' + ABA : '');
+async function minhaAba() {
+  if (ABA) { const a = await chrome.tabs.get(ABA).catch(() => null); if (a) return a; }
+  const [aba] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  return aba;
+}
 let avisoTmr = null;
-const aviso = t => { const a = document.getElementById('aviso'); a.textContent = t; a.classList.add('on'); clearTimeout(avisoTmr); avisoTmr = setTimeout(() => a.classList.remove('on'), 5000); };
+const aviso = t => { const a = document.getElementById('aviso'); a.textContent = t; a.classList.add('on'); clearTimeout(avisoTmr); avisoTmr = setTimeout(() => a.classList.remove("on"), 9000); };
 
 async function pegarPagina(soTrecho) {
   aviso('Lendo a página...');
   try {
-    const [aba] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const aba = await minhaAba();
     if (!aba || !/^https?:/.test(aba.url || '')) { aviso('Abre um site normal (http/https) pra eu ler.'); return; }
     const [res] = await chrome.scripting.executeScript({
       target: { tabId: aba.id },
@@ -22,10 +30,10 @@ async function pegarPagina(soTrecho) {
     });
     const d = res && res.result;
     if (!d) { aviso('Não consegui ler esta página.'); return; }
-    if (soTrecho && !d.selecao.trim()) { aviso('Seleciona um trecho na página primeiro.'); return; }
+    if (soTrecho && !d.selecao.trim()) { aviso('Nada selecionado: no site, segura o clique e passa o mouse por cima do texto (igual pra copiar) e toque em "Seleção" de novo.'); return; }
     if (soTrecho) d.texto = '';
     document.getElementById('app').contentWindow.postMessage(Object.assign({ tipo: 'zicoai-pagina' }, d), ORIGEM);
-    aviso('Pronto: "' + d.titulo.slice(0, 60) + '" foi pra caixa da ZicoAI. Agora é só perguntar.');
+    aviso(soTrecho ? 'Pronto: o trecho selecionado foi pra caixa da ZicoAI. Agora é só perguntar.' : 'Pronto: o texto de "' + d.titulo.slice(0, 60) + '" foi pra caixa da ZicoAI (texto, não print). Agora é só perguntar.');
   } catch (e) {
     aviso('Não deu pra ler esta página (' + e.message + ').');
   }

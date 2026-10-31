@@ -28,7 +28,7 @@
   const PAGAR_NO_ENDERECO = /(^|[^a-z])(pagar|pay)([^a-z]|$)/;   // só no endereço (no título "pagar" aparece em blog)
 
   // texto de botão que faz algo sem volta: só com o OK do Thiago
-  const BOTAO_PERIGOSO = /(^|[^a-z])(enviar|envie|envia|send|submit|comprar|compre|buy|adicionar ao carrinho|pagar|pague|pay|finalizar|finalize|concluir (compra|pedido)|fechar pedido|place order|excluir|exclua|apagar|apague|deletar|delete|remover|remove|confirmar|confirme|confirm|publicar|publique|publish|postar|transferir|assinar|cancelar (assinatura|conta|pedido)|desinscrever)([^a-z]|$)/;
+  const BOTAO_PERIGOSO = /(^|[^a-z])(enviar|envie|envia|send|submit|comprar|compre|buy|adicionar ao carrinho|pagar|pague|pay|finalizar|finalize|concluir (compra|pedido)|fechar pedido|place order|excluir|exclua|apagar|apague|deletar|delete|remover|remove|confirmar|confirme|confirm|publicar|publique|publish|implantar|implante|deploy|postar|transferir|assinar|cancelar (assinatura|conta|pedido)|desinscrever)([^a-z]|$)/;
   // botão de formulário (type=submit) é perigoso, menos os de pesquisa
   const SUBMIT_INOFENSIVO = /(pesquis|buscar|busca|search|procurar|filtrar|ir$|^ok$|^go$)/;
 

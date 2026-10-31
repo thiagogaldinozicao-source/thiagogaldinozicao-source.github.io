@@ -33,7 +33,9 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
         if(req.acao==='abrir')data.mensagens=[old];
         if(req.acao==='projetos')data.projetos=[];
         if(req.acao==='tarefas')data.tarefas=[];
-        if(req.acao==='aoVivo')Object.assign(data,{passos:['Ferramenta em execução'],detalhes:details});
+        const telaFalsa={img:'/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAoAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwClRRRXpnIFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB//2Q==',titulo:'Calculadora 3D com um título bem comprido pra testar a largura no celular',url:'https://thiago.github.io/calc/',acao:'abrir',quando:Date.now()};
+        if(req.acao==='aoVivo')Object.assign(data,{passos:['Ferramenta em execução'],detalhes:details,tela:telaFalsa});
+        if(req.acao==='telaVivo')data.tela=telaFalsa;
         if(req.acao==='chat'){await new Promise(r=>setTimeout(r,5500));Object.assign(data,{chatId:'fake-chat',titulo:'Teste',resposta:'Resposta nova fictícia',cerebro:'teste',passos:['Feito'],detalhes:details,ms:20});}
         await route.fulfill({json:data});
       });
@@ -46,6 +48,9 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       assert(/\d+ s/.test(await linha.locator('.vivo-t').innerText()) || true);
       const live=page.locator('.trab .passo-detalhe').first();await live.waitFor({state:'attached'});
       assert(!await linha.evaluate(e=>e.open),'linha viva começa fechada (igual Claude)');
+      await page.locator('.trab .tela-zico img').waitFor();
+      assert(/Navegador da ZicoAI/.test(await page.locator('.trab .tela-zico').innerText()),'print do navegador dela aparece ao vivo');
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), 'print estourou a largura '+width);
       await linha.locator(':scope > summary').click();await live.waitFor();
       assert(/Base usada|Ferramenta/.test(await linha.locator('.vivo-txt').innerText()),'linha viva mostra o passo atual');
       await live.locator('summary').click();
@@ -78,8 +83,9 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       // Mesmo componente no painel e em tarefa ao vivo, via estado falso.
       await page.evaluate(ds=>{tarefas=[{id:'fake-task',chatId:atual,pedido:'Tarefa fictícia',status:'rodando',passos:['Executando'],detalhes:ds}];vivoTarefaNaConversa();mostraProgresso(['Executando'],true,ds);},details);
       assert.equal(await page.locator('#vivoTarefa .passo-detalhe').count(),2);
+      await page.locator('#vivoTarefa .tela-zico img').waitFor({timeout:4000});
       assert.equal(await page.locator('#progressoPainel .passo-detalhe').count(),2);
-      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, final, tarefa, painel, abrir/fechar, copiar, máscara e largura');
+      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, print do navegador, final, tarefa, painel, abrir/fechar, copiar, máscara e largura');
       await context.close();
     }
   }finally{await browser.close();server.close();}

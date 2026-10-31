@@ -9,13 +9,24 @@
  */
 importScripts('seguranca.js');
 const S = self.ZicoSeguranca;
-const VERSAO = 'nav-2.0';
+const VERSAO = 'nav-2.6';
 const URL_PADRAO = 'https://script.google.com/macros/s/AKfycbzQXrIM8oV2Gygqm_4DA-_4li3mdicbmfnThdieLvNEvsNYoj6jyVPKWo-6CBSyP-aOow/exec';
 const ALARME = 'zicoai-ponte';
 const LIMITE_PRINT = 300000;   // ~300 KB de base64 no máximo
 
-// clicar no ícone da extensão abre o painel lateral com a ZicoAI
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+// v2.6: UM painel por aba (igual o Claude no Chrome). Clicar no ícone abre a ZicoAI SÓ nesta aba, com conversa própria;
+// trocar de aba esconde o painel (ou mostra o daquela aba, se ela tiver o dela). Fechar a aba esquece o painel.
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
+function semPainelGlobal() { chrome.sidePanel.setOptions({ enabled: false }).catch(() => {}); }
+chrome.runtime.onInstalled.addListener(semPainelGlobal);
+chrome.runtime.onStartup.addListener(semPainelGlobal);
+chrome.action.onClicked.addListener(aba => {
+  if (!aba || aba.id == null) return;
+  // sem await antes do open: o Chrome só abre o painel dentro do clique
+  chrome.sidePanel.setOptions({ tabId: aba.id, path: 'painel.html?aba=' + aba.id, enabled: true }).catch(() => {});
+  chrome.sidePanel.open({ tabId: aba.id }).catch(() => {});
+});
+chrome.tabs.onRemoved.addListener(abaId => { chrome.storage.local.remove('chat_aba_' + abaId).catch(() => {}); });
 
 /* ---------- acordar e ficar buscando ---------- */
 function criarAlarme() {
