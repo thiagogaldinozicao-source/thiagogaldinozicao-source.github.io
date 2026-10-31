@@ -2418,7 +2418,7 @@ function ponte(acao, dados) {
   const r = UrlFetchApp.fetch(url + '/', { method: 'post', contentType: 'application/json', headers: { 'X-Zico-Ponte': String(prop('PONTE_SEGREDO') || '') }, payload: JSON.stringify(Object.assign({ acao: acao }, dados || {})), muteHttpExceptions: true, followRedirects: true });
   const cod = r.getResponseCode(), txt = r.getContentText();
   if (cod === 401 || cod === 403) throw new Error('Ponte recusou o segredo');
-  if (cod !== 200 || !/^\s*\{/.test(txt)) throw new Error(cod >= 500 || cod === 0 ? 'PC desligado ou ponte fechada' : 'Ponte respondeu ' + cod);
+  if (cod !== 200 || !/^\s*\{/.test(txt)) throw new Error((cod === 502 || cod === 503 || cod === 504 || cod === 0 ? 'PC desligado ou ponte fechada' : 'Ponte respondeu fora do formato') + ' (' + cod + ': ' + String(txt).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) + ')');
   const j = JSON.parse(txt);
   if (!j.ok) throw new Error(j.erro || 'Ponte deu erro');
   return j;

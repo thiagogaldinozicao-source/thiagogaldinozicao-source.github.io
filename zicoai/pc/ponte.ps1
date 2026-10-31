@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '1.0'
+$Versao = '1.1'
 $cfg = Get-Content -Raw -Encoding UTF8 $CfgArq | ConvertFrom-Json
 $Porta = [int]$cfg.porta
 if (-not $Porta) { $Porta = 8790 }
@@ -181,13 +181,47 @@ function LerPedido($stream) {
   $linhas = $cab -split "`r`n"
   $h = @{}
   foreach ($l in ($linhas | Select-Object -Skip 1)) { $i = $l.IndexOf(':'); if ($i -gt 0) { $h[$l.Substring(0, $i).Trim().ToLower()] = $l.Substring($i + 1).Trim() } }
+  # o Tailscale às vezes manda o corpo "em pedaços" (Transfer-Encoding: chunked) em vez de Content-Length
+  if ($h.ContainsKey('transfer-encoding') -and $h['transfer-encoding'] -match 'chunked') {
+    $ms = New-Object IO.MemoryStream
+    while ($true) {
+      $tamTxt = (LerLinha $stream).Split(';')[0].Trim()
+      if (-not $tamTxt) { break }
+      $pedaco = [Convert]::ToInt32($tamTxt, 16)
+      if ($pedaco -le 0) { LerLinha $stream | Out-Null; break }
+      if ($ms.Length + $pedaco -gt 30MB) { throw 'Pedido grande demais' }
+      $b = LerBytes $stream $pedaco
+      $ms.Write($b, 0, $b.Length)
+      LerLinha $stream | Out-Null
+    }
+    $arr = $ms.ToArray()
+    return @{ linha = $linhas[0]; cab = $h; corpo = [Text.Encoding]::UTF8.GetString($arr, 0, $arr.Length) }
+  }
   $tam = 0
   if ($h.ContainsKey('content-length')) { $tam = [int]$h['content-length'] }
   if ($tam -gt 30MB) { throw 'Pedido grande demais' }
-  $corpo = New-Object byte[] $tam
+  $corpo = LerBytes $stream $tam
+  return @{ linha = $linhas[0]; cab = $h; corpo = [Text.Encoding]::UTF8.GetString($corpo, 0, $corpo.Length) }
+}
+
+function LerBytes($stream, [int]$tam) {
+  $buf = New-Object byte[] $tam
   $lido = 0
-  while ($lido -lt $tam) { $n = $stream.Read($corpo, $lido, $tam - $lido); if ($n -le 0) { break }; $lido += $n }
-  return @{ linha = $linhas[0]; cab = $h; corpo = [Text.Encoding]::UTF8.GetString($corpo, 0, $lido) }
+  while ($lido -lt $tam) { $n = $stream.Read($buf, $lido, $tam - $lido); if ($n -le 0) { break }; $lido += $n }
+  if ($lido -lt $tam) { $menor = New-Object byte[] $lido; [Array]::Copy($buf, $menor, $lido); return ,$menor }
+  return ,$buf
+}
+
+function LerLinha($stream) {
+  $l = New-Object System.Collections.Generic.List[byte]
+  $um = New-Object byte[] 1
+  while ($l.Count -lt 1024) {
+    $n = $stream.Read($um, 0, 1)
+    if ($n -le 0) { break }
+    if ($um[0] -eq 10) { break }
+    if ($um[0] -ne 13) { $l.Add($um[0]) }
+  }
+  return [Text.Encoding]::ASCII.GetString($l.ToArray())
 }
 
 $listener = New-Object System.Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $Porta)
@@ -231,5 +265,9 @@ while ($true) {
   } catch {
     Log ('erro: ' + $_.Exception.Message)
     try { if ($st) { Responder $st 400 '{"ok":false,"erro":"pedido inválido"}' } } catch {}
-  } finally { try { $cli.Close() } catch {} }
+  } finally {
+    try { $cli.Client.Shutdown([Net.Sockets.SocketShutdown]::Send) } catch {}
+    try { $cli.ReceiveTimeout = 300; $lixo = New-Object byte[] 4096; while ($st -and $st.DataAvailable -and $st.Read($lixo, 0, 4096) -gt 0) {} } catch {}
+    try { $cli.Close() } catch {}
+  }
 }
