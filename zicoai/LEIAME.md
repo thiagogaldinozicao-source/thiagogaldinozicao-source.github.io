@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v68 (31/10): consertos das conversas das 20:37–20:47
+- `lerJSON` aceita quebra de linha/tab crua dentro do texto e vírgula sobrando (o "Resultado da tarefa" saía como `{"resposta":"…"}` cru).
+- `ler_meu_codigo` lê o app (`zicoai/index.html`), o cérebro, o LEIAME e a extensão pelo GitHub: mapa com nº da linha, termo, linhas. Cérebro com termo tenta a API do Apps Script e cai pro GitHub (ela dizia "habilite a API" / "não achei o app").
+- Regra "VOCÊ MESMA" no agente; pela extensão, "vc/nossa IA/aqui onde vc está aberta" = ela, não a aba. `[[TAREFA]]` dentro de ``` sai sem a moldura.
+- `testarNavegadorZico()` (rodar no editor): abre example.com no navegador dela, lê, recarrega e confere o print. Teste t47.
+
 ## v67 + extensão 2.6 (31/10): navegador próprio da ZicoAI + uma ZicoAI por aba
 - Mac: `navegador-zico.js` (ponte mac-1.7, ação `navegador`): Chrome dela com perfil próprio, janela visível, travas do `seguranca.js`/`pagina.js` do repo, mouse de verdade, print depois de cada ação. Precisa do `git pull` em `~/ZicoAI/repo`.
 - Cérebro: ferramentas `web_pesquisar/abrir/ler/clicar/digitar/tecla/rolar/voltar/erros`; print no cache `tela_vivo`, ações `aoVivo` (campo `tela`, com `desde`) e `telaVivo`. Regra no agente: navegador dela pra pesquisa/depurar, Chrome do Thiago só quando precisa da aba/login dele. `seguranca.js`: Implantar/Deploy precisa de OK.
