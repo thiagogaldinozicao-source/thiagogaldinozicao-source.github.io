@@ -76,4 +76,4 @@ const fortes = (ctx.split('### OUTRAS')[0].match(/^\[[A-Z]\d+\]/gm) || []).lengt
 const talvez = ((ctx.split('### OUTRAS')[1] || '').match(/^\[[A-Z]\d+\]/gm) || []).length;
 ok(fortes === 2 && talvez >= 1 && talvez <= 3, 'contexto com 2 aulas completas + ' + talvez + ' "talvez"');
 ok(/entenda o PORQUÊ/.test(ctx) && /use só se a situação for essa/.test(ctx), 'contexto pede pra entender o porquê e usar o "talvez" só se servir');
-ok(/versão 48/.test(vm.runInContext('VERSAO_CEREBRO', H.ctx)), 'cérebro na versão 48');
+ok(Number((vm.runInContext('VERSAO_CEREBRO', H.ctx).match(/\d+/) || [0])[0]) >= 48, 'cérebro na versão 48 ou mais nova');

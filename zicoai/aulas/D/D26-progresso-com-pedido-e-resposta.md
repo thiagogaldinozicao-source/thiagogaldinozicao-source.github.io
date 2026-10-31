@@ -31,12 +31,14 @@ Erros que ocorreram de verdade nesta implementação:
 2. A primeira máscara usava repetição sem limite para procurar rótulos dentro de texto binário grande. O teste antigo de print ficou preso. Achei o caminho pelo teste da ponte e pelo campo base64; omiti o binário e limitei a expressão de rótulos.
 3. Os testes da ponte simulam outra requisição dentro da chamada atual. Essa requisição zerava o array global e o fechamento do detalhe tentava atualizar um índice inexistente. A pilha de erro mostrou `observarDetalhe`; preservei o contexto da chamada antes de atualizar o resultado. Os mesmos testes passaram depois.
 4. O Chromium não estava instalado neste ambiente e o download retornou um arquivo inválido. Isso impede afirmar teste visual local. O workflow de PR executa o roteiro no runner do GitHub; o resultado final deve ser conferido lá.
-
 5. Subi o rótulo da versão do cérebro antes da publicação; o CI encontrou uma asserção antiga que exige a versão 48. Li a falha no t32 e mantive o rótulo original: esta entrega é PR, a publicação fica para depois. Também completei os stubs de Markdown do roteiro conforme os métodos que o app realmente chama (`Renderer`, `setOptions` e `addHook`).
 
 6. O primeiro Playwright chegou às verificações da tela, mas acusou `localStorage` bloqueado num iframe sandbox. A configuração falsa do teste estava sendo injetada também nos frames. Restringi a injeção à janela principal; não afrouxei o sandbox do app nem ignorei o erro.
 
 7. Na revisão final, percebi que uma parte do JSON poderia começar com `=` ou apóstrofo. A primeira versão gravava as partes sem prefixo, permitindo interpretação pela planilha. Passei a gravar todas como texto e acrescentei a verificação de prefixo e de leitura completa no t33.
+
+6. **(achado na revisão do Claude)** O simulador não mede custo de rede. `mascarar()` lia as propriedades do Apps Script a cada chamada, e `publicarDetalhes()` remascarava a lista inteira a cada passo novo (custo ao quadrado): **13.219 leituras de propriedades numa mensagem**, medidas contando chamadas no simulador. No Apps Script cada leitura vai pela rede, e `prop()` ainda lê a aba `config` quando falta a chave: a mensagem passaria dos 6 min. Conserto: segredos lidos 1 vez por execução, cada detalhe mascarado 1 vez ao entrar. Teste `t35` conta as leituras (agora 1). Lição: em código que roda na nuvem, conte chamadas a serviço (propriedades, planilha, rede), não só o resultado.
+7. **(revisão)** A aba `detalhes` crescia sem limite (até ~13 × 40 mil letras por resposta). Conserto: até 60 mil letras por resposta (encolhe pedido/resposta maiores primeiro), limpeza semanal mantendo as 300 mais novas, e o agente grava no máximo a cada 10 s e sempre no fim.
 
 ## Como conferir
 - Na pasta `zicoai/cerebro/testes`, executar `node t1.js` até `node t33.js` em processos separados.

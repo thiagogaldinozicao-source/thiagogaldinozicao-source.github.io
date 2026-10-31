@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 48 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 49 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -264,15 +264,8 @@ function mascarar(valor) {
     return texto(v);
   };
   function texto(t) {
-    // Valores conhecidos também são ocultados quando aparecem sem rótulo.
-    let props = {};
-    try { const ps = PropertiesService.getScriptProperties(); if (ps.getProperties) props = ps.getProperties(); } catch (e) { /* fallback abaixo */ }
-    ['PIN','PONTE_SEGREDO','PONTE_SEGREDO_MAC','PROXY_SEGREDO','TELEGRAM_TOKEN','TELEGRAM_SEGREDO','GITHUB_TOKEN','CF_TOKEN','GROQ_KEY','GEMINI_KEY','CEREBRAS_KEY','MISTRAL_KEY','NVIDIA_KEY','PC_URL','PROXY_URL'].forEach(k => { try { if (!props[k]) props[k] = prop(k); } catch (e) { /* sem propriedade */ } });
-    Object.keys(props).forEach(k => {
-      if (!sensivel.test(k) && !/^(PC_URL|PROXY_URL)$/.test(k)) return;
-      const v = String(props[k] || '');
-      if (v.length >= 4) [v, encodeURIComponent(v)].forEach(x => { t = t.split(x).join('•••'); });
-    });
+    // Valores conhecidos também são ocultados quando aparecem sem rótulo (lidos UMA vez por execução).
+    segredosParaMascarar().forEach(x => { if (t.indexOf(x) >= 0) t = t.split(x).join('•••'); });
     return t
       .replace(/data:[^;\s]+;base64,[A-Za-z0-9+/=]+/gi, '[imagem/áudio omitido]')
       .replace(/\b(?:sk-[\w-]{8,}|gsk_[\w-]{8,}|AIza[\w-]{12,}|gh[pousr]_[\w]{8,}|github_pat_[\w]{8,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)\b/g, '•••')
@@ -288,6 +281,29 @@ function mascarar(valor) {
   }
   return JSON.stringify(limpar(valor == null ? '' : valor), null, 2);
 }
+/** Valores secretos (propriedades + aba config) lidos uma vez por execução. Antes cada mascarar() relia tudo:
+ *  13 mil leituras numa mensagem (medido no simulador), o que no Apps Script real passaria do limite de 6 min. */
+let SEGREDOS_MASCARA = null, LEITURAS_SEGREDOS = 0;
+function segredosParaMascarar() {
+  if (SEGREDOS_MASCARA) return SEGREDOS_MASCARA;
+  LEITURAS_SEGREDOS++;
+  const sensivel = /(?:key|token|segredo|secret|senha|password|pin|authorization|cookie|credential)/i, vals = {};
+  try {
+    const ps = PropertiesService.getScriptProperties();
+    if (ps.getProperties) { const pr = ps.getProperties(); Object.keys(pr).forEach(k => { vals[k] = pr[k]; }); }
+    else ['PIN', 'PONTE_SEGREDO', 'PONTE_SEGREDO_MAC', 'PROXY_SEGREDO', 'TELEGRAM_TOKEN', 'TELEGRAM_SEGREDO', 'GITHUB_TOKEN', 'CF_TOKEN', 'GROQ_KEY', 'GEMINI_KEY', 'CEREBRAS_KEY', 'MISTRAL_KEY', 'NVIDIA_KEY', 'PC_URL', 'PROXY_URL', 'COMFY_URL'].forEach(k => { const v = ps.getProperty(k); if (v) vals[k] = v; });
+  } catch (e) { /* sem propriedades */ }
+  try { linhas('config').forEach(l => { if (l[0] && !vals[l[0]]) vals[l[0]] = l[1]; }); } catch (e) { /* sem aba config */ }
+  const out = [];
+  Object.keys(vals).forEach(k => {
+    if (!sensivel.test(k) && !/^(PC_URL|PROXY_URL|COMFY_URL)$/.test(k)) return;
+    const v = String(vals[k] || '');
+    if (v.length >= 4) [v, encodeURIComponent(v)].forEach(x => { if (out.indexOf(x) < 0) out.push(x); });
+  });
+  out.sort((a, b) => b.length - a.length);
+  SEGREDOS_MASCARA = out;
+  return out;
+}
 function textoDetalhe(v) { const t = mascarar(v); return t.length > 2000 ? t.slice(0, 1999) + '…' : t; }
 function detalhesSeguros(ds) {
   return (Array.isArray(ds) ? ds : []).slice(0, 60).map(d => ({
@@ -295,9 +311,19 @@ function detalhesSeguros(ds) {
     pedido: textoDetalhe(d.pedido), resposta: textoDetalhe(d.resposta), ms: Number.isFinite(Number(d.ms)) ? Math.max(0, Number(d.ms)) : 0
   }));
 }
+const DETALHES_MAX_LETRAS = 60000, DETALHES_MAX_LINHAS = 300;
+/** Encolhe os campos maiores (pedido/resposta) até o JSON caber em DETALHES_MAX_LETRAS. */
+function encolherDetalhes(ds) {
+  const lista = ds.map(d => Object.assign({}, d));
+  for (const lim of [1000, 500, 200, 80]) {
+    if (JSON.stringify(lista).length <= DETALHES_MAX_LETRAS) break;
+    lista.forEach(d => ['pedido', 'resposta'].forEach(k => { const v = String(d[k] || ''); if (v.length > lim) d[k] = v.slice(0, lim - 1) + '…'; }));
+  }
+  return lista;
+}
 function guardarDetalhes(id, ds) {
   if (!id) return;
-  const a = aba('detalhes'), texto = JSON.stringify(detalhesSeguros(ds));
+  const a = aba('detalhes'), texto = JSON.stringify(encolherDetalhes(ds));
   const achou = a.getRange('A:A').createTextFinder(id).matchEntireCell(true).findNext();
   const partes = Array.from({length: 13}, (_, i) => texto.slice(i * 39999, (i + 1) * 39999));
   // Cada parte começa como texto: um '=' no meio do JSON nunca vira fórmula.
@@ -310,9 +336,11 @@ function lerDetalhes(id) {
   const l = linhas('detalhes').find(x => x[0] === id);
   try { return detalhesSeguros(JSON.parse(l ? l.slice(1).join('') : '[]')); } catch (e) { return []; }
 }
-function publicarDetalhes() {
-  const seguros = detalhesSeguros(DETALHES); DETALHES.splice(0, DETALHES.length, ...seguros);
-  if (TAREFA_DETALHE) guardarDetalhes(TAREFA_DETALHE, DETALHES);
+let GRAVOU_DETALHE_EM = 0;
+/** Cada detalhe já entra mascarado (passoDetalhe/observarDetalhe): aqui só publica, sem remascarar a lista toda.
+ *  Tarefa do agente grava na planilha no máximo a cada 10 s (e sempre no fim, em agente()). */
+function publicarDetalhes(forcar) {
+  if (TAREFA_DETALHE && (forcar || Date.now() - GRAVOU_DETALHE_EM >= 10000)) { guardarDetalhes(TAREFA_DETALHE, DETALHES); GRAVOU_DETALHE_EM = Date.now(); }
   if (REQ_VIVO) try {
     const c = CacheService.getScriptCache(), txt = JSON.stringify(DETALHES), partes = Math.ceil(txt.length / 16000);
     for (let i = 0; i < partes; i++) c.put('vd_' + REQ_VIVO + '_' + i, txt.slice(i * 16000, (i + 1) * 16000), 300);
@@ -349,7 +377,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PASSOS = []; DETALHES = []; TAREFA_DETALHE = ""; REQ_VIVO = "";
+  PASSOS = []; DETALHES = []; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -1052,6 +1080,44 @@ function contextoAulas(pergunta, limite, talvez) {
   }).join('\n\n');
   if (outras.length) txt += '\n\n### OUTRAS AULAS QUE TALVEZ SE APLIQUEM (use só se a situação for essa; senão ignore)\n' + outras.map(x => '[' + x[0] + '] ' + x[1] + ' — REGRA: ' + String(x[4]).slice(0, 300)).join('\n');
   return txt;
+}
+
+/** Importa aulas reescritas de um arquivo JSON do Drive pra aba `aulas`, sem redigitar nada:
+ *  {versao, aulas: {ID: {titulo, palavras, regra, conteudo}}}. Só mexe em aula privada (não nas do GitHub, que vêm do
+ *  sincronizarAulas, nem nas [IGNORAR]). O texto antigo vai pra aba `historico` (dá pra desfazer). Depois de gravar,
+ *  lê de volta e confere letra por letra. Rodar pelo editor: importarAulas() ou importarAulas('outro.json'). */
+function importarAulas(nome) {
+  nome = nome || 'aulas_professor.json';
+  const it = DriveApp.getFilesByName(nome);
+  if (!it.hasNext()) return { ok: false, erro: 'arquivo não achado no Drive: ' + nome };
+  let j;
+  try { j = JSON.parse(it.next().getBlob().getDataAsString('UTF-8')); } catch (e) { return { ok: false, erro: 'JSON inválido' }; }
+  const novas = (j && j.aulas) || {};
+  const a = aba('aulas'), tot = a.getLastRow();
+  if (tot < 2) return { ok: false, erro: 'aba aulas vazia' };
+  const ls = a.getRange(2, 1, tot - 1, 7).getDisplayValues();
+  const hist = [], gravadas = [], pulou = [];
+  ls.forEach((l, k) => {
+    const n = novas[l[0]];
+    if (!n) return;
+    if (/^GitHub/.test(String(l[6])) || l.some(c => /^\[IGNORAR\]/i.test(String(c)))) { pulou.push(l[0]); return; }
+    const v = [n.titulo, n.palavras, n.regra, n.conteudo].map(x => String(x == null ? '' : x));
+    if (!v[2] || !v[3]) { pulou.push(l[0]); return; }
+    hist.push(["'" + agora(), 'aulas', l[0] + ' (' + (j.versao || nome) + ')', seguro(String(l[4]) + '\n---\n' + String(l[5])), seguro(v[2]), 'importarAulas']);
+    a.getRange(k + 2, 3, 1, 4).setValues([v.map(seguro)]);
+    gravadas.push({ linha: k + 2, id: l[0], v: v });
+  });
+  if (hist.length) { const h = aba('historico'); h.getRange(h.getLastRow() + 1, 1, hist.length, 6).setValues(hist); }
+  try { SpreadsheetApp.flush(); } catch (e) { /* ok */ }
+  const difs = [];
+  gravadas.forEach(g => {
+    const lido = a.getRange(g.linha, 1, 1, 6).getDisplayValues()[0];
+    if (String(lido[0]) !== g.id || [2, 3, 4, 5].some((c, i) => String(lido[c]) !== g.v[i])) difs.push(g.id);
+  });
+  try { CacheService.getScriptCache().remove('aulas_idx_n'); } catch (e) { /* ok */ }
+  const r = { ok: !difs.length, gravadas: gravadas.length, conferidas: gravadas.length - difs.length, diferentes: difs, puladas: pulou, naoAchadas: Object.keys(novas).filter(id => !ls.some(l => l[0] === id)) };
+  Logger.log(JSON.stringify(r));
+  return r;
 }
 
 /** Placar da busca de aulas, com os vetores do Gemini (o que roda de verdade): lê o treino.jsonl da pasta
@@ -3326,7 +3392,16 @@ function chatTemArquivo(chatId) {
 function corteArquivo() { return Utilities.formatDate(new Date(Date.now() - DIAS_NO_ATIVO * 86400000), FUSO, 'yyyy-MM-dd'); }
 
 /** Domingo 5h: MOVE (copia, confere e só então tira) as mensagens com mais de 60 dias pra "ZicoAI Arquivo". Até 3 mil por vez. */
+/** Aba `detalhes` é diagnóstico: fica só o das últimas DETALHES_MAX_LINHAS respostas/tarefas (as mais antigas estão no topo). */
+function limparDetalhes() {
+  const a = aba('detalhes'), n = a.getLastRow() - 1;
+  if (n <= DETALHES_MAX_LINHAS) return 0;
+  const tirar = n - DETALHES_MAX_LINHAS;
+  a.deleteRows(2, tirar);
+  return tirar;
+}
 function arquivarMensagens() {
+  try { limparDetalhes(); } catch (e) { Logger.log('limpar detalhes: ' + e.message); }
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { ok: false, erro: 'ocupado' };
   try {
@@ -3622,7 +3697,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   est.rodadas = (est.rodadas || 0) + 1;
   // passos cabem em 4 mil letras: se passar, mantém os 3 primeiros e os mais recentes
   const compacto = log => { let l = log.map(x => String(x).replace(/ \| /g, ' · ')); while (l.join(' | ').length > 3900 && l.length > 6) l = l.slice(0, 3).concat(['…'], l.slice(5)); return l.join(' | ').slice(0, 3990); };
-  const anota = t => { est.log.push(mascarar(t)); est.detalhes = detalhesSeguros(DETALHES); atualizarTarefa(id, { passos: compacto(est.log) }); };
+  const anota = t => { est.log.push(mascarar(t)); est.detalhes = DETALHES; atualizarTarefa(id, { passos: compacto(est.log) }); };
   const PAUSA = 'PAUSA_PRAZO';
   // agente dá muitos passos seguidos: se todo mundo estiver no limite DO MINUTO, espera o minuto virar e tenta de novo.
   // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
@@ -3691,7 +3766,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     try { ntfy('🧠 Tarefa pronta', pedido.slice(0, 200), 'default'); } catch (e) { /* ok */ }
   };
   const pausar = motivo => {
-    est.detalhes = detalhesSeguros(DETALHES);
+    est.detalhes = DETALHES;
     est.salvou = true;
     estadoSalvar(id, est);
     anota('Pausou ' + motivo + '; continua sozinha na próxima rodada');
@@ -3747,6 +3822,8 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     if (est.salvou) estadoApagar(id);
     atualizarTarefa(id, { status: 'erro', resultado: '⚠️ ' + e.message });
     avisarPai(pai);
+  } finally {
+    try { if (TAREFA_DETALHE === id) publicarDetalhes(true); } catch (e) { /* detalhe nunca derruba a tarefa */ }
   }
 }
 

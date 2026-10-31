@@ -116,6 +116,7 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D23 | [achar a aula certa por palavra + significado](D/D23-achar-a-aula-certa.md) | Situação × princípio: palavra (BM25) + significado (vetores), 2 aulas + 3 "talvez", conversa à toa fora; vetores aos poucos no plano grátis. |
 | D24 | [medir com placar antes e depois de mudar](D/D24-placar-antes-de-mudar.md) | Reproduza o número de hoje, mude uma coisa, meça de novo, leia os erros; só fica o que subir. Prova imita o uso real. |
 | D25 | [o que um treino LoRA de 8B ensina](D/D25-o-que-o-treino-ensina.md) | Treino pequeno ensina jeito e raciocínio, não decora fato; exemplo bom traz a aula e o porquê; prova justa com a aula; salvar cedo no Colab. |
+| D27 | [reescrever muitas aulas de uma vez sem estragar nenhuma](D/D27-reescrever-aulas-em-lote.md) | Fonte × prova, ajudantes em lote com guia, revisor separado, script dos números, gravar por arquivo + importarAulas que confere letra por letra. |
 
 | D26 | [progresso com solicitação e resposta](D/D26-progresso-com-pedido-e-resposta.md) | Registrar no ponto da chamada, mascarar antes de gravar, manter passos antigos e conferir ao vivo e pronto. |
 
