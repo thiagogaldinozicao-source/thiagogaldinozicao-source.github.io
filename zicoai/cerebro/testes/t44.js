@@ -39,4 +39,23 @@ H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.strin
 for (let i = 0; i < 6; i++) { limpa(); p = run('placarMacRodada("preço")'); }
 ok(H.sheets.placar_mac.rows.some(l => l[6] === 'voltou pra nuvem') && H.PROPS.MAC_PRIMARIO === '', 'Mac piorou no placar: preço volta pra nuvem sozinho');
 ok(/diagnostico/.test(run('FERRAMENTAS.mac_comando.desc')) && /diagnostico/.test(run('FERRAMENTAS.pc_comando.desc')), 'ferramentas de diagnóstico do Mac e do PC');
-ok(/versão 5[89]/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 58');
+ok(/versão (5[89]|6\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 58 ou mais nova');
+// v60: lição do erro vira aula sozinha quando outro cérebro aprova (nota ≥ 8)
+{
+  const m = H.sheets.mensagens;
+  m.rows.push(['chatX', '2026-10-31 18:30:00', 'thiago', 'faz uma calculadora 3d', '', 'IPHONE'],
+    ['chatX', '2026-10-31 18:31:00', 'zicoai', '```html\n<!doctype html><html><body>cort', 'Gemini', 'IPHONE'],
+    ['chatX', '2026-10-31 18:32:00', 'thiago', 'ela não clica, veio cortada', '', 'IPHONE']);
+  run("PropertiesService.getScriptProperties().setProperty('ERROS_ATE', '2026-10-31 18:00:00')");
+  Object.keys(H.CACHE).forEach(k => { if (/^(tk|rq|off)_/.test(k)) delete H.CACHE[k]; });
+  H.setFetch((u, o) => {
+    const b = o && typeof o.payload === 'string' ? JSON.parse(o.payload) : {};
+    const sis = b.messages ? String(b.messages[0].content) : '';
+    if (/CRITÉRIOS|nota/i.test(JSON.stringify(b.messages || '')) && /Lição tirada de um erro/.test(JSON.stringify(b.messages || ''))) return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: '{"nota":9,"faltou":""}' } }] }) };
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: JSON.stringify({ causa: 'arquivo grande demais veio cortado', regra: 'App grande: confira se o arquivo terminou em </html> antes de mandar', porque: 'limite de saída corta', situacoes: ['app grande', 'veio cortado'], erro_comum: 'mandar sem conferir', resposta_certa: 'Veio cortado; mando o resto agora.', tipo: 'código' }) } }] }) };
+  });
+  const r2 = run('aprenderComErros()');
+  const nova = (H.sheets.aulas || {rows:[]}).rows.find(l => /^X\d+$/.test(l[0]));
+  ok(r2.aprendeu && r2.aula === 'X1' && nova && /<\/html>/.test(nova[4]) && /aprendeu sozinha/.test(nova[6]), 'lição aprovada por outro cérebro virou aula X1 sozinha');
+  ok(/virou aula X1/.test(H.sheets.estudo_erros.rows[H.sheets.estudo_erros.rows.length - 1][10]), 'estudo_erros marca que virou aula');
+}

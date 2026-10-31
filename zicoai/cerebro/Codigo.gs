@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 59 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 60 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -3876,7 +3876,7 @@ function macPrimario(pergunta) {
  * Uma rodada = aprender com UM erro recente (se tiver) ou estudar UM tema na web.
  * Quem chama: o Mac (ponte, a cada 30 min, sem gastar a cota de gatilhos) e um gatilho de 4 em 4 horas (reserva com o Mac desligado).
  * Tudo que sai daqui entra como "revisar": exemplo de treino e rascunho de aula. Não vai sozinho pro contexto. */
-const RX_RECLAMACAO = /(errad|errou|nao existe|de onde (vc|voce) tirou|inventou|ta errado|esta errado|nao e isso|nao foi isso|falhou|nao chegou|nao funcionou|nao funciona|resposta (estranha|errada)|que resposta|se confundiu|confundiu|corrige|corrija|nao era isso|ta faltando|esqueceu|nada a ver|mentiu|chutou)/;
+const RX_RECLAMACAO = /(errad|errou|nao existe|de onde (vc|voce) tirou|inventou|ta errado|esta errado|nao e isso|nao foi isso|falhou|nao chegou|nao funcionou|nao funciona|resposta (estranha|errada)|que resposta|se confundiu|confundiu|corrige|corrija|nao era isso|ta faltando|esqueceu|nada a ver|mentiu|chutou|nao clica|nao abre|nao carrega|veio cortad|cortou|tela branca|travou|deu erro|deu bug|bugou|nao aparece|sumiu)/;
 function estudar() {
   const props = PropertiesService.getScriptProperties();
   const ultima = Number(props.getProperty('ESTUDO_ULTIMA') || 0);
@@ -3937,7 +3937,30 @@ function aprenderComErros() {
   const aula = '**Regra:** ' + j.regra + '\n\n## Por quê\n' + (j.porque || '') + '\n\n## Situações em que aparece\n' + (Array.isArray(j.situacoes) ? j.situacoes.map(x => '- ' + x).join('\n') : '') + '\n\n## Exemplo (' + String(rec[1]).slice(0, 10) + ')\n- Pedido: ' + pedido.slice(0, 300) + '\n- Errou: ' + String(j.causa || '') + '\n\n## Erro comum\n- ' + (j.erro_comum || '');
   aba('estudo_erros').appendRow(["'" + agora(), rec[0], seguro(pedido), seguro(String(errada[3]).slice(0, 3000)), seguro(String(rec[3]).slice(0, 800)), seguro(String(j.causa || '')), seguro(String(j.regra)), seguro(aula.slice(0, 6000)), seguro(String(j.resposta_certa || '').slice(0, 4000)), fontes.join(' '), 'revisar']);
   if (pedido && j.resposta_certa) guardarExemplo(pedido, String(j.resposta_certa), autor, 'erro corrigido (revisar)', j.tipo);
-  return { ok: true, aprendeu: true, conversa: rec[0], causa: j.causa, regra: j.regra, autor: autor };
+  let virouAula = null;
+  try { virouAula = aulaSozinha(j, aula, pedido, rec[1], autor); } catch (e) { /* fica pra revisar */ }
+  if (virouAula) { const ee = aba('estudo_erros'); ee.getRange(ee.getLastRow(), 11).setValue('virou aula ' + virouAula); }
+  return { ok: true, aprendeu: true, conversa: rec[0], causa: j.causa, regra: j.regra, autor: autor, aula: virouAula };
+}
+
+/** A lição do erro vira AULA sozinha (sem esperar o Thiago/Claude) quando um cérebro DIFERENTE do que escreveu dá nota ≥ 8:
+ *  regra certa e útil, sem fato inventado. No máximo 3 por dia. Entra no módulo X ("aprendeu sozinha") e já vale na próxima conversa. */
+const AULAS_SOZINHA_DIA = 3;
+function aulaSozinha(j, aulaTexto, pedido, quando, autor) {
+  const props = PropertiesService.getScriptProperties(), dia = Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd');
+  const cont = JSON.parse(props.getProperty('AULAS_SOZINHA') || '{}');
+  if ((cont[dia] || 0) >= AULAS_SOZINHA_DIA) return null;
+  if (!j || !j.regra || String(j.regra).length < 15) return null;
+  const nota = corrigirResposta('Lição tirada de um erro da ZicoAI. Pedido original: ' + String(pedido || '').slice(0, 500), 'A regra está certa e é útil pro Thiago | Não tem fato inventado (número, preço, especificação, garantia sem fonte) | Não contradiz as regras da loja | Serve pra outras situações parecidas, não só essa', 'inventar fato ou criar regra errada a partir de um caso só', aulaTexto);
+  if (!nota || nota.nota < 8) return null;
+  const a = aba('aulas'), ids = linhas('aulas').map(l => String(l[0])).filter(x => /^X\d+$/.test(x)).map(x => Number(x.slice(1)));
+  const id = 'X' + (ids.length ? Math.max.apply(null, ids) + 1 : 1);
+  const titulo = String(j.regra).replace(/\.$/, '').slice(0, 80);
+  const palavras = (Array.isArray(j.situacoes) ? j.situacoes.join(', ') : '') + ', ' + String(j.tipo || '');
+  a.appendRow([id, 'X', seguro(titulo), seguro(palavras.slice(0, 400)), seguro(String(j.regra)), seguro(String(aulaTexto).slice(0, 6000)), 'aprendeu sozinha com o erro de ' + String(quando).slice(0, 16) + ' (nota ' + nota.nota + ' de outro cérebro; autor ' + autor + ')']);
+  cont[dia] = (cont[dia] || 0) + 1; props.setProperty('AULAS_SOZINHA', JSON.stringify({ [dia]: cont[dia] }));
+  try { CacheService.getScriptCache().remove('aulas_idx_n'); } catch (e) { /* índice das aulas refeito na próxima busca */ }
+  return id;
 }
 
 function garantirRotinasTreino() {

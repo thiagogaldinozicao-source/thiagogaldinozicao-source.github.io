@@ -27,4 +27,4 @@ ok(leituras <= 3, 'abrir conversa lê a aba de detalhes uma vez (' + leituras + 
 // tarefa regravando: troca as linhas dela, não duplica
 vm.runInContext('guardarDetalhes("tarefa_t", [{tipo:"ferramenta",titulo:"a",pedido:"1",resposta:"2",ms:1}]); guardarDetalhes("tarefa_t", [{tipo:"ferramenta",titulo:"a",pedido:"1",resposta:"2",ms:1},{tipo:"ferramenta",titulo:"b",pedido:"3",resposta:"4",ms:1}]);', H.ctx);
 ok(d.rows.filter(l => l[1] === 'tarefa_t').length === 2 && vm.runInContext('lerDetalhes("tarefa_t").length', H.ctx) === 2, 'tarefa regravada fica com as linhas novas, sem duplicar');
-ok(/versão 5\d/.test(vm.runInContext('VERSAO_CEREBRO', H.ctx)), 'cérebro na versão 50 ou mais nova');
+ok(/versão (5|6)\d/.test(vm.runInContext('VERSAO_CEREBRO', H.ctx)), 'cérebro na versão 50 ou mais nova');

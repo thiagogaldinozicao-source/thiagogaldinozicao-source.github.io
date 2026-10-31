@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v60 (31/10): aprende sozinha de verdade
+- `aulaSozinha`: a lição tirada de uma reclamação (aprenderComErros) vira aula do módulo X (`X1`, `X2`…) sem esperar ninguém, se um cérebro diferente der nota ≥ 8 (regra certa e útil, sem fato inventado). Máx. 3 por dia. Já vale na próxima conversa. `estudo_erros` marca "virou aula Xn".
+- Reclamação também pega "não clica", "não abre", "veio cortado", "tela branca", "travou", "deu erro", "sumiu".
+
 ## v59 (31/10): junta tudo
 - v57 (agente em etapas, D33) + v57 (Chrome pela extensão 2.0, D32) + v58 (destilação, placar Mac × nuvem, diagnóstico, D34) num cérebro só. Testes t1–t44 (664 ok).
 

@@ -25,4 +25,4 @@ ok(modelos.indexOf('gemini-3.6-flash') < 0, 'conversa simples não gasta a cota 
 ok(run('CEREBROS.geminiForte.rpd') <= 20, 'Flash limitado a 18/dia (grátis dá 20)');
 // revisor de ficha não troca número da pesquisa
 ok(/NÃO troque número, chip nem modelo/.test(run('REGRA_REVISOR_FICHA')), 'revisor de ficha não troca número da web pelo que ele acha');
-ok(/versão 5[2-9]/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 52 ou mais nova');
+ok(/versão (5[2-9]|6\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 52 ou mais nova');
