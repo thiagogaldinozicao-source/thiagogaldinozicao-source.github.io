@@ -23,7 +23,7 @@ H.fetchLog.length = 0;
 H.setFetch(u => u.includes('generativelanguage') ? cai(429, '{"error":{"message":"Rate limit reached. Please try again in 12.5s."}}') : resp('groq respondeu'));
 Object.keys(H.CACHE).forEach(k => { if (/^tk_|^rq_/.test(k)) delete H.CACHE[k]; });
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi' }] });
-ok(r.cerebro === 'Groq GPT-OSS 120B' && H.CACHE.off_gemini && r.passos.some(p => /Gemini deu limite, fica 13s de castigo/.test(p)), '429 → castigo: ' + r.passos.filter(p => /castigo/.test(p)).join(' | '));
+ok(r.cerebro === 'Groq GPT-OSS 120B' && H.CACHE.off_gemini && r.passos.some(p => /Gemini deu limite \(Rate limit reached.*\), fica 13s de castigo/.test(p)), '429 → castigo: ' + r.passos.filter(p => /castigo/.test(p)).join(' | '));
 H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi' }] });
 ok(!H.fetchLog.some(f => f.u.includes('generativelanguage')) && r.passos.some(p => /Gemini pulado: de castigo/.test(p)), 'de castigo não é nem chamado');

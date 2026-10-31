@@ -125,3 +125,9 @@ r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi
 ok(/reserva/.test(r.resposta) && r.passos.some(p => /sobrecarregado \(alta demanda\), fica 90s fora/.test(p)), 'Gemini lotado → troca e fica fora 90 s');
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'e agora?' }] });
 ok(tentouGemini === 1 && r.passos.some(p => /Gemini pulado: de castigo/.test(p)), 'próxima pergunta pula o Gemini direto (sem perder tempo)');
+
+// 8) Mistral: small lotado (429 capacity) → tenta o medium
+H.PROPS.MISTRAL_KEY = 'mk'; const mods = [];
+H.setFetch((u, o) => { const b = JSON.parse(o.payload); mods.push(b.model); if (b.model === 'mistral-small-latest') return { getResponseCode: () => 429, getContentText: () => '{"message":"Service tier capacity exceeded for this model.","type":"service_tier_capacity_exceeded"}' }; return resp('oi do medium'); });
+ok(require('vm').runInContext('chamarCompat(CEREBROS.mistral, [{ role: "user", content: "oi" }], 50)', H.ctx) === 'oi do medium' && mods.join() === 'mistral-small-latest,mistral-medium-latest', 'Mistral lotado → reserva: ' + mods.join(' → '));
+delete H.PROPS.MISTRAL_KEY;

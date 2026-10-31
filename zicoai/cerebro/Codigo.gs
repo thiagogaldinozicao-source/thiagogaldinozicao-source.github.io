@@ -30,7 +30,8 @@ const CEREBROS = {
   // GitHub Models foi APOSENTADO pelo GitHub em 30/07/2026 (o servidor só responde "OK"). Fica registrado e desligado.
   github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true, aposentado: true },
   // Mistral "Experiment" (grátis, sem cartão)
-  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, opcional: true },
+  // O plano grátis dá 429 ("capacity exceeded") no medium com frequência; o small (também lê foto) tem mais vaga. Lotado → tenta o reserva.
+  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-small-latest', reserva: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, opcional: true },
   // NVIDIA NIM (grátis, ~40 pedidos/min). O gpt-oss-120b saiu do ar lá em 03/09/2026 (erro 410).
   // Se o modelo principal sair do ar (404/410), tenta o "reserva" sozinho.
   nvidia:   { url: 'https://integrate.api.nvidia.com/v1/chat/completions', chave: 'NVIDIA_KEY', modelo: 'nvidia/nemotron-3.5-super-vl-120b-a12b', reserva: 'google/gemma-4-31b-it', nome: 'NVIDIA Nemotron 120B', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 30, rpd: 3000, opcional: true },
@@ -569,7 +570,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema) {
       const msg = String(err.message || err);
       erros.push(msg);
       if (c.local) { marcarPCdesligado(); passo('PC não respondeu, trocou de cérebro'); }
-      else if (/\b429\b|rate limit|quota|RESOURCE_EXHAUSTED/i.test(msg)) { const seg = castigo(nome, msg); passo(c.nome + ' deu limite, fica ' + seg + 's de castigo, trocou de cérebro'); }
+      else if (/\b429\b|rate limit|quota|RESOURCE_EXHAUSTED/i.test(msg)) { const seg = castigo(nome, msg); passo(c.nome + ' deu limite (' + msg.replace(/^[^:]*:\s*/, '').slice(0, 70) + '), fica ' + seg + 's de castigo, trocou de cérebro'); }
       else if (ehSobrecarga(msg)) { CacheService.getScriptCache().put('off_' + nome, '1', 90); passo(c.nome + ' tá sobrecarregado (alta demanda), fica 90s fora e trocou de cérebro'); }
       else passo(c.nome + ' falhou (' + msg.replace(/^[^:]*:\s*/, '').slice(0, 70) + '), trocou de cérebro');
     }
@@ -598,8 +599,8 @@ function chamarCompat(c, msgs, maxSaida, extras) {
     if (/models\.github\.ai/.test(c.url) && !viaProxy) throw new Error(c.nome + ': bloqueado pelo GitHub; configure PROXY_URL + PROXY_SEGREDO');
     throw new Error(c.nome + ': respondeu fora do formato (' + txt.slice(0, 40).replace(/\s+/g, ' ') + ')');
   }
-  if ((cod === 404 || cod === 410) && c.reserva && c.reserva !== c.modelo) {
-    passo(c.nome + ': modelo saiu do ar (' + cod + '), usou o reserva ' + c.reserva);
+  if ((cod === 404 || cod === 410 || (cod === 429 && /capacity|tier|overloaded/i.test(txt))) && c.reserva && c.reserva !== c.modelo) {
+    passo(c.nome + ': modelo ' + (cod === 429 ? 'lotado' : 'saiu do ar') + ' (' + cod + '), usou o reserva ' + c.reserva);
     return chamarCompat(Object.assign({}, c, { modelo: c.reserva, reserva: null, nome: c.nome + ' (reserva)' }), msgs, maxSaida, extras);
   }
   if (cod !== 200) throw new Error(c.nome + ' ' + cod + ': ' + resumoErro(txt));

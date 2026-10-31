@@ -32,7 +32,7 @@ ok(r.cerebro === 'Gemini', 'texto comum segue no Gemini');
 H.PROPS.MISTRAL_KEY = 'mk'; H.fetchLog.length = 0;
 H.setFetch((u, o) => (/generativelanguage|groq/.test(u) && typeof o.payload === 'string' && JSON.parse(o.payload).messages) ? cai(429, 'rate limit') : mock(u, o));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi de novo' }] });
-ok(r.cerebro === 'Mistral' && H.fetchLog.some(f => /api\.mistral\.ai/.test(f.u) && f.body.model === 'mistral-medium-latest'), 'Gemini e Groq fora → Mistral: ' + r.cerebro);
+ok(r.cerebro === 'Mistral' && H.fetchLog.some(f => /api\.mistral\.ai/.test(f.u) && f.body.model === 'mistral-small-latest'), 'Gemini e Groq fora → Mistral: ' + r.cerebro);
 Object.keys(H.CACHE).forEach(k => { if (/^off_/.test(k)) delete H.CACHE[k]; });
 // Cloudflare só com as duas props e URL montada com a conta
 H.PROPS.CF_TOKEN = 'cft'; H.setFetch(mock); H.fetchLog.length = 0;
