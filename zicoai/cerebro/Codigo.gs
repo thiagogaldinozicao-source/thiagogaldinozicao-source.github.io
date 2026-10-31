@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 60 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 61 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -862,7 +862,8 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
 function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
   if (c.viaPonte) {   // cérebro do Mac: vai pela ponte até o Ollama dele (foto não vai: o modelo do Mac não enxerga)
     const limpas = msgs.map(m => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter(x => x.type === 'text').map(x => x.text).join('\n') : String(m.content || '') }));
-    const r = ponteSemDetalhe('ollama_chat', { modelo: c.modelo, mensagens: limpas, maxTokens: maxSaida, temperatura: (extras && extras.temperature >= 0) ? extras.temperature : 0.6 }, 115000, 'mac');
+    // o 8B do Mac escreve ~25 palavras/s: mais de ~1.800 tokens passa do tempo da ponte (115 s)
+    const r = ponteSemDetalhe('ollama_chat', { modelo: c.modelo, mensagens: limpas, maxTokens: Math.min(maxSaida, 1800), temperatura: (extras && extras.temperature >= 0) ? extras.temperature : 0.6 }, 115000, 'mac');
     return String(r.texto || '');
   }
   const chave = c.chave ? prop(c.chave) : 'ollama';
