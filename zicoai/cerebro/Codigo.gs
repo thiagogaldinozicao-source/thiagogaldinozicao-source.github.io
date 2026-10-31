@@ -299,9 +299,11 @@ function guardarDetalhes(id, ds) {
   if (!id) return;
   const a = aba('detalhes'), texto = JSON.stringify(detalhesSeguros(ds));
   const achou = a.getRange('A:A').createTextFinder(id).matchEntireCell(true).findNext();
-  const partes = Array.from({length: 13}, (_, i) => texto.slice(i * 40000, (i + 1) * 40000));
-  if (achou) a.getRange(achou.getRow(), 2, 1, 13).setValues([partes]);
-  else a.appendRow([id].concat(partes));
+  const partes = Array.from({length: 13}, (_, i) => texto.slice(i * 39999, (i + 1) * 39999));
+  // Cada parte começa como texto: um '=' no meio do JSON nunca vira fórmula.
+  const celulas = partes.map(t => t ? "'" + t : '');
+  if (achou) a.getRange(achou.getRow(), 2, 1, 13).setValues([celulas]);
+  else a.appendRow([id].concat(celulas));
 }
 function lerDetalhes(id) {
   if (!id) return [];

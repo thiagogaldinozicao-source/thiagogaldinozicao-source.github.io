@@ -24,6 +24,7 @@ for(let i=0;i<60;i++) H.ctx.passoDetalhe({titulo:'Passo '+i,pedido:'😀'.repeat
 H.ctx.guardarDetalhes('fake-task',run('DETALHES'));
 assert.equal(H.ctx.lerDetalhes('fake-task').length,60);
 assert.equal(H.ctx.detalhesAoVivo('fake33').length,60);
+assert(H.sheets.detalhes.rows.slice(1).every(r=>r.slice(1).filter(Boolean).every(c=>String(c).startsWith("'"))));
 assert(H.sheets.detalhes.rows.every(r=>r.every(c=>String(c).length<=40000)));
 run('DETALHES=[]; REQ_VIVO=""');
 assert.throws(()=>H.ctx.observarDetalhe('ferramenta','Erro',raw,()=>{throw Error('token=fake-error-secret')}),/token/);

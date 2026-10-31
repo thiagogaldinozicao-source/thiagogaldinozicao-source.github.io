@@ -10,7 +10,7 @@ Um resumo como “pesquisou” não diz qual consulta saiu nem o que voltou. Uma
 - `passo(texto)` continua alimentando `PASSOS`. `passoDetalhe({tipo,titulo,pedido,resposta,ms})` alimenta `DETALHES`. São dois contratos separados.
 - `observarDetalhe` cria uma entrada aguardando, executa a função e atualiza resposta/tempo no `finally`, inclusive em erro. O retorno real da ferramenta continua intacto: a máscara só altera o diagnóstico.
 - `mascarar` trata campos sensíveis, valores de propriedades secretas, formatos de credenciais, query strings, CPF e telefone. Binário de print/áudio é omitido. Depois disso, cada pedido/resposta fica com até 2.000 caracteres, com “…” quando cortado; o total é até 60 registros.
-- Acompanhamento ao vivo usa partes pequenas no cache. Mensagens e tarefas persistem o JSON na aba `detalhes`, em até 13 partes de 40 mil caracteres por linha. A mensagem guarda uma referência na coluna H, `DetalhesId`; tarefa usa o próprio ID. Isso evita colocar o JSON inteiro numa única célula.
+- Acompanhamento ao vivo usa partes pequenas no cache. Mensagens e tarefas persistem o JSON na aba `detalhes`, em até 13 partes de 40 mil caracteres por linha. A mensagem guarda uma referência na coluna H, `DetalhesId`; tarefa usa o próprio ID. Cada parte recebe prefixo de texto para não virar fórmula e para preservar apóstrofos no começo de uma parte. Isso evita colocar o JSON inteiro numa única célula.
 - As aulas selecionadas mantêm ID e sinais de palavra/BM25 e significado/cosseno usados na seleção. O diagnóstico de contexto inclui perfil, aprendizados, memória e base utilizados.
 - O app usa `details`/`summary`, `textContent`, blocos `pre/code` com rolagem interna e copiar. Não interpreta o diagnóstico como HTML. Uma segunda máscara protege a tela e a cópia. Sem detalhes, usa o resumo antigo.
 
@@ -35,6 +35,8 @@ Erros que ocorreram de verdade nesta implementação:
 5. Subi o rótulo da versão do cérebro antes da publicação; o CI encontrou uma asserção antiga que exige a versão 48. Li a falha no t32 e mantive o rótulo original: esta entrega é PR, a publicação fica para depois. Também completei os stubs de Markdown do roteiro conforme os métodos que o app realmente chama (`Renderer`, `setOptions` e `addHook`).
 
 6. O primeiro Playwright chegou às verificações da tela, mas acusou `localStorage` bloqueado num iframe sandbox. A configuração falsa do teste estava sendo injetada também nos frames. Restringi a injeção à janela principal; não afrouxei o sandbox do app nem ignorei o erro.
+
+7. Na revisão final, percebi que uma parte do JSON poderia começar com `=` ou apóstrofo. A primeira versão gravava as partes sem prefixo, permitindo interpretação pela planilha. Passei a gravar todas como texto e acrescentei a verificação de prefixo e de leitura completa no t33.
 
 ## Como conferir
 - Na pasta `zicoai/cerebro/testes`, executar `node t1.js` até `node t33.js` em processos separados.
