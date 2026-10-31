@@ -1,4 +1,4 @@
-# Aula: modo capricho (31/10/2026)
+# Aula 18: modo capricho (31/10/2026)
 
 ## Pedido
 > "Não ligo pra demora ligo pra resultado… Já faz agora."
@@ -23,10 +23,10 @@ O Thiago prefere uma resposta **certa** a uma resposta **rápida**. Ele não que
 ```js
 function ehDificil(t, colado) {
   const s = normalizar(t);
-  if (colado) return true;                                   // texto grande colado
-  if (ehProgramacao(t) && /(faz|cria|corrig|conserta|erro|bug|nao funciona)/.test(s)) return true;
+  if (colado) return true;
+  if (ehProgramacao(t) && /(faz|faca|cria|crie|monta|monte|gera|corrig|conserta|arruma|melhora|adiciona|muda|erro|bug|nao funciona)/.test(s)) return true;
   if (querPesquisaProfunda(t)) return true;
-  if (/(planej|estrateg|analis|compar|calcul|vale a pena|relatorio|resum)/.test(s) && s.length > 60) return true;
+  if (/(planej|estrateg|analis|compar|calcul|vale a pena|o que vc acha|me ajuda a decidir|explica (bem|direito|passo)|relatorio|resum)/.test(s) && s.length > 60) return true;
   return s.length > 600;
 }
 ```
@@ -42,9 +42,9 @@ Em `conversar(..., forte)`:
 // no chat():
 const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && ehDificil(pergunta, colado)));
 if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema, capricho);
-if (capricho && resultado.ok) resultado = revisarResposta(pergunta, resultado, extraSistema);
+if (capricho && resultado && resultado.ok && !req.imagem) { try { resultado = revisarResposta(pergunta, resultado, extraSistema); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
 ```
-`revisarResposta`:
+`revisarResposta` (pergunta com foto não passa pela revisão; se a revisão der erro, entrega o rascunho):
 - monta a lista de cérebros e **joga pro fim** o mesmo que escreveu o rascunho;
 - manda pro revisor: PEDIDO + RASCUNHO + as informações que a ZicoAI tinha (pra conferir se inventou preço, garantia etc.);
 - `OK` → fica o rascunho; texto completo → vira a resposta e o rótulo fica "Gemini + revisão Groq GPT-OSS 120B";
