@@ -10,7 +10,7 @@ $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Dir) { $Dir = Join-Path $HOME 'ZicoAI-Ponte' }
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '2.0'
+$Versao = '2.1'
 
 function Log($t) {
   $linha = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t
@@ -38,10 +38,20 @@ function Liberado([string]$caminho, [bool]$paraEscrever) {
   $caminho = [Environment]::ExpandEnvironmentVariables($caminho)
   $raizes = @(Raizes)
   if (-not [IO.Path]::IsPathRooted($caminho)) {
-    # caminho relativo: dentro da primeira pasta que pode escrever (a pasta ZicoAI)
-    $base = ($raizes | Where-Object { $_.escrever } | Select-Object -First 1)
-    if (-not $base) { $base = $raizes[0] }
-    $caminho = Join-Path $base.caminho $caminho
+    # "ZicoAI", "Downloads", "Documentos\notas.txt": começa com o nome de uma pasta liberada? usa ela
+    $apelidos = @{ 'documentos' = 'documents'; 'area de trabalho' = 'desktop'; 'área de trabalho' = 'desktop'; 'imagens' = 'pictures'; 'baixados' = 'downloads' }
+    $partes = $caminho -split '[\\/]', 2
+    $primeiro = $partes[0].Trim().ToLower()
+    if ($apelidos.ContainsKey($primeiro)) { $primeiro = $apelidos[$primeiro] }
+    $raizNome = $raizes | Where-Object { (Split-Path -Leaf $_.caminho).ToLower() -eq $primeiro } | Select-Object -First 1
+    if ($raizNome) {
+      if ($partes.Length -gt 1 -and $partes[1]) { $caminho = Join-Path $raizNome.caminho $partes[1] } else { $caminho = $raizNome.caminho }
+    } else {
+      # senão: dentro da primeira pasta que pode escrever (a pasta ZicoAI)
+      $base = ($raizes | Where-Object { $_.escrever } | Select-Object -First 1)
+      if (-not $base) { $base = $raizes[0] }
+      $caminho = Join-Path $base.caminho $caminho
+    }
   }
   $full = [IO.Path]::GetFullPath($caminho).TrimEnd('\')
   foreach ($r in $raizes) {
