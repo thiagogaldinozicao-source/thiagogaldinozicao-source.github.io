@@ -134,7 +134,7 @@ ok(/OK do Thiago/.test(run('FERRAMENTAS.nav_clicar.desc')) && /nav_ler \+ nav_er
 ok(/CHROME do Thiago[\s\S]*autorizou clicar/.test(run('PERSONA')), 'chat manda pedido do Chrome pro agente');
 const ext = f => fs.readFileSync(path.join(__dirname, '..', '..', 'extensao', f), 'utf8');
 const man = JSON.parse(ext('manifest.json'));
-ok(man.version === '2.0' && ['storage', 'alarms', 'scripting', 'tabs'].every(p => man.permissions.includes(p)) && !man.permissions.includes('downloads'), 'manifest 2.0 com storage/alarms e sem permissão de download');
+ok(/^2\.\d/.test(man.version) && ['storage', 'alarms', 'scripting', 'tabs'].every(p => man.permissions.includes(p)) && !man.permissions.includes('downloads'), 'manifest 2.0 com storage/alarms e sem permissão de download');
 ok(man.content_scripts && man.content_scripts[0].world === 'MAIN' && man.content_scripts[0].run_at === 'document_start' && man.content_scripts[0].js[0] === 'vigia.js', 'vigia de erros entra cedo no mundo da página');
 ok(/importScripts\('seguranca\.js'\)/.test(ext('fundo.js')) && /dispositivo: 'nav'/.test(ext('fundo.js')) && /chrome\.alarms\.create/.test(ext('fundo.js')), 'fundo.js: usa as travas, busca como "nav" e acorda com alarme');
 ok(/versão (5[7-9]|6\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 57 ou mais nova');

@@ -69,7 +69,10 @@
 
   function ler(d) {
     const max = Math.min(30000, Number(d && d.max) || 30000);
-    const texto = ((document.body && document.body.innerText) || '').replace(/\n{3,}/g, '\n\n').slice(0, max);
+    // WhatsApp Web: só a conversa ABERTA (a lista de conversas tem nome e número de outros clientes e não ajuda)
+    const zap = /(^|\.)web\.whatsapp\.com$/.test(location.hostname) && document.querySelector('#main');
+    const base = zap ? ('Conversa aberta no WhatsApp: ' + ((zap.querySelector('header') || {}).innerText || '').split('\n')[0] + '\n\n' + (zap.innerText || '').split('\n').slice(-120).join('\n')) : ((document.body && document.body.innerText) || '');
+    const texto = base.replace(/\n{3,}/g, '\n\n').slice(-max);
     const links = Array.from(document.querySelectorAll('a[href]')).filter(visivel)
       .filter(a => !/^\s*javascript:/i.test(a.getAttribute('href')))
       .slice(0, 150).map(a => ({ texto: textoDe(a), href: a.href }));

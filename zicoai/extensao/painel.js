@@ -12,7 +12,11 @@ async function pegarPagina(soTrecho) {
         titulo: document.title,
         url: location.href,
         selecao: String(window.getSelection() || ''),
-        texto: (document.body && document.body.innerText || '').replace(/\n{3,}/g, '\n\n').slice(0, 30000)
+        texto: (function () {   // WhatsApp Web: só a conversa aberta (sem a lista de outros clientes)
+          const z = /(^|\.)web\.whatsapp\.com$/.test(location.hostname) && document.querySelector('#main');
+          const t = z ? 'Conversa aberta no WhatsApp: ' + ((z.querySelector('header') || {}).innerText || '').split('\n')[0] + '\n\n' + (z.innerText || '').split('\n').slice(-120).join('\n') : (document.body && document.body.innerText || '');
+          return t.replace(/\n{3,}/g, '\n\n').slice(-30000);
+        })()
       })
     });
     const d = res && res.result;

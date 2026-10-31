@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v62 (31/10): Chrome no chat + dado de cliente escondido
+- Chat: pedido curto que fala de Chrome/aba/site/WhatsApp/"esse cliente" e não trouxe a página → `ponte('ler')` na aba aberta (extensão ligada há < 90 s) e entra como "PÁGINA ABERTA NO CHROME". Regra: nunca dizer que não vê o Chrome.
+- `esconderPessoal`: telefone e CPF de cliente viram ••• na mensagem antes de ir pra nuvem e pra planilha (o número da loja fica).
+- Extensão 2.1: no WhatsApp Web, "Usar esta página" e `nav_ler` mandam só a conversa aberta (últimas 120 linhas), não a lista de conversas com nomes e números de outros clientes.
+- Teste t45.
+
 ## v61 (31/10): Mac escreve no máximo ~1.800 tokens por pedido (o 8B faz ~25/s; mais que isso passava dos 115 s da ponte e o estudo falhava). Ponte mac-1.6 espera o estudo até 330 s.
 
 ## v60 (31/10): aprende sozinha de verdade

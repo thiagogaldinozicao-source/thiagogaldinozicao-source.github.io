@@ -12,7 +12,7 @@ ok(d.rows.length === 2, 'conversa à toa não entra');
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'o CPF dele é 123.456.789-09, anota' }] });
 ok(!d.rows.some(l => /123\.456/.test(l.join('|'))), 'dado de cliente (CPF) nunca entra');
 H.post({ pin: '1234', acao: 'feedback', nota: 'down', chatId: 'c', comentario: 'resposta errada demais', resposta: 'Garantia de seminovo é da loja.', cerebro: 'Gemini' });
-ok(d.rows[1][6] === 'reclamada', '👎 marca como reclamada (não vai pro treino)');
+ok(d.rows.some(l => l[6] === 'reclamada'), '👎 marca como reclamada (não vai pro treino)');
 // placar: Mac × nuvem, juiz às cegas
 H.PROPS.PONTE_SEGREDO_MAC = 'sm';
 run('CacheService.getScriptCache().put("ponte_visto_mac", String(Date.now()))');

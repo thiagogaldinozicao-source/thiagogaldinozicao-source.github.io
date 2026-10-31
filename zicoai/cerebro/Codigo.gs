@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 61 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 62 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -283,7 +283,8 @@ const PERSONA = [
   '- Pedido pra MUDAR VC MESMA (seu código, seu jeito de funcionar, uma ferramenta nova, um bug seu): responda em 1 linha que vai fazer e coloque [[TAREFA: MELHORAR MEU CÓDIGO: o que mudar, exatamente como o Thiago pediu]]. O agente lê o próprio código, edita, testa e publica.',
   '- Pedido GRANDE que exige várias etapas (pesquisar em vários lugares e comparar, relatório, estudo, app com várias telas, levantamento de preços): NÃO tente responder tudo agora. Responda em 1 linha que vai fazer em segundo plano e coloque [[TAREFA: descrição completa do que fazer, com tudo que o Thiago pediu]]. Um agente faz e o resultado aparece nesta conversa.',
   '- Pedido pra mexer no PC do Thiago (ler/criar arquivo, ver pasta, print da tela, abrir programa, espaço em disco, GPU): responda em 1 linha e coloque [[TAREFA: o que fazer no PC]]. O agente usa a ponte do PC (pc_*). Ela nunca apaga nada.',
-  '- Pedido pra mexer no CHROME do Thiago (ver/depurar o site aberto, achar erro de site, clicar, preencher, abrir site, print do navegador): responda em 1 linha e coloque [[TAREFA: o que fazer no Chrome]]. O agente usa nav_* (extensão). Botão de enviar/comprar/apagar/confirmar só com OK: quando o Thiago der o OK, a TAREFA tem que dizer "o Thiago autorizou clicar em <botão>".',
+  '- A extensão do Chrome está ligada: NUNCA diga que não consegue ver o Chrome. Se veio "PÁGINA ABERTA NO CHROME" no contexto, use ela (ex.: a conversa aberta do WhatsApp pra montar a resposta pro cliente, num bloco de código). Se não veio, diga que não conseguiu ler a aba agora e peça pra tocar em "Usar esta página".',
+  '- Pedido pra mexer no CHROME do Thiago (depurar o site aberto, achar erro de site, clicar, preencher, abrir site, print do navegador): responda em 1 linha e coloque [[TAREFA: o que fazer no Chrome]]. O agente usa nav_* (extensão). Botão de enviar/comprar/apagar/confirmar só com OK: quando o Thiago der o OK, a TAREFA tem que dizer "o Thiago autorizou clicar em <botão>".',
   '- Pedido pra usar o MAC (a oficina 24h, Mac Mini): rodar os testes lá, abrir site no navegador do Mac, ver espaço/modelos do Ollama do Mac: responda em 1 linha e coloque [[TAREFA: o que fazer no Mac]]. O agente usa mac_status, mac_testar, mac_abrir e mac_comando. Nunca diga que não consegue usar o Mac.',
   '- Quando a seção AGENDA, E-MAILS, ARQUIVOS ou VENDAS aparecer abaixo, use só o que está lá. Não invente compromisso, e-mail ou arquivo.',
   '- Quando a seção JÁ EXISTE PARECIDO aparecer (apps publicados ou pedidos antigos parecidos com o pedido atual), diga em 1 linha que já existe, com o link, e pergunte se é pra melhorar o que existe ou fazer um novo. Não faça do zero sem perguntar.',
@@ -572,6 +573,8 @@ function chat(req, aparelho) {
     .filter(m => m.content);
   if (!historico.length) return { ok: false, erro: 'Mensagem vazia' };
 
+  // página do Chrome que veio junto (WhatsApp, site): telefone e CPF de cliente viram ••• antes de ir pra nuvem e pra planilha
+  historico[historico.length - 1].content = esconderPessoal(historico[historico.length - 1].content);
   const pergunta = historico[historico.length - 1].content;
   const temFoto = !!req.imagem;
   const modo = req.modo || 'auto';               // auto | web | imagem
@@ -641,6 +644,14 @@ function chat(req, aparelho) {
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
   if (querPesquisa && temDadoVivo && modo !== 'web' && !ficha) { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
   if (ficha) extraSistema += REGRA_FICHA;
+  // falou do Chrome/WhatsApp/"esse cliente" e não mandou a página: a extensão lê a aba aberta agora
+  if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && pergunta.length < 400 && /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|esse cliente|essa cliente|essa mensagem|essa conversa|ta aqui|aqui na tela|na tela)/.test(normalizar(pergunta)) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
+    try {
+      const pg = ponte('ler', { max: 12000 }, 45000, 'nav');
+      extraSistema += '\n\n### PÁGINA ABERTA NO CHROME (a extensão leu agora)\n' + String(pg.titulo || '') + ' (' + String(pg.url || '').slice(0, 120) + ')\n' + esconderPessoal(String(pg.texto || '')).slice(-12000);
+      passo('Leu a aba aberta no Chrome: ' + String(pg.titulo || '').slice(0, 60));
+    } catch (e) { passo('Não conseguiu ler o Chrome agora (' + String(e.message || e).slice(0, 60) + ')'); }
+  }
   // erro que o app mostrou na mensagem anterior (o "Load failed" não chega no histórico)
   if (req.erroAnterior) {
     extraSistema += '\n\n### ERRO QUE O APP MOSTROU NA MENSAGEM ANTERIOR\n' + String(req.erroAnterior).slice(0, 400) + '\n"Load failed", "Failed to fetch" ou "NetworkError" = a conexão do app com o cérebro caiu ou demorou demais (internet do celular, app em segundo plano ou cérebro lento); não é erro do conteúdo do pedido. Se o Thiago perguntar por que falhou, explique isso curto e ofereça refazer.';
@@ -1511,6 +1522,12 @@ function consertarCodigo(codigo, problemas, pergunta, respostaAnterior) {
 }
 
 /* ---------- classificação ---------- */
+/** Telefone e CPF de cliente (página do WhatsApp, site colado) viram ••• antes de ir pra nuvem e pra planilha. O número da loja fica. */
+function esconderPessoal(t) {
+  return String(t || '')
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, m => /991580070/.test(m.replace(/\D/g, '')) ? m : '•••')
+    .replace(/(?:\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}\b/g, m => /9915.?8.?0070|991580070/.test(m.replace(/\D/g, '')) ? m : '•••');
+}
 
 /** Pedido de ficha técnica / comparativo de aparelho: os números TÊM que vir da web (o modelo não sabe os lançamentos). */
 function ehFichaTecnica(t, historico) {

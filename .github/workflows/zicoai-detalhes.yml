@@ -17,7 +17,7 @@ jobs:
       - name: Testes do cérebro (t1 a t44)
         run: |
           set -e
-          for n in $(seq 1 44); do node "zicoai/cerebro/testes/t$n.js"; done
+          for n in $(seq 1 45); do node "zicoai/cerebro/testes/t$n.js"; done
       - run: npm install --prefix /tmp/zicoai-playwright --no-audit --no-fund playwright@1.64.1
       - run: node /tmp/zicoai-playwright/node_modules/playwright/cli.js install --with-deps chromium
       - name: Playwright 390 e 1440 com API falsa
