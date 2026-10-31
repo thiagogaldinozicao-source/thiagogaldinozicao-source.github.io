@@ -155,6 +155,16 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v51 (31/10): fato da web, foto, erro do app e estudo 24h
+- **Ficha técnica:** `ehFichaTecnica()` (aparelho + vs/compara/bateria/chip…, ou continuação de comparativo; preço fica de fora) liga a pesquisa e manda `REGRA_FICHA` (só número com fonte, "não confirmado" no resto, nunca dizer que não existe sem pesquisar). Pesquisa falhou → avisa, não chuta. Regra 3 do sistema: base vale pra loja e Thiago, não pra ficha de aparelho. Regra 5: modelo citado existe até a pesquisa provar o contrário. Regra 5b: falha só se explica com prova.
+- **Foto:** com imagem, `conversar` só tenta Gemini, Mistral e NVIDIA (VL); PC só com `PC_VISAO=sim`. App reenvia a última foto da conversa (`fotoRepetida`) quando a mensagem fala de foto/print/imagem; grava "[📷 mesma foto de antes]". Falou de foto sem foto → o sistema explica que ela só vê a foto da mensagem em que veio.
+- **Erro do app:** o app manda `erroAnterior` (ex.: "Load failed"); o cérebro recebe o que ele significa.
+- **Aulas:** completa só com palavra acima do corte ou cosseno ≥ `AULAS_COS_FORTE` (0,74); o resto vira "talvez". (`aulasPara` e o placar não mudaram.)
+- **Estudo 24h:** `estudar()` = `aprenderComErros()` (próxima reclamação do Thiago → pesquisa → aba `estudo_erros` com causa, regra, aula de professor e resposta certa, status "revisar"; exemplo "erro corrigido (revisar)") ou um tema de `TEMAS_ESTUDO` (17, sendo 11 de programação). Mac chama `ponteEstudar` (segredo do Mac) a cada 30 min; gatilho `estudar` de 4 em 4 h de reserva; mínimo 20 min entre rodadas. `escrever_planilha` aceita o nome da aba em maiúscula.
+- **App:** detalhes com quebra de linha e JSON legível (botão JSON pro cru; JSON cortado também fica legível), bloco vazio some, resumo "Como respondi" em caixinha com tempo e nº de passos. Cache `zicoai-v25`.
+- Mac: `ponte-mac.js` mac-1.1 (estudo a cada 30 min), `oficina/acordado.sh` (caffeinate pelo launchd: tela apaga, Mac não dorme), `modelo/prova_llama.sh` (Ollama não aceita mais LoRA → treinada no llama-server com o qwen3:8b do Ollama + adaptador).
+- Testes `t1`–`t37` (516 ok). Aula D28.
+
 ## v48 (31/10): aula certa por palavra + significado
 - `aulasPara(pergunta, limite, vetor?)`: nota = BM25/maior + `PESO_SIGNIFICADO` (2) × cosseno (vetores do Gemini, `gemini-embedding-001`, 256). Entra a aula com BM25 ≥ corte (`AULAS_MIN` 18 → 10) ou cosseno ≥ `AULAS_COS_MIN` (0,55). `ehConversaAToa()` (mensagem curta só de cumprimento/agradecimento) não puxa aula, no lugar do corte alto que jogava fora ~5 pontos.
 - Vetores das aulas na aba `vetores` (tipo `aulas`, chave `ID#hash` do texto; aula mudou → vetor novo). A conversa só LÊ os vetores guardados; `prepararVetoresAulas()` embute 20 por vez junto do `aprenderSozinha` (30 em 30 min), porque o Gemini grátis aceita ~30 mil tokens/min e ~1.000 pedidos/dia (embutir as 274 de uma vez deu 429). Todas prontas em ~7 h. `vetorDaPergunta()`: 1 chamada por mensagem, memória e aulas dividem. BM25 calculado uma vez por execução (`bm25Aulas`).

@@ -19,6 +19,7 @@ ok(!/### EXEMPLOS/.test(sys), 'pergunta sem relação não puxa exemplo');
 // 3) roteador: Gemini com muitos 👎 vai pro fim
 for (let i = 0; i < 4; i++) H.post({ pin: '1234', acao: 'feedback', nota: 'down', chatId: 'c', comentario: 'resposta ruim demais ' + i, resposta: 'x', cerebro: 'Gemini' });
 H.fetchLog.length = 0;
+Object.keys(H.CACHE).forEach(k => { if (/^(tk|rq)_/.test(k)) delete H.CACHE[k]; });   // v51: a pesquisa da ficha gastou o minuto do Groq
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi' }] });
 ok(r.cerebro === 'Groq GPT-OSS 120B' && r.passos.some(p => /Roteador: Gemini com muita reprovação/.test(p)), 'Gemini reprovado vai pro fim: ' + r.cerebro);
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'gemini', mensagens: [{ role: 'user', content: 'oi' }] });

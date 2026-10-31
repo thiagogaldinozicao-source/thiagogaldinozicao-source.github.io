@@ -9,7 +9,7 @@ ok(!/MEMORIA/.test(r.resposta) && r.salvou.includes('memória'), 'tag de memóri
 ok(H.sheets.memoria.rows.some(x => x[1] === 'Thiago gosta de café'), 'memória gravada');
 const sys = H.fetchLog[0].body.messages[0].content;
 ok(/17 Pro Max/.test(sys), 'base relevante incluiu 17 Pro Max');
-ok(H.fetchLog[0].body.model === 'gemini-3.1-flash-lite', 'não-programação vai pro Gemini primeiro');
+ok(JSON.stringify(H.fetchLog[0].body.tools || '').includes('browser_search'), 'ficha técnica (bateria do 17 Pro Max) vai pra pesquisa na web primeiro (v51)');
 console.log('passos:', r.passos);
 console.log('tokens sys aprox', Math.round(sys.length/3.2));
 // programação → groq primeiro; groq dá 429 e cai pro gemini

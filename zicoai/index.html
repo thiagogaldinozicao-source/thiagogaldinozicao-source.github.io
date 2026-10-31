@@ -99,7 +99,8 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 
 /* como respondi */
 .passos{margin-bottom:8px}
-.passos summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--cinza);padding:3px 0}
+.passos summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--cinza);padding:6px 10px;border:1px solid var(--borda2);border-radius:8px;max-width:100%;box-sizing:border-box}
+.passos[open] summary{border-color:var(--ouro)}
 .passos summary::-webkit-details-marker{display:none}
 .passos summary::before{content:'▸';font-size:11px;transition:transform .15s}
 .passos[open] summary::before{transform:rotate(90deg)}
@@ -652,7 +653,7 @@ let cfg = Object.assign({ url:'', pin:'', aparelho:'', cerebro:'auto', pcUrl:'ht
 let chats = LS.get('chats', []);            // [{id,titulo,atualizada}]
 let atual = LS.get('atual', null);          // id da conversa aberta
 let mensagens = LS.get('msgs_' + atual, []);
-let foto = null, miniatura = null;
+let foto = null, miniatura = null, ultimaFoto = null;
 let modo = 'auto';
 let controle = null;                        // pra botão parar
 let projetos = LS.get('projetos', []);       // [{id,nome,instrucoes,arquivos,conversas}]
@@ -928,7 +929,7 @@ function balao(m, ultima){
     const d = document.createElement('div');
     d.className = 'msg-eu';
     if(m.foto){ const i = document.createElement('img'); i.src = m.foto; d.appendChild(i); }
-    let txt = m.content.replace(/\n\[📷 foto enviada\]$/, '');
+    let txt = m.content.replace(/\n\[📷 (foto enviada|mesma foto de antes)\]$/, '');
     const k = txt.indexOf(MARCA_DOC);
     if(k >= 0){
       const nome = txt.slice(k + MARCA_DOC.length).split(']')[0];
@@ -952,7 +953,9 @@ function balao(m, ultima){
   if((m.passos && m.passos.length) || (m.detalhes && m.detalhes.length)){
     const det = document.createElement('details');
     det.className = 'passos';
-    const sm = document.createElement('summary'); sm.className = 'rz-tit'; sm.textContent = tituloResumo(m.passos || []);
+    const sm = document.createElement('summary'); sm.className = 'rz-tit';
+    const nPassos = (m.detalhes && m.detalhes.length) || (m.passos || []).length;
+    sm.textContent = tituloResumo(m.passos || []) + (Number(m.ms) > 0 ? ' · ' + Math.round(Number(m.ms) / 1000) + ' s' : '') + (nPassos ? ' · ' + nPassos + ' passos' : '');
     det.appendChild(sm); det.appendChild(listaResumo(m.passos || [], false, m.detalhes));
     corpo.appendChild(det);
   }
@@ -1139,9 +1142,19 @@ function mascaraDetalheUI(v, max = 2000){
     .replace(/(?:\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}\b/g,'•••');
   return t.length > max ? t.slice(0,max-1) + '…' : t;
 }
+// JSON cortado (não dá pra ler inteiro): tira chaves, aspas e vírgulas linha por linha
+function legivelSolto(t){
+  return t.split('\n').filter(l => !/^\s*[\[\]{}],?\s*$/.test(l)).map(l => {
+    const ind = (l.match(/^\s*/)[0].length >> 1) * 2;
+    let x = l.trim().replace(/,$/, '').replace(/^"([^"]+)":\s*/, '$1: ').replace(/: [\[{]$/, ':');
+    if(/^".*"$/.test(x)) x = '• ' + x.slice(1, -1);
+    x = x.replace(/: "(.*)"$/, ': $1').replace(/\\n/g, '\n' + ' '.repeat(ind + 2)).replace(/\\"/g, '"').replace(/_/g, ' ');
+    return ' '.repeat(Math.max(0, ind - 2)) + x;
+  }).join('\n');
+}
 // JSON vira texto de gente: "chave: valor", listas com •, texto com quebra de linha de verdade.
 function legivelDetalhe(texto){
-  let v; try{ v = JSON.parse(texto.replace(/(:\s*)•••(?=\s*[,}\]\n])/g, '$1"•••"')); }catch(e){ return texto; }
+  let v; try{ v = JSON.parse(texto.replace(/(:\s*)•••(?=\s*[,}\]\n])/g, '$1"•••"')); }catch(e){ return /^\s*[\[{]/.test(texto) ? legivelSolto(texto) : texto; }
   const nomeChave = k => String(k).replace(/_/g,' ');
   const curto = x => x == null || typeof x !== 'object';
   const prim = x => x == null ? '—' : typeof x === 'boolean' ? (x ? 'sim' : 'não') : String(x);
@@ -1350,16 +1363,21 @@ async function envia(refazendo){
   const texto = $('txt').value.trim();
   if(!refazendo && !texto && !foto && !docAnexo) return;
 
-  let fotoEnvio = null;
+  let fotoEnvio = null, fotoRepetida = false;
   if(!refazendo){
     let conteudo = texto || (docAnexo && !foto ? 'Lê esse arquivo e me diz do que se trata.' : 'O que tem nessa foto?');
     if(docAnexo){ conteudo += docAnexo.colado ? docAnexo.colado : MARCA_DOC + docAnexo.nome + ']\n```\n' + docAnexo.texto + '\n```'; tiraDoc(); }
     const m = { role:'user', content: conteudo };
-    if(foto){ m.foto = miniatura; fotoEnvio = foto; }
+    if(foto){ m.foto = miniatura; fotoEnvio = foto; ultimaFoto = { chat: atual, dados: foto }; }
+    // falou da foto de antes sem mandar de novo: reenvia a última foto desta conversa (o cérebro só enxerga a foto que vem junto)
+    else if(ultimaFoto && ultimaFoto.chat === atual && /\b(foto|print|imagem|screenshot|captura)\b/i.test(texto)){ fotoEnvio = ultimaFoto.dados; fotoRepetida = true; }
     mensagens.push(m);
     $('txt').value = ''; ajusta(); tiraFoto();
   }
   const ultimaPerg = [...mensagens].reverse().find(m => m.role === 'user');
+  // o erro que o app mostrou antes (ex.: "Load failed") não vai no histórico; manda à parte pra ela saber explicar
+  const iPerg = mensagens.lastIndexOf(ultimaPerg), antes = iPerg > 0 ? mensagens[iPerg - 1] : null;
+  const erroAnterior = antes && antes.erro ? String(antes.content || '').replace(/^⚠️\s*/, '').slice(0, 300) : undefined;
   desenha();
   const reqId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const para = mostraTrabalhando(etapasPara(ultimaPerg.content, !!fotoEnvio), reqId);
@@ -1377,7 +1395,7 @@ async function envia(refazendo){
     const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
       acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio,
-      imagem: fotoEnvio || undefined, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
+      imagem: fotoEnvio || undefined, fotoRepetida: fotoRepetida || undefined, erroAnterior, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
     if(novo && j.chatId){
@@ -1388,7 +1406,7 @@ async function envia(refazendo){
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, detalhes: Array.isArray(j.detalhes) ? j.detalhes.slice(0,60).map(d => ({tipo: mascaraDetalheUI(d.tipo), titulo: mascaraDetalheUI(d.titulo), pedido: mascaraDetalheUI(d.pedido), resposta: mascaraDetalheUI(d.resposta), ms: d.ms})) : [], ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
+    mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, detalhes: Array.isArray(j.detalhes) ? j.detalhes.slice(0,60).map(d => ({tipo: mascaraDetalheUI(d.tipo), titulo: mascaraDetalheUI(d.titulo), pedido: mascaraDetalheUI(d.pedido, 6000), resposta: mascaraDetalheUI(d.resposta, 6000), ms: d.ms})) : [], ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
     status(true);
   }catch(e){
     para();

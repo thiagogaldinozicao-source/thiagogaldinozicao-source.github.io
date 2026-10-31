@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 50 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 51 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -152,6 +152,7 @@ const ABAS = {
   aprendizados: ['Data', 'Erro', 'Certo', 'Assunto'],
   perfil:       ['Tópico', 'Informação'],
   base:         ['Assunto', 'Conteúdo'],
+  estudo_erros: ['Data', 'Conversa', 'Pedido', 'Resposta errada', 'Reclamação', 'Causa', 'Regra', 'Aula (rascunho)', 'Resposta certa', 'Fontes', 'Status'],
   chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Fixada', 'Projeto'],
   projetos:     ['Id', 'Nome', 'Instruções', 'Criado', 'Atualizado'],
   projeto_arquivos: ['Projeto', 'Nome', 'Conteúdo', 'Data'],
@@ -184,9 +185,10 @@ const PERSONA = [
   '### REGRAS',
   '1. Português do Brasil, direto, começando pela resposta. Sem preâmbulo, sem repetir a pergunta, sem resumo no final.',
   '2. Honestidade: se não souber, diga "Não tenho essa informação." NUNCA invente especificações, preços ou dados. Em mensagem pra cliente use só o que o Thiago passou.',
-  '3. O PERFIL, os APRENDIZADOS, a MEMÓRIA e a BASE abaixo são verdade. Nunca repita um erro listado nos aprendizados.',
+  '3. O PERFIL, os APRENDIZADOS, a MEMÓRIA e a BASE abaixo são verdade sobre o Thiago e a loja. Nunca repita um erro listado nos aprendizados. EXCEÇÃO: ficha técnica de aparelho (chip, bateria, câmera, tela) guardada na base pode estar errada; número de ficha só vale com fonte da web.',
   '4. Contas: mostre o passo a passo e depois o resultado final.',
-  '5. Seu conhecimento interno é antigo: existem aparelhos mais novos (linha iPhone 17, iPhone Air e depois). Se o Thiago citar, confie.',
+  '5. Seu conhecimento interno é antigo: existem aparelhos mais novos (iPhone 17, Air, 18, Duo e depois). Se o Thiago citar um modelo, ele existe até a pesquisa provar o contrário: NUNCA diga que não existe sem ter pesquisado, e NUNCA troque por outro modelo (Duo não é 16).',
+  '5b. Erro e falha: quando perguntarem por que algo falhou, explique SÓ com prova (o erro que o app mostrou, os passos/detalhes, o log). Sem prova, diga que não sabe a causa e o que dá pra fazer. Nunca invente causa, e não refaça a tarefa anterior no lugar de explicar.',
   '6. Foto: transcreva textos e números exatamente. Tela de app de TV Box pedindo ativação: responda só o MAC e a key.',
   '7. Pergunta simples = resposta curta. Problema detalhado = aprofunda.',
   '8. Reclamação de cliente: a mensagem começa reconhecendo o problema, depois a solução.',
@@ -427,9 +429,10 @@ function doPost(e) {
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     // ponte do PC: usa o segredo dela, não o PIN
-    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta') {
+    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar') {
       req.disp = ponteDisp(req.segredo); // 'pc' ou 'mac': cada um tem segredo e fila próprios
       if (!req.disp) return saida({ ok: false, erro: 'segredo errado' });
+      if (req.acao === 'ponteEstudar') return saida(estudar());   // Mac ligado 24h puxa uma rodada de estudo (não gasta a cota de gatilhos)
       return saida(req.acao === 'ponteBuscar' ? ponteBuscar(req) : ponteResposta(req));
     }
     const cache = CacheService.getScriptCache();
@@ -529,7 +532,7 @@ function chat(req, aparelho) {
     aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho, '', String(req.projeto || '')]);
   }
   if (req.refazer) apagarUltimaResposta(chatId);
-  else gravarMensagem(chatId, 'thiago', pergunta + (temFoto ? '\n[📷 foto enviada]' : ''), '', aparelho);
+  else gravarMensagem(chatId, 'thiago', pergunta + (temFoto ? (req.fotoRepetida ? '\n[📷 mesma foto de antes]' : '\n[📷 foto enviada]') : ''), '', aparelho);
   CHAT_ATUAL = chatId;
 
   // modo agente: o Thiago pediu explicitamente segundo plano
@@ -542,13 +545,15 @@ function chat(req, aparelho) {
     return { ok: true, chatId: chatId, titulo: titulo, resposta: txt, cerebro: 'agente', salvou: ['tarefa'], passos: PASSOS, detalhes: detalhesSeguros(DETALHES), tarefaId: t.id };
   }
 
-  if (temFoto) passo('Analisou a foto');
+  if (temFoto) passo(req.fotoRepetida ? 'Olhou de novo a foto que vc mandou antes' : 'Analisou a foto');
 
   let resultado = null;
   // Texto grande colado (status, documento, conversa): é DOCUMENTO pra ler. Palavras soltas lá dentro
   // ("dólar", "e-mail", links, "atualizado") não podem disparar pesquisa, e-mail, Drive ou leitura de link.
   const colado = pergunta.length > 1500;
-  let querPesquisa = modo === 'web' || (!temFoto && modo !== 'imagem' && !colado && (precisaPesquisar(pergunta) || querPesquisaProfunda(pergunta)));
+  const ficha = !temFoto && modo !== 'imagem' && !colado && ehFichaTecnica(pergunta, historico);
+  let querPesquisa = modo === 'web' || ficha || (!temFoto && modo !== 'imagem' && !colado && (precisaPesquisar(pergunta) || querPesquisaProfunda(pergunta)));
+  if (ficha) passo('Ficha técnica de aparelho: vai conferir na web (não chuta número)');
   let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
@@ -566,12 +571,23 @@ function chat(req, aparelho) {
   if (!colado) try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
   // já tem dado ao vivo (dólar, clima, notícias)? então não precisa pesquisar na web
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
-  if (querPesquisa && temDadoVivo && modo !== 'web') { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
+  if (querPesquisa && temDadoVivo && modo !== 'web' && !ficha) { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
+  if (ficha) extraSistema += REGRA_FICHA;
+  // erro que o app mostrou na mensagem anterior (o "Load failed" não chega no histórico)
+  if (req.erroAnterior) {
+    extraSistema += '\n\n### ERRO QUE O APP MOSTROU NA MENSAGEM ANTERIOR\n' + String(req.erroAnterior).slice(0, 400) + '\n"Load failed", "Failed to fetch" ou "NetworkError" = a conexão do app com o cérebro caiu ou demorou demais (internet do celular, app em segundo plano ou cérebro lento); não é erro do conteúdo do pedido. Se o Thiago perguntar por que falhou, explique isso curto e ofereça refazer.';
+    passo('O app avisou o erro da mensagem anterior: ' + String(req.erroAnterior).slice(0, 60));
+  }
+  // falou de foto sem mandar foto (a foto só vai junto da mensagem em que foi enviada)
+  if (!temFoto && /(foto|print|imagem|screenshot|captura)/.test(normalizar(pergunta)) && historico.some(m => /\[📷 (foto enviada|mesma foto de antes)\]/.test(m.content))) {
+    extraSistema += '\n\n### FOTO DE ANTES\nO Thiago fala de uma foto que ele mandou antes nesta conversa. Você só enxerga a foto na mensagem em que ela vem; nesta ela não veio. Não diga que a foto "não chegou": diga que só consegue ver a foto de novo se ele reenviar (ou use o que você já respondeu sobre ela).';
+  }
 
   try { extraSistema += contextoMeusCerebros(pergunta); } catch (e) { /* ok */ }
   if (!colado && modo !== 'imagem') try { extraSistema += contextoAulas(pergunta, 2); } catch (e) { /* sem aulas */ }
   if (querPesquisa && !colado && querPesquisaProfunda(pergunta)) resultado = pesquisaProfunda(historico, pergunta, extraSistema);
   if (querPesquisa && !resultado) resultado = pesquisar(historico, pergunta, extraSistema);
+  if (ficha && !resultado) { extraSistema += '\n\n### A PESQUISA FALHOU AGORA\nNão monte ficha nem comparativo com números de cabeça. Diga curto que a pesquisa na web falhou agora e peça pra tentar de novo em 1 minuto.'; passo('Pesquisa da ficha falhou: não vai chutar número'); }
   // MODO CAPRICHO: pedido difícil (ou o Thiago ligou): cérebro forte, pensando no máximo, e outro cérebro revisa antes de entregar
   const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && ehDificil(pergunta, colado)));
   if (capricho) passo('Modo capricho: pergunta difícil, vai pensar mais e revisar antes de responder');
@@ -705,10 +721,11 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   const codigo = !imagem && ehProgramacao(pergunta);
   const pc = (codigo || forte) ? cerebroPCcodigo() : cerebroPC();
   let ordem;
-  if (imagem) ordem = ['gemini', 'mistral', 'pc'];
+  // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
+  if (imagem) ordem = ['gemini', 'mistral', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
   else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
   else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'pc', 'cloudflare', 'groq2'];
-  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].indexOf(preferido) >= 0 && !(imagem && preferido !== 'gemini' && preferido !== 'pc' && preferido !== 'mistral')) {
+  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].indexOf(preferido) >= 0 && !(imagem && ordem.indexOf(preferido) < 0)) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
     passo('Seletor de cérebro em ' + (preferido === 'pc' ? 'PC' : (CEREBROS[preferido] || {}).nome || preferido) + ': ele vai primeiro' + (forte ? ' (no capricho o melhor é deixar em Auto)' : ''));
   }
@@ -972,7 +989,7 @@ function indiceAulas() {
  *  Nota = palavra/maior + PESO_SIGNIFICADO × cosseno. Conversa à toa ("oi", "valeu", "bom dia") não puxa aula.
  *  Placar (1.234 perguntas do treino, oficina do Mac, 31/10): só palavra com corte 18 = 72% nas 2 primeiras;
  *  corte menor + detector de conversa à toa = 76%; + significado = 79% nas 2 e 92% nas 5. */
-const PESO_AULAS = { k: 2, r: 1, c: 1.5 }, AULAS_MIN = 10, PESO_SIGNIFICADO = 2, AULAS_COS_MIN = 0.55;
+const PESO_AULAS = { k: 2, r: 1, c: 1.5 }, AULAS_MIN = 10, PESO_SIGNIFICADO = 2, AULAS_COS_MIN = 0.55, AULAS_COS_FORTE = 0.74;
 const PALAVRAS_A_TOA = ['oi', 'ola', 'opa', 'eai', 'e', 'ai', 'bom', 'boa', 'dia', 'tarde', 'noite', 'valeu', 'vlw', 'obrigado', 'obrigada', 'obg', 'brigado', 'blz', 'beleza', 'ok', 'okay', 'show', 'massa', 'top', 'entendi', 'tudo', 'bem', 'certo', 'ta', 'to', 'tou', 'sim', 'nao', 'isso', 'perfeito', 'otimo', 'legal', 'tmj', 'fechou', 'fechado', 'bora', 'verdade', 'pode', 'crer', 'zica', 'zicoai', 'tranquilo', 'suave', 'joia', 'haha', 'rs', 'rsrs', 'aham', 'uhum', 'boa'];
 /** Mensagem curta só de cumprimento/agradecimento/concordância: não precisa de aula. */
 function ehConversaAToa(t) {
@@ -1101,7 +1118,11 @@ function contextoAulas(pergunta, limite, talvez) {
   const lista = aulasPara(pergunta, (limite || 2) + (talvez === undefined ? 3 : talvez));
   passoDetalhe({tipo: 'aulas', titulo: 'Busca de aulas: palavra e significado', pedido: pergunta, resposta: lista.map(x => ({id: x[0], titulo: x[1], motivo: x.motivo})), ms: 0});
   if (!lista.length) return '';
-  const fortes = lista.slice(0, limite || 2), outras = lista.slice(limite || 2);
+  // aula "forte" (texto completo) só quando bate de verdade: palavra acima do corte ou significado >= AULAS_COS_FORTE.
+  // Cosseno 0,6–0,7 aparece até em aula sem nada a ver (Gemini): essas viram só "talvez".
+  const forte = x => !x.motivo || x.motivo.palavra || x.motivo.cosseno >= AULAS_COS_FORTE;
+  const fortes = lista.filter(forte).slice(0, limite || 2), outras = lista.filter(x => fortes.indexOf(x) < 0).slice(0, 3);
+  if (!fortes.length) { passo('📚 Nenhuma aula bate forte com isso' + (outras.length ? ' (' + outras.length + ' talvez)' : '')); return outras.length ? '\n\n### AULAS QUE TALVEZ SE APLIQUEM (use só se a situação for essa; senão ignore)\n' + outras.map(x => '[' + x[0] + '] ' + x[1] + ' — REGRA: ' + String(x[4]).slice(0, 300)).join('\n') : ''; }
   passo('📚 Aula(s) que se aplicam: ' + fortes.map(x => x[0] + ' ' + x[1]).join(' · ') + (outras.length ? ' (+' + outras.length + ' talvez)' : ''));
   const a = aba('aulas');
   let txt = '\n\n### AULAS QUE SE APLICAM (o jeito certo de fazer isso; siga a REGRA e entenda o PORQUÊ)\n' + fortes.map(x => {
@@ -1271,6 +1292,19 @@ function geminiComGoogleSemDetalhe(sistema, historico) {
 }
 
 /* ---------- classificação ---------- */
+
+/** Pedido de ficha técnica / comparativo de aparelho: os números TÊM que vir da web (o modelo não sabe os lançamentos). */
+function ehFichaTecnica(t, historico) {
+  const s = normalizar(t);
+  if (/(preco|quanto (ta|esta|custa|fica|sai)|valor|troca de|conserto|parcel|a vista|pix)/.test(s)) return false;   // preço é da tabela, não da web
+  const aparelho = /(iphone|ipad|galaxy|samsung|xiaomi|redmi|poco|motorola|moto ?[gex] ?\d|realme|pixel|oneplus|apple watch|airpods|macbook|\b1\d ?(pro max|pro|plus|mini|air|e)\b|\b(pro max|duo|fold|flip)\b)/.test(s);
+  const pede = /(\bvs\b|versus|\d \bx\b \d|\bx\b|compar|ficha|especifica|spec|diferenc|qual (e )?(o )?melhor|qual compensa|bateria|camera|chip|processador|\btela\b|mah|lancament|lancou|existe|modelo novo|novo modelo|vale a pena)/.test(s);
+  if (aparelho && pede) return true;
+  // continuação de um comparativo ("Opção 2", "refaz", "e o 16?")
+  const ant = (historico || []).slice(0, -1).reverse().find(m => m.role === 'assistant');
+  return !!(ant && /POR QUE LEVAR/.test(String(ant.content)) && s.length < 120 && !/^(ok|blz|beleza|valeu|obrigad|show|top)/.test(s));
+}
+const REGRA_FICHA = '\n\n### FICHA TÉCNICA (comparativo/especificação de aparelho)\nUse SÓ números que aparecem nas fontes da pesquisa, do modelo EXATO pedido (17 Pro Max não é 16 Pro Max; 18 Pro Max tem o chip da geração 18). Dado que a fonte não traz: escreva "não confirmado", nunca chute. Trechos da base/memória sobre ficha podem estar errados: as fontes da pesquisa mandam. Se a pesquisa não achar o modelo, diga que não achou (não diga que não existe).';
 
 function precisaPesquisar(t) {
   const s = normalizar(t);
@@ -3330,12 +3364,25 @@ function placar() {
 
 /* ---------- estudo noturno ---------- */
 const TEMAS_ESTUDO = [
-  { tema: 'HTML e CSS pra apps de celular', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Learn/CSS/CSS_layout/Flexbox', 'https://developer.mozilla.org/pt-BR/docs/Web/CSS/CSS_grid_layout'], busca: 'CSS flexbox grid layout responsivo tutorial' },
-  { tema: 'JavaScript no navegador (eventos, localStorage, fetch)', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API/Using_Fetch', 'https://developer.mozilla.org/pt-BR/docs/Web/API/Window/localStorage'], busca: 'javascript fetch localStorage eventos tutorial' },
+  // programação (o Thiago faz apps em HTML, Apps Script, jogo; quer ela cada vez melhor nisso)
+  { tema: 'HTML e CSS pra apps de celular', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Learn/CSS/CSS_layout/Flexbox', 'https://developer.mozilla.org/pt-BR/docs/Web/CSS/CSS_grid_layout'], busca: 'CSS flexbox grid layout responsivo celular exemplos' },
+  { tema: 'JavaScript no navegador (eventos, localStorage, fetch)', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API/Using_Fetch', 'https://developer.mozilla.org/pt-BR/docs/Web/API/Window/localStorage'], busca: 'javascript fetch localStorage eventos exemplos' },
+  { tema: 'JavaScript moderno (async/await, módulos, arrays, erros)', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Learn/JavaScript/Asynchronous/Promises', 'https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/Array'], busca: 'javascript async await promise tratamento de erro exemplos' },
   { tema: 'Google Apps Script com planilhas', tipo: 'código', fontes: ['https://developers.google.com/apps-script/guides/sheets?hl=pt-br'], busca: 'Google Apps Script SpreadsheetApp exemplos' },
+  { tema: 'Apps Script: cotas, gatilhos e web app (doPost)', tipo: 'código', fontes: ['https://developers.google.com/apps-script/guides/services/quotas?hl=pt-br', 'https://developers.google.com/apps-script/guides/web?hl=pt-br'], busca: 'apps script quotas triggers doPost web app' },
+  { tema: 'PWA: service worker, cache e funcionar offline', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Web/Progressive_web_apps', 'https://developer.mozilla.org/pt-BR/docs/Web/API/Service_Worker_API/Using_Service_Workers'], busca: 'service worker cache versão pwa offline exemplo' },
+  { tema: 'Supabase e SQL básico (tabelas, select, RLS)', tipo: 'código', fontes: ['https://supabase.com/docs/guides/database/overview', 'https://supabase.com/docs/guides/database/postgres/row-level-security'], busca: 'supabase row level security exemplo select insert' },
+  { tema: 'Python pra automatizar planilha e arquivo', tipo: 'código', fontes: ['https://docs.python.org/pt-br/3/tutorial/inputoutput.html'], busca: 'python ler csv excel automatizar exemplos' },
+  { tema: 'Git e GitHub (commit, branch, pull request, GitHub Pages)', tipo: 'código', fontes: ['https://docs.github.com/pt/get-started/using-git/about-git', 'https://docs.github.com/pt/pages/getting-started-with-github-pages/about-github-pages'], busca: 'git branch commit pull request github pages tutorial' },
+  { tema: 'Segurança em app web (chave secreta, XSS, dado de cliente)', tipo: 'código', fontes: ['https://developer.mozilla.org/pt-BR/docs/Web/Security'], busca: 'segurança app web xss não expor api key frontend' },
+  { tema: 'Achar bug: ler erro do console e testar uma coisa por vez', tipo: 'código', fontes: ['https://developer.chrome.com/docs/devtools/console?hl=pt-br'], busca: 'como depurar javascript console erro passo a passo' },
+  // loja
   { tema: 'Contas de loja: parcelamento, juros, margem e desconto', tipo: 'preço', fontes: [], busca: 'como calcular parcelamento com juros tabela price margem de lucro desconto' },
   { tema: 'Atendimento de cliente pelo WhatsApp numa loja de celulares', tipo: 'cliente', fontes: [], busca: 'boas práticas atendimento cliente WhatsApp loja de celular' },
-  { tema: 'Diferenças entre modelos de iPhone (tela, câmera, bateria, chip)', tipo: 'comparativo', fontes: [], busca: 'comparação modelos iPhone diferenças tela câmera bateria chip' }
+  { tema: 'Lançamentos de iPhone deste ano (ficha oficial de cada modelo)', tipo: 'comparativo', fontes: ['https://www.apple.com/br/iphone/compare/'], busca: 'iPhone lançamento ficha técnica oficial chip bateria câmera' },
+  { tema: 'Diferenças entre modelos de iPhone (tela, câmera, bateria, chip)', tipo: 'comparativo', fontes: ['https://support.apple.com/pt-br/docs/iphone'], busca: 'comparação modelos iPhone diferenças tela câmera bateria chip' },
+  { tema: 'Saúde de bateria, iPhone seminovo e o que conferir antes de vender', tipo: 'cliente', fontes: ['https://support.apple.com/pt-br/101575'], busca: 'iphone seminovo o que conferir saúde da bateria peças originais' },
+  { tema: 'TV Box e apps de IPTV legais: instalar, atualizar, resolver tela preta', tipo: 'cliente', fontes: [], busca: 'tv box android como instalar apk atualizar resolver travando' }
 ];
 function conferirCodigo_(texto) {
   // checagem simples: cada bloco ```js / ```javascript precisa passar na sintaxe (new Function)
@@ -3454,12 +3501,73 @@ function arquivarMensagens() {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------- estudo 24h ----------
+ * Uma rodada = aprender com UM erro recente (se tiver) ou estudar UM tema na web.
+ * Quem chama: o Mac (ponte, a cada 30 min, sem gastar a cota de gatilhos) e um gatilho de 4 em 4 horas (reserva com o Mac desligado).
+ * Tudo que sai daqui entra como "revisar": exemplo de treino e rascunho de aula. Não vai sozinho pro contexto. */
+const RX_RECLAMACAO = /(errad|errou|nao existe|de onde (vc|voce) tirou|inventou|ta errado|esta errado|nao e isso|nao foi isso|falhou|nao chegou|nao funcionou|nao funciona|resposta (estranha|errada)|que resposta|se confundiu|confundiu|corrige|corrija|nao era isso|ta faltando|esqueceu|nada a ver|mentiu|chutou)/;
+function estudar() {
+  const props = PropertiesService.getScriptProperties();
+  const ultima = Number(props.getProperty('ESTUDO_ULTIMA') || 0);
+  if (Date.now() - ultima < 20 * 60000) return { ok: true, pulou: 'estudou há menos de 20 min' };
+  props.setProperty('ESTUDO_ULTIMA', String(Date.now()));
+  let r = null;
+  try { r = aprenderComErros(); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
+  if (r && r.aprendeu) return r;
+  const n = Number(props.getProperty('ESTUDO_TEMA') || 0);
+  props.setProperty('ESTUDO_TEMA', String(n + 1));
+  const t = estudoNoturno(n);
+  return { ok: true, erros: r, tema: t };
+}
+/** Acha a próxima reclamação do Thiago ("de onde vc tirou", "tá errado", "falhou"...), pesquisa o certo na web e escreve a correção + aula. */
+function aprenderComErros() {
+  const props = PropertiesService.getScriptProperties();
+  const ate = props.getProperty('ERROS_ATE') || '';
+  const ls = linhas('mensagens');
+  let alvo = -1;
+  for (let i = 1; i < ls.length; i++) {
+    if (ls[i][1] <= ate) continue;
+    if (ls[i][2] !== 'thiago') continue;
+    if (RX_RECLAMACAO.test(normalizar(String(ls[i][3]))) && ls[i - 1][2] === 'zicoai' && ls[i - 1][0] === ls[i][0]) { alvo = i; break; }
+  }
+  if (alvo < 0) { if (ls.length) props.setProperty('ERROS_ATE', ls[ls.length - 1][1]); return { ok: true, aprendeu: false, motivo: 'nenhuma reclamação nova' }; }
+  const rec = ls[alvo], errada = ls[alvo - 1];
+  let ped = null;
+  for (let k = alvo - 2; k >= 0 && k >= alvo - 8; k--) if (ls[k][0] === rec[0] && ls[k][2] === 'thiago') { ped = ls[k]; break; }
+  const pedido = String(ped ? ped[3] : '').slice(0, 2000);
+  // material da web (o certo tem que ter fonte, senão é chute de novo)
+  let material = '', fontes = [];
+  try {
+    const b = resultadosBusca(String(pedido || errada[3]).replace(/\[📷[^\]]*\]/g, '').slice(0, 200));
+    if (b && b.texto) { material = b.texto.slice(0, 7000); fontes.push(b.fonte); }
+  } catch (e) { /* sem web: escreve só a regra de comportamento */ }
+  const msgs = [{ role: 'system', content: [
+    'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). Ela errou e o Thiago reclamou. Analise e ensine.',
+    'Responda SÓ JSON: {"causa":"por que ela errou (1-2 frases: faltou pesquisar? inventou? pegou aula errada? não viu a foto?)","regra":"o jeito certo, 1 frase","porque":"o porquê da regra, 2-3 frases","situacoes":["como isso aparece em outras palavras", "..."],"erro_comum":"1 frase","resposta_certa":"a resposta que ela devia ter dado, no jeito do Thiago (curta, informal). Use SÓ dados do MATERIAL; o que o material não confirma vira \\"não confirmado\\". Se o pedido era só conversa, responda como deveria ter respondido.","tipo":"cliente|comparativo|preço|código|loja|geral"}',
+    'Nunca invente preço, garantia, endereço, horário. Ficha técnica só com número que está no MATERIAL.'
+  ].join('\n') }, { role: 'user', content: 'PEDIDO DO THIAGO:\n' + (pedido || '(não achei)') + '\n\nRESPOSTA DELA (errada):\n' + String(errada[3]).slice(0, 3000) + '\n\nRECLAMAÇÃO:\n' + String(rec[3]).slice(0, 800) + '\n\nMATERIAL DA WEB (' + (fontes[0] || 'nenhum') + '):\n' + (material || '(nenhum)') }];
+  let j = null, autor = '';
+  for (const nome of ['gemini', 'mistral', 'nvidia', 'groq']) {
+    if (!temCerebro(nome)) continue;
+    const tk = estimarTokens(JSON.stringify(msgs)) + 2000;
+    if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
+    try { j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 2000, { temperature: 0.2 })); registrarUso(nome, tk); autor = CEREBROS[nome].nome; if (j && j.regra) break; } catch (e) { /* próximo */ }
+  }
+  if (!j || !j.regra) return { ok: false, aprendeu: false, motivo: 'nenhum cérebro livre agora (tenta na próxima rodada)' };
+  props.setProperty('ERROS_ATE', rec[1]);
+  const aula = '**Regra:** ' + j.regra + '\n\n## Por quê\n' + (j.porque || '') + '\n\n## Situações em que aparece\n' + (Array.isArray(j.situacoes) ? j.situacoes.map(x => '- ' + x).join('\n') : '') + '\n\n## Exemplo (' + String(rec[1]).slice(0, 10) + ')\n- Pedido: ' + pedido.slice(0, 300) + '\n- Errou: ' + String(j.causa || '') + '\n\n## Erro comum\n- ' + (j.erro_comum || '');
+  aba('estudo_erros').appendRow(["'" + agora(), rec[0], seguro(pedido), seguro(String(errada[3]).slice(0, 3000)), seguro(String(rec[3]).slice(0, 800)), seguro(String(j.causa || '')), seguro(String(j.regra)), seguro(aula.slice(0, 6000)), seguro(String(j.resposta_certa || '').slice(0, 4000)), fontes.join(' '), 'revisar']);
+  if (pedido && j.resposta_certa) guardarExemplo(pedido, String(j.resposta_certa), autor, 'erro corrigido (revisar)', j.tipo);
+  return { ok: true, aprendeu: true, conversa: rec[0], causa: j.causa, regra: j.regra, autor: autor };
+}
+
 function garantirRotinasTreino() {
   const c = CacheService.getScriptCache();
   if (c.get('rotinas_treino_ok')) return;
   try {
     const tem = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
     if (tem.indexOf('estudoNoturno') < 0) ScriptApp.newTrigger('estudoNoturno').timeBased().everyDays(1).atHour(1).create();
+    if (tem.indexOf('estudar') < 0) ScriptApp.newTrigger('estudar').timeBased().everyHours(4).create();   // reserva: o Mac chama de 30 em 30 min
     if (tem.indexOf('placarDiario') < 0) ScriptApp.newTrigger('placarDiario').timeBased().everyDays(1).atHour(2).create();
     if (tem.indexOf('arquivarMensagens') < 0) ScriptApp.newTrigger('arquivarMensagens').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(5).create();
     // aprender sozinha: de 10 em 10 min pra 30 em 30 (uma vez só), pra sobrar tempo de rotina pros agentes e o estudo
@@ -3644,7 +3752,7 @@ const FERRAMENTAS = {
     return vals.map((l, i) => (i + 1) + ': ' + l.join(' | ')).join('\n').slice(0, 8000) + (vals.length >= 60 ? '\n(…mais linhas; peça outro intervalo)' : '');
   } },
   escrever_planilha: { desc: 'Escreve em UMA célula (não apaga; pra neutralizar uma linha, escreva "[IGNORAR] ..." nela). args: {aba, celula (ex. "B5"), valor}', run: (a, ctx) => {
-    const nome = String(a.aba || '').trim();
+    const nome = String(a.aba || '').trim().toLowerCase();
     if (ABAS_ESCRITA.indexOf(nome) < 0) return 'ERRO: só posso escrever em ' + ABAS_ESCRITA.join(', ');
     if (!/^[A-Z]{1,2}\d{1,5}$/i.test(String(a.celula || ''))) return 'ERRO: celula deve ser tipo "B5"';
     const sh = aba(nome); const r = sh.getRange(String(a.celula)); const antes = r.getDisplayValues()[0][0];
