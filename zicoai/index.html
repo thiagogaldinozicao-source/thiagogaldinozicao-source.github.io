@@ -454,7 +454,9 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 .det-bloco{min-width:0;max-width:100%;margin-block:.6rem;border:1px solid var(--borda2);border-radius:.5rem;overflow:hidden;background:var(--fundo,#111)}
 .det-bloco>div{display:flex;justify-content:space-between;gap:.5rem;padding:.5rem .7rem;align-items:center;font-size:.8rem}
 .det-bloco button{background:none;border:1px solid var(--borda2);color:var(--ouro);border-radius:.35rem;padding:.3rem .6rem;cursor:pointer}
-.det-bloco pre{box-sizing:border-box;display:block;min-width:0;max-width:100%;max-height:16rem;overflow:auto;margin:0;padding:.7rem;white-space:pre;font-family:monospace;font-size:.8rem}
+.det-bloco>div .det-bts{display:flex;gap:.35rem}
+.det-bloco pre{box-sizing:border-box;display:block;min-width:0;max-width:100%;max-height:20rem;overflow-y:auto;overflow-x:hidden;margin:0;padding:.7rem;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-family:monospace;font-size:.8rem;line-height:1.45}
+.det-bloco pre.legivel{font-family:inherit;font-size:.85rem}
 .det-bloco code{font:inherit;white-space:inherit}
 .msg-ia .corpo,.vivo,#progressoPainel,.tarefa{min-width:0;max-width:100%;box-sizing:border-box}
 
@@ -1118,7 +1120,7 @@ function tituloResumo(passos){
 }
 
 // Defesa na tela: o servidor já mascara; aqui não se injeta HTML nos diagnósticos.
-function mascaraDetalheUI(v){
+function mascaraDetalheUI(v, max = 2000){
   const sensivel = /key|token|segredo|secret|senha|password|pin|authorization|cookie|credential/i;
   const limpar = x => {
     if(Array.isArray(x)) return x.map(limpar);
@@ -1135,7 +1137,29 @@ function mascaraDetalheUI(v){
     .replace(/((?:["']?[\w.-]{0,64}(?:api[_-]?key|token|segredo|secret|senha|password|pin|authorization|cookie)[\w.-]{0,64}["']?)\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,}\]\n]+)/gi,'$1•••')
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g,'•••')
     .replace(/(?:\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}\b/g,'•••');
-  return t.length > 2000 ? t.slice(0,1999) + '…' : t;
+  return t.length > max ? t.slice(0,max-1) + '…' : t;
+}
+// JSON vira texto de gente: "chave: valor", listas com •, texto com quebra de linha de verdade.
+function legivelDetalhe(texto){
+  let v; try{ v = JSON.parse(texto.replace(/(:\s*)•••(?=\s*[,}\]\n])/g, '$1"•••"')); }catch(e){ return texto; }
+  const nomeChave = k => String(k).replace(/_/g,' ');
+  const curto = x => x == null || typeof x !== 'object';
+  const prim = x => x == null ? '—' : typeof x === 'boolean' ? (x ? 'sim' : 'não') : String(x);
+  const ind = (t, n) => t.split('\n').map(l => ' '.repeat(n) + l).join('\n');
+  const fmt = (x, n) => {
+    if(curto(x)) return prim(x);
+    if(Array.isArray(x)){
+      if(!x.length) return '(vazio)';
+      return x.map(it => { const t = fmt(it, 0); return '• ' + ind(t, 2).slice(2); }).join('\n');
+    }
+    const ks = Object.keys(x); if(!ks.length) return '(vazio)';
+    return ks.map(k => {
+      const val = x[k];
+      if(curto(val) && !String(prim(val)).includes('\n')) return nomeChave(k) + ': ' + prim(val);
+      return nomeChave(k) + ':\n' + ind(fmt(val, 0), 2);
+    }).join('\n');
+  };
+  return fmt(v, 0);
 }
 const detalhesAbertos = new Set();
 function listaDetalhes(detalhes, vivo){
@@ -1150,12 +1174,23 @@ function listaDetalhes(detalhes, vivo){
     nome.textContent = titulo; nome.className = 'det-titulo'; seta.textContent = '▸'; seta.className = 'det-seta';
     sum.append(ic,nome,seta); det.appendChild(sum);
     ['pedido','resposta'].forEach(campo => {
+      const cru = mascaraDetalheUI(d[campo], 8000);
+      if(!cru || cru === '""' || cru === '{}' || cru === '[]') return;
+      const legivel = legivelDetalhe(cru), temJson = legivel !== cru;
       const bloco = document.createElement('div'); bloco.className = 'det-bloco';
-      const cab = document.createElement('div'), label = document.createElement('b'), bt = document.createElement('button'), pre = document.createElement('pre'), code = document.createElement('code');
+      const cab = document.createElement('div'), label = document.createElement('b'), bts = document.createElement('span'), bt = document.createElement('button'), pre = document.createElement('pre'), code = document.createElement('code');
+      bts.className = 'det-bts';
       label.textContent = campo === 'pedido' ? 'Solicitação' : 'Resposta';
+      let modoJson = false;
+      const mostrar = () => { code.textContent = modoJson ? cru : legivel; pre.classList.toggle('legivel', !modoJson && temJson); };
+      if(temJson){
+        const bj = document.createElement('button'); bj.type = 'button'; bj.textContent = 'JSON'; bj.setAttribute('aria-pressed','false');
+        bj.onclick = () => { modoJson = !modoJson; bj.textContent = modoJson ? 'Legível' : 'JSON'; bj.setAttribute('aria-pressed', String(modoJson)); mostrar(); };
+        bts.appendChild(bj);
+      }
       bt.type = 'button'; bt.textContent = 'Copiar'; bt.setAttribute('aria-label','Copiar ' + label.textContent.toLowerCase());
-      const texto = mascaraDetalheUI(d[campo]); code.textContent = texto; bt.onclick = () => copiar(texto, bt);
-      cab.append(label,bt); pre.appendChild(code); bloco.append(cab,pre); det.appendChild(bloco);
+      bt.onclick = () => copiar(modoJson ? cru : legivel, bt); bts.appendChild(bt);
+      mostrar(); cab.append(label,bts); pre.appendChild(code); bloco.append(cab,pre); det.appendChild(bloco);
     });
     if(Number(d.ms) >= 0){ const tempo = document.createElement('small'); tempo.textContent = Math.round(Number(d.ms)) + ' ms'; det.appendChild(tempo); }
     li.appendChild(det); ol.appendChild(li);

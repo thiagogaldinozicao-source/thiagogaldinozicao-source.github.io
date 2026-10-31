@@ -7,7 +7,7 @@ const server = http.createServer((req,res) => {
   try { res.setHeader('Content-Type', /\.html$/.test(file)?'text/html':/\.js$/.test(file)?'application/javascript':'application/octet-stream'); res.end(fs.readFileSync(file)); }
   catch { res.statusCode=404; res.end(); }
 });
-const details = [{tipo:'ferramenta',titulo:'Ferramenta fictícia',pedido:{api_key:'fake-api-only',pin:'fake-pin-only',args:{consulta:'teste'}},resposta:'token=fake-token-only CPF 000.000.000-00 telefone +55 (00) 90000-0000 https://example.invalid/?key=fake-query-only '+ 'x'.repeat(2300),ms:20}];
+const details = [{tipo:'ferramenta',titulo:'Ferramenta fictícia',pedido:{api_key:'fake-api-only',pin:'fake-pin-only',args:{consulta:'teste'}},resposta:'token=fake-token-only CPF 000.000.000-00 telefone +55 (00) 90000-0000 https://example.invalid/?key=fake-query-only '+ 'x'.repeat(2300),ms:20},{tipo:'aulas',titulo:'Base usada',pedido:'',resposta:{aulas:[{id:'A101',nota:0.71,texto:'Primeira linha\nSegunda linha '+'palavra'.repeat(60)},{id:'B502',nota:0.63,passos:['ler','responder']}],ok:true},ms:5}];
 const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','Respondeu com cérebro de teste'],cerebro:'teste'};
 (async()=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
@@ -16,7 +16,7 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
     for(const width of [390,1440]) {
       const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});
       const page=await context.newPage(), errors=[];
-      page.on('pageerror',e=>errors.push(e.message));
+      page.on('pageerror',e=>{ if(!/Service worker is disabled because the context is sandboxed/.test(e.message)) errors.push(e.message); }); // ruído do serviceWorkers:'block' do Playwright dentro de iframe sandbox
       await page.addInitScript(()=>{
         if(window.top !== window) return; // a configuração pertence ao app, não aos iframes sandbox
         localStorage.setItem('zicoai_cfg',JSON.stringify({url:'https://example.invalid/brain',pin:'fake-pin-only',aparelho:'Teste',cerebro:'auto'}));
@@ -54,12 +54,24 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       const copied=await page.evaluate(()=>window.__copiado),dom=await page.locator('body').innerText();
       for(const secret of ['fake-api-only','fake-pin-only','fake-token-only','fake-query-only','000.000.000-00','90000-0000']) {assert(!dom.includes(secret));assert(!copied.includes(secret));}
       assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), 'overflow '+width);
-      assert(await step.locator('pre').last().evaluate(e=>e.scrollWidth>e.clientWidth));
+      // Texto longo quebra a linha (nada cortado pro lado) e o JSON aparece legível, com botão pra ver o cru.
+      for(const pre of await step.locator('pre').all()) assert(await pre.evaluate(e=>e.scrollWidth<=e.clientWidth+1), 'pre cortado '+width);
+      const txtPedido=await step.locator('pre').first().innerText();
+      assert(txtPedido.includes('args:') && txtPedido.includes('consulta: teste') && !txtPedido.includes('{'), 'pedido não ficou legível: '+txtPedido);
+      const base=page.locator('.msg-ia .passos').last().locator('.passo-detalhe').nth(1);
+      if(!await base.evaluate(e=>e.open))await base.locator('summary').click();
+      const txtBase=await base.locator('pre').last().innerText();
+      assert(txtBase.includes('• id: A101') && txtBase.includes('passos:') && txtBase.includes('Primeira linha\n') && !txtBase.includes('\\n'), 'lista não ficou legível: '+txtBase);
+      await base.getByRole('button',{name:'JSON',exact:true}).last().click();
+      assert((await base.locator('pre').last().innerText()).includes('"id": "A101"'));
+      await base.getByRole('button',{name:'Legível',exact:true}).click();
+      assert((await base.locator('pre').last().innerText()).includes('• id: A101'));
+      assert.equal(await base.locator('.det-bloco').count(),1,'solicitação vazia devia sumir');
       await step.locator('summary').click();assert(!await step.evaluate(e=>e.open));
       // Mesmo componente no painel e em tarefa ao vivo, via estado falso.
       await page.evaluate(ds=>{tarefas=[{id:'fake-task',chatId:atual,pedido:'Tarefa fictícia',status:'rodando',passos:['Executando'],detalhes:ds}];vivoTarefaNaConversa();mostraProgresso(['Executando'],true,ds);},details);
-      assert.equal(await page.locator('#vivoTarefa .passo-detalhe').count(),1);
-      assert.equal(await page.locator('#progressoPainel .passo-detalhe').count(),1);
+      assert.equal(await page.locator('#vivoTarefa .passo-detalhe').count(),2);
+      assert.equal(await page.locator('#progressoPainel .passo-detalhe').count(),2);
       assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, final, tarefa, painel, abrir/fechar, copiar, máscara e largura');
       await context.close();
     }
