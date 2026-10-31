@@ -57,6 +57,7 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 | A07 | [ferramentas de programar](A/A07-ferramentas-de-programar.md) | Pra construir e consertar: Claude Code (nuvem ou PC). Pra editar e testar no PC: VS Code + Live Server. Extens… |
 | A08 | [escolher o modelo](A/A08-escolher-o-modelo.md) | Use o modelo mais barato que resolve. Fácil (texto curto, conta, mensagem pra cliente) → rápido/barato. Médio … |
 | A09 | [segurança e privacidade](A/A09-seguranca-e-privacidade.md) | Segredo (chave, token, PIN, link do PC) nunca em código público. Dado de cliente (CPF, telefone) não vai pra n… |
+| A10 | [ver as pendências antes de começar coisa nova](A/A10-pendencias-antes-de-coisa-nova.md) | Liste o que está pela metade, publique o que está pronto, segurança antes de recurso novo, um item por vez. |
 
 ### B — Programação
 | ID | Aula | Regra |
@@ -101,5 +102,6 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D17 | [imagem melhor sem trocar o gerador](D/D17-imagem-prompt-detalhado.md) | Pedido de imagem curto vira prompt detalhado em inglês; pedido longo do Thiago passa igual; mostre o prompt us… |
 | D18 | [modo capricho](D/D18-modo-capricho.md) | Pergunta difícil: cérebro forte, mais raciocínio e OUTRO cérebro revisa; o revisor nunca pode piorar a respost… |
 | D19 | [teste que quebra à meia-noite](D/D19-relogio-dos-testes.md) | Teste falhou? Primeiro "foi eu?" (guarda a mudança e roda de novo); teste não pode depender do dia de hoje. |
+| D20 | [treinar a ZicoAI com LoRA a partir das aulas](D/D20-treino-lora.md) | Aula vira exemplos, revisor confere todos, treino leve no Colab grátis, modelo pronto no Ollama; treino pro jeito, aula pros fatos. |
 
 `aulas.json` (gerado destas aulas) é o que o cérebro baixa (`sincronizarAulas`, a cada 12 h) pra aba `aulas`.

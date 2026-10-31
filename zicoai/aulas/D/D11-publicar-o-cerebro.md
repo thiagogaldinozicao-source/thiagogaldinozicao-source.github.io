@@ -22,6 +22,9 @@ O código do repositório e o código que roda no Google são cópias separadas.
 3. **Escopo novo** (Drive, Gmail, Agenda, gatilhos): o Google pede autorização de novo. Isso é com o Thiago: rodar uma função no editor → Revisar permissões → Avançado → Acessar → Permitir.
 4. **Implantação nova muda o link** e o app perde a conexão. Sempre "Nova versão" na **mesma** implantação.
 
+## Exemplo real: v41 (31/10/2026)
+Em vez de colar à mão, o código foi puxado do GitHub dentro do próprio editor (por JavaScript na página: buscar o arquivo do commit exato e trocar o texto do editor), e o sha256 do editor bateu com o do arquivo testado. Depois: "Salvar projeto no Drive" → Implantar → Gerenciar implantações → conferir que o código da implantação ativa é o de sempre → Editar → Nova versão → descrição → Implantar → "Implantação atualizada. Versão 41". Em seguida rodou no editor `sincronizarAulas` (puxou as 43 aulas públicas) e `garantirRotinasTreino` (ligou as rotinas novas), e o link respondeu "ZicoAI no ar ✅".
+
 ## Lições
 1. Nunca publicar sem os testes passando.
 2. Conferir o código colado antes de implantar.
