@@ -37,6 +37,8 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 
 - **4xx — projeto "Acerto de aparelhos"** (acerto com revendedora): C401–C403 (regra do +R$ 100 e da troca, dividir um Pix entre aparelhos, raio-x do acerto), B401–B403 (fluxo de aprovação dono × cliente, editar o estado da página pelo JSON, testar nas duas visões), A401–A403 (página como fonte da verdade no mesmo link, economia de tokens com memória do projeto, jeito de falar com o Thiago). Nome da revendedora e saldo devido tirados.
 
+- **5xx — projeto "Acerto Paraguai"** (app Acertos Zicão): B501–B508 (app num artifact só, banco do artifact com plano B local, contas de dólar e centavo, visual preto e dourado, texto pra copiar, editar sem quebrar, anexar nota, histórico com confirmação), C501–C503 (a % é taxa do freteiro e não margem, lançar pedido novo, nunca mostrar lucro pra terceiros), A501–A503 (rotina vira projeto, não presumir, estilo de resposta).
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
