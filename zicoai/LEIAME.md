@@ -155,6 +155,13 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v53 (31/10): programadora (edita por trechos, testa e conserta)
+- App existente (`appSlug`): `REGRA_EDICAO` pede trechos `<<<<<<< ANTES / ======= / >>>>>>> DEPOIS`; `aplicarTrechos` aplica (cada ANTES tem que aparecer 1 vez; falhou → 1 refazer); resposta = explicação + arquivo COMPLETO. Código do app no contexto até 150 mil letras (era 60 mil e cortava).
+- `programadora()` depois de toda resposta de código: `checarHtmlEstatico` (cortado, script sem fechar, sintaxe) + `ponte('testar_html')` no Mac (Chromium sem janela, 390 px, clica em até 6 botões; erros de JS/console/arquivo/página branca/rolagem lateral) → `consertarCodigo` (Gemini Flash, trechos) até `MAX_CONSERTOS` (2). Selo ✅/⚠️ no fim. Revisor de texto não roda em resposta com app.
+- Ponte: `dados.html` maior que `PONTE_PEDACO` vai em pedaços `pdat_<id>_<i>` no cache e o `ponteBuscar` remonta. Mac: `ponte-mac.js` mac-1.2 + `testar-html.js`.
+- Regra 12 do sistema: app novo = arquivo completo; app existente = só trechos.
+- Testes t1–t39 (542 ok). Aula D30.
+
 ## v52 (31/10): o método do Claude
 - Seção `### MÉTODO` no sistema: entender → separar o que sabe (base/aula/pesquisa) do que acha → não preencher o que falta → fazer → conferir (modelo exato, origem de cada número, conta, código, contradição). Regra antiga "modelo fora da base: diga que não tem a ficha" trocada por "a ficha vem da pesquisa; nunca peça pro Thiago".
 - `geminiForte` (Gemini Flash, ~20/dia no grátis, limite 18): primeiro no capricho (pedido difícil e, agora, ficha técnica) e primeiro revisor. `testarModelos()` (1x por dia no `estudar`, ou pelo editor) grava `GEMINI_MODELO` (3.5-flash-lite, senão 3.1) e `GEMINI_FORTE` (3.8-flash, senão 3.6; vazio = desligado). `REGRA_REVISOR_FICHA`: revisor não troca número que veio da web.

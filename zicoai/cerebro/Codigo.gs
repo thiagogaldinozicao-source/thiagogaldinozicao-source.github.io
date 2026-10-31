@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 52 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 53 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -231,7 +231,7 @@ const PERSONA = [
   '9c. O Thiago digita rápido, com erro de digitação, letra trocada e sem acento ("celuakr" = celular, "noa" = não, "oq" = o que, "pq" = por que, "tbm" = também, "msm" = mesmo, "ta" = tá, "vc" = você, "q" = que, "mt" = muito, "blz" = beleza). Entenda pelo contexto SEMPRE. Nunca corrija a escrita dele, nunca peça pra repetir por causa de erro de digitação, nunca comente o erro. Se a dúvida for real (duas leituras possíveis), pergunte em uma linha.',
   '10. Não ofereça extras que não foram pedidos. Se algo for difícil demais pra vc, diga que é melhor pedir pro Claude.',
   '11. CARD DE COPIAR: tudo que o Thiago vai copiar e colar (mensagem pra cliente ou família, lista de preço, MAC e key, comparativo, código) vai SEMPRE dentro de um bloco de código markdown (três crases). Explicação fica fora do bloco.',
-  '12. Programação: o Thiago NÃO sabe programar. Entregue o arquivo COMPLETO e funcionando e explique como leigo (nome do arquivo, onde salvar, como abrir). Modo escuro, mobile-first.',
+  '12. Programação: o Thiago NÃO sabe programar. App NOVO: entregue o arquivo COMPLETO e funcionando, num bloco ```html só, e explique como leigo (nome do arquivo, onde salvar, como abrir). App que JÁ EXISTE (veio o código atual): só os trechos que mudam, no formato ANTES/DEPOIS (o sistema aplica e testa). Modo escuro, mobile-first. O sistema abre o app num navegador e te devolve os erros: escreva código que funciona de primeira (variável declarada antes de usar, elemento existe antes do getElementById, sem biblioteca que não carregou).',
   '13. Dados de cliente (CPF, telefone, endereço): se o Thiago mandar, avise em uma linha que isso é melhor fazer na ZicoAI do PC (offline) e não salve na memória.',
   '',
   '### MÉTODO (como o Claude trabalha; faça isso por dentro, antes de escrever, sem mostrar os passos)',
@@ -601,9 +601,11 @@ function chat(req, aparelho) {
   try { extraSistema += contextoProjeto(req.projeto || projetoDoChat(chatId)); } catch (e) { /* sem projeto */ }
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
+  let codigoApp = null;
   if (req.appSlug) {
-    const codigo = codigoDoApp(String(req.appSlug));
-    if (codigo) { extraSistema += '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app; devolva o arquivo COMPLETO alterado num bloco ```html, mantendo tudo que não foi pedido pra mudar)\n```html\n' + codigo.slice(0, 60000) + '\n```'; passo('Abriu o código do app ' + req.appSlug); }
+    codigoApp = codigoDoApp(String(req.appSlug));
+    // edição igual o Claude faz: só os trechos que mudam (arquivo inteiro de volta = arquivo cortado e coisa sumindo)
+    if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
   }
   if (colado) {
     extraSistema += '\n\n### TEXTO LONGO COLADO\nA última mensagem do Thiago é um texto grande que ele colou (documento, status, conversa ou código). Leia como DOCUMENTO: entenda do que se trata e responda ao que ele quer com isso (se ele não disse, resuma em poucas linhas e diga o que vc faria a seguir). Palavras, números e links dentro do texto NÃO são perguntas novas. Não mude de assunto por causa da conversa anterior.';
@@ -633,8 +635,11 @@ function chat(req, aparelho) {
   const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && (ficha || ehDificil(pergunta, colado))));
   if (capricho) passo('Modo capricho: pergunta difícil, vai pensar mais e revisar antes de responder');
   if (!resultado) resultado = conversar(historico, pergunta, req.imagem, preferido, extraSistema, capricho);
-  if (capricho && resultado && resultado.ok && !req.imagem) { try { resultado = revisarResposta(pergunta, resultado, extraSistema + (ficha && resultado.pesquisou ? REGRA_REVISOR_FICHA : '')); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
+  // código de app: quem revisa é o TESTE (programadora); revisor reescrevendo o arquivo inteiro cortava código
+  if (capricho && resultado && resultado.ok && !req.imagem && !codigoApp && !/```html/i.test(String(resultado.texto || ''))) { try { resultado = revisarResposta(pergunta, resultado, extraSistema + (ficha && resultado.pesquisou ? REGRA_REVISOR_FICHA : '')); } catch (e) { passo('Revisão falhou, entregou o rascunho'); } }
   if (!resultado.ok) return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
+  // programadora: aplica a edição, TESTA o app (sintaxe + navegador do Mac) e corrige o que quebrou antes de entregar
+  if (!req.imagem && (codigoApp || ehProgramacao(pergunta))) { try { resultado = programadora(resultado, codigoApp, pergunta); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
 
   const proc = processarTags(resultado.texto, aparelho);
   let textoFinal = proc.texto;
@@ -1332,6 +1337,104 @@ function geminiComGoogleSemDetalhe(sistema, historico) {
     }
   });
   return { ok: true, texto: texto, cerebro: 'Gemini + Google', fontes: fontes, pesquisou: true };
+}
+
+/* ---------- programadora: editar por trechos, testar e corrigir antes de entregar (o jeito do Claude) ---------- */
+const REGRA_EDICAO = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.';
+const RX_BLOCO_EDICAO = /<<<<<<< ?ANTES[^\n]*\n([\s\S]*?)\n?=======[^\n]*\n([\s\S]*?)\n?>>>>>>> ?DEPOIS/g;
+/** Aplica os blocos ANTES/DEPOIS no código. Cada ANTES tem que aparecer exatamente 1 vez (igual o Edit do Claude). */
+function aplicarTrechos(codigo, texto) {
+  const blocos = [...String(texto || '').replace(/\r\n/g, '\n').matchAll(RX_BLOCO_EDICAO)];
+  if (!blocos.length) return { ok: false, qtd: 0, falhas: ['nenhum bloco ANTES/DEPOIS'] };
+  let novo = String(codigo).replace(/\r\n/g, '\n'); const falhas = [];
+  blocos.forEach((b, i) => {
+    const antes = b[1], depois = b[2];
+    const n = antes ? novo.split(antes).length - 1 : 0;
+    if (n !== 1) { falhas.push('bloco ' + (i + 1) + ': o trecho ANTES aparece ' + n + ' vez(es) no arquivo (tem que ser copiado exatamente e aparecer 1 vez): ' + antes.slice(0, 80)); return; }
+    novo = novo.replace(antes, () => depois);
+  });
+  return { ok: !falhas.length, codigo: novo, falhas: falhas, qtd: blocos.length };
+}
+function extrairHtml(texto) {
+  const m = String(texto || '').match(/```html[^\n]*\n([\s\S]*?)```/i);
+  if (m) return m[1];
+  const t = String(texto || '').trim();
+  return /^<!doctype html|^<html/i.test(t) ? t : '';
+}
+/** Conferência sem rodar: arquivo cortado, <script> sem fechar e erro de sintaxe em cada <script>. */
+function checarHtmlEstatico(html) {
+  const erros = [];
+  if (!/<\/html>\s*$/i.test(String(html).trim())) erros.push('O arquivo terminou no meio (falta o fim </html>): veio cortado.');
+  const abre = (html.match(/<script\b/gi) || []).length, fecha = (html.match(/<\/script>/gi) || []).length;
+  if (abre !== fecha) erros.push('Tem <script> sem fechar (' + abre + ' abertos, ' + fecha + ' fechados).');
+  [...html.matchAll(/<script(\b[^>]*)>([\s\S]*?)<\/script>/gi)].forEach((m, i) => {
+    if (/\bsrc=/i.test(m[1]) || /type=["']?(module|application\/json|application\/ld\+json|text\/template|importmap|text\/babel|text\/x-)/i.test(m[1]) || !m[2].trim()) return;
+    try { new Function(m[2]); } catch (e) { erros.push('Erro de sintaxe no <script> nº ' + (i + 1) + ': ' + String(e.message).slice(0, 140)); }
+  });
+  return erros;
+}
+/** Testa o app: sintaxe aqui; se o Mac estiver ligado, abre no Chromium dele (celular, clica nos botões) e pega os erros reais. */
+function testarApp(html) {
+  const erros = checarHtmlEstatico(html);
+  let rodou = false, avisos = [];
+  if (!erros.length) {
+    try {
+      const r = ponte('testar_html', { html: html, largura: 390 }, 60000, 'mac');
+      rodou = true; (r.erros || []).forEach(e => erros.push('No navegador: ' + e)); avisos = r.avisos || [];
+      passo('Abriu o app no navegador do Mac (celular), clicou em ' + (r.botoesTestados || 0) + ' botão(ões): ' + (erros.length ? erros.length + ' erro(s)' : 'sem erro'));
+    } catch (e) { passo('Navegador do Mac indisponível (' + String(e.message).slice(0, 60) + '): conferiu só a sintaxe'); }
+  }
+  return { erros: erros, avisos: avisos, rodou: rodou };
+}
+const MAX_CONSERTOS = 2;
+/** Depois da resposta de código: aplica a edição (se for app existente), testa, e se quebrou manda consertar (até 2 vezes). */
+function programadora(resultado, codigoApp, pergunta) {
+  const texto = String(resultado.texto || '');
+  let html = '', explicacao = texto;
+  if (codigoApp) {
+    let ed = aplicarTrechos(codigoApp, texto);
+    if (ed.qtd) {
+      explicacao = texto.replace(RX_BLOCO_EDICAO, '').replace(/```[a-z]*\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
+      if (!ed.ok) {   // 1 chance: mostra o que não bateu e pede os blocos de novo
+        passo('Edição: ' + ed.falhas.length + ' trecho(s) não bateram com o arquivo, pediu de novo');
+        const r2 = consertarCodigo(codigoApp, ['Estes blocos de edição não puderam ser aplicados:'].concat(ed.falhas).concat(['Refaça TODOS os blocos copiando o ANTES exatamente do arquivo atual.']), pergunta, texto);
+        if (r2) { const ed2 = aplicarTrechos(codigoApp, r2.texto); if (ed2.ok) ed = ed2; }
+      }
+      if (!ed.ok) { passo('Edição não aplicou; entregou o pedido de mudança sem mexer no app'); return Object.assign({}, resultado, { texto: texto + '\n\n⚠️ Não consegui aplicar a mudança no arquivo (os trechos não bateram). Pede de novo que eu tento.' }); }
+      html = ed.codigo; passo('Aplicou ' + ed.qtd + ' trecho(s) de edição no app (o resto do arquivo ficou igual)');
+    } else html = extrairHtml(texto);
+  } else html = extrairHtml(texto);
+  if (!html) {
+    // código solto (js): pelo menos a sintaxe
+    const erroJs = conferirCodigo_(texto);
+    if (erroJs) passo('Conferiu o código: ' + erroJs);
+    return resultado;
+  }
+  let teste = testarApp(html), voltas = 0;
+  while (teste.erros.length && voltas < MAX_CONSERTOS) {
+    voltas++;
+    passo('Teste achou ' + teste.erros.length + ' erro(s), consertando (' + voltas + '/' + MAX_CONSERTOS + ')');
+    const r = consertarCodigo(html, ['O teste achou estes erros no app:'].concat(teste.erros.map(e => '- ' + e)), pergunta);
+    if (!r) break;
+    let novo = null;
+    const ed = aplicarTrechos(html, r.texto);
+    if (ed.ok) novo = ed.codigo; else { const inteiro = extrairHtml(r.texto); if (inteiro && inteiro.length > html.length * 0.6) novo = inteiro; }
+    if (!novo) { passo('Conserto não aplicou'); break; }
+    html = novo; teste = testarApp(html);
+  }
+  const selo = teste.erros.length
+    ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ')
+    : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
+  const corpo = codigoApp ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
+    : (voltas ? texto.replace(/```html[^\n]*\n[\s\S]*?```/i, () => '```html\n' + html + '\n```') : texto);
+  return Object.assign({}, resultado, { texto: corpo + selo, testado: !teste.erros.length });
+}
+/** Pede o conserto com o código + os erros, em blocos de edição. Cérebro forte primeiro. */
+function consertarCodigo(codigo, problemas, pergunta, respostaAnterior) {
+  const msg = 'PEDIDO ORIGINAL DO THIAGO:\n' + String(pergunta).slice(0, 3000) + '\n\nCÓDIGO ATUAL:\n```html\n' + String(codigo).slice(0, 150000) + '\n```\n\n' + problemas.join('\n') +
+    (respostaAnterior ? '\n\nSUA RESPOSTA ANTERIOR:\n' + String(respostaAnterior).slice(0, 8000) : '') + '\n\nConserte com BLOCOS DE EDIÇÃO (ANTES/DEPOIS). Ache a causa de verdade (leia o código), não esconda o erro com try/catch.';
+  const r = conversar([{ role: 'user', content: msg }], 'consertar código: ' + String(pergunta).slice(0, 200), null, 'auto', REGRA_EDICAO, true);
+  return r && r.ok ? r : null;
 }
 
 /* ---------- classificação ---------- */
@@ -3215,6 +3318,12 @@ function ponteBuscar(req) {
     c.put(ponteChave('ponte_visto', disp), String(Date.now()), 21600);
     const agoraMs = Date.now();
     const peds = ponteFila(f => f.splice(0, f.length), disp).filter(p => p.ate > agoraMs);
+    peds.forEach(p => {   // remonta o html que foi em pedaços
+      const n = p.dados && p.dados._htmlPedacos;
+      if (!n) return;
+      let t = ''; for (let i = 0; i < n; i++) t += c.get('pdat_' + p.id + '_' + i) || '';
+      p.dados.html = t; delete p.dados._htmlPedacos;
+    });
     if (peds.length || Date.now() > fim) return { ok: true, pedidos: peds };
     Utilities.sleep(800);
   }
@@ -3242,7 +3351,13 @@ function ponteSemDetalhe(acao, dados, esperaMs, disp) {
   const c = CacheService.getScriptCache();
   const id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
   const limite = Date.now() + (esperaMs || 45000);
-  ponteFila(f => { f.push({ id: id, acao: acao, dados: dados || {}, ate: limite }); }, disp);
+  dados = Object.assign({}, dados || {});
+  if (typeof dados.html === 'string' && dados.html.length > PONTE_PEDACO) {   // cache guarda até 100 KB por chave: html grande vai em pedaços
+    const n = Math.ceil(dados.html.length / PONTE_PEDACO);
+    for (let i = 0; i < n; i++) c.put('pdat_' + id + '_' + i, dados.html.slice(i * PONTE_PEDACO, (i + 1) * PONTE_PEDACO), 300);
+    dados.html = null; dados._htmlPedacos = n;
+  }
+  ponteFila(f => { f.push({ id: id, acao: acao, dados: dados, ate: limite }); }, disp);
   while (Date.now() < limite) {
     Utilities.sleep(700);
     const n = parseInt(c.get('pres_' + id + '_n') || '0', 10);
