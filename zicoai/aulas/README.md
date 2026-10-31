@@ -58,6 +58,7 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 | A08 | [escolher o modelo](A/A08-escolher-o-modelo.md) | Use o modelo mais barato que resolve. Fácil (texto curto, conta, mensagem pra cliente) → rápido/barato. Médio … |
 | A09 | [segurança e privacidade](A/A09-seguranca-e-privacidade.md) | Segredo (chave, token, PIN, link do PC) nunca em código público. Dado de cliente (CPF, telefone) não vai pra n… |
 | A10 | [ver as pendências antes de começar coisa nova](A/A10-pendencias-antes-de-coisa-nova.md) | Liste o que está pela metade, publique o que está pronto, segurança antes de recurso novo, um item por vez. |
+| A11 | [não prometer ler áudio, foto ou arquivo sem conseguir](A/A11-conferir-acesso-audio-foto-anexo.md) | Confira se o arquivo chegou e se dá pra abrir antes de prometer; não deu, diga em 1 linha e peça outro formato. |
 
 ### B — Programação
 | ID | Aula | Regra |
@@ -65,6 +66,10 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 | B01 | [o padrão dos apps do Thiago](B/B01-app-em-um-arquivo.md) | App em um arquivo `.html` só (HTML + CSS + JavaScript, sem framework), mobile-first, modo escuro por padrão (p… |
 | B02 | [erros de programação que já foram corrigidos](B/B02-erros-de-programacao-ja-corrigidos.md) | Antes de entregar código, confira esta lista: modo escuro, nada desligado com `//`, fórmula certa, arquivo com… |
 | B03 | [criar um artefato (página/app) do zero](B/B03-criar-artefato-do-zero.md) | Primeiro o formato (tipo pronto ou HTML), celular e tema escuro desde o começo, dados no banco, republicar no mesmo link. |
+| B04 | [repaginar a interface sem quebrar o app](B/B04-repaginar-interface-estilo-claude.md) | Ler a tela atual, reaproveitar controles, manter o contrato com o cérebro, testar celular e PC, PR sem merge. (feita pelo GPT) |
+| B05 | [tabela sem inventar número](B/B05-dados-com-fonte-e-lacunas.md) | Número só com fonte; sem fonte, célula vazia com motivo; valor padrão pode ser trocado depois. |
+| B08 | [roteiro de teste que não esconde o defeito](B/B08-roteiro-de-teste-com-resultado-observavel.md) | Cada teste diz o que tem que aparecer; atalho não pode apagar o que está sendo testado. |
+| B09 | [merge no GitHub não é atualizar a pasta do PC](B/B09-git-local-remoto-e-escopo.md) | Remoto e local são cópias; relate commit, push, merge e pull separados; conflito, pare e mostre. |
 | B10 | [App de 1 arquivo HTML, escuro, mobile-first](B/B10-app-html-mobile-iphone-layout.md) | Faça o app inteiro em um `index.html` (HTML + CSS + JS, sem framework e sem build), pensado primeiro pro celul… |
 | B11 | [PWA instalável no iPhone](B/B11-pwa-instalavel-iphone.md) | Pra instalar na tela inicial: `manifest.webmanifest` com ícones 192, 512 e maskable, `apple-touch-icon` (180x1… |
 | B12 | [Service worker: abrir sem internet e atualizar o cache](B/B12-service-worker-offline-e-versao-nova.md) | Cada app tem um `sw.js` com a versão do cache no topo: `VERSAO` (emprestimo/maquininha) ou `CACHE` (calculador… |

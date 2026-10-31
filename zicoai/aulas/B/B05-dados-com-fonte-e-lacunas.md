@@ -1,38 +1,23 @@
-# B05: montar tabelas sem inventar dados
+# B05: tabela sem inventar número
 
-**Regra:** Preencha cada campo técnico apenas com evidência identificada e deixe vazia a informação não comprovada. Diferencie valor padrão, valor carregado e hipótese. Preserve as linhas existentes e registre as lacunas e divergências em vez de resolvê-las por chute.
-**Palavras-chave:** tabela, CSV, fonte, número, vazio, conferir, divergência, regra, fallback, cadastro, coluna, arquivo, modelo, animação, falta
+**Regra:** Em tabela, planilha ou ficha técnica, cada número precisa ter de onde veio. Sem fonte, a célula fica vazia e o motivo vai numa coluna de observação. Valor padrão do código não é o valor de verdade se algo pode trocar ele depois.
+**Palavras-chave:** tabela, planilha, csv, ficha, número, valor, fonte, preencher, coluna, vazio, conferir, especificação, dado, completar, lacuna
 
-## Como foi feito
-
-1. Li os pedidos e resultados registrados de criação de tabelas técnicas e pesquisa de regras. O usuário exigia uma fonte por número e campos vazios quando não houvesse comprovação.
-
-2. Separei a regra de negócio da tarefa de organizar a tabela: nesta revisão não reabri os arquivos técnicos originais e não publiquei suas tabelas privadas.
-
-3. O histórico mostrou uma investigação em que um valor inicial de script podia ser substituído por uma tabela carregada depois. Extraí a regra de verificar a cadeia de leitura antes de tratar um valor padrão como resultado efetivo.
-
-4. Outro caso mantinha uma associação de modelo como não confirmada, apesar de haver um nome candidato. Preservei a lição de que semelhança de nome não comprova identidade, compatibilidade nem animação.
-
-5. Para repetir, compare o cabeçalho antes e depois, confira quantidade de colunas, preserve registros fora do escopo e associe cada alteração à evidência. Sem fonte, mantenha a lacuna explícita.
+## Como fazer
+1. **Antes de preencher:** anote o cabeçalho e quantas linhas existem, pra não apagar nada sem querer.
+2. **Pra cada célula:** achou na fonte (site oficial, arquivo, o que o Thiago disse)? Preenche e anota a fonte. Não achou? Deixa **vazia** e escreve "sem fonte" na observação.
+3. **Valor que vem do código:** confira se ele é só o padrão inicial e se outro arquivo ou planilha troca ele depois. Só chame de valor real o que é usado de verdade.
+4. **Nome parecido não é a mesma coisa:** "parece ser o modelo X" fica como "não confirmado".
+5. **No fim:** mesmo número de linhas e colunas de antes (ou explique a diferença) e a lista do que ficou vazio.
 
 ## Exemplo real
-
-Trecho literal do pedido recuperado:
-
-> Número só com fonte.
-
-O mesmo pedido exigia célula vazia e registro de ausência quando faltasse confirmação. A aula ensina esse critério; não fornece números do jogo nem afirma revalidar o CSV final antigo.
+O Thiago pediu uma tabela técnica de um jogo com esta regra: "Número só com fonte." Célula sem confirmação ficava vazia, com o motivo anotado.
 
 ## Erros que já aconteceram
-
-- **Divergência registrada:** um valor inicial do script parecia indicar a regra efetiva, mas havia possibilidade de sobrescrita por tabela.
-- **Correção na investigação registrada:** distinguir padrão e carregamento real e informar que faltava a tabela para fechar a conclusão.
-- **Não confirmado:** o histórico registra tabela entregue, mas o arquivo final não foi reaberto nesta revisão; não trato esse relato como auditoria atual dos seus números.
+- Tratar o valor inicial do código como o valor final, quando uma tabela carregada depois podia trocar ele. Correção: seguir o caminho do valor até onde ele é usado.
 
 ## Lições
-
-1. Uma célula vazia com motivo é melhor que um número inventado.
-2. Verifique se o valor padrão é sobrescrito em outro lugar.
-3. Nome parecido não confirma um arquivo nem sua compatibilidade.
-4. Preserve registros antigos e documente o que mudou.
-
+1. Célula vazia com motivo é melhor que número inventado.
+2. Valor padrão pode ser trocado depois: confira.
+3. Nome parecido não confirma nada.
+4. Não apague linhas que não eram do pedido.

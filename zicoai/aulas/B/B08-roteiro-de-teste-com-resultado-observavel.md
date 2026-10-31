@@ -1,39 +1,23 @@
-# B08: escrever testes que não escondem o defeito
+# B08: roteiro de teste que não esconde o defeito
 
-**Regra:** Escreva cada teste com ação, resultado observável e origem da regra. Use atalhos de depuração apenas quando não esconderem o comportamento examinado. Separe teste automático, teste visual e avaliação com o controle físico.
-**Palavras-chave:** teste, roteiro, jogar, conferir, resultado, esperado, vídeo, controle, teclado, debug, dano, compra, checklist, manual, prioridade
+**Regra:** Cada teste diz o que fazer e o que tem que aparecer (resultado que dá pra ver). Atalho de teste (vida infinita, dinheiro grátis, pular fase) só onde ele não esconde justamente o que está sendo testado. Compilar não é testar: alguém tem que usar.
+**Palavras-chave:** teste, testar, roteiro, checklist, conferir, jogar, resultado esperado, bug, defeito, atalho, debug, vida infinita, prioridade, vídeo, manual
 
-## Como foi feito
-
-1. Li o histórico de criação de um roteiro manual por blocos, com prioridades, resultado esperado, referência e orientação de vídeo.
-
-2. O registro distingue testes de dano de testes de observação: invulnerabilidade pode esconder o problema de dano. Atalhos que concedem vantagens também podem invalidar testes de compra, limite ou progressão.
-
-3. Reuni outros relatos que separavam controle sintetizado de controle físico e compilação de teste dentro da partida. Preservei essa diferença nas lições, sem repetir medições antigas como resultado atual.
-
-4. Para repetir, prepare o estado inicial, execute uma ação e observe uma consequência. Só adicione uma tecla de apoio quando sua função estiver documentada; não invente um atalho para facilitar o roteiro.
-
-5. Não executei testes do jogo nesta revisão. O resultado desta tarefa é a aula sobre o método, baseada no histórico consultado.
+## Como fazer
+1. **Um teste = 3 partes:** como começa (estado inicial), o que fazer (1 ação), o que tem que acontecer (algo visível: número muda, tela abre, mensagem aparece).
+2. **Mais importantes primeiro:** no máximo uns 10 por bloco (dinheiro, salvar, login e o que o usuário mais usa vêm antes).
+3. **Atalho certo no teste certo:** testando dano? desliga a vida infinita. Testando loja ou limite? começa sem dinheiro grátis. Anote no roteiro quando ligar e desligar.
+4. **Separe os tipos:** teste automático (código), teste visual (print), teste de uso de verdade (jogar, tocar no celular, controle de verdade).
+5. **Resultado:** passou, falhou (com o que apareceu) ou não deu pra testar (e por quê). Nunca "testado" sem dizer o que viu.
 
 ## Exemplo real
-
-Trecho literal do pedido recuperado:
-
-> Máximo 10 testes por bloco, os mais importantes primeiro.
-
-O relato de execução separou os testes que exigiam dano ativo daqueles que podiam usar atalhos de observação. O roteiro final antigo não foi relido nesta revisão; por isso não reproduzo uma checklist inteira como se tivesse acabado de validá-la.
+No roteiro de testes do jogo do Thiago o pedido foi: "Máximo 10 testes por bloco, os mais importantes primeiro." Os testes de dano avisavam pra desligar a invulnerabilidade, senão o defeito ficava escondido.
 
 ## Erros que já aconteceram
-
-- **Risco identificado no trabalho registrado:** testar dano com invulnerabilidade ou testar compra com vantagens já concedidas mascara o comportamento.
-- **Tratamento registrado:** o roteiro avisou quando desligar esses atalhos.
-- **Nenhum defeito adicional foi comprovado nesta revisão:** não inventei uma falha de jogabilidade a partir das instruções de teste.
+- Atalho de depuração ligado durante o teste do próprio comportamento (dano com invulnerável): o teste passa e o defeito continua. Correção: o roteiro diz quando desligar.
 
 ## Lições
-
-1. Toda linha de teste precisa dizer o que observar.
-2. Não use um atalho que elimine o comportamento testado.
-3. Compilar não equivale a jogar.
-4. Controle sintetizado não substitui a avaliação do controle físico.
-5. Registre a origem da regra e o que ficou pendente.
-
+1. Todo teste diz o que tem que aparecer.
+2. Atalho não pode apagar o que está sendo testado.
+3. Compilar não é jogar.
+4. Diga o que não deu pra testar.

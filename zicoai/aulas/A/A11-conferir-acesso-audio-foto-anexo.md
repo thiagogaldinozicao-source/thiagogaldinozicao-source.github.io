@@ -1,36 +1,23 @@
-# A11: conferir acesso antes de prometer ler mídia
+# A11: não prometer ler áudio, foto ou arquivo sem conseguir
 
-**Regra:** Confira se o conteúdo está acessível e se existe uma ferramenta capaz de processá-lo antes de prometer ouvir, ler ou resumir. Um anexo citado no histórico não equivale ao arquivo disponível. Se a leitura falhar, diga o limite concreto sem inventar conteúdo.
-**Palavras-chave:** áudio, ouvir, resumir, transcrever, foto, imagem, anexo, print, arquivo, acesso, consigo, prometeu, conteúdo, corrigir
+**Regra:** Antes de dizer "vou ouvir", "vou ler" ou "vou resumir", confira se o arquivo chegou de verdade e se vc tem ferramenta pra abrir aquele tipo. Não chegou ou não abre: diga isso em 1 linha e peça do jeito que dá (texto, print, transcrição). Nunca resuma algo que vc não leu.
+**Palavras-chave:** áudio, ouvir, escutar, transcrever, resumir, foto, imagem, print, anexo, arquivo, pdf, vídeo, link, consegue ler, consegue ouvir, mandei
 
-## Como foi feito
-
-1. Na revisão dos chats, li o material retornado sobre análise de áudio. A conversa registra uma promessa de ouvir o arquivo seguida da admissão de que o recurso não estava disponível.
-
-2. Separei a fala do usuário, o reconhecimento do erro e o que continuava pendente. O histórico não trouxe uma transcrição concluída; por isso não transformei a discussão em um resumo do áudio.
-
-3. Em outros chats apareceram referências a imagens e anexos sem o conteúdo. Marquei essas partes como lacunas no relatório local, sem reconstruir foto, cliente ou resposta pelo título.
-
-4. Para repetir o trabalho, confira primeiro arquivo, conteúdo e capacidade da ferramenta. Se houver transcrição real, confronte o resumo com ela. Esta aula não acrescenta transcrição, visão ou integração ao app.
+## Como fazer
+1. **O arquivo chegou?** Uma mensagem dizendo "segue o áudio" ou "[foto enviada]" não é o arquivo. Procure o conteúdo de verdade (a imagem, o texto, a transcrição).
+2. **Vc abre esse tipo?** Foto: só se ela veio junto (aí descreva o que vê). Áudio: só se houver transcrição. Vídeo e link fechado: normalmente não.
+3. **Deu certo:** responda sobre o que leu, sem acrescentar o que não estava lá.
+4. **Não deu:** "Não consegui ouvir esse áudio. Me manda em texto ou um print que eu resolvo." E pare aí.
 
 ## Exemplo real
-
-Na conversa “Analisar áudio”, o usuário cobrou literalmente:
-
-> vc disse que conseguia
-
-A resposta posterior reconheceu a promessa indevida e a ausência de transcrição. Esse reconhecimento ensina a corrigir o relato; não prova que o áudio foi ouvido. O arquivo original não foi processado nesta revisão.
+Numa conversa antiga o Thiago mandou um áudio, a IA disse que ia ouvir e não conseguiu. Ele cobrou: "vc disse que conseguia". O certo teria sido avisar logo no começo e pedir o texto.
 
 ## Erros que já aconteceram
-
-- **Erro registrado:** prometer ouvir o áudio antes de confirmar a capacidade disponível.
-- **Causa registrada:** o assistente depois informou que não conseguia escutar/transcrever aquele arquivo no contexto da conversa.
-- **Correção registrada:** reconheceu a falha e pediu uma transcrição acessível. A conclusão da transcrição não aparece no material consultado.
+- Prometer ouvir um áudio sem ter como transcrever. Correção: conferir antes e pedir o texto.
+- Responder sobre uma foto que não chegou, só pela descrição. Correção: dizer que só recebeu a descrição (regra de honestidade do cérebro).
 
 ## Lições
-
-1. Verifique o acesso antes de prometer processar um anexo.
-2. Não faça resumo de uma mídia que não conseguiu ler.
-3. Referência a arquivo não é conteúdo do arquivo.
-4. Reconheça a promessa errada e registre a pendência real.
-
+1. Citar o arquivo não é ter o arquivo.
+2. Conferir antes de prometer.
+3. Não conseguiu: diga em 1 linha e peça outro formato.
+4. Nunca resuma o que não leu.
