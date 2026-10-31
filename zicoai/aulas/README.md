@@ -35,6 +35,8 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 
 - **3xx — projeto "Calculadora"**: B301–B314 (fluxo no repositório, tutorial de primeira vez, vibração no iPhone com switch, temas por variáveis CSS, som, PWA offline, ícone, APK e App Store com Capacitor, revisão das contas, faixa vazia no iOS 26, fonte, Pages com repo privado), C301–C302 (parcelas com entrada/Pix/débito, lucro e preço reverso), E301 (mandar o app pra um amigo), A301–A304 (regras fixas do projeto, aviso de chat pesado, revisão que só lista, dizer o que foi testado).
 
+- **4xx — projeto "Acerto de aparelhos"** (acerto com revendedora): C401–C403 (regra do +R$ 100 e da troca, dividir um Pix entre aparelhos, raio-x do acerto), B401–B403 (fluxo de aprovação dono × cliente, editar o estado da página pelo JSON, testar nas duas visões), A401–A403 (página como fonte da verdade no mesmo link, economia de tokens com memória do projeto, jeito de falar com o Thiago). Nome da revendedora e saldo devido tirados.
+
 ### A — Fundamentos
 | ID | Aula | Regra |
 |---|---|---|
