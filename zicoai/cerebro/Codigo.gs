@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 97 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 98 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -922,6 +922,8 @@ function chatSemTrava(req, aparelho) {
   try { resultado.texto = conferirAntesDeEntregar(resultado.texto); } catch (e) { /* conferência nunca derruba a resposta */ }
   const proc = processarTags(resultado.texto, aparelho, pergunta);
   let textoFinal = proc.texto;
+  // v98: toda resposta começava com "Vc tem razão:" (até quando ele só pediu algo): tira a muleta, a resposta começa pelo que importa
+  { const semMuleta = textoFinal.replace(/^\s*(\*\*)?\s*(vc|você) tem raz[ãa]o\s*(\*\*)?\s*[:.,!—-]*\s*(\*\*)?\s*/i, ''); if (semMuleta !== textoFinal && semMuleta.trim()) textoFinal = semMuleta.replace(/^[a-zà-ú]/, m => m.toUpperCase()); }
   if (resultado.fontes && resultado.fontes.length) {
     textoFinal += '\n\n**Fontes:** ' + resultado.fontes.slice(0, 5).map(f => '[' + f.titulo + '](' + f.url + ')').join(' · ');
   }
@@ -1319,7 +1321,9 @@ function querPesquisaProfunda(t) {
 function raizesAulas(t) {
   return expandir(t).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && PARADAS.indexOf(w) < 0 && PARADAS_AULAS.indexOf(w) < 0).map(w => w.slice(0, 6));
 }
-const PARADAS_AULAS = ['zica', 'zicao', 'zicoai', 'thiago', 'tudo', 'todo', 'toda', 'coisa', 'tipo', 'entao', 'agora', 'depois', 'antes', 'aqui', 'ali', 'bem', 'deu', 'dar', 'ficar', 'fica', 'pode', 'posso', 'vai', 'vou', 'tava', 'estava', 'tbm', 'tambem', 'mesmo', 'ainda', 'cada', 'porque', 'por que', 'the', 'and'];
+const PARADAS_AULAS = ['zica', 'zicao', 'zicoai', 'thiago', 'tudo', 'todo', 'toda', 'coisa', 'tipo', 'entao', 'agora', 'depois', 'antes', 'aqui', 'ali', 'bem', 'deu', 'dar', 'ficar', 'fica', 'pode', 'posso', 'vai', 'vou', 'tava', 'estava', 'tbm', 'tambem', 'mesmo', 'ainda', 'cada', 'porque', 'por que', 'the', 'and',
+  // v98: palavras de conversa que puxavam aula sem nada a ver ("bom dia chefe" → aula de agentes; "que dia é hoje" → orçamento do dia)
+  'dia', 'hoje', 'bom', 'boa', 'chefe', 'oque', 'sabe', 'quanto', 'era', 'bora', 'nossa', 'nosso', 'nessa', 'nesse', 'mim', 'deixe', 'deixa', 'sei', 'olha', 'vamos', 'deles', 'delas', 'coloca', 'coloque', 'consegue', 'mostra', 'pegou', 'pega', 'faz', 'fazer', 'quero', 'manda', 'mande', 'pfv', 'favor', 'obrigado', 'valeu', 'blz', 'beleza', 'kkk', 'kkkk', 'amigo', 'mundo', 'peleja', 'certo', 'errado', 'melhor', 'melhora', 'melhore'];
 
 /** Índice das aulas (cache 30 min, em pedaços): por aula, as raízes do título+palavras-chave, da regra e do conteúdo. */
 function indiceAulas() {
@@ -1455,9 +1459,14 @@ function aulasPara(pergunta, limite, vetor) {
   let vq = vetor === undefined ? null : vetor, va = {};
   if (vetor === undefined) { try { vq = vetorDaPergunta(pergunta); if (vq) va = vetoresAulas(); } catch (e) { vq = null; } }
   else if (vq) { try { va = vetoresAulas(); } catch (e) { va = {}; } }
+  // v98: 1 palavra só casando ("chefe", "pegou", "gpt") puxava aula nada a ver: por palavra agora precisa de 2+ termos da
+  // pergunta na aula, ou nota bem alta (pergunta longa e específica). Medido com 160 perguntas reais do Thiago e as 296 aulas.
+  const termos = raizesAulas(pergunta).filter((w, i, a) => a.indexOf(w) === i), B = bm25Aulas(idx);
+  const casou = i => { const c = B.campos[i]; return termos.filter(w => c.k[w] || c.r[w] || c.c[w]).length; };
   return idx.map((x, i) => {
     const cs = vq && va[x[0]] ? cosseno(vq, va[x[0]]) : 0;
-    return { x: x, i: i, bm: bm[i], cs: cs, corte: corte, ok: bm[i] >= corte || cs >= AULAS_COS_MIN, p: bm[i] / max + PESO_SIGNIFICADO * cs };
+    const palavra = bm[i] >= corte && (bm[i] >= corte * 4 || casou(i) >= 2);
+    return { x: x, i: i, bm: palavra ? bm[i] : Math.min(bm[i], corte - 0.01), cs: cs, corte: corte, ok: palavra || cs >= AULAS_COS_MIN, p: bm[i] / max + PESO_SIGNIFICADO * cs };
   }).filter(o => o.ok).sort((a, b) => b.p - a.p || a.i - b.i).slice(0, limite || 2).map(o => { const x = o.x.slice(); x.motivo = {palavra: o.bm >= o.corte, significado: o.cs >= AULAS_COS_MIN, bm25: o.bm, cosseno: o.cs}; return x; });
 }
 /** Traz as aulas públicas (A, B, D) do GitHub (zicoai/aulas/aulas.json) pra aba `aulas`: atualiza pelo ID ou acrescenta.
@@ -1491,7 +1500,7 @@ function contextoAulas(pergunta, limite, talvez) {
   // aula "forte" (texto completo) só quando bate de verdade: palavra acima do corte ou significado >= AULAS_COS_FORTE.
   // Cosseno 0,6–0,7 aparece até em aula sem nada a ver (Gemini): essas viram só "talvez".
   const forte = x => !x.motivo || x.motivo.palavra || x.motivo.cosseno >= AULAS_COS_FORTE;
-  const fortes = lista.filter(forte).slice(0, limite || 2), outras = lista.filter(x => fortes.indexOf(x) < 0).slice(0, 3);
+  const fortes = lista.filter(forte).slice(0, limite || 2), outras = lista.filter(x => fortes.indexOf(x) < 0).slice(0, 1);   // v98: era até 3 "talvez" (ruído)
   AULAS_USADAS = fortes.map(x => x[0]);
   if (!fortes.length) { passo('📚 Nenhuma aula bate forte com isso' + (outras.length ? ' (' + outras.length + ' talvez)' : '')); return outras.length ? '\n\n### AULAS QUE TALVEZ SE APLIQUEM (use só se a situação for essa; senão ignore)\n' + outras.map(x => '[' + x[0] + '] ' + x[1] + ' — REGRA: ' + String(x[4]).slice(0, 300)).join('\n') : ''; }
   passo('📚 Aula(s) que se aplicam: ' + fortes.map(x => x[0] + ' ' + x[1]).join(' · ') + (outras.length ? ' (+' + outras.length + ' talvez)' : ''));
@@ -2202,10 +2211,10 @@ function montarSistema(pergunta, enxuto) {
   const memBoa = mem.filter(l => String(l[2] || '') !== 'revisar');
   const recentes = memBoa.filter(l => !/^(auto|app|rotina|prova|catalogo)$/.test(String(l[2] || '')) && String(l[1]).length <= 300).slice(enxuto ? -5 : -10);
   const antigas = memBoa.filter(l => recentes.indexOf(l) < 0);
-  const memUsada = relevantes(antigas, pergunta, enxuto ? 6 : 20, l => l[1]).concat(recentes);
+  const memUsada = relevantes(antigas, pergunta, enxuto ? 6 : 20, l => l[1], null, 4).concat(recentes);
   if (memUsada.length) s += '\n\n### MEMÓRIA (' + (ehDono() ? 'o que o Thiago já ensinou' : 'o que ' + PESSOA.nome + ' já contou') + ')\n' + memUsada.map(l => '- (' + l[0] + ') ' + l[1]).join('\n');
 
-  let base = relevantes(linhas('base'), pergunta, enxuto ? 4 : 10, l => l[0] + ' ' + l[1], l => l[0]);
+  let base = relevantes(linhas('base'), pergunta, enxuto ? 4 : 8, l => l[0] + ' ' + l[1], l => l[0], 4);   // v98: 1 palavra só puxava 14 trechos sem nada a ver
   // busca por significado (embeddings do Gemini): acha trechos que a busca por palavra não acha
   try {
     const extraBase = semelhantes('base', pergunta, enxuto ? 2 : 4, base);
@@ -2247,8 +2256,8 @@ function exemplosParaSemDetalhe(pergunta, limite) {
   const ex = linhas('exemplos');
   if (!ex.length) return '';
   const assunto = assuntoDe(pergunta);
-  let sel = relevantes(ex, pergunta, limite, l => l[1] + ' ' + l[4], l => l[1]);
-  if (!sel.length) sel = ex.filter(l => l[4] === assunto).slice(-limite);
+  let sel = relevantes(ex, pergunta, limite, l => l[1] + ' ' + l[4], l => l[1], 4);
+  if (!sel.length && ehModoCliente(pergunta)) sel = ex.filter(l => l[4] === assunto).slice(-limite);   // v98: exemplo sem nada a ver só no texto pro cliente (pelo estilo)
   if (!sel.length) return '';
   passo('Usou ' + sel.length + ' exemplo(s) de resposta aprovada');
   return '\n\n### EXEMPLOS DE RESPOSTAS QUE O THIAGO APROVOU (siga o estilo e o nível)\n' + sel.map(l => 'PERGUNTA: ' + String(l[1]).slice(0, 300) + '\nRESPOSTA: ' + String(l[2]).slice(0, 1200)).join('\n---\n');
@@ -2351,7 +2360,7 @@ function semelhantes(nomeAba, pergunta, limite, jaTem) {
   return todas
     .filter(l => guard[chaveDe(l)] && !jaSet[chaveDe(l)])
     .map(l => ({ l: l, p: cosseno(q[0], JSON.parse(guard[chaveDe(l)])) }))
-    .filter(x => x.p >= 0.62)
+    .filter(x => x.p >= 0.72)   // v98: era 0,62 (Gemini dá 0,6–0,7 até pra coisa sem nada a ver)
     .sort((a, b) => b.p - a.p)
     .slice(0, limite)
     .map(x => x.l);
@@ -2374,7 +2383,7 @@ const ABREV = { oq: 'o que', pq: 'por que', tbm: 'tambem', msm: 'mesmo', vc: 'vo
 function expandir(t) { return normalizar(t).replace(/\b([a-z0-9]+)\b/g, m => ABREV[m] || m); }
 
 /** Escolhe as linhas que têm mais palavras em comum com a pergunta (tolerante a erro de digitação). */
-function relevantes(lista, pergunta, limite, textoDe, tituloDe) {
+function relevantes(lista, pergunta, limite, textoDe, tituloDe, minimo) {   // v98: minimo = nota mínima (2 = 1 palavra; 4 = 2 palavras ou palavra no título)
   const pn = expandir(pergunta);
   const palavras = pn.split(/[^a-z0-9]+/).filter(p => p.length >= 3 && PARADAS.indexOf(p) < 0);
   const numeros = pn.match(/\b\d{2}\b/g) || [];
@@ -2390,7 +2399,7 @@ function relevantes(lista, pergunta, limite, textoDe, tituloDe) {
     // números (ex.: 15, 17) pesam mais pra acertar o modelo do iPhone
     numeros.forEach(n => { if (tit && new RegExp('\\b' + n + '\\b').test(tit)) p += 4; });
     return { l: l, p: p, i: i };
-  }).filter(x => x.p >= 2)
+  }).filter(x => x.p >= (minimo || 2))
     .sort((a, b) => b.p - a.p || b.i - a.i)
     .slice(0, limite)
     .sort((a, b) => a.i - b.i)

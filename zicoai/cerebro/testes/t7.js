@@ -33,7 +33,7 @@ ok(!/\[Cálculo\]/.test(sys) && /\[Como responder\]/.test(sys) && /\[Loja\]/.tes
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'como tá o italo hoje?' }] });
 ok(!/### MODO CLIENTE/.test(sys) && /\[Cálculo\]/.test(sys), 'pergunta pessoal mantém perfil inteiro');
 // 4) busca por significado: base tem "superaquecimento", pergunta fala "esquentando"
-H.sheets.base.rows.push(['Aquecimento do iPhone', 'Superaquecimento costuma ser capinha grossa ou bateria velha; testar sem capinha antes de trocar bateria']);
+H.sheets.base.rows.push(['Aquecimento do iPhone', 'Superaquecimento costuma ser capinha grossa; testar sem capinha antes']);
 H.sheets.base.rows.push(['Película', 'Película 3D cobre a borda inteira do vidro']);
 embedChamadas = 0; delete H.CACHE.embed_off;
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'meu celular tá esquentando muito, o que pode ser?' }] });

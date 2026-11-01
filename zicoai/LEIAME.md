@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v98 (01/11): busca sem ruído (aulas, base, exemplos, memória)
+- Medido com 160 perguntas reais do Thiago × as 296 aulas reais (BM25): "bom dia chefe" → aula de agentes; "que dia é hoje" → orçamento do dia; "era pra arrumar a calculadora, amigo" → "mandar app pro amigo"; "olha esse chat gpt" → prompt de sistema.
+- `aulasPara`: por palavra só vale com 2+ termos da pergunta na aula (ou nota ≥ 4× o corte); `PARADAS_AULAS` ganhou palavras de conversa (dia, hoje, bom, chefe, oque, sabe, quanto, bora, nossa, mim, amigo, mundo, melhor…). Aulas "talvez" no prompt: no máximo 1 (eram 3). Resultado: conversa à toa → nenhuma aula; pedido de verdade continua achando (temas pastéis → B211/B305, git pull → B205/B09, parcelas → A301/C301, comparativo → C160).
+- `relevantes(..., minimo)`: base, memória antiga e exemplos precisam de nota 4 (2 palavras ou 1 no título); exemplo "do mesmo assunto" sem nada a ver só no modo cliente. `semelhantes` (significado): corte 0,72 (era 0,62; o Gemini dá 0,6–0,7 até pra coisa sem nada a ver).
+- Resposta sem a muleta "Vc tem razão:" no começo. t75; t7 e t72 ajustados.
+
 ## v97 (01/11): academia focada no NOSSO cérebro
 - Metade das rodadas é do Mac (qwen, 24h) e do PC (quando liga): `ACADEMIA_CEREBROS = ['mac','gemini','pc','mistral','mac','nvidia','pc','zai']`. É o nosso que a gente treina; os grandes servem de professor.
 - Conserto de cérebro grande (Gemini/Mistral/NVIDIA/Z.ai; nunca GPT/Groq/Claude) que PASSOU nas provas escondidas vai pra `destilacao` (tipo `codigo`, status `aprovada`, pergunta com `[academia:<id>]`): treino do nosso aprovado pela prova, não por juiz. O placar do Mac/PC na aba `academia` mostra se o nosso está melhorando. t74.
