@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v70 (31/10): placar das aulas sem perder pergunta e sozinho
+- `placarAulas`: lote que bate no limite por minuto do Google espera 65 s e tenta de novo (até 3x); saída antecipada diz o motivo no registro. Placar de 31/10 22:52: 1º 66% · nas 2 82% · nas 5 93,3% (só 100/150 com vetor).
+- Gatilho `placarSemanal` (domingo 3h) roda o placar sem ninguém clicar. Testes de versão viraram "≥ N" (não quebram a cada versão). Teste t49.
+
 ## v69 (31/10): testa antes de entregar
 - `conferirAntesDeEntregar` em toda resposta do chat e no resultado do agente: `conferirContas` (A op B = C, N% de A, 12x de R$ V; corrige no texto; aceita arredondamento da loja; fora de bloco de código) + `conferirLinks` (até 5, fetchAll; 404/410/5xx ganha ⚠️).
 - `publicar_app` testa no navegador do Mac antes; com erro não publica. Teste t48, aula D36.

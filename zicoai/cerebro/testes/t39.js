@@ -48,4 +48,4 @@ run('_primeiro.ate = Date.now() + 60000; _filaOrig(function(f){ f.push(_primeiro
 const buscado = H.post({ acao: 'ponteBuscar', segredo: 'sm' });
 const ped = (buscado.pedidos || [])[0];
 ok(ped && ped.acao === 'testar_html' && ped.dados.html.length === grande.length, 'html de ' + grande.length + ' letras vai em pedaços e o Mac recebe inteiro');
-ok(/versão (5[3-9]|6\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 53 ou mais nova');
+ok((+(run('VERSAO_CEREBRO')).match(/versão (\d+)/)[1] >= 53), 'cérebro na versão 53 ou mais nova');

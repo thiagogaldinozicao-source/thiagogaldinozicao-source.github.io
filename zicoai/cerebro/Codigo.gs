@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 69 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 70 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -1293,6 +1293,8 @@ function importarAulas(nome) {
 /** Placar da busca de aulas, com os vetores do Gemini (o que roda de verdade): lê o treino.jsonl da pasta
  *  "ZicoAI Treino" do Drive, passa cada pergunta pela busca e diz em quantas a aula certa vem em 1º, nas 2 e nas 5.
  *  Rodar pelo editor (Executar › placarAulas). Grava uma linha na aba `placar_aulas`. */
+/** Gatilho de domingo 3h: placar das aulas sem ninguém clicar. */
+function placarSemanal() { return placarAulas(150); }
 function placarAulas(amostra) {
   const falhou = m => { Logger.log('placarAulas: ' + m); return { ok: false, erro: m }; };   // erro aparece no registro do editor
   const pasta = DriveApp.getFoldersByName('ZicoAI Treino');
@@ -1309,9 +1311,17 @@ function placarAulas(amostra) {
   ex.forEach(e => { e.r = rnd(); }); ex.sort((a, b) => a.r - b.r); ex.splice(Number(amostra) || 150);
   const prontas = Object.keys(vetoresAulas()).length;
   const qs = ex.map(e => e.q), vq = {};
+  // lotes de 50; bateu no limite por minuto do Google: espera 65 s e tenta de novo (31/10: o 3º lote falhava e 50 perguntas ficavam sem vetor)
   for (let k = 0; k < qs.length; k += 50) {
     if (k) Utilities.sleep(20000);
-    try { const v = embutir(qs.slice(k, k + 50)); if (v) v.forEach((x, i) => { vq[qs[k + i]] = x; }); } catch (e) { break; }
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      let v = null;
+      try { v = embutir(qs.slice(k, k + 50)); } catch (e) { v = null; }
+      if (v) { v.forEach((x, i) => { vq[qs[k + i]] = x; }); break; }
+      CacheService.getScriptCache().remove('embed_off');
+      Logger.log('placarAulas: lote ' + (k / 50 + 1) + ' bateu no limite, esperando 65 s');
+      Utilities.sleep(65000);
+    }
   }
   let t1 = 0, t2 = 0, t5 = 0, so1 = 0, so2 = 0;
   ex.forEach(e => {
@@ -4176,6 +4186,7 @@ function garantirRotinasTreino() {
     if (tem.indexOf('estudoNoturno') < 0) ScriptApp.newTrigger('estudoNoturno').timeBased().everyDays(1).atHour(1).create();
     if (tem.indexOf('estudar') < 0) ScriptApp.newTrigger('estudar').timeBased().everyHours(4).create();   // reserva: o Mac chama de 30 em 30 min
     if (tem.indexOf('placarDiario') < 0) ScriptApp.newTrigger('placarDiario').timeBased().everyDays(1).atHour(2).create();
+    if (tem.indexOf('placarSemanal') < 0) ScriptApp.newTrigger('placarSemanal').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();   // placar das aulas sozinho (não depende de lembrete)
     if (tem.indexOf('arquivarMensagens') < 0) ScriptApp.newTrigger('arquivarMensagens').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(5).create();
     // aprender sozinha: de 10 em 10 min pra 30 em 30 (uma vez só), pra sobrar tempo de rotina pros agentes e o estudo
     const props = PropertiesService.getScriptProperties();

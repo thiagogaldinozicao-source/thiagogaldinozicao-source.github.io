@@ -14,7 +14,7 @@ H.ctx.DriveApp.getFoldersByName = () => { let u = false; return { hasNext: () =>
 H.ctx.aba('precos').appendRow(['iPhone 15', 'novo', '128GB', '', '3.999', '', 1, '']);
 const st = id => H.sheets.tarefas.rows.find(x => x[0] === id);
 
-ok(/versão (5[7-9]|6\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 57 ou mais nova');
+ok((+(run('VERSAO_CEREBRO')).match(/versão (\d+)/)[1] >= 57), 'cérebro na versão 57 ou mais nova');
 
 // 1) rota automática: só pedido CLARAMENTE grande
 const g = t => run('ehPedidoGrande')(t);
