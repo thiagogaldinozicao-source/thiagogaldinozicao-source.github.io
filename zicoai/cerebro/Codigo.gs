@@ -1294,10 +1294,12 @@ function importarAulas(nome) {
  *  "ZicoAI Treino" do Drive, passa cada pergunta pela busca e diz em quantas a aula certa vem em 1º, nas 2 e nas 5.
  *  Rodar pelo editor (Executar › placarAulas). Grava uma linha na aba `placar_aulas`. */
 function placarAulas(amostra) {
+  const falhou = m => { Logger.log('placarAulas: ' + m); return { ok: false, erro: m }; };   // erro aparece no registro do editor
   const pasta = DriveApp.getFoldersByName('ZicoAI Treino');
-  if (!pasta.hasNext()) return { ok: false, erro: 'pasta ZicoAI Treino não encontrada' };
+  if (!pasta.hasNext()) return falhou('pasta ZicoAI Treino não encontrada');
   const arqs = pasta.next().getFilesByName('treino.jsonl');
-  if (!arqs.hasNext()) return { ok: false, erro: 'treino.jsonl não encontrado' };
+  if (!arqs.hasNext()) return falhou('treino.jsonl não encontrado');
+  Logger.log('placarAulas: lendo treino.jsonl (' + (Number(amostra) || 150) + ' perguntas)');
   const idx = indiceAulas(), tem = {};
   idx.forEach(x => { tem[x[0]] = 1; });
   const ex = arqs.next().getBlob().getDataAsString('UTF-8').split('\n').filter(Boolean).map(l => JSON.parse(l))
