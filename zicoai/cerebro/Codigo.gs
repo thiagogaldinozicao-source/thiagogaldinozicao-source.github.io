@@ -77,6 +77,26 @@ function testarModelos() {
   return { ok: true, leve: res.leve || '(nenhum respondeu: ficou o de antes)', forte: res.forte || '(desligado)' };
 }
 
+/** Pelo editor: testa a chave da Mistral (MISTRAL_KEY) nos 2 modelos e mostra o motivo exato se falhar. Nunca mostra a chave. */
+function testarMistral() {
+  const chave = String(prop('MISTRAL_KEY') || '').trim();
+  if (!chave) { Logger.log('sem MISTRAL_KEY nas Propriedades do script'); return { ok: false, erro: 'sem MISTRAL_KEY' }; }
+  const res = { chave: chave.length + ' letras, termina em ' + chave.slice(-3) };
+  [CEREBROS.mistral.modelo, CEREBROS.mistral.reserva].forEach((m, i) => {
+    if (i) Utilities.sleep(1200);   // grátis: 1 pedido por segundo
+    const t0 = Date.now();
+    try {
+      const r = UrlFetchApp.fetch(CEREBROS.mistral.url, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + chave }, muteHttpExceptions: true,
+        payload: JSON.stringify({ model: m, messages: [{ role: 'user', content: 'Responda só: ok' }], max_tokens: 5 }) });
+      const c = r.getResponseCode(), h = r.getHeaders(), txt = r.getContentText();
+      let resp = ''; try { resp = JSON.parse(txt).choices[0].message.content; } catch (e) { resp = txt.slice(0, 200); }
+      res[m] = c + ' · ' + (Date.now() - t0) + ' ms · ' + String(resp).slice(0, 120) + (h['x-ratelimit-remaining-req-minute'] || h['x-ratelimitbysize-remaining-minute'] ? ' · sobra no minuto: ' + (h['x-ratelimit-remaining-req-minute'] || h['x-ratelimitbysize-remaining-minute']) : '');
+    } catch (e) { res[m] = 'ERRO ' + String(e.message || e).slice(0, 150); }
+  });
+  res.ok = Object.keys(res).some(k => /^200 /.test(String(res[k])));
+  Logger.log(JSON.stringify(res, null, 1));
+  return res;
+}
 /** Monta o cérebro do PC se ele estiver configurado e não tiver caído há pouco. */
 function cerebroPC() {
   const base = String(prop('PC_URL') || '').trim().replace(/\/+$/, '');
