@@ -1852,7 +1852,16 @@ const CAPRICHO = {
   sempre: ['sempre', 'Toda resposta: cérebro forte + revisão (mais lento, mais certo)'],
   nunca: ['desligado', 'Responde rápido, sem revisão']
 };
-$('bModelo').onclick = e => { e.stopPropagation(); $('menuModelo').classList.toggle('aberto'); };
+$('bModelo').onclick = e => { e.stopPropagation(); const m = $('menuModelo'); m.classList.toggle('aberto'); if(m.classList.contains('aberto')) cabeNaTela(m); };
+// menu que abre ancorado num botão: nunca sai da tela (no celular o botão fica no meio e o menu cortava pela esquerda)
+function cabeNaTela(m){
+  m.style.right = ''; m.style.width = '';
+  const larg = Math.min(m.offsetWidth, innerWidth - 16);
+  m.style.width = larg + 'px';
+  const r = m.getBoundingClientRect();
+  if(r.left < 8) m.style.right = (r.left - 8) + 'px';
+  else if(r.right > innerWidth - 8) m.style.right = (r.right - innerWidth + 8) + 'px';
+}
 $('bCapricho').onclick = e => {
   e.stopPropagation();
   cfg.capricho = cfg.capricho === 'sempre' ? 'nunca' : cfg.capricho === 'nunca' ? 'auto' : 'sempre';

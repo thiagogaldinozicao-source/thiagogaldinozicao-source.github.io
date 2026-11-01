@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v37 (01/11): menu do cérebro dentro da tela
+- `cabeNaTela(m)`: ao abrir o menu do cérebro (#menuModelo), mede e empurra pra dentro (8 px de margem); no iPhone ele começava 33–63 px fora da tela pela esquerda. Medido com Playwright em 360/390/430/1440.
+
 ## v78 + ponte mac-2.0 (01/11): agentes rodando pelo Mac
 - O Mac é o trabalhador das tarefas: a ponte chama `ponteTarefa` (segredo do Mac) a cada ~10 s com até 2 trabalhadores (`ZPONTE_AGENTES`, 0 desliga). Cada chamada = `trabalharPeloMac()`: uma rodada de agente de até 5 min (`PRAZO_RODADA_MAC`) pelo web app, que NÃO gasta os 90 min/dia de gatilhos; pausou → o Mac chama de novo na hora (até 200 rodadas seguidas). Fila vazia fica no cache (`fila_vazia`, 90 s) e `agendarRodada` limpa.
 - `macTrabalhando()` (Mac chamou há < 2 min e `MAC_AGENTES` ≠ nao): `agendarRodada` não cria gatilho. Mac parou: tarefa nova volta pro gatilho e a ação `tarefas` do app reativa o Google se tiver tarefa parada.
