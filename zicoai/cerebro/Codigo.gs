@@ -1947,6 +1947,12 @@ function dueloAcademia(recomecar) {
     feitos.push(it.ex + ' · ' + (r.cerebro || it.cer + (it.pcModelo ? ' ' + apelidoModelo_(it.pcModelo) : '')) + ' → ' + (r.passou || 'erro') + ' ' + (r.provas || '') + (r.detalhe ? ' (' + String(r.detalhe).slice(0, 80) + ')' : r.erro ? ' (' + String(r.erro).slice(0, 80) + ')' : ''));
   }
   if (!fila.length) props.deleteProperty('DUELO_FILA');
+  // sozinho até acabar: gatilho de 5 em 5 min enquanto tiver fila; acabou → apaga o gatilho
+  try {
+    const gs = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'dueloAcademia');
+    if (fila.length && !gs.length) ScriptApp.newTrigger('dueloAcademia').timeBased().everyMinutes(5).create();
+    if (!fila.length) gs.forEach(t => ScriptApp.deleteTrigger(t));
+  } catch (e) { Logger.log('gatilho do duelo: ' + e.message); }
   const out = { faltam: fila.length, modelosNoPC: noPC, pcLigado: pcLigado, feitos: feitos, placar: placarDuelo_() };
   Logger.log(JSON.stringify(out, null, 1));
   return out;
