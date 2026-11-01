@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## instalar.ps1: extensão completa (01/11)
+- Baixava só 5 arquivos (faltavam pagina.js, seguranca.js, vigia.js → Chrome recusava carregar). Agora pega a lista da pasta zicoai/extensao pela API do GitHub (reserva: lista fixa com os 8).
+
 ## pc/otimizar-pc.ps1 (01/11)
 - PowerShell como admin (`irm … | iex`), um S/N por passo, mostra como desfazer no fim: 1) driver NVIDIA (mostra a versão e abre o NVIDIA App; instalação é do Thiago); 2) `winget upgrade` (todos ou só o Ollama); 3) energia Alto desempenho; 4) HAGS (HwSchMode=2); 5) caminhos longos (+ git core.longpaths); 6) Defender: exceção só em `.ollama\models`, `C:\ZOMBIES` e `%LOCALAPPDATA%\UnrealEngine`; 7) Sensor de Armazenamento mensal (nunca Downloads); 8) Ollama rápido (OLLAMA_FLASH_ATTENTION=1, OLLAMA_KV_CACHE_TYPE=q8_0, 1 modelo e 1 pedido por vez).
 

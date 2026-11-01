@@ -74,8 +74,12 @@ else {
 # 5) extensão do Chrome (pasta pra carregar em chrome://extensions)
 $ext = Join-Path $pastaZ 'extensao-chrome'
 New-Item -ItemType Directory -Force -Path $ext | Out-Null
-foreach ($f in @('manifest.json', 'fundo.js', 'painel.html', 'painel.js', 'icone-128.png')) {
-  Invoke-WebRequest -UseBasicParsing -Uri ($base + '/extensao/' + $f) -OutFile (Join-Path $ext $f)
+# lista de arquivos vem do GitHub (extensão nova com arquivo novo não quebra mais); sem internet pra API, usa a lista conhecida
+$arqsExt = @()
+try { $arqsExt = @((Invoke-RestMethod -UseBasicParsing -Uri 'https://api.github.com/repos/thiagogaldinozicao-source/thiagogaldinozicao-source.github.io/contents/zicoai/extensao') | Where-Object { $_.type -eq 'file' } | ForEach-Object { $_.name }) } catch {}
+if (-not $arqsExt.Count) { $arqsExt = @('manifest.json', 'fundo.js', 'painel.html', 'painel.js', 'pagina.js', 'seguranca.js', 'vigia.js', 'icone-128.png') }
+foreach ($f in $arqsExt) {
+  Invoke-WebRequest -UseBasicParsing -Uri ($base + '/extensao/' + $f + '?t=' + [DateTime]::Now.Ticks) -OutFile (Join-Path $ext $f)
 }
 Write-Host ('[ok] extensão do Chrome em ' + $ext)
 
