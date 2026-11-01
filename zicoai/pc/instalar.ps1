@@ -98,6 +98,7 @@ if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
   try { $livre = [math]::Round((Get-PSDrive -Name ($pastaModelos.Substring(0, 1))).Free / 1GB, 1) } catch {}
   foreach ($m in $cerebros) {
     if ($tem -contains $m) { Write-Host ('[ok] ' + $m + ' já está no PC'); continue }
+    if ($m -like '*35b*' -and ($tem -contains 'qwen3.6:35b')) { Write-Host '[ok] já tem o qwen3.6:35b (mais novo): não precisa baixar o qwen3.5:35b-a3b'; continue }
     $precisa = 7; if ($m -like '*35b*') { $precisa = 24 }
     if ($livre -lt $precisa) { Write-Host ('[aviso] sem espaço pro ' + $m + ' (precisa ' + $precisa + ' GB, tem ' + $livre + ' GB livres). Pulei.') -ForegroundColor Red; continue }
     Write-Host ('Baixando ' + $m + ' (pode demorar; dá pra usar o PC enquanto isso)...') -ForegroundColor Yellow

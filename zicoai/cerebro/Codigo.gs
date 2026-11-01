@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 85 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 86 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -147,7 +147,7 @@ function cerebroPCcodigo() {
  * Quem decide é o cérebro: com o PC ligado, a prova (placar contra a nuvem) roda nele; quando ele ganhar do Mac
  * (8+ provas e taxa >= a do Mac), o trabalho de fundo do Mac (estudo, resumo) vai pro PC sozinho. Desligou → volta pro Mac.
  */
-const PC_MODELOS_PONTE = ['qwen3.5:35b-a3b', 'qwen3.5:9b'];
+const PC_MODELOS_PONTE = ['qwen3.6:35b', 'qwen3.5:35b-a3b', 'qwen3.5:9b'];   // v86: o PC já tinha o qwen3.6:35b (35B-A3B, mais novo): vai primeiro
 const PC_PONTE_ESPERA = 200000;
 function cerebroPCPonte() {
   if (!prop('PONTE_SEGREDO') || !ponteViva('pc')) return null;

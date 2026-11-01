@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v86 (01/11): PC usa o qwen3.6:35b que já tinha
+- `ollama list` do PC: zicoai, zicoai-dev (22 GB), qwen3-vl:8b-instruct, **qwen3.6:35b** (35B-A3B, texto+foto, 256K, mais novo que o 3.5) e qwen3.5:9b. `PC_MODELOS_PONTE` = qwen3.6:35b → qwen3.5:35b-a3b → qwen3.5:9b; instalar.ps1 não baixa o 3.5-35B se já tem o 3.6. Tela azul (CRITICAL_PROCESS_DIED) às 10:20:35 no minuto da limpeza: liberar-espaco.ps1 não mexe mais dentro de C:\Windows.
+
 ## instalar.ps1: extensão completa (01/11)
 - Baixava só 5 arquivos (faltavam pagina.js, seguranca.js, vigia.js → Chrome recusava carregar). Agora pega a lista da pasta zicoai/extensao pela API do GitHub (reserva: lista fixa com os 8).
 
