@@ -158,6 +158,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 ## v92 (01/11): calculadora — o que ainda acontecia
 - 12:26–12:36, conversa velha: "Pede de novo que eu tento faz dnv" não batia no filtro de mudança → virou pedido de app NOVO → ela escreveu outra calculadora inteira. Agora, numa conversa com rascunho, mensagem curta tipo "faz dnv / tenta de novo / e agora / tá pegando / calculadora" continua do rascunho.
 - Ela tentou TIRAR o tutorial pra passar no teste → regra: nunca tirar/desligar tutorial, som, animação, aviso ou botão pra passar no teste (o teste já fecha a boas-vindas).
+- Erros dela levantados em 01/11 (feedback 👎 + estudo_erros): (1) o conserto das 12:20 (`pTxt` com `x.first`) estava CERTO e foi reprovado só pelo teste (tutorial na frente + fontes); o estudo virou lição errada culpando ela → `aprenderComErros` pula o "corrige" que vem depois do "❌ Não ficou pronto"/"⛔"/"Ainda tô trabalhando", e o professor sabe que tutorial, ERR_FILE_NOT_FOUND, serviceWorker na prévia e "Script error." de CDN são do ambiente ({"erro":false}). (2) Resultado do agente saía cru ({"resposta":…}, [[etapa…]]) → `limparRespostaAgente_` no `finalizar`. (3) App v47: a prévia isolada não tem service worker → shim (`Navigator.prototype.serviceWorker`), sem "SecurityError" falso.
 - Marcador com letra trocada ("ANTS", "DEpoIs") vale (`RX_BLOCO_EDICAO` com /i e letras opcionais). t70.
 
 ## App v46 + APK Android + app do computador (01/11)

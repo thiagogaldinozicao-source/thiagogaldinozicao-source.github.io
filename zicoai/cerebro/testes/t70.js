@@ -43,4 +43,14 @@ r = H.post({ pin: '1234', acao: 'chat', aparelho: 'PC', chatId: cid, mensagens: 
 ok(r.passos.some(p => /Continuou do rascunho/.test(p)), '"faz dnv" continua do rascunho');
 ok(/11× R\$ 83,33/.test(run(`_rasc[${JSON.stringify(cid)}].html`)), 'bloco com "ANTS"/"DEpoIs" (letra trocada) foi aplicado');
 ok(/NUNCA tire ou desligue algo do app/.test(run('REGRA_EDICAO')), 'regra: não tirar tutorial/som pra passar no teste');
+// v92: resposta do agente sem envelope JSON nem [[etapa…]]
+ok(run(`limparRespostaAgente_(${JSON.stringify('{"resposta":"As abas estão abertas. \\n\\n[[etapa: {"n": 2, "status": "feita", "prova": "ok"}]]"}')})`) === 'As abas estão abertas.', 'agente: tira {"resposta":…} e [[etapa…]] mesmo com JSON quebrado');
+// v92: "corrige" depois do "❌ Não ficou pronto" não vira lição errada no estudo
+run("aba('mensagens')");
+H.sheets.mensagens.rows.push(['zz1', '2026-11-01 12:22:00', 'zicoai', 'Pronto.\n\n⚠️ Testei e ainda tem: tutorial\n\n❌ **Não ficou pronto**: ainda tem erro. Não publica; me manda "corrige" que eu tento de novo.', 'Gemini', 'PC']);
+H.sheets.mensagens.rows.push(['zz1', '2026-11-01 12:23:00', 'thiago', 'corrige', '', 'PC']);
+H.PROPS.ERROS_ATE = '2026-11-01 12:00:00';
+const ae = run('aprenderComErros()');
+ok(ae.aprendeu === false && /nenhuma reclamação nova/.test(ae.motivo), '"corrige" pedido pelo próprio selo não vira reclamação');
+ok(/AMBIENTE do teste não é erro dela/.test(run('licaoDoErro_.toString()')), 'professor sabe que tutorial/fonte/serviceWorker do teste não é erro dela');
 ok(/versão (9[2-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 92 ou mais nova');

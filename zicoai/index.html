@@ -1104,7 +1104,7 @@ function autoTesta(bloco){
 /* ---------- testar app (abre o HTML que ela escreveu numa janela, sem salvar arquivo) ---------- */
 let previaHtml = '', previaNome = '';
 // dentro da prévia o localStorage é de mentira (só na memória), pra o app testado não mexer nos dados da ZicoAI
-const SHIM = '<script>(function(){function faz(){var m={};return{getItem:function(k){return k in m?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}}try{Object.defineProperty(window,"localStorage",{value:faz(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:faz(),configurable:true})}catch(e){}})();<\/script>';
+const SHIM = '<script>(function(){function faz(){var m={};return{getItem:function(k){return k in m?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}}try{Object.defineProperty(window,"localStorage",{value:faz(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:faz(),configurable:true})}catch(e){}try{var sw={register:function(){return Promise.resolve({})},getRegistration:function(){return Promise.resolve(undefined)},getRegistrations:function(){return Promise.resolve([])},addEventListener:function(){},removeEventListener:function(){},ready:new Promise(function(){}),controller:null};Object.defineProperty(Navigator.prototype,"serviceWorker",{get:function(){return sw},configurable:true})}catch(e){}})();<\/script>';   // v47: na prévia isolada o service worker do app dava "SecurityError" (erro do teste, não do app)
 /* ---------- console da prévia ----------
  * Roda DENTRO do app testado (iframe isolado): copia console.log/info/warn/error, erros de script, arquivo que não carregou,
  * promessa sem tratamento e fetch com falha, e manda pro app com uma senha da prévia (pcToken). Também roda JS que o Thiago digitar. */
@@ -2937,7 +2937,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v46';
+const VERSAO_APP = 'zicoai-v47';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

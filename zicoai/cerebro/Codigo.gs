@@ -4724,6 +4724,22 @@ function estudar() {
   const t = estudoNoturno(n);
   return { ok: true, erros: r, tema: t || { tema: 'pulou (outra rodada rodando)', salvos: 0 } };
 }
+/** v92: a resposta do agente às vezes chega crua: {"resposta":"… [[etapa: {"n":2,…}]] …"} (o JSON quebra por causa das aspas de dentro).
+ * Tira o envelope e as marcas internas, e devolve só o texto pro Thiago. */
+function limparRespostaAgente_(texto) {
+  let t = String(texto == null ? '' : texto).trim();
+  if (/^\{\s*"resposta"\s*:/.test(t)) {
+    const j = lerJSON(t);
+    if (j && typeof j.resposta === 'string') t = j.resposta;
+    else {   // JSON quebrado: pega do 1º "resposta":" até o fim e tira o fecho
+      t = t.replace(/^\{\s*"resposta"\s*:\s*"/, '').replace(/"\s*\}\s*$/, '');
+      t = t.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '  ');
+    }
+  }
+  // marcas internas de etapa/plano (com JSON dentro) não aparecem
+  t = t.replace(/\[\[\s*etapa\s*:[\s\S]*?\}\s*\]\]/gi, '').replace(/\[\[\s*(plano|etapa)\s*:[^\]]*\]\]/gi, '');
+  return t.replace(/\n{3,}/g, '\n\n').trim();
+}
 /** Acha a próxima reclamação do Thiago ("de onde vc tirou", "tá errado", "falhou"...), pesquisa o certo na web e escreve a correção + aula. */
 function aprenderComErros() {
   const props = PropertiesService.getScriptProperties();
@@ -4733,7 +4749,11 @@ function aprenderComErros() {
   for (let i = 1; i < ls.length; i++) {
     if (ls[i][1] <= ate) continue;
     if (ls[i][2] !== 'thiago') continue;
-    if (RX_RECLAMACAO.test(normalizar(String(ls[i][3]))) && ls[i - 1][2] === 'zicoai' && ls[i - 1][0] === ls[i][0]) { alvo = i; break; }
+    if (RX_RECLAMACAO.test(normalizar(String(ls[i][3]))) && ls[i - 1][2] === 'zicoai' && ls[i - 1][0] === ls[i][0]) {
+      // v92: depois do "❌ Não ficou pronto … me manda corrige" o "corrige" é o que o selo pediu: o erro já foi visto pelo teste (e às vezes era do TESTE, não dela)
+      if (/❌ \*\*Não ficou pronto\*\*|⛔ Não mexi no app|Ainda tô trabalhando no seu pedido anterior/.test(String(ls[i - 1][3]))) continue;
+      alvo = i; break;
+    }
   }
   if (alvo < 0) { if (ls.length) props.setProperty('ERROS_ATE', ls[ls.length - 1][1]); return { ok: true, aprendeu: false, motivo: 'nenhuma reclamação nova' }; }
   const rec = ls[alvo], errada = ls[alvo - 1];
@@ -4759,6 +4779,7 @@ function licaoDoErro_(o) {
     (o.revisora ? 'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). A REVISORA dela achou um possível erro numa conversa (o Thiago não reclamou). Primeiro decida se foi erro MESMO; se ela agiu certo, responda só {"erro":false}. Se errou, analise e ensine.' : 'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). Ela errou e o Thiago reclamou. Analise e ensine.'),
     'Responda SÓ JSON: {"causa":"por que ela errou (1-2 frases: faltou pesquisar? inventou? pegou aula errada? não viu a foto?)","regra":"o jeito certo, 1 frase","porque":"o porquê da regra, 2-3 frases","situacoes":["como isso aparece em outras palavras", "..."],"erro_comum":"1 frase","resposta_certa":"a resposta que ela devia ter dado, no jeito do Thiago (curta, informal). Use SÓ dados do MATERIAL; o que o material não confirma vira \\"não confirmado\\". Se o pedido era só conversa, responda como deveria ter respondido.","tipo":"cliente|comparativo|preço|código|loja|geral"}',
     'Nunca invente preço, garantia, endereço, horário. Ficha técnica só com número que está no MATERIAL.',
+    'Erro que é do AMBIENTE do teste não é erro dela: tela de boas-vindas/tutorial na frente dos botões, "ERR_FILE_NOT_FOUND" de fonte/ícone ao lado do app, "serviceWorker" na prévia, "Script error." de CDN. Nesses casos responda {"erro":false}.',
     'resposta_certa nunca diz que fez, mandou ou corrigiu algo ("já corrigi", "mandei o arquivo"): é o texto que ela devia ter respondido. Se o certo é um código grande, descreva o conserto em 1-2 frases em vez do código.'
   ].join('\n') }, { role: 'user', content: 'PEDIDO DO THIAGO:\n' + (pedido || '(não achei)') + '\n\nRESPOSTA DELA (errada):\n' + String(errada[3]).slice(0, 3000) + (o.revisora ? '\n\nSINAL DA REVISORA:\n' : '\n\nRECLAMAÇÃO:\n') + String(rec[3]).slice(0, 800) + '\n\nMATERIAL DA WEB (' + (fontes[0] || 'nenhum') + '):\n' + (material || '(nenhum)') }];
   let j = null, autor = '';
@@ -5379,6 +5400,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   } else anota('Continuou de onde parou (rodada ' + est.rodadas + (est.plano && etapaAtual(est.plano) >= 0 ? ', etapa ' + (etapaAtual(est.plano) + 1) + ' de ' + est.plano.etapas.length : '') + ')');
   const msgs = est.msgs;
   const finalizar = (texto) => {
+    texto = limparRespostaAgente_(texto);   // v92: nada de {"resposta":…} nem [[etapa…]] cru pro Thiago (revisora achou 2x em 01/11)
     try { texto = conferirAntesDeEntregar(texto, est.log.some(x => /🔧 (testar_app|mac_testar)\b|Abriu o app no navegador do Mac/.test(String(x)))); est.log = est.log.concat(PASSOS.filter(x => /^Conferiu|^Link/.test(x) && est.log.indexOf(x) < 0)); } catch (e) { /* ok */ }
     const final = processarTags(texto, aparelho || 'agente').texto + conferenciaFinal(est.plano);
     atualizarTarefa(id, { status: 'concluída', resultado: final, passos: compacto(est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')'])) });
