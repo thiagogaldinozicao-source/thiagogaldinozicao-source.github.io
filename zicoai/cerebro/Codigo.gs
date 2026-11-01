@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 98 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 99 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -282,6 +282,7 @@ function marcarPCdesligado() { CacheService.getScriptCache().put('pc_off', '1', 
 const ABAS = {
   provas_apps:  ['App', 'Nome', 'Prova (JSON)', 'Criada', 'Origem', 'Ativa'],
   academia:     ['Data', 'Exercício', 'Cérebro', 'Passou', 'Provas', 'Segundos', 'Detalhe'],
+  preferencias: ['Data', 'Origem', 'Pedido', 'Resposta boa', 'Resposta ruim', 'Cérebro bom', 'Cérebro ruim', 'Status'],   // v99: pares pro treino DPO (boa × ruim)
   memoria:      ['Data', 'Lembrança', 'Origem'],
   aprendizados: ['Data', 'Erro', 'Certo', 'Assunto'],
   perfil:       ['Tópico', 'Informação'],
@@ -583,13 +584,14 @@ function doPost(e) {
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     // ponte do PC: usa o segredo dela, não o PIN
-    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar' || req.acao === 'ponteTrajetorias' || req.acao === 'ponteTarefa') {
+    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar' || req.acao === 'ponteTrajetorias' || req.acao === 'pontePreferencias' || req.acao === 'ponteTarefa') {
       req.disp = ponteDisp(req.segredo); // 'pc', 'mac' ou 'nav' (Chrome): cada um tem segredo e fila próprios
       if (!req.disp) return saida({ ok: false, erro: 'segredo errado' });
       if (req.acao === 'ponteEstudar' && req.disp === 'nav') return saida({ ok: false, erro: 'o Chrome não puxa estudo' });
       if (req.acao === 'ponteEstudar') return saida(estudar());   // Mac ligado 24h puxa uma rodada de estudo (não gasta a cota de gatilhos)
       if (req.acao === 'ponteTarefa') return saida(req.disp === 'mac' ? trabalharPeloMac() : { ok: false, erro: 'só o Mac' });   // Mac é o trabalhador das tarefas (sem gastar os 90 min/dia de gatilhos)
-      if (req.acao === 'ponteTrajetorias') return saida(req.disp === 'mac' ? trajetoriasTreinoJsonl() : { ok: false, erro: 'só o Mac' });   // treino2 puxa as trajetórias aprovadas
+      if (req.acao === 'ponteTrajetorias') return saida(req.disp === 'mac' ? trajetoriasTreinoJsonl() : { ok: false, erro: 'só o Mac' });
+      if (req.acao === 'pontePreferencias') return saida(req.disp === 'mac' ? preferenciasJsonl() : { ok: false, erro: 'só o Mac' });   // v99: pares boa × ruim pro DPO   // treino2 puxa as trajetórias aprovadas
       return saida(req.acao === 'ponteBuscar' ? ponteBuscar(req) : ponteResposta(req));
     }
     const cache = CacheService.getScriptCache();
@@ -656,6 +658,7 @@ function doPost(e) {
       case 'dispositivos':  return saida(dispositivos());
       case 'memorias':      return saida(listarMemorias());
       case 'revisarMemoria': return saida(revisarMemoria());
+      case 'preferencias':  return saida({ ok: true, placar: placarPreferencias_(), ultimas: linhas('preferencias').slice(-10).reverse().map(l => [l[0], l[1], String(l[2]).slice(0, 120), l[5], l[6], l[7]]) });
       case 'academia':      return saida({ ok: true, placar: placarAcademia_(), ultimas: linhas('academia').slice(-20).reverse() });
       case 'treinoCodigo':  return saida(treinoCodigo(null, true));   // v96: roda 1 exercício agora (dono)   // v90: marca as lembranças suspeitas (não apaga)
       case 'treinoResumo':  return saida({ ok: true, treino: resumoTreino(), placar: placar(), revisar: exemplosParaRevisar(20) });
@@ -1908,6 +1911,7 @@ function treinoCodigo(evento, forcar) {
     if (passou === 'sim' && res && res.texto && !/Mac|PC|GPT|Groq|Cerebras|Claude/i.test(quem)) {
       try { aba('destilacao').appendRow(["'" + agora(), seguro((e.pedido + '\n[academia:' + e.id + ']').slice(0, 4000)), '', seguro(String(res.texto).slice(0, 6000)), quem + ' (academia)', 'codigo', 'aprovada']); } catch (err) { /* ok */ }
     }
+    try { parDaAcademia_(e, quem, passou, res && res.texto); } catch (err) { /* ok */ }
     return { ok: true, exercicio: e.id, cerebro: quem, passou: passou, provas: provasTxt, detalhe: detalhe, passos: PASSOS.slice(-12) };
   } finally { c.remove('academia_rodando'); }
 }
@@ -3486,6 +3490,7 @@ function aprenderSozinha() {
   if (!lock.tryLock(1000)) return;
   try {
     const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('PARES_V99')) { try { Logger.log('Pares antigos (v99): ' + paresAntigos_()); } catch (e) { Logger.log('paresAntigos_: ' + e.message); } props.setProperty('PARES_V99', hoje()); }
     if (!props.getProperty('MEM_REVISADA_V90')) { try { const rv = revisarMemoria(); Logger.log('Memória revisada (v90): ' + rv.marcadas.length + ' marcadas'); } catch (e) { Logger.log('revisarMemoria: ' + e.message); } props.setProperty('MEM_REVISADA_V90', hoje()); }
     const ultima = props.getProperty('APRENDIDO_ATE') || '';
     const deOutros = {}; linhas('chats').forEach(c => { if (c[7]) deOutros[c[0]] = 1; });   // v81: conversa de outra pessoa não ensina fato do Thiago
@@ -4951,7 +4956,7 @@ function aprenderComErros() {
   let ped = null;
   for (let k = alvo - 2; k >= 0 && k >= alvo - 8; k--) if (ls[k][0] === rec[0] && ls[k][2] === 'thiago') { ped = ls[k]; break; }
   const pedido = String(ped ? ped[3] : '').slice(0, 2000);
-  const r = licaoDoErro_({ conversa: rec[0], pedido: pedido, errada: errada[3], quando: rec[1], reclamacao: rec[3] });
+  const r = licaoDoErro_({ conversa: rec[0], pedido: pedido, errada: errada[3], quando: rec[1], reclamacao: rec[3], cerebroErrado: errada[4] });
   if (!r || !r.aprendeu) return r || { ok: false, aprendeu: false };
   props.setProperty('ERROS_ATE', rec[1]);
   try { marcarDestilacao(errada[3], 'reclamada'); } catch (e) { /* ok */ }
@@ -4988,6 +4993,7 @@ function licaoDoErro_(o) {
   let virouAula = null;
   try { virouAula = aulaSozinha(j, aula, pedido, rec[1], autor); } catch (e) { /* fica pra revisar */ }
   if (virouAula) { const ee = aba('estudo_erros'); ee.getRange(ee.getLastRow(), 11).setValue('virou aula ' + virouAula); }
+  try { guardarPar_(o.revisora ? 'revisora' : 'reclamação', pedido, j.resposta_certa, errada[3], autor, o.cerebroErrado || '', virouAula ? 'aprovada' : 'revisar'); } catch (e) { /* par fica de fora */ }
   return { ok: true, aprendeu: true, conversa: rec[0], causa: j.causa, regra: j.regra, autor: autor, aula: virouAula };
 }
 
@@ -5009,6 +5015,67 @@ function aulaSozinha(j, aulaTexto, pedido, quando, autor) {
   cont[dia] = (cont[dia] || 0) + 1; props.setProperty('AULAS_SOZINHA', JSON.stringify({ [dia]: cont[dia] }));
   try { CacheService.getScriptCache().remove('aulas_idx_n'); } catch (e) { /* índice das aulas refeito na próxima busca */ }
   return id;
+}
+
+/* ---------- v99: PARES BOA × RUIM (treino DPO) ----------
+ * Pro treino 2: além de "o jeito certo" (destilação), o nosso cérebro aprende "isso NÃO" vendo a resposta ruim ao lado da boa.
+ * Vem de 2 lugares: (1) erro corrigido (reclamação do Thiago ou revisora): ruim = o que ela respondeu, boa = resposta certa do professor;
+ * (2) academia: ruim = conserto do NOSSO cérebro (Mac/PC) que falhou nas provas escondidas, boa = conserto de um grande que PASSOU no mesmo exercício.
+ * Só vira 'aprovada' com prova (passou no teste) ou com nota ≥ 8 de outro cérebro (virou aula). Resposta de GPT/Groq/Claude nunca entra no treino.
+ * Nada é apagado: Status 'revisar' / 'sem par' / 'fora (GPT)' ficam na aba e o Thiago pode mudar pra 'aprovada' ou 'não'. */
+const RX_AUTOR_FORA = /GPT|Groq|Cerebras|Claude|OpenAI/i;
+function guardarPar_(origem, pedido, boa, ruim, cerebroBom, cerebroRuim, status) {
+  pedido = String(pedido || '').trim(); boa = String(boa || '').trim(); ruim = String(ruim || '').trim();
+  if (pedido.length < 4 || !ruim) return null;
+  if (boa && normalizar(boa) === normalizar(ruim)) return null;
+  if (!boa) status = 'sem par';
+  else if (RX_AUTOR_FORA.test(String(cerebroBom || ''))) status = 'fora (GPT)';
+  pedido = esconderPessoal(pedido); boa = esconderPessoal(boa); ruim = esconderPessoal(ruim);
+  const chave = normalizar(pedido).slice(0, 200) + '|' + normalizar(ruim).slice(0, 200);
+  if (linhas('preferencias').some(l => normalizar(String(l[2])).slice(0, 200) + '|' + normalizar(String(l[4])).slice(0, 200) === chave)) return null;
+  aba('preferencias').appendRow(["'" + agora(), origem, seguro(pedido.slice(0, 4000)), seguro(boa.slice(0, 8000)), seguro(ruim.slice(0, 8000)), cerebroBom || '', cerebroRuim || '', status || 'revisar']);
+  return status;
+}
+/** Academia: o nosso cérebro falhou → guarda a ruim (e já junta com a boa se um grande já passou nesse exercício); um grande passou → completa os pares que esperavam. */
+function parDaAcademia_(e, quem, passou, texto) {
+  texto = String(texto || '').trim();
+  if (!texto || passou === 'sem teste') return null;
+  const marca = '[academia:' + e.id + ']', pedido = e.pedido + '\n' + marca;
+  const nosso = /^(Mac|PC)\b|qwen|zicoai/i.test(quem);
+  if (passou === 'sim' && !nosso && !RX_AUTOR_FORA.test(quem)) {
+    const a = aba('preferencias'), ls = linhas('preferencias');
+    let n = 0;
+    ls.forEach((l, i) => { if (l[7] === 'sem par' && String(l[2]).indexOf(marca) >= 0) { a.getRange(i + 2, 4).setValue(seguro(esconderPessoal(texto).slice(0, 8000))); a.getRange(i + 2, 6).setValue(quem); a.getRange(i + 2, 8).setValue('aprovada'); n++; } });
+    return n;
+  }
+  if (passou !== 'sim' && nosso) {
+    const boas = linhas('destilacao').filter(l => l[6] === 'aprovada' && String(l[1]).indexOf(marca) >= 0);
+    const b = boas[boas.length - 1];
+    return guardarPar_('academia', pedido, b ? b[3] : '', texto, b ? b[4] : '', quem, 'aprovada');
+  }
+  return null;
+}
+/** Uma vez só: os erros corrigidos que já estavam na estudo_erros viram pares (aprovada só se virou aula; autor tirado da aula). */
+function paresAntigos_() {
+  const aulas = {}; linhas('aulas').forEach(l => { aulas[String(l[0])] = String(l[6] || ''); });
+  let n = 0;
+  linhas('estudo_erros').forEach(l => {
+    if (!l[8]) return;
+    const m = String(l[10] || '').match(/virou aula (X\d+)/), onde = m ? (aulas[m[1]] || '') : '';
+    const autor = (onde.match(/autor ([^)]+)\)/) || [])[1] || '';
+    if (guardarPar_(/revisora/.test(String(l[9])) ? 'revisora' : 'reclamação', l[2], l[8], l[3], autor, '', m && autor ? 'aprovada' : 'revisar')) n++;
+  });
+  return n;
+}
+/** Pro treino 2 (Mac/Kaggle): pares aprovados no formato do DPO (prompt / chosen / rejected). */
+function preferenciasJsonl() {
+  const ls = linhas('preferencias').filter(l => l[7] === 'aprovada' && l[3] && l[4] && !RX_AUTOR_FORA.test(String(l[5]) + ' ' + String(l[6])));   // nem a boa nem a ruim de GPT/Claude
+  const out = ls.map(l => JSON.stringify({ prompt: [{ role: 'user', content: String(l[2]) }], chosen: [{ role: 'assistant', content: String(l[3]) }], rejected: [{ role: 'assistant', content: String(l[4]) }], origem: l[1] }));
+  return { ok: true, total: out.length, jsonl: out.join('\n') };
+}
+function placarPreferencias_() {
+  const c = {}; linhas('preferencias').forEach(l => { const k = String(l[7] || '?'); c[k] = (c[k] || 0) + 1; });
+  return c;
 }
 
 function garantirRotinasTreino() {
@@ -6274,7 +6341,7 @@ function revisoraRodada() {
   const ls = linhas('mensagens');
   const s = suspeitoRevisora(ls, ate);
   if (!s) { if (ls.length) props.setProperty('REVISORA_ATE', ls[ls.length - 1][1]); return { ok: true, revisou: false, motivo: 'nenhum erro novo nas conversas' }; }
-  const r = licaoDoErro_({ conversa: s.msg[0], pedido: s.pedido, errada: s.msg[3], quando: s.msg[1], reclamacao: '(sem reclamação: a REVISORA achou) ' + s.sinal.desc, revisora: true });
+  const r = licaoDoErro_({ conversa: s.msg[0], pedido: s.pedido, errada: s.msg[3], quando: s.msg[1], reclamacao: '(sem reclamação: a REVISORA achou) ' + s.sinal.desc, revisora: true, cerebroErrado: s.msg[4] });
   props.setProperty('REVISORA_ATE', s.msg[1]);   // não olha a mesma de novo (mesmo se o professor disser que tava certo)
   if (r && r.aprendeu) props.setProperty('REVISORA_' + dia, String(feitas + 1));
   return Object.assign({ ok: true, revisou: true, sinal: s.sinal.id }, r || {});

@@ -158,6 +158,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 ## App v49 (01/11): menu da esquerda no celular
 - Os 7 atalhos (Projetos, Meus apps, Tarefas, Memória, Treino, Arquivos, Dispositivos) ocupavam a tela e a lista de conversas ficava com ~60 px (2–3 linhas). Agora, até 599 px (celular e painel da extensão): atalhos em 2 colunas compactos, o menu inteiro rola junto (lista sem cantinho próprio), rodapé (Thiago/Configurar) grudado embaixo, linha de conversa de 40 px. Conferido no tamanho do iPhone 15 Pro com 18 conversas.
 
+## v99 (01/11): pares BOA × RUIM pro treino DPO
+- Aba `preferencias` (Data, Origem, Pedido, Resposta boa, Resposta ruim, Cérebro bom, Cérebro ruim, Status). Pro treino 2 o nosso cérebro aprende também o "isso NÃO" (DPO), não só o jeito certo.
+- De onde vem: (1) erro corrigido (`licaoDoErro_`, reclamação do Thiago ou revisora): ruim = o que ela disse, boa = `resposta_certa` do professor; `aprovada` só se virou aula (nota ≥ 8 de outro cérebro), senão `revisar`. (2) academia (`parDaAcademia_`): ruim = conserto do Mac/PC que falhou nas provas escondidas, boa = conserto de um grande que PASSOU no mesmo exercício (`sem par` até algum passar; aprovado pela prova).
+- GPT/Groq/Claude: nunca como boa (`fora (GPT)`) e o export tira também a ruim deles. Telefone/CPF/senha mascarados. Par repetido não entra. Nada apagado: o Thiago pode mudar o Status pra `aprovada` ou `não`.
+- `paresAntigos_()` roda 1× sozinha (`PARES_V99`): erros já guardados na `estudo_erros` viram par (autor tirado da aula X). Export: `pontePreferencias` (só o Mac) → JSONL `prompt/chosen/rejected`. Ação `preferencias` mostra o placar. t76.
+
 ## v98 (01/11): busca sem ruído (aulas, base, exemplos, memória)
 - Medido com 160 perguntas reais do Thiago × as 296 aulas reais (BM25): "bom dia chefe" → aula de agentes; "que dia é hoje" → orçamento do dia; "era pra arrumar a calculadora, amigo" → "mandar app pro amigo"; "olha esse chat gpt" → prompt de sistema.
 - `aulasPara`: por palavra só vale com 2+ termos da pergunta na aula (ou nota ≥ 4× o corte); `PARADAS_AULAS` ganhou palavras de conversa (dia, hoje, bom, chefe, oque, sabe, quanto, bora, nossa, mim, amigo, mundo, melhor…). Aulas "talvez" no prompt: no máximo 1 (eram 3). Resultado: conversa à toa → nenhuma aula; pedido de verdade continua achando (temas pastéis → B211/B305, git pull → B205/B09, parcelas → A301/C301, comparativo → C160).
