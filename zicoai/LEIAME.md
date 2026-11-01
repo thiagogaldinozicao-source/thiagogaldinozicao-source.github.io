@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v40 (01/11): aviso de versão nova
+- `VERSAO_APP` no index.html TEM que ser igual ao `CACHE` do sw.js (subir os dois juntos). Ao voltar pro app (visibilitychange), 4 s depois de abrir e a cada 10 min, `confereVersao()` busca `sw.js?v=…` sem cache; se o CACHE mudou → botão fixo "✨ Nova versão — toque pra atualizar" (`r.update()` + reload). Motivo: o iPhone deixa o PWA congelado e o Thiago apagava/recriava o app pra atualizar.
+
 ## App v39 (01/11): console na prévia ("Testando o app")
 - Painel `#pConsole` (embaixo e recolhível no celular, 52% da altura; do lado com 380 px no computador, recolhe numa faixa vertical). `consoleNoApp(tk)` é injetado NUMA LINHA dentro do app testado (não desloca o número da linha): copia console.log/info/debug/warn/error (objeto vira JSON), erro de script com a linha, arquivo que não carregou, promessa sem tratamento, fetch com falha; roda JS digitado (`zicoaiEval`). Mensagens só valem com o token da prévia (`pcToken`) e vindas do iframe. Repetida seguida vira ×N; filtros Tudo/Erros/Avisos/Logs; ↻ roda de novo limpo; Copiar; Limpar; 1º erro abre sozinho; "Pedir correção pra ZicoAI" manda os erros pro chat pedindo só os trechos que mudam. Teste Playwright (app quebrado de propósito) 28/28 em 390 e 1440.
 
