@@ -47,4 +47,4 @@ ok(/já passava antes do conserto/.test(r.resposta) && !H.sheets.provas_apps.row
 run('ponte = function(acao, d){ return { erros: [], avisos: [], botoesTestados: 1 }; }');
 const t = run('JSON.stringify(testarApp("<!doctype html><html><body>oi</body></html>", [{nome:"x",conferir:[{js:"return true"}]}]))');
 ok(/precisa do testar-html v2/.test(t), 'Mac com o teste antigo: avisa que as provas não rodaram');
-ok(/versão (89|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 89 ou mais nova');
+ok(/versão (1\d\d|89|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 89 ou mais nova');

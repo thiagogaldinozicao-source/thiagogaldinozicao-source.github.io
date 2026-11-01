@@ -57,4 +57,4 @@ ok(/NÃO publiquei: app de repositório/.test(run('FERRAMENTAS.publicar_app.run(
 run('testarApp = function(){ return { erros: ["O arquivo terminou no meio (falta o fim </html>): veio cortado."], avisos: [], rodou: true }; }; consertarCodigo = function(){ return null; }; continuarCortado = function(){ return null; };');
 const pg = run('programadora({ ok: true, texto: "```html\\n<!doctype html><html><body>oi\\n```" }, null, "faz um app")');
 ok(/❌ \*\*Não ficou pronto\*\*: o arquivo veio cortado/.test(pg.texto) && pg.testado === false, 'teste achou erro: resposta diz "Não ficou pronto" e não publica');
-ok(/versão (8[5-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 85 ou mais nova');
+ok(/versão (1\d\d|8[5-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 85 ou mais nova');

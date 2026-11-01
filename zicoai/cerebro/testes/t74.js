@@ -41,4 +41,4 @@ const ordem = run("ordemPelaAcademia_(['gemini', 'mistral', 'nvidia'])");
 ok(ordem[0] === 'mistral' && ordem.indexOf('gemini') > ordem.indexOf('nvidia'), 'quem acertou mais na academia vai primeiro: ' + ordem.join(' → '));
 ok(H.sheets.destilacao && H.sheets.destilacao.rows.some(l => /\[academia:gorjeta-por-pessoa\]/.test(l[1]) && l[6] === 'aprovada' && l[5] === 'codigo'), 'conserto aprovado pelas provas vira treino pro nosso cérebro (destilação)');
 ok(run('ACADEMIA_CEREBROS.filter(function(n){ return n === "mac" || n === "pc"; }).length') * 2 >= run('ACADEMIA_CEREBROS.length'), 'metade das rodadas é do nosso cérebro (Mac/PC)');
-ok(/versão (9[7-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 97 ou mais nova');
+ok(/versão (1\d\d|9[7-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 97 ou mais nova');

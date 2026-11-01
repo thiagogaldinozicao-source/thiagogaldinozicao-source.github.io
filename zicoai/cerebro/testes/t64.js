@@ -22,4 +22,4 @@ ok(conf('Pronto!\n\n✅ Testei a sintaxe: sem erro.') === 'Pronto!\n\n✅ Testei
 ok(conf('Não testei, mas a lógica é essa.') === 'Não testei, mas a lógica é essa.', '"não testei" é honesto: fica igual');
 ok(conf('O 17 Pro Max tem tela de 6,9".') === 'O 17 Pro Max tem tela de 6,9".', 'resposta sem falar de teste: fica igual');
 ok(run('SINAIS_REVISORA.some(function(s){ return s.id === "disse_que_testou" && s.ve("", "⚠️ **Não testei de verdade**: x"); })'), 'revisora transforma isso em aula');
-ok(/versão (8[4-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 84 ou mais nova');
+ok(/versão (1\d\d|8[4-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 84 ou mais nova');

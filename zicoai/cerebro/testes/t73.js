@@ -28,4 +28,4 @@ run('_pedidos = [];'); vivo();
 r = H.post({ pin: '1234', acao: 'chat', aparelho: 'app', naExtensao: true, abaId: 77, mensagens: [{ role: 'user', content: 'quanto custa o frete pra BH?' }] });
 ok(run('_pedidos.join()').indexOf('imagens') < 0, 'pergunta sem imagem não tira print à toa');
 ok(run('typeof FERRAMENTAS.nav_imagens.run') === 'function', 'agente tem nav_imagens');
-ok(/versão (9[5-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 95 ou mais nova');
+ok(/versão (1\d\d|9[5-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 95 ou mais nova');

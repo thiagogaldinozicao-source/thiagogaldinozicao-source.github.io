@@ -132,4 +132,4 @@ reset();
 const k = H.post({ pin: '1234', acao: 'convidar', nome: 'Karina', perfil: 'funcionaria' });
 r = H.post({ convite: k.chave, acao: 'chat', aparelho: 'x', mensagens: [{ role: 'user', content: LISTA }] });
 ok(r.ok && r.cerebro !== 'catalogo' && !puts.length, 'Karina mandando a lista: não vira mudança de catálogo');
-ok(/versão (8[2-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 82 ou mais nova');
+ok(/versão (1\d\d|8[2-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 82 ou mais nova');

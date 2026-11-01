@@ -22,7 +22,7 @@ ok(/NUNCA diga que não consegue ver o Chrome/.test(run('PERSONA')), 'regra: nun
 run('CacheService.getScriptCache().remove("ponte_visto_nav")');
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'oque responder pra esse cliente?' }] });
 ok(!r.passos.some(p => /Leu a aba/.test(p)), 'extensão desligada: não tenta ler');
-ok((+(run('VERSAO_CEREBRO')).match(/versão (\d+)/)[1] >= 62), 'cérebro na versão 62');
+ok((+(run('VERSAO_CEREBRO')).match(/versão (1\d\d|\d+)/)[1] >= 62), 'cérebro na versão 62');
 // v63: "este cliente", "o que respondo" também leem o Chrome
 run('CacheService.getScriptCache().put("ponte_visto_nav", String(Date.now()))');
 for (const frase of ['oque responder pra este cliente?', 'o que eu respondo pra ela?', 'responde pro cara aí']) {

@@ -43,4 +43,4 @@ run('PropertiesService.getScriptProperties().setProperty("ESTUDO_ULTIMA", "0"); 
 run('aprenderComErros = function(){ return { ok: true, aprendeu: false }; }; temCerebro = function(n){ return n === "mac"; }; placarMacRodada = function(){ return { ok: true, tipo: "cliente" }; };');
 r = run('estudar()');
 ok(r.placarMac && /placar Mac × nuvem \(cliente\)/.test(r.tema && r.tema.tema), 'rodada de placar mostra o tipo: ' + (r.tema && r.tema.tema));
-ok(/versão (7[4-9]|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 74 ou mais nova');
+ok(/versão (1\d\d|7[4-9]|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 74 ou mais nova');

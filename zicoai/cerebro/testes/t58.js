@@ -36,4 +36,4 @@ ok(gatilhos() === 1, 'app abriu a lista com tarefa parada e Mac fora: o Google a
 ok(H.post({ acao: 'ponteTarefa', segredo: 'errado' }).erro === 'segredo errado', 'sem o segredo do Mac não roda nada');
 H.PROPS.MAC_AGENTES = 'nao';
 ok(H.post({ acao: 'ponteTarefa', segredo: 'sm' }).nada === true && run('macTrabalhando()') === false, 'MAC_AGENTES=nao desliga');
-ok(/versão (7[8-9]|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 78 ou mais nova');
+ok(/versão (1\d\d|7[8-9]|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 78 ou mais nova');

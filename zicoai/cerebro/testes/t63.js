@@ -104,4 +104,4 @@ H.PROPS.PC_PRIMARIO = tipo;
 r = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', mensagens: [{ role: 'user', content: 'me explica o que é uma garantia estendida' }] });
 ok(r.ok && /PC \(qwen3\.5:35b-a3b\)/.test(r.cerebro) && r.passos.some(x => /cérebro do PC já ganhou/.test(x)), 'assunto que o PC ganhou: PC responde primeiro (' + r.cerebro + ')');
 delete H.PROPS.PC_PRIMARIO;
-ok(/versão (8[3-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 83 ou mais nova');
+ok(/versão (1\d\d|8[3-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 83 ou mais nova');

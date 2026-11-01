@@ -56,4 +56,4 @@ ok(x && x.ok === false, 'só o Mac puxa os pares');
 x = H.post({ pin: '1234', acao: 'preferencias' });
 ok(x.ok && x.placar.aprovada >= 3, 'ação preferencias mostra o placar: ' + JSON.stringify(x.placar));
 ok(P().length >= 6 && P().every(l => l[7]), 'nada apagado, toda linha com status');
-ok(/versão (99|1\d\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 99 ou mais nova');
+ok(/versão (1\d\d|99|1\d\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 99 ou mais nova');

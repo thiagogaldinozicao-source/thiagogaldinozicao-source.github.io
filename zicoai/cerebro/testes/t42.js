@@ -137,4 +137,4 @@ const man = JSON.parse(ext('manifest.json'));
 ok(/^2\.\d/.test(man.version) && ['storage', 'alarms', 'scripting', 'tabs'].every(p => man.permissions.includes(p)) && !man.permissions.includes('downloads'), 'manifest 2.0 com storage/alarms e sem permissão de download');
 ok(man.content_scripts && man.content_scripts[0].world === 'MAIN' && man.content_scripts[0].run_at === 'document_start' && man.content_scripts[0].js[0] === 'vigia.js', 'vigia de erros entra cedo no mundo da página');
 ok(/importScripts\('seguranca\.js'\)/.test(ext('fundo.js')) && /dispositivo: 'nav'/.test(ext('fundo.js')) && /chrome\.alarms\.create/.test(ext('fundo.js')), 'fundo.js: usa as travas, busca como "nav" e acorda com alarme');
-ok((+(run('VERSAO_CEREBRO')).match(/versão (\d+)/)[1] >= 57), 'cérebro na versão 57 ou mais nova');
+ok((+(run('VERSAO_CEREBRO')).match(/versão (1\d\d|\d+)/)[1] >= 57), 'cérebro na versão 57 ou mais nova');

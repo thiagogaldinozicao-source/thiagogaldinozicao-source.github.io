@@ -30,7 +30,7 @@ ok(!/PIN errado/.test(run(`esconderPessoal("PIN errado")`)) === false, '"PIN err
 // WhatsApp colado com "o app é ótimo" não é programação
 ok(run(`ehProgramacao("oquer falo pra ele\\n\\n---\\nPÁGINA ABERTA NO CHROME: WhatsApp\\no app e otimo recomendo demais")`) === false, 'conversa do WhatsApp com "app" não vira pedido de programação');
 ok(run(`ehProgramacao("arruma o bug do meu app")`) === true, 'pedido de programação de verdade continua');
-ok(/versão (9[4-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 94 ou mais nova');
+ok(/versão (1\d\d|9[4-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 94 ou mais nova');
 // v98: sem a muleta "Vc tem razão:" no começo
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Vc tem razão: faltou dividir pelas pessoas.' } }] }), getHeaders: () => ({}) }));
 const rr = H.post({ pin: '1234', acao: 'chat', aparelho: 'PC', mensagens: [{ role: 'user', content: 'quanto é 10% de 200?' }] });
