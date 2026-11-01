@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 86 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 87 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -125,7 +125,7 @@ function testarZai() {
 /** Monta o cérebro do PC se ele estiver configurado e não tiver caído há pouco. */
 function cerebroPC() {
   if (CacheService.getScriptCache().get('pc_off')) return null;
-  const pp = cerebroPCPonte(); if (pp) return pp;
+  const pp = cerebroPCPonte('leve') || cerebroPCPonte(); if (pp) return pp;
   const base = String(prop('PC_URL') || '').trim().replace(/\/+$/, '');
   if (!base) return null;
   const modelo = prop('PC_MODELO') || 'zicoai';
@@ -135,7 +135,7 @@ function cerebroPC() {
 function cerebroPCcodigo() {
   const pc = cerebroPC();
   if (!pc) return null;
-  if (pc.viaPonte) return pc;   // pela ponte já é o modelo grande
+  if (pc.viaPonte) return cerebroPCPonte() || pc;   // pela ponte: o grande (35B) pra código e capricho
   const m = prop('PC_MODELO_CODIGO');
   return m ? Object.assign({}, pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000 }) : pc;
 }
@@ -149,7 +149,10 @@ function cerebroPCcodigo() {
  */
 const PC_MODELOS_PONTE = ['qwen3.6:35b', 'qwen3.5:35b-a3b', 'qwen3.5:9b'];   // v86: o PC já tinha o qwen3.6:35b (35B-A3B, mais novo): vai primeiro
 const PC_PONTE_ESPERA = 200000;
-function cerebroPCPonte() {
+/* v87: igual era antes (zicoai pra conversa, zicoai-dev pra código), agora com os modelos novos:
+ * LEVE (rápido, cabe inteiro na placa) pra conversa do dia a dia; PESADO (35B) pra código, capricho, prova e trabalho de fundo. */
+const PC_MODELOS_LEVE = ['qwen3.5:9b'];
+function cerebroPCPonte(tipo) {
   if (!prop('PONTE_SEGREDO') || !ponteViva('pc')) return null;
   const c = CacheService.getScriptCache();
   if (c.get('pc_off')) return null;
@@ -157,7 +160,7 @@ function cerebroPCPonte() {
   let tem = [];
   try { tem = JSON.parse(c.get('ponte_modelos') || '[]'); } catch (e) { tem = []; }
   const nomes = tem.map(m => String(m).replace(/:latest$/, ''));
-  const m = PC_MODELOS_PONTE.find(x => nomes.indexOf(x) >= 0);
+  const m = (tipo === 'leve' ? PC_MODELOS_LEVE : PC_MODELOS_PONTE).find(x => nomes.indexOf(x) >= 0);
   if (!m) return null;
   return Object.assign({}, CEREBROS.pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000, maxSaida: 4096, local: true, viaPonte: true, disp: 'pc' });
 }
@@ -972,7 +975,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
   // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
   const codigo = !imagem && ehProgramacao(pergunta);
-  const pc = (codigo || forte) ? cerebroPCcodigo() : cerebroPC();
+  const pc = (codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
   let ordem;
   // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
   if (imagem) ordem = ['gemini', 'mistral', 'zaiv', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
@@ -3690,7 +3693,7 @@ function aparelhosDaPonte(out) {
   }
   const vp = ponteVisto('pc');
   const servPc = (out || []).filter(d => !/Mac/.test(d.nome)).map(d => ({ nome: d.nome, ok: d.ok, detalhe: d.detalhe }));
-  if (prop('PONTE_SEGREDO')) { const pp = cerebroPCPonte(), st = placarTotal('PC'); servPc.push({ nome: 'Cérebro do PC (pela ponte)', ok: !!pp, detalhe: pp ? pp.modelo + ' · prova ' + st.n + (st.n >= 8 ? ' (' + Math.round(st.taxa * 100) + '%)' : '/8') + (pcNoLugarDoMac() ? ' · faz o trabalho do Mac' : '') : 'precisa da ponte 2.4 e do modelo (instalar.ps1)' }); }
+  if (prop('PONTE_SEGREDO')) { const pp = cerebroPCPonte(), st = placarTotal('PC'); const pl = cerebroPCPonte('leve'); servPc.push({ nome: 'Cérebro do PC (pela ponte)', ok: !!pp, detalhe: pp ? (pl && pl.modelo !== pp.modelo ? pl.modelo + ' (conversa) + ' : '') + pp.modelo + ' (código, prova) · prova ' + st.n + (st.n >= 8 ? ' (' + Math.round(st.taxa * 100) + '%)' : '/8') + (pcNoLugarDoMac() ? ' · faz o trabalho do Mac' : '') : 'precisa da ponte 2.4 e do modelo (instalar.ps1)' }); }
   lista.push({ nome: c.get('ponte_nome') || 'DESKTOP-UL41KIJ', plataforma: 'Windows · PC de casa', ok: (vp >= 0 && vp < 90000) || servPc.some(x => x.ok), vistoMs: vp, servicos: servPc });
   if (prop('PONTE_SEGREDO_NAV')) {   // extensão do Chrome (v57): age e depura sites
     const vn = ponteVisto('nav'), okn = vn >= 0 && vn < 90000;

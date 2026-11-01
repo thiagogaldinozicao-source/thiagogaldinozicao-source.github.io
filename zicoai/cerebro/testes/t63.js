@@ -27,6 +27,7 @@ pcLiga('2.4', ['zicoai:latest']);
 ok(run('cerebroPCPonte()') === null, 'sem nenhum dos dois: não usa (não inventa modelo)');
 pcLiga('2.4', ['zicoai:latest', 'zicoai-dev:latest', 'qwen3-vl:8b-instruct', 'qwen3.6:35b', 'qwen3.5:9b']);
 ok(run('cerebroPCPonte().modelo') === 'qwen3.6:35b', 'PC com o qwen3.6:35b (o que ele já tinha): usa ele');
+ok(run('cerebroPC().modelo') === 'qwen3.5:9b' && run('cerebroPCcodigo().modelo') === 'qwen3.6:35b', 'conversa no 9B (rápido), código no 35B — igual zicoai × zicoai-dev de antes');
 pcLiga('2.4', ['qwen3.5:35b-a3b']);
 ok(run('cerebroPC().viaPonte') === true && run('cerebroPCcodigo().modelo') === 'qwen3.5:35b-a3b', 'cerebroPC/cerebroPCcodigo preferem a ponte (não precisa de Funnel)');
 
