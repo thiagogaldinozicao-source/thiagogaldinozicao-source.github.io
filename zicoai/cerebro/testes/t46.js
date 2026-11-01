@@ -13,7 +13,8 @@ run(`ponteSemDetalhe = function(acao, d, espera, disp){
   if (d.op === 'clicar') return d.confirmado ? Object.assign(base, { clicou: d.texto }) : { ok: false, erro: 'precisa do OK do Thiago', motivo: 'botão "Comprar" envia/compra/apaga/confirma' };
   return base;
 };`);
-const F = n => (a, ctx) => run('FERRAMENTAS.' + n + '.run(' + JSON.stringify(a || {}) + ', ' + JSON.stringify(ctx || {}) + ')');
+// v74: ela só usa o navegador quando o Thiago pede → os pedidos daqui falam do navegador
+const F = n => (a, ctx) => run('FERRAMENTAS.' + n + '.run(' + JSON.stringify(a || {}) + ', ' + JSON.stringify(Object.assign({}, ctx || {}, { pedido: 'no navegador: ' + ((ctx && ctx.pedido) || '') })) + ')');
 let t = F('web_pesquisar')({ texto: 'iphone 17 preço' });
 ok(/RESULTADOS[\s\S]*iPhone 17[\s\S]*apple\.com\/br/.test(t) && run('__ult.disp') === 'mac', 'web_pesquisar vai pro navegador do Mac e devolve resultados + links');
 ok(!/QUJD/.test(t), 'o print não vai pro texto do agente (só pro app)');

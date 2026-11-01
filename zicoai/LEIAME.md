@@ -158,6 +158,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 ## v74 (01/11): estudo só aprova o que foi conferido de verdade
 - `checarExercicio_` roda antes do revisor da nuvem (de graça): marca `[PREÇO]/[GARANTIA]/…` na pergunta (ou dentro de código) reprova; link que não abre reprova (inclui `src=` de imagem, ex.: via.placeholder.com); código roda no Mac (`rodarCodigoEstudo_`: ```html no navegador, ```js dentro de uma página) e erro no navegador reprova; Python/SQL/Apps Script/Node e Mac desligado = não aprova ("sem como rodar"); comparativo precisa terminar com `Fonte: <link>` e o link tem que estar no material lido.
 - Prompt do gerador por tipo (`instrucaoEstudo_`): código genérico sem loja nem marca, html completo, sem imagem externa inventada; comparativo só com número do material.
+- Navegador dela com UM dono por vez: `navegarManual` (painel do app) grava `nav_thiago` no cache por 10 min a cada toque; enquanto isso as `web_*` do agente devolvem ERRO ("o Thiago está usando"). Fechar o painel manda `navegar {op:'soltar'}` e libera. As `web_*` passam por `webNavAgente`: só funcionam se o pedido falar de navegador/site/link/clicar/testar no navegador (`RX_PEDIU_NAVEGADOR`); pesquisa comum vai pro `pesquisar_web`. Teste t53 (t46 ajustado). App cache `zicoai-v34`.
 - `estudar()` devolve `tema.tema` em toda rodada (placar Mac × nuvem com o tipo, erro corrigido, pulou): acabou o "tema: ?" no log do Mac. Teste t52; t22 simula o Mac ligado.
 
 ## v73 (31/10): Mistral grátis com fila de 1 pedido por segundo

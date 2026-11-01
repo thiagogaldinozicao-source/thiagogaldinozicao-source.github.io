@@ -2126,7 +2126,7 @@ function nvMostra(t){
   $('nvImg').src = 'data:image/jpeg;base64,' + t.img; $('nvVazio').hidden = true;
   if(document.activeElement !== $('nvUrl')) $('nvUrl').value = t.url || '';
   nvDesde = (t.quando || Date.now()) + 1;
-  nvStatus((t.titulo || 'Sem título') + (t.acao && !/^Thiago/.test(t.acao) ? ' · agente: ' + t.acao : ''));
+  nvStatus((t.titulo || 'Sem título') + (t.acao && !/^Thiago/.test(t.acao) ? ' · agente: ' + t.acao : ' · só vc mexendo (ela fica fora enquanto o painel tá aberto)'));
 }
 function nvStatus(txt, erro){ const s = $('nvStatus'); s.textContent = txt; s.classList.toggle('erro', !!erro); }
 async function nvFaz(dados, aviso){
@@ -2171,7 +2171,7 @@ function abreNavegador(){
   if(nvTamanho !== quer){ nvTamanho = quer; nvFaz(quer === 'cel' ? { op:'tamanho', w:430, h:860 } : { op:'tamanho', w:1280, h:800 }, 'Abrindo o navegador dela no Mac…'); }
   else if(!$('nvImg').getAttribute('src')) nvFaz({ op:'tela' }, 'Abrindo o navegador dela no Mac…');
 }
-function fechaNavegador(){ nvAberto = false; clearTimeout(nvTmr); $('mNav').hidden = true; document.body.classList.remove('nav-aberto'); }
+function fechaNavegador(){ nvAberto = false; clearTimeout(nvTmr); $('mNav').hidden = true; document.body.classList.remove('nav-aberto'); api({ acao:'navegar', op:'soltar' }).catch(() => {}); }   // fechou: ela pode usar de novo
 $('bNav').onclick = () => nvAberto ? fechaNavegador() : abreNavegador();
 $('nvFechar').onclick = fechaNavegador;
 $('nvVoltar').onclick = () => nvFaz({ op:'voltar' }, 'Voltando…');
