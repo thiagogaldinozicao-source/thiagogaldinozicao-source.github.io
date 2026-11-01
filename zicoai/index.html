@@ -628,6 +628,22 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 .det-bloco code{font:inherit;white-space:inherit}
 .msg-ia .corpo,.vivo,#progressoPainel,.tarefa{min-width:0;max-width:100%;box-sizing:border-box}
 
+/* v49: menu da esquerda no celular: os atalhos ocupavam a tela e a lista de conversas ficava com ~3 linhas.
+   Agora atalhos em 2 colunas, compactos, e o menu inteiro rola junto (a lista não fica presa num cantinho). */
+@media (max-width:599px){
+  #lado{overflow-y:auto;overscroll-behavior:contain}
+  #lado .lado-top{flex-shrink:0}
+  #lista{flex:none;overflow:visible;min-height:auto}
+  .nav-lado{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px}
+  .nav-lado>button{min-height:42px;padding:8px 10px;font-size:13px;border-radius:10px;background:var(--card);gap:8px}
+  .nav-lado>button .status{display:none}
+  #lado .novo{min-height:46px}
+  #lado .procurar{min-height:40px;padding:8px 12px}
+  #lado .logo{padding-top:6px;padding-bottom:6px}
+  .lado-pe{position:sticky;bottom:0;background:var(--lado);z-index:2}
+  #lado .chat-item{min-height:40px}
+  #lado .chat-item .t{padding:8px 4px;min-height:40px}
+}
 </style>
 </head>
 <body>
@@ -2938,7 +2954,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v48';
+const VERSAO_APP = 'zicoai-v49';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

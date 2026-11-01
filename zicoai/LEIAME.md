@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v49 (01/11): menu da esquerda no celular
+- Os 7 atalhos (Projetos, Meus apps, Tarefas, Memória, Treino, Arquivos, Dispositivos) ocupavam a tela e a lista de conversas ficava com ~60 px (2–3 linhas). Agora, até 599 px (celular e painel da extensão): atalhos em 2 colunas compactos, o menu inteiro rola junto (lista sem cantinho próprio), rodapé (Thiago/Configurar) grudado embaixo, linha de conversa de 40 px. Conferido no tamanho do iPhone 15 Pro com 18 conversas.
+
 ## v98 (01/11): busca sem ruído (aulas, base, exemplos, memória)
 - Medido com 160 perguntas reais do Thiago × as 296 aulas reais (BM25): "bom dia chefe" → aula de agentes; "que dia é hoje" → orçamento do dia; "era pra arrumar a calculadora, amigo" → "mandar app pro amigo"; "olha esse chat gpt" → prompt de sistema.
 - `aulasPara`: por palavra só vale com 2+ termos da pergunta na aula (ou nota ≥ 4× o corte); `PARADAS_AULAS` ganhou palavras de conversa (dia, hoje, bom, chefe, oque, sabe, quanto, bora, nossa, mim, amigo, mundo, melhor…). Aulas "talvez" no prompt: no máximo 1 (eram 3). Resultado: conversa à toa → nenhuma aula; pedido de verdade continua achando (temas pastéis → B211/B305, git pull → B205/B09, parcelas → A301/C301, comparativo → C160).
