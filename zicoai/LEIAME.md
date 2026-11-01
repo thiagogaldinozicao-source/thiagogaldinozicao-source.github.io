@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v42 (01/11): navegador igual navegador de verdade no computador
+- Problema (print do Thiago no Chrome do PC): tela dela fixa em 1280×800 num painel alto → faixa preta embaixo e tudo pequeno; o card "Navegador da ZicoAI" no chat repetia o que ele mesmo fazia no painel; digitar só pela caixinha de baixo.
+- `nvTamanhoIdeal()`: a tela dela no Mac ganha o formato do painel (PC 1280 × altura proporcional; celular 430 × proporcional; 480–1200, múltiplo de 20); confere de novo 1,5 s depois de abrir (as abas encolhem o painel) e quando a janela muda de tamanho (`nvConfereTamanho`).
+- No computador: clicou na página → o painel (`#nvTela`, tabindex) fica com o foco e o teclado vai direto pra página (letras juntas a cada 350 ms viram `escrever`; Enter/Backspace/Tab/Esc/setas/PgUp/PgDn/Home/End viram `teclas`; colar funciona); roda do mouse rola a página dela (`roda`). `nvManda` = fila na ordem (sem "espera terminar"). Celular continua com a caixinha de baixo.
+- `mostraTela` (card no chat) ignora telas com ação "Thiago: …". Teste Playwright (teclado, roda, tamanho, redimensionar) ok em 1440 e 390.
+
 ## v83 + ponte do PC 2.4 (01/11): orquestra — Mac 24h + PC quando liga
 - Cérebro do PC escolhido: **qwen3.5:35b-a3b** (35B MoE, 3B ativos; 22 GB em Q4: ~10 GB na RTX 3080 e o resto na RAM de 32 GB; lê texto e foto, 256K de contexto) e **qwen3.5:9b** de reserva (6,6 GB, cabe inteiro na placa). `PC_MODELOS_PONTE` = ordem de preferência; usa o 1º que estiver instalado.
 - O PC entra pela **ponte** (sem Funnel): `ponte.ps1` 2.4 ganhou `ollama_chat` (só 127.0.0.1, nome do modelo conferido, `think:false`, `keep_alive 5m` pra liberar a placa pro Unreal) e manda `modelos` (ollama list, a cada 5 min) no `ponteBuscar`. `instalar.ps1` baixa os 2 modelos (pula o que já tem; confere espaço). `cerebroPCPonte()` só existe com ponte viva, versão ≥ 2.4 e modelo da lista instalado; `cerebroPC()`/`cerebroPCcodigo()` preferem ela ao `PC_URL`. Espera da ponte do PC: 200 s, até 2.500 tokens.

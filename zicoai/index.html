@@ -366,6 +366,7 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 .nv-tela img{width:100%;height:auto;display:block;cursor:pointer}
 .nv-tela img:not([src]){display:none}
 .nv-tela.carregando img{opacity:.6}
+.nv-tela:focus{outline:2px solid var(--ouro);outline-offset:-2px}
 .nv-abas{display:flex;gap:6px;padding:6px 10px 0;overflow-x:auto;scrollbar-width:none}
 .nv-abas::-webkit-scrollbar{display:none}
 .nv-aba{display:inline-flex;align-items:center;gap:4px;max-width:180px;flex-shrink:0;border:1px solid var(--borda);border-radius:10px;padding:0 4px 0 10px;height:32px;font-size:12px;color:var(--cinza2)}
@@ -740,8 +741,8 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     <button class="nv-b" id="nvFechar" aria-label="Fechar navegador" title="Fechar">✕</button>
   </div>
   <div class="nv-abas" id="nvAbas"></div>
-  <div class="nv-status" id="nvStatus">Navegador da ZicoAI (Chrome dela no Mac). Toque na tela pra clicar.</div>
-  <div class="nv-tela" id="nvTela"><img id="nvImg" alt="tela do navegador da ZicoAI"><p class="nv-vazio" id="nvVazio">Digite um endereço lá em cima ou peça no chat: "pesquisa no seu navegador…"</p></div>
+  <div class="nv-status" id="nvStatus">Navegador da ZicoAI (Chrome dela no Mac). Clique na página; no computador dá pra digitar e rolar direto.</div>
+  <div class="nv-tela" id="nvTela" tabindex="0"><img id="nvImg" alt="tela do navegador da ZicoAI"><p class="nv-vazio" id="nvVazio">Digite um endereço lá em cima ou peça no chat: "pesquisa no seu navegador…"</p></div>
   <div class="nv-baixo">
     <button class="nv-b" id="nvCima" aria-label="Rolar pra cima" title="Rolar pra cima">▲</button>
     <button class="nv-b" id="nvBaixo" aria-label="Rolar pra baixo" title="Rolar pra baixo">▼</button>
@@ -1750,6 +1751,7 @@ function linhaViva(corpo){
 // mostra (ou atualiza) o print do navegador da ZicoAI dentro de "onde"
 function mostraTela(onde, tela, antesDe){
   if(!tela || !tela.img) return;
+  if(/^Thiago/.test(tela.acao || '')) return;   // o que vc mesmo fez no painel não vira cópia no chat
   let c = onde.querySelector('.tela-zico');
   if(!c){
     c = document.createElement('div'); c.className = 'tela-zico';
@@ -2394,7 +2396,10 @@ async function nvFaz(dados, aviso){
     if(Array.isArray(j.abas)) nvAbas(j.abas);
     if(!j.ok) nvStatus('⚠️ ' + (j.erro || 'não deu'), true);
     // tocou num campo de digitar: já abre o teclado do celular
-    else if(j.foco && dados.op === 'tocar'){ $('nvTexto').focus(); nvStatus('Campo selecionado: digite aqui embaixo e toque em Ir (ou ✎ pra só escrever).'); }
+    else if(j.foco && dados.op === 'tocar'){
+      if(innerWidth >= 700){ $('nvTela').focus({ preventScroll:true }); nvStatus('Campo selecionado: é só digitar no teclado (Enter envia).'); }
+      else { $('nvTexto').focus(); nvStatus('Campo selecionado: digite aqui embaixo e toque em Ir (ou ✎ pra só escrever).'); }
+    }
   }catch(e){ nvStatus('⚠️ ' + e.message, true); }
   nvOcupado = false; $('nvTela').classList.remove('carregando');
   return j;
@@ -2422,11 +2427,46 @@ function abreNavegador(){
   nvDaConversa = nvSessao(); $('nvImg').removeAttribute('src'); $('nvVazio').hidden = false; $('nvAbas').replaceChildren(); nvTamanho = '';
   nvAberto = true; $('mNav').hidden = false; document.body.classList.add('nav-aberto');
   nvDesde = 0; clearTimeout(nvTmr); nvVivo();
-  // no celular a tela dela vira de celular (site legível); no computador, de computador
-  const quer = innerWidth < 700 ? 'cel' : 'pc';
-  if(nvTamanho !== quer){ nvTamanho = quer; nvFaz(quer === 'cel' ? { op:'tamanho', w:430, h:860 } : { op:'tamanho', w:1280, h:800 }, 'Abrindo o navegador dela no Mac…'); }
-  else if(!$('nvImg').getAttribute('src')) nvFaz({ op:'tela' }, 'Abrindo o navegador dela no Mac…');
+  // a tela dela tem o MESMO formato do painel (celular = site de celular; PC = site de computador) — sem faixa preta sobrando
+  const t = nvTamanhoIdeal();
+  nvTamanho = t.w + 'x' + t.h; nvFaz({ op:'tamanho', w:t.w, h:t.h }, 'Abrindo o navegador dela no Mac…');
+  if(innerWidth >= 700) setTimeout(() => $('nvTela').focus({ preventScroll:true }), 50);
+  setTimeout(nvConfereTamanho, 1500);   // as abas aparecem depois e o painel encolhe: confere de novo
 }
+function nvConfereTamanho(){ const t = nvTamanhoIdeal(), k = t.w + 'x' + t.h; if(nvAberto && k !== nvTamanho){ nvTamanho = k; nvManda({ op:'tamanho', w:t.w, h:t.h }, 'Ajustando ao tamanho da janela…'); } }
+function nvTamanhoIdeal(){
+  const r = $('nvTela').getBoundingClientRect(), w = innerWidth < 700 ? 430 : 1280;
+  const h = Math.max(480, Math.min(1200, Math.round(w * (r.height || 800) / (r.width || w) / 20) * 20));
+  return { w, h };
+}
+let nvResTmr = null;
+addEventListener('resize', () => {
+  if(!nvAberto) return; clearTimeout(nvResTmr);
+  nvResTmr = setTimeout(nvConfereTamanho, 700);
+});
+// fila: clique, digitação e rolagem vão pro Mac na ordem, sem "espera terminar"
+let nvFilaP = Promise.resolve();
+function nvManda(dados, aviso){ nvFilaP = nvFilaP.then(async () => { while(nvOcupado) await new Promise(r => setTimeout(r, 120)); return nvFaz(dados, aviso); }).catch(() => {}); return nvFilaP; }
+// no computador: clicou na página, digita direto no teclado (igual navegador de verdade)
+let nvBuf = '', nvBufTmr = null;
+function nvSoltaBuf(){ clearTimeout(nvBufTmr); if(!nvBuf) return; const t = nvBuf; nvBuf = ''; nvManda({ op:'escrever', texto:t }, 'Digitando…'); }
+const NV_TECLAS = ['Enter','Backspace','Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End'];
+$('nvTela').addEventListener('keydown', e => {
+  if(e.ctrlKey || e.metaKey || e.altKey || !$('nvImg').getAttribute('src')) return;
+  if(e.key.length === 1){ e.preventDefault(); nvBuf += e.key; clearTimeout(nvBufTmr); nvBufTmr = setTimeout(nvSoltaBuf, 350); nvStatus('Digitando: ' + nvBuf.slice(-50)); return; }
+  if(NV_TECLAS.indexOf(e.key) < 0) return;
+  e.preventDefault(); e.stopPropagation();
+  if(e.key === 'Backspace' && nvBuf){ nvBuf = nvBuf.slice(0, -1); nvStatus('Digitando: ' + nvBuf.slice(-50)); return; }
+  nvSoltaBuf(); nvManda({ op:'teclas', tecla:e.key }, e.key + '…');
+});
+$('nvTela').addEventListener('paste', e => { const t = (e.clipboardData && e.clipboardData.getData('text')) || ''; if(!t) return; e.preventDefault(); nvBuf += t.slice(0, 2000); nvSoltaBuf(); });
+// roda do mouse em cima da página = rola a página dela
+let nvRoda = 0, nvRodaTmr = null;
+$('nvTela').addEventListener('wheel', e => {
+  const t = $('nvTela'); if(!$('nvImg').getAttribute('src') || t.scrollHeight > t.clientHeight + 40) return;   // só rola aqui se a imagem passar MUITO do painel
+  e.preventDefault(); nvRoda += e.deltaY * (e.deltaMode === 1 ? 40 : 1);
+  clearTimeout(nvRodaTmr); nvRodaTmr = setTimeout(() => { const dy = Math.max(-3000, Math.min(3000, Math.round(nvRoda))); nvRoda = 0; if(Math.abs(dy) > 20) nvManda({ op:'roda', dy }, 'Rolando…'); }, 250);
+}, { passive:false });
 function fechaNavegador(){ nvAberto = false; clearTimeout(nvTmr); $('mNav').hidden = true; document.body.classList.remove('nav-aberto'); api({ acao:'navegar', op:'soltar', chatId: nvSessao() }).catch(() => {}); }   // fechou: ela pode usar de novo
 $('bNav').onclick = () => nvAberto ? fechaNavegador() : abreNavegador();
 $('nvFechar').onclick = fechaNavegador;
@@ -2455,7 +2495,8 @@ $('nvImg').onclick = e => {
   $('nvTela').appendChild(m); setTimeout(() => m.remove(), 800);
   const img = e.target, W = img.naturalWidth || 1280, H = img.naturalHeight || 800;   // o print tem o tamanho da tela dela
   const x = Math.round((e.clientX - r.left) / r.width * W), y = Math.round((e.clientY - r.top) / r.height * H);
-  nvFaz({ op:'tocar', x, y }, 'Clicando…');
+  if(innerWidth >= 700) $('nvTela').focus({ preventScroll:true });
+  nvSoltaBuf(); nvManda({ op:'tocar', x, y }, 'Clicando…');
 };
 
 /* ---------- arquivos da conversa (apps HTML e imagens), igual a folha "Arquivos" do Claude ---------- */
@@ -2810,7 +2851,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v41';
+const VERSAO_APP = 'zicoai-v42';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;
