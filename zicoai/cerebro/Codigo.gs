@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 88 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 89 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -280,6 +280,7 @@ function temCerebro(nome) {
 function marcarPCdesligado() { CacheService.getScriptCache().put('pc_off', '1', 180); }
 
 const ABAS = {
+  provas_apps:  ['App', 'Nome', 'Prova (JSON)', 'Criada', 'Origem', 'Ativa'],
   memoria:      ['Data', 'Lembrança', 'Origem'],
   aprendizados: ['Data', 'Erro', 'Certo', 'Assunto'],
   perfil:       ['Tópico', 'Informação'],
@@ -391,7 +392,9 @@ const PERSONA = [
 
 /** Lista do que a ZicoAI fez em cada resposta (aparece no app em "Como respondi"). */
 let PASSOS = [];
-let TESTOU_AGORA = 0;   // v84: quantos testes DE VERDADE rodaram nesta resposta (app aberto no navegador do Mac, testes do Mac)
+let TESTOU_AGORA = 0;
+let EDITANDO_APP = false;   // v89: mexendo num app que já existe → sistema enxuto (sem memória/preços/base que nada têm a ver)
+let INICIO_REQ = Date.now();   // v84: quantos testes DE VERDADE rodaram nesta resposta (app aberto no navegador do Mac, testes do Mac)
 let DETALHES = [];
 let ABA_ATUAL = 0;   // aba do Chrome de onde o Thiago está falando (painel da extensão: cada aba tem a sua conversa)
 let TAREFA_DETALHE = "";
@@ -559,7 +562,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
+  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; EDITANDO_APP = false; INICIO_REQ = Date.now(); DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -780,13 +783,17 @@ function chat(req, aparelho) {
       }
     } catch (e) { /* sem GitHub: segue */ }
   }
+  if (codigoApp) {
+    EDITANDO_APP = true;
+    historico.forEach((m, i) => { if (i < historico.length - 1 && m.content.length > 1500) m.content = m.content.slice(0, 1200) + '\n[...resposta antiga cortada: o código atual completo está no sistema]'; });
+  }
   // mudança no app que ela mesma mandou antes NESTA conversa (sem estar publicado): edita por trechos o último html
   const pedeAppNovo = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta)) && !/\b(nela|nele|nessa|nesse|dela|dele)\b/.test(normalizar(pergunta));
   if (!codigoApp && !pedeAppNovo && pergunta.length < 1500 && /(muda|mude|coloca|coloque|poe|tira|tire|corrig|arruma|ajusta|adiciona|acrescenta|troca|melhora|aument|diminu|layout|botao|cor |fonte|visor|tela|historico|funcao|nao funciona|quebrou|erro)/.test(normalizar(pergunta))) {
     const antAssist = historico.slice(0, -1).reverse().find(m => m.role === 'assistant');
     const htmlAnt = antAssist ? extrairHtml(antAssist.content) : '';
     if (htmlAnt && /<\/html>\s*$/i.test(htmlAnt.trim())) {
-      codigoApp = htmlAnt;
+      codigoApp = htmlAnt; EDITANDO_APP = true;
       extraSistema += REGRA_EDICAO + '\n\n### ÚLTIMO CÓDIGO QUE VC MANDOU NESTA CONVERSA (o Thiago quer mudar ele)\n```html\n' + htmlAnt + '\n```';
       passo('Vai mudar o app que mandou antes nesta conversa (por trechos, o resto fica igual)');
     }
@@ -795,7 +802,8 @@ function chat(req, aparelho) {
     extraSistema += '\n\n### TEXTO LONGO COLADO\nA última mensagem do Thiago é um texto grande que ele colou (documento, status, conversa ou código). Leia como DOCUMENTO: entenda do que se trata e responda ao que ele quer com isso (se ele não disse, resuma em poucas linhas e diga o que vc faria a seguir). Palavras, números e links dentro do texto NÃO são perguntas novas. Não mude de assunto por causa da conversa anterior.';
     passo('Texto longo colado: leu como documento (sem pesquisar nem abrir links dele)');
   }
-  if (!colado && ehDono()) try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
+  if (EDITANDO_APP && querPesquisa && modo !== 'web') { querPesquisa = false; passo('Mexendo num app: não pesquisou na web (o código está aqui)'); }
+  if (!colado && ehDono() && !EDITANDO_APP) try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
   // já tem dado ao vivo (dólar, clima, notícias)? então não precisa pesquisar na web
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
   if (querPesquisa && temDadoVivo && modo !== 'web' && !ficha) { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
@@ -1609,7 +1617,30 @@ function geminiComGoogleSemDetalhe(sistema, historico) {
 }
 
 /* ---------- programadora: editar por trechos, testar e corrigir antes de entregar (o jeito do Claude) ---------- */
-const REGRA_EDICAO = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.';
+const REGRA_EDICAO_BASE = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.';
+/* v89: PROVAS do app (igual os testes que o Claude roda): ela escreve, o Mac roda a cada mudança, ficam guardadas por app. */
+const REGRA_PROVAS = '\n\n### PROVAS DO APP (obrigatório)\nDepois dos trechos, escreva provas do que o Thiago pediu num bloco ```provas com JSON (lista). Cada prova: {"nome":"o que confere","passos":[{"clicar":"seletor"},{"preencher":"seletor","valor":"1000"},{"escolher":"seletor","valor":"12"},{"teclas":"Enter"},{"esperar":300},{"js":"código que roda na página"}],"conferir":[{"texto":"seletor","contem":"83,37"},{"js":"código que devolve true se está certo ou um texto dizendo o que está errado"}]}.\n- Use SÓ seletores (id/classe) que existem no código do app.\n- O app abre do zero (nada salvo): tutorial/aviso na frente → feche no primeiro passo.\n- Conta: o js lê os números da tela e calcula (ex.: somar as parcelas e comparar com o total no centavo). Nunca escreva o resultado esperado de cabeça.\n- A prova tem que FALHAR no defeito que o Thiago contou e passar quando estiver certo. 1 a 4 provas, curtas.';
+const REGRA_EDICAO = REGRA_EDICAO_BASE + REGRA_PROVAS;
+const RX_BLOCO_PROVAS = /```provas[^\n]*\n([\s\S]*?)```/gi;
+function extrairProvas_(texto) {
+  const out = [];
+  String(texto || '').replace(RX_BLOCO_PROVAS, (m, json) => {
+    try { const j = JSON.parse(json); (Array.isArray(j) ? j : [j]).forEach(p => { if (p && p.nome && (Array.isArray(p.conferir) && p.conferir.length)) out.push({ nome: String(p.nome).slice(0, 100), passos: Array.isArray(p.passos) ? p.passos.slice(0, 30) : [], conferir: p.conferir.slice(0, 20) }); }); } catch (e) { /* bloco inválido: ignora */ }
+    return m;
+  });
+  return out.slice(0, 6);
+}
+function provasDoApp(slug) {
+  if (!slug) return [];
+  try { return linhas('provas_apps').filter(l => l[0] === slug && String(l[5]) !== 'nao').map(l => { try { return JSON.parse(l[2]); } catch (e) { return null; } }).filter(Boolean).slice(-20); } catch (e) { return []; }
+}
+function guardarProvas_(slug, provas, origem) {
+  if (!slug || !provas.length) return 0;
+  const ja = linhas('provas_apps').filter(l => l[0] === slug).map(l => normalizar(l[1]));
+  let n = 0;
+  provas.forEach(p => { if (ja.indexOf(normalizar(p.nome)) < 0) { aba('provas_apps').appendRow([slug, seguro(p.nome), JSON.stringify(p), "'" + agora(), origem || 'zicoai', 'sim']); n++; } });
+  return n;
+}
 const RX_BLOCO_EDICAO = /<<<<<<< ?ANTES[^\n]*\n([\s\S]*?)\n?=======[^\n]*\n([\s\S]*?)\n?>>>>>>> ?DEPOIS/g;
 /** Aplica os blocos ANTES/DEPOIS no código. Cada ANTES tem que aparecer exatamente 1 vez (igual o Edit do Claude). */
 function aplicarTrechos(codigo, texto) {
@@ -1643,17 +1674,20 @@ function checarHtmlEstatico(html) {
   return erros;
 }
 /** Testa o app: sintaxe aqui; se o Mac estiver ligado, abre no Chromium dele (celular, clica nos botões) e pega os erros reais. */
-function testarApp(html) {
+function testarApp(html, provas) {
   const erros = checarHtmlEstatico(html);
-  let rodou = false, avisos = [];
+  let rodou = false, avisos = [], resProvas = [];
+  provas = Array.isArray(provas) ? provas : [];
   if (!erros.length) {
     try {
-      const r = ponte('testar_html', { html: html, largura: 390 }, 60000, 'mac');
+      const r = ponte('testar_html', { html: html, largura: 390, provas: provas }, provas.length ? 120000 : 60000, 'mac');
       rodou = true; TESTOU_AGORA++; (r.erros || []).forEach(e => erros.push('No navegador: ' + e)); avisos = r.avisos || [];
-      passo('Abriu o app no navegador do Mac (celular), clicou em ' + (r.botoesTestados || 0) + ' botão(ões): ' + (erros.length ? erros.length + ' erro(s)' : 'sem erro'));
-    } catch (e) { passo('Navegador do Mac indisponível (' + String(e.message).slice(0, 60) + '): conferiu só a sintaxe'); }
+      resProvas = Array.isArray(r.provas) ? r.provas : [];
+      if (provas.length && !resProvas.length) erros.push('As provas não rodaram (o teste do Mac está desatualizado: precisa do testar-html v2)');
+      passo('Abriu o app no navegador do Mac (celular), clicou em ' + (r.botoesTestados || 0) + ' botão(ões)' + (resProvas.length ? ', rodou ' + resProvas.length + ' prova(s): ' + resProvas.filter(x => x.ok).length + ' passaram' : '') + ': ' + (erros.length ? erros.length + ' erro(s)' : 'sem erro'));
+    } catch (e) { passo('Navegador do Mac indisponível (' + String(e.message).slice(0, 60) + '): conferiu só a sintaxe'); if (provas.length) erros.push('As provas não rodaram: Mac fora do ar'); }
   }
-  return { erros: erros, avisos: avisos, rodou: rodou };
+  return { erros: erros, avisos: avisos, rodou: rodou, provas: resProvas };
 }
 const MAX_CONSERTOS = 2;
 /** Pelo editor: confere se o Mac abre app no navegador (app bom e app com erro). */
@@ -1668,6 +1702,13 @@ function testarNavegadorMac() {
 function programadora(resultado, codigoApp, pergunta, slugApp) {
   // "✅ Testado" escrito pelo próprio cérebro não vale: quem diz se testou é o selo do teste
   let texto = String(resultado.texto || '').replace(/^[^\n]*✅\s*Testad[^\n]*\n?/gmi, '');
+  // v89: provas novas que ela escreveu pra este pedido (saem do texto; vão pro teste do Mac)
+  const provasNovas = extrairProvas_(texto);
+  texto = texto.replace(RX_BLOCO_PROVAS, '').replace(/\n{3,}/g, '\n\n').trim();
+  const provasVelhas = provasDoApp(slugApp);
+  const provas = provasVelhas.filter(v => !provasNovas.some(n => normalizar(n.nome) === normalizar(v.nome))).concat(provasNovas);
+  if (provasNovas.length) passo('Escreveu ' + provasNovas.length + ' prova(s) nova(s) pro pedido' + (provasVelhas.length ? ' + ' + provasVelhas.length + ' antiga(s) do app' : ''));
+  else if (codigoApp) passo('⚠️ Não escreveu prova pro pedido' + (provasVelhas.length ? ' (roda as ' + provasVelhas.length + ' antigas do app)' : ''));
   // resposta cortada no limite de saída (```html aberto e nunca fechado): pede a continuação e cola
   const abre = texto.search(/```html[^\n]*\n/i);
   if (abre >= 0 && !/```html[^\n]*\n[\s\S]*?```/i.test(texto)) {
@@ -1695,8 +1736,13 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
     if (erroJs) passo('Conferiu o código: ' + erroJs);
     return resultado;
   }
-  let teste = testarApp(html), voltas = 0;
-  while (teste.erros.length && voltas < MAX_CONSERTOS) {
+  // a prova nova pega o defeito? (tem que FALHAR no código antigo; se passa nele, não serve pra conferir o conserto)
+  let provaFraca = [];
+  if (codigoApp && provasNovas.length && Date.now() - INICIO_REQ < 150000) {
+    try { const antes = testarApp(codigoApp, provasNovas); provaFraca = (antes.provas || []).filter(x => x.ok).map(x => x.nome); if (provaFraca.length) passo('⚠️ Prova que já passava no código antigo (não pega o defeito): ' + provaFraca.join(', ')); else if ((antes.provas || []).length) passo('As provas novas falharam no código antigo (pegam o defeito) ✅'); } catch (e) { /* segue */ }
+  }
+  let teste = testarApp(html, provas), voltas = 0;
+  while (teste.erros.length && voltas < MAX_CONSERTOS && Date.now() - INICIO_REQ < 170000) {   // 6 min do Google: conserto (cérebro + teste) leva até 2 min, então não começa depois de ~3 min
     voltas++;
     passo('Teste achou ' + teste.erros.length + ' erro(s), consertando (' + voltas + '/' + MAX_CONSERTOS + ')');
     const r = consertarCodigo(html, ['O teste achou estes erros no app:'].concat(teste.erros.map(e => '- ' + e)), pergunta);
@@ -1705,12 +1751,14 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
     const ed = aplicarTrechos(html, r.texto);
     if (ed.ok) novo = ed.codigo; else { const inteiro = extrairHtml(r.texto); if (inteiro && inteiro.length > html.length * 0.6) novo = inteiro; }
     if (!novo) { passo('Conserto não aplicou'); break; }
-    html = novo; teste = testarApp(html);
+    html = novo; teste = testarApp(html, provas);
   }
+  const provasOk = (teste.provas || []).filter(x => x.ok);
+  if (!teste.erros.length && slugApp && provasNovas.length) { const g = guardarProvas_(slugApp, provasNovas.filter(p => provaFraca.indexOf(p.nome) < 0), 'zicoai'); if (g) passo('Guardou ' + g + ' prova(s) nova(s) do app: rodam em toda mudança daqui pra frente'); }
   const cortado = teste.erros.some(e => /cortad|terminou no meio/i.test(e));
   const selo = teste.erros.length
     ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ') + (cortado ? '\n\n❌ **Não ficou pronto**: o arquivo veio cortado. Não publica; pede "continua" ou "refaz" que eu tento de novo.' : '\n\n❌ **Não ficou pronto**: ainda tem erro. Não publica; me manda "corrige" que eu tento de novo.')
-    : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
+    : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (provasOk.length ? ' Passou nas ' + provasOk.length + ' prova(s): ' + provasOk.map(x => x.nome).join(' · ') + '.' : '') + (codigoApp && !provas.length ? ' ⚠️ Sem prova de conta/comportamento: confere o que vc pediu no Testar.' : '') + (provaFraca.length ? ' ⚠️ A prova "' + provaFraca[0] + '" já passava antes do conserto: ela não prova que o defeito sumiu.' : '') + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
   html = String(html).replace(/\s+$/, '');
   const veioPorTrechos = codigoApp && explicacao !== texto;
   // app que já existe (repo ou site): a versão completa vira RASCUNHO; o chat mostra só o que mudou
@@ -1745,7 +1793,7 @@ function continuarCortado(parcial, pergunta) {
 function consertarCodigo(codigo, problemas, pergunta, respostaAnterior) {
   const msg = 'PEDIDO ORIGINAL DO THIAGO:\n' + String(pergunta).slice(0, 3000) + '\n\nCÓDIGO ATUAL:\n```html\n' + String(codigo).slice(0, 150000) + '\n```\n\n' + problemas.join('\n') +
     (respostaAnterior ? '\n\nSUA RESPOSTA ANTERIOR:\n' + String(respostaAnterior).slice(0, 8000) : '') + '\n\nConserte com BLOCOS DE EDIÇÃO (ANTES/DEPOIS). Ache a causa de verdade (leia o código), não esconda o erro com try/catch.';
-  const r = conversar([{ role: 'user', content: msg }], 'consertar código: ' + String(pergunta).slice(0, 200), null, 'auto', REGRA_EDICAO, true);
+  const r = conversar([{ role: 'user', content: msg }], 'consertar código: ' + String(pergunta).slice(0, 200), null, 'auto', REGRA_EDICAO_BASE, true);
   return r && r.ok ? r : null;
 }
 
@@ -1904,6 +1952,14 @@ function montarSistema(pergunta, enxuto) {
     .replace('{AMANHA}', Utilities.formatDate(amanhaD, FUSO, 'EEEE, dd/MM/yyyy') + ' (' + Utilities.formatDate(amanhaD, FUSO, 'yyyy-MM-dd') + ')')
     .split('{VERSAO}').join(VERSAO_CEREBRO);
 
+  if (EDITANDO_APP) {   // v89: programando num app: dólar, preço de iPhone e memória da loja só atrapalham (e gastam o limite)
+    const aprC = relevantes(linhas('aprendizados'), pergunta, 5, l => l[1] + ' ' + l[2] + ' ' + l[3]);
+    const perfC = (ehDono() ? linhas('perfil') : []).filter(l => /como responder/i.test(l[0]));
+    if (perfC.length) s += '\n\n### PERFIL DO THIAGO\n' + perfC.map(l => '- [' + l[0] + '] ' + l[1]).join('\n');
+    if (aprC.length) s += '\n\n### APRENDIZADOS (erros que já aconteceram e o jeito certo)\n' + aprC.map(l => '- ERRO: ' + l[1] + ' → CERTO: ' + l[2]).join('\n');
+    passo('Programando num app: usou só o jeito de responder e ' + aprC.length + ' aprendizado(s) (sem memória, preços nem base da loja)');
+    return s;
+  }
   const perfil = ehDono() ? linhas('perfil') : [];
   const perfilUsado = (enxuto || modoCliente) ? perfil.filter(l => /como responder|^loja$/i.test(l[0])) : perfil;
   if (perfilUsado.length) s += '\n\n### PERFIL DO THIAGO\n' + perfilUsado.map(l => '- [' + l[0] + '] ' + l[1]).join('\n');
