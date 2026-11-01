@@ -1,0 +1,72 @@
+{
+  "name": "zicoai",
+  "productName": "ZicoAI",
+  "version": "1.0.0",
+  "description": "ZicoAI no computador (janela própria, igual o app do Claude)",
+  "main": "main.js",
+  "author": "Zicão Store",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dist": "electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "io.github.thiagogaldinozicao-source.zicoai",
+    "productName": "ZicoAI",
+    "files": [
+      "main.js",
+      "offline.html",
+      "build/icon.png"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ZicoAI",
+      "artifactName": "ZicoAI-Setup.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "A ZicoAI usa o microfone quando você aperta pra falar com ela."
+      }
+    },
+    "dmg": {
+      "artifactName": "ZicoAI-Mac.${ext}"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thiagogaldinozicao-source/thiagogaldinozicao-source.github.io.git"
+  }
+}

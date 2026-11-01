@@ -409,6 +409,25 @@ header{display:flex}
 .menu-topo button{display:flex;gap:10px;align-items:center;font-size:15px}
 .menu-topo hr{border:none;border-top:1px solid var(--borda2);margin:4px 6px}
 .menu-topo .perigo{color:var(--erro)}
+.menu-topo .so-cel{display:none}
+.menu-topo.sem-conv .conv-so{display:none}
+/* v46: iPhone/Android (tela estreita): topo limpo, sem faixa grudada em cima, botões com tamanho de dedo, erro curto */
+@media (max-width:599px){
+  #bNav,#bPainel{display:none}
+  .menu-topo .so-cel{display:flex}
+  header{gap:2px}
+  header .titulo{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .resumo-topo{display:none!important}
+  .acoes-msg button{min-height:40px;min-width:40px;justify-content:center}
+  .acoes-msg{gap:2px;flex-wrap:wrap}
+  .dica{font-size:10px;opacity:.7}
+}
+.erro-amigo{display:block;font-size:15px;line-height:1.5}
+.erro-amigo b{display:block;margin-bottom:4px}
+.erro-faz{color:var(--txt)}
+.erro-det{margin-top:8px;font-size:12px;color:var(--cinza)}
+.erro-det summary{cursor:pointer;min-height:32px;display:flex;align-items:center}
+.erro-det div{margin-top:4px;word-break:break-word}
 .menu-topo button span{display:inline;font-size:inherit;color:inherit}
 .chat-item .pin{color:var(--ouro);font-size:12px;flex-shrink:0}
 .chat-item .gira{width:12px;height:12px;border:2px solid var(--borda2);border-top-color:var(--ouro);border-radius:50%;animation:gira 1s linear infinite;flex-shrink:0}
@@ -703,14 +722,16 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 
 <div class="menu menu-topo" id="menuConv">
   <button id="mcNova">Nova conversa</button>
-  <hr>
-  <button id="mcFixar"><span>Fixar</span></button>
-  <hr>
-  <button id="mcCompartilhar">⇪ Compartilhar</button>
-  <button id="mcRenomear">✎ Renomear</button>
-  <button id="mcProjeto">📁 Mudar projeto</button>
-  <hr>
-  <button id="mcExcluir" class="perigo">🗑 Excluir</button>
+  <button id="mcNav" class="so-cel">🌐 Navegador da ZicoAI</button>
+  <button id="mcPainel" class="so-cel">◫ Progresso e saídas</button>
+  <hr class="conv-so">
+  <button id="mcFixar" class="conv-so"><span>Fixar</span></button>
+  <hr class="conv-so">
+  <button id="mcCompartilhar" class="conv-so">⇪ Compartilhar</button>
+  <button id="mcRenomear" class="conv-so">✎ Renomear</button>
+  <button id="mcProjeto" class="conv-so">📁 Mudar projeto</button>
+  <hr class="conv-so">
+  <button id="mcExcluir" class="perigo conv-so">🗑 Excluir</button>
 </div>
 
 <div class="modal" id="mProj">
@@ -1453,7 +1474,8 @@ function balao(m, ultima){
   }
   const md = document.createElement('div');
   md.className = 'md';
-  md.innerHTML = cartaoRascunho(renderMd(m.content));   // depois do markdown: funciona com e sem as bibliotecas
+  if(m.erro){ md.innerHTML = erroAmigo(m.content); }   // v46: erro em 1 frase que dá pra entender + o detalhe técnico escondido
+  else md.innerHTML = cartaoRascunho(renderMd(m.content));   // depois do markdown: funciona com e sem as bibliotecas
   corpo.appendChild(md);
   trataImagens(corpo);
   const cartao = cartaoOpcoes(m); if(cartao) corpo.appendChild(cartao);
@@ -1494,6 +1516,21 @@ function balao(m, ultima){
   corpo.appendChild(ac);
   if(corpo._fb) corpo.appendChild(corpo._fb);
   return d;
+}
+/** v46: erro cru ("Gemini: conversa grande demais pro plano grátis | Mistral: …") vira 1 frase com o que fazer. */
+function erroAmigo(t){
+  const cru = String(t || '').replace(/^⚠️\s*/, '');
+  const regras = [
+    [/conversa grande demais|limite de tokens|too large|context length/i, 'A conversa ficou grande demais pros cérebros grátis.', 'Abre uma conversa nova (☰ → Nova conversa) e manda de novo.'],
+    [/failed to fetch|load failed|conexão caiu|networkerror|a resposta não chegou/i, 'A conexão caiu no meio.', 'Ela pode ter terminado: espera uns segundos ou toca em Refazer.'],
+    [/ainda tô trabalhando no seu pedido anterior/i, 'Ela ainda tá trabalhando no pedido anterior desta conversa.', 'Espera a resposta chegar (até uns 5 min) antes de mandar outro aqui.'],
+    [/limite|quota|429|castigo|do minuto|do dia/i, 'Os cérebros grátis bateram o limite agora.', 'Espera 1 minuto e toca em Refazer.'],
+    [/PIN errado|segredo errado|convite/i, 'O acesso não foi aceito.', 'Confere o PIN em Configurar.'],
+    [/parei|cancelad/i, 'Vc parou a resposta.', 'Toca em Refazer pra mandar de novo.']
+  ];
+  const r = regras.find(x => x[0].test(cru));
+  if(!r) return '<span class="erro-amigo"><b>⚠️ Não deu pra responder.</b>' + esc(cru.slice(0, 300)) + '</span>';
+  return '<span class="erro-amigo"><b>⚠️ ' + r[1] + '</b><span class="erro-faz">' + r[2] + '</span></span><details class="erro-det"><summary>Ver detalhe</summary><div>' + esc(cru.slice(0, 1200)) + '</div></details>';
 }
 async function enviaFeedback(m, nota, comentario, up, down, caixa){
   up.classList.toggle('on', nota === 'up'); down.classList.toggle('on', nota === 'down');
@@ -2207,10 +2244,14 @@ $('bConv').onclick = e => {
   const m = $('menuConv');
   if(m.style.display === 'block'){ fechaMenuConv(); return; }
   const c = chats.find(x => x.id === atual);
-  if(!c){ alert('Abre ou começa uma conversa primeiro.'); return; }
-  $('mcFixar').querySelector('span').textContent = c.fixada ? 'Desafixar' : 'Fixar';
+  const cel = matchMedia('(max-width:599px)').matches;
+  if(!c && !cel){ alert('Abre ou começa uma conversa primeiro.'); return; }
+  m.classList.toggle('sem-conv', !c);   // v46: no celular o ⋯ também abre navegador e painel, mesmo sem conversa
+  if(c) $('mcFixar').querySelector('span').textContent = c.fixada ? 'Desafixar' : 'Fixar';
   m.style.display = 'block';
 };
+$('mcNav').onclick = () => { fechaMenuConv(); $('bNav').onclick(); };
+$('mcPainel').onclick = () => { fechaMenuConv(); $('bPainel').onclick(); };
 document.addEventListener('click', e => { if(!e.target.closest('#menuConv')) fechaMenuConv(); });
 async function metaConversa(campos){
   const c = chats.find(x => x.id === atual); if(!c) return;
@@ -2896,7 +2937,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v45';
+const VERSAO_APP = 'zicoai-v46';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

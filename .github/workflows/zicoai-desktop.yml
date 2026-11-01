@@ -1,0 +1,42 @@
+name: Gerar app da ZicoAI pro computador (Windows e Mac)
+on:
+  push:
+    paths: ["zicoai/desktop/**", ".github/workflows/zicoai-desktop.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: { group: zicoai-desktop, cancel-in-progress: true }
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Monta o app
+        working-directory: zicoai/desktop
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
+        run: npm i --no-audit --no-fund && npx electron-builder --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zicoai-${{ matrix.os }}
+          path: |
+            zicoai/desktop/dist/ZicoAI-Setup.exe
+            zicoai/desktop/dist/ZicoAI-Mac.dmg
+          if-no-files-found: ignore
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: arq, merge-multiple: true }
+      - name: Publica (link fixo: releases/latest/download/…)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          ls -la arq
+          gh release create "zicoai-pc-${{ github.run_number }}" arq/* -R "${{ github.repository }}" --latest \
+            --title "ZicoAI pro computador (build ${{ github.run_number }})" \
+            --notes "Windows: ZicoAI-Setup.exe (se aparecer 'O Windows protegeu o computador': Mais informações → Executar assim mesmo). Mac: ZicoAI-Mac.dmg (1ª vez: clique com o botão direito → Abrir)."

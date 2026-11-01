@@ -1,0 +1,49 @@
+name: Gerar APK da ZicoAI (Android)
+on:
+  push:
+    paths: ["zicoai/android/build.txt", "zicoai/android/gera.js", ".github/workflows/zicoai-apk.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: { group: zicoai-apk, cancel-in-progress: false }
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Gera projeto
+        run: |
+          cd zicoai/android && npm i --no-save @bubblewrap/core@1 && VC=$(cat build.txt) node gera.js
+      - name: Compila
+        run: |
+          cd zicoai/android/twa && chmod +x gradlew && ./gradlew assembleRelease --no-daemon -q
+      - name: Assina (chave nova a cada build; só a parte pública vai pro repo)
+        run: |
+          BT=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
+          P=$(openssl rand -hex 16)
+          keytool -genkeypair -keystore k.jks -alias zicoai -keyalg RSA -keysize 2048 -validity 10000 -storepass $P -keypass $P -dname "CN=ZicoAI"
+          U=$(ls zicoai/android/twa/app/build/outputs/apk/release/*.apk | head -1)
+          $BT/zipalign -f -p 4 "$U" al.apk
+          $BT/apksigner sign --ks k.jks --ks-pass pass:$P --key-pass pass:$P --out zicoai/ZicoAI.apk al.apk
+          FP=$(keytool -list -keystore k.jks -storepass $P -alias zicoai | grep -o 'SHA-256): .*' | cut -d' ' -f2)
+          [ -n "$FP" ] || FP=$(keytool -list -v -keystore k.jks -storepass $P -alias zicoai | grep 'SHA256:' | awk '{print $2}')
+          echo "FP=$FP"
+          node -e '
+            const fs=require("fs"),f=".well-known/assetlinks.json",fp=process.argv[1],pk="io.github.thiagogaldinozicao_source.zicoai";
+            let a=JSON.parse(fs.readFileSync(f,"utf8"));
+            let e=a.find(x=>x.target&&x.target.package_name===pk);
+            if(!e){e={relation:["delegate_permission/common.handle_all_urls"],target:{namespace:"android_app",package_name:pk,sha256_cert_fingerprints:[]}};a.push(e);}
+            if(!e.target.sha256_cert_fingerprints.includes(fp))e.target.sha256_cert_fingerprints.push(fp);
+            e.target.sha256_cert_fingerprints=e.target.sha256_cert_fingerprints.slice(-5);
+            fs.writeFileSync(f,JSON.stringify(a,null,2)+"\n");' "$FP"
+          rm -f k.jks al.apk
+      - name: Publica
+        run: |
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add zicoai/ZicoAI.apk .well-known/assetlinks.json
+          git commit -m "APK da ZicoAI gerado (build $(cat zicoai/android/build.txt))"
+          for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done

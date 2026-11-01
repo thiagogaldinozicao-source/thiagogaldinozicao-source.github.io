@@ -1,0 +1,12 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>ZicoAI</title>
+<style>html,body{height:100%;margin:0;background:#0a0a0a;color:#eee;font-family:-apple-system,Segoe UI,Roboto,sans-serif;display:grid;place-items:center}
+.c{text-align:center;padding:24px}b{display:block;font-size:20px;margin-bottom:8px}p{color:#aaa;margin:0 0 18px}
+button{background:#e8b830;color:#111;border:0;border-radius:12px;padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer}</style></head>
+<body><div class="c"><b>Sem internet agora</b><p>A ZicoAI volta sozinha quando a conexão voltar.</p><button id="b">Tentar de novo</button></div>
+<script>
+var volta = new URLSearchParams(location.search).get('volta') || 'https://thiagogaldinozicao-source.github.io/zicoai/';
+function tenta(){ location.href = volta; }
+document.getElementById('b').onclick = tenta;
+window.addEventListener('online', tenta);
+setInterval(function(){ if (navigator.onLine) fetch(volta, { method: 'HEAD', cache: 'no-store' }).then(tenta).catch(function(){}); }, 15000);
+</script></body></html>

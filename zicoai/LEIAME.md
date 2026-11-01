@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v46 + APK Android + app do computador (01/11)
+- App v46 (celular, até 599 px): topo só com ☰, título, aparelhos e ⋯ (🌐 Navegador e ◫ Progresso e saídas foram pro ⋯, que abre mesmo sem conversa); sem a faixa grudada "… · N passos" em cima; botões das mensagens com 40 px; erro vira 1 frase + o que fazer (`erroAmigo`) com "Ver detalhe".
+- **Android**: `zicoai/android/gera.js` + `.github/workflows/zicoai-apk.yml` (Bubblewrap/TWA = Chrome em tela cheia, mesmo app do site, atualiza sozinho). Gera `zicoai/ZicoAI.apk` e põe a digital em `/.well-known/assetlinks.json` (pacote io.github.thiagogaldinozicao_source.zicoai). Chave nova a cada build: atualizar = desinstalar e instalar (o login fica no Chrome). Novo build: aumentar `zicoai/android/build.txt`.
+- **Computador**: `zicoai/desktop` (Electron 33: janela própria, lembra tamanho, microfone liberado só pro app, link de fora abre no navegador, tela "sem internet" que volta sozinha). `.github/workflows/zicoai-desktop.yml` gera `ZicoAI-Setup.exe` (Windows) e `ZicoAI-Mac.dmg` (Mac M) num Release; link fixo `…/releases/latest/download/ZicoAI-Setup.exe`. Sem assinatura: Windows avisa (Mais informações → Executar assim mesmo); Mac: botão direito → Abrir.
+
 ## v91 + app v45 + mac/testar-html.js v3 (01/11): calculadora sem desastre
 - Caso real 12:20–12:22: Thiago mandou "corrige" com o pedido anterior rodando → 2 pedidos no mesmo rascunho; um devolveu OUTRO app ("Orçamento", 29 mil letras) no lugar da calculadora (116 mil), virou rascunho com "✅ testei"; o outro mexeu em `parcCalc` (conta certa) em vez da tabela; o teste não clicava em nada (tutorial "Bem-vindo… Entendi" tampando); a prévia reclamou de `<img src="">`.
 - `chat()` = trava por conversa (`chat_rodando_<id>` no cache, 380 s; conversa nova não trava) → `chatSemTrava()`. Resposta `{ok:false, ocupada:true}`.
