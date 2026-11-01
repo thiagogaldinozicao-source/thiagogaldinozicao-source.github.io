@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v73 (31/10): Mistral grátis com fila de 1 pedido por segundo
+- `rps: 1` no Mistral: `esperarRitmo` (LockService + cache `ritmo_<nome>`) faz os agentes em paralelo esperarem a vez (~1,15 s entre pedidos). 429 de limite por segundo: espera (Retry-After, 1,2–3 s) e tenta 1 vez; 429 de cota do mês/plano troca de cérebro na hora. Teste t51.
+- Pra usar: chave comum do console da Mistral (La Plateforme › API Keys, plano grátis), não a do Vibe; colar em MISTRAL_KEY.
+
 ## v72 + app v32 + ponte mac-1.9 (31/10): navegador com abas, toque marcado e teclado
 - Abas: novaAba/trocarAba/fecharAba; link que abre aba nova vira a ativa; toda resposta traz a lista de abas e se o toque caiu num campo (`foco` → o app abre o teclado).
 - Digitar: "Ir" do teclado = escreve + Enter; ✎ só escreve; ⌫ apaga. Toque deixa uma marca dourada na hora. Clique espera menos (0,7 s).

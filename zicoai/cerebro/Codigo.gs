@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 72 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 73 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -32,7 +32,7 @@ const CEREBROS = {
   github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true, aposentado: true },
   // Mistral "Experiment" (grátis, sem cartão)
   // O plano grátis dá 429 ("capacity exceeded") no medium com frequência; o small (também lê foto) tem mais vaga. Lotado → tenta o reserva.
-  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-small-latest', reserva: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, opcional: true },
+  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-small-latest', reserva: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, rps: 1, opcional: true },   // grátis: 1 pedido por segundo (vários agentes juntos fazem fila)
   // NVIDIA NIM (grátis, ~40 pedidos/min). O gpt-oss-120b saiu do ar lá em 03/09/2026 (erro 410).
   // Se o modelo principal sair do ar (404/410), tenta o "reserva" sozinho.
   nvidia:   { url: 'https://integrate.api.nvidia.com/v1/chat/completions', chave: 'NVIDIA_KEY', modelo: 'nvidia/nemotron-3.5-super-vl-120b-a12b', reserva: 'google/gemma-4-31b-it', nome: 'NVIDIA Nemotron 120B', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 30, rpd: 3000, opcional: true },
@@ -890,6 +890,18 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   return { ok: false, erro: 'Nenhum cérebro respondeu agora. ' + erros.join(' | ') };
 }
 
+/** Fila entre execuções ao mesmo tempo (agentes em paralelo): garante o intervalo mínimo entre pedidos pro mesmo cérebro. */
+function esperarRitmo(c) {
+  const passoMs = Math.ceil(1000 / c.rps) + 150, k = 'ritmo_' + c.nome, cache = CacheService.getScriptCache();
+  const trava = LockService.getScriptLock();
+  let pegou = false;
+  try { pegou = trava.tryLock(10000); } catch (e) { pegou = false; }
+  try {
+    const ultimo = Number(cache.get(k) || 0), falta = ultimo + passoMs - Date.now();
+    if (falta > 0) Utilities.sleep(Math.min(falta, 3000));
+    cache.put(k, String(Date.now()), 60);
+  } finally { if (pegou) try { trava.releaseLock(); } catch (e) { /* ok */ } }
+}
 function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
   if (c.viaPonte) {   // cérebro do Mac: vai pela ponte até o Ollama dele (foto não vai: o modelo do Mac não enxerga)
     const limpas = msgs.map(m => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter(x => x.type === 'text').map(x => x.text).join('\n') : String(m.content || '') }));
@@ -908,7 +920,15 @@ function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
   // models.github.ai bloqueia os servidores do Google (responde "OK" em texto). Com o atalho do Cloudflare (PROXY_URL + PROXY_SEGREDO) a chamada vai por lá.
   const viaProxy = /models\.github\.ai/.test(url) && prop('PROXY_URL') && prop('PROXY_SEGREDO');
   if (viaProxy) { cab['X-Zico-Key'] = prop('PROXY_SEGREDO'); url = String(prop('PROXY_URL')).replace(/\/+$/, '') + '/?alvo=' + encodeURIComponent(url); }
-  const r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true, followRedirects: true });
+  const pedir = () => { if (c.rps) esperarRitmo(c); return UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true, followRedirects: true }); };
+  let r = pedir();
+  // limite por SEGUNDO (Mistral grátis): espera o que ele pedir (até 3 s) e tenta 1 vez de novo antes de trocar de cérebro
+  if (c.rps && r.getResponseCode() === 429 && !/capacity|tier|overloaded|month|quota/i.test(r.getContentText())) {
+    const h = r.getHeaders ? r.getHeaders() : {}; const ra = Number(h['Retry-After'] || h['retry-after'] || 0);
+    Utilities.sleep(Math.min(3000, Math.max(1200, ra * 1000)));
+    passo(c.nome + ': esbarrou no limite de 1 pedido por segundo, esperou e tentou de novo');
+    r = pedir();
+  }
   if (c.local && /<html/i.test(r.getContentText().slice(0, 200))) throw new Error(c.nome + ' fora do ar');
   const cod = r.getResponseCode();
   const txt = r.getContentText();
