@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 96 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 97 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -1822,7 +1822,8 @@ const MAX_CONSERTOS = 2;
  *  exercícios; o placar (aba academia) decide quem vai primeiro quando ela mexe num app de verdade.
  * ============================================================ */
 const ACADEMIA_URL = () => 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/zicoai/academia/exercicios.json';   // função: GITHUB_REPO é declarado mais abaixo
-const ACADEMIA_CEREBROS = ['gemini', 'mistral', 'nvidia', 'zai', 'pc'];   // Gemini Flash fica de fora: a cota (~18/dia) é do Thiago
+// v97: metade das rodadas é do NOSSO cérebro (Mac 24h; PC quando liga) — é ele que a gente treina. Gemini Flash fica de fora (cota do Thiago).
+const ACADEMIA_CEREBROS = ['mac', 'gemini', 'pc', 'mistral', 'mac', 'nvidia', 'pc', 'zai'];
 const NOTA_PADRAO_CODIGO = { geminiForte: 0.9, gemini: 0.5, mistral: 0.45, nvidia: 0.4, zai: 0.35 };
 function exerciciosAcademia_() {
   const c = CacheService.getScriptCache(), k = 'academia_ex';
@@ -1860,7 +1861,7 @@ function treinoCodigo(evento, forcar) {
   try {
     PASSOS = []; INICIO_REQ = Date.now(); EDITANDO_APP = true; TESTOU_AGORA = 0; CHAT_ATUAL = null;
     const ex = exerciciosAcademia_();
-    const cands = ACADEMIA_CEREBROS.filter(n => n === 'pc' ? !!cerebroPCPonte() : temCerebro(n));
+    const cands = ACADEMIA_CEREBROS.filter(n => n === 'pc' ? !!cerebroPCPonte() : n === 'mac' ? temCerebro('mac') : temCerebro(n));
     if (!ex.length || !cands.length) return { ok: false, erro: 'sem exercício ou sem cérebro' };
     const props = PropertiesService.getScriptProperties();
     const n = Number(props.getProperty('ACADEMIA_N') || 0);
@@ -1894,6 +1895,10 @@ function treinoCodigo(evento, forcar) {
     }
     const quem = (res && res.cerebro) || (CEREBROS[cer] || {}).nome || cer;
     aba('academia').appendRow(["'" + agora(), e.id, quem, passou, "'" + provasTxt, Math.round((Date.now() - t0) / 1000), seguro(detalhe || 'ok')]);
+    // v97: conserto de cérebro grande que PASSOU nas provas escondidas vira aula de treino pro NOSSO (destilação aprovada pela prova, não por juiz)
+    if (passou === 'sim' && res && res.texto && !/Mac|PC|GPT|Groq|Cerebras|Claude/i.test(quem)) {
+      try { aba('destilacao').appendRow(["'" + agora(), seguro((e.pedido + '\n[academia:' + e.id + ']').slice(0, 4000)), '', seguro(String(res.texto).slice(0, 6000)), quem + ' (academia)', 'codigo', 'aprovada']); } catch (err) { /* ok */ }
+    }
     return { ok: true, exercicio: e.id, cerebro: quem, passou: passou, provas: provasTxt, detalhe: detalhe, passos: PASSOS.slice(-12) };
   } finally { c.remove('academia_rodando'); }
 }

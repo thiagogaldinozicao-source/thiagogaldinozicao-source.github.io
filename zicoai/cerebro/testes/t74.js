@@ -15,7 +15,7 @@ H.setFetch((u, o) => {
 });
 // Mac de mentira: roda as provas de verdade? aqui simula: passa se o conserto certo está no html
 run(`var _ultProvas = null; ponte = function(acao, d){ if (acao !== 'testar_html') return {}; _ultProvas = d.provas; var bom = /brl\\(total \\/ n\\)/.test(d.html); return { erros: [], avisos: [], botoesTestados: 1, provas: (d.provas||[]).map(function(p){ return { nome: p.nome, ok: bom, detalhe: bom ? '' : 'mostra R$ 110,00' }; }) }; };`);
-H.PROPS.ACADEMIA_N = '0';
+H.PROPS.ACADEMIA_N = '0';   // no teste só o Gemini tem chave (Mac/PC fora): rodada 0 = gorjeta
 // conserto certo
 resposta = 'Faltava dividir pelas pessoas.\n<<<<<<< ANTES\n' + G.conserto[0][0] + '\n=======\n' + G.conserto[0][1] + '\n>>>>>>> DEPOIS';
 let r = run('treinoCodigo(null, true)');
@@ -39,4 +39,6 @@ const hoje = run("Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd HH:mm:ss')"
 for (let i = 0; i < 4; i++) { H.sheets.academia.rows.push([hoje, 'x', 'Mistral', 'sim', '2/2', 10, 'ok']); H.sheets.academia.rows.push([hoje, 'x', 'Gemini', 'não', '0/2', 10, 'erro']); }
 const ordem = run("ordemPelaAcademia_(['gemini', 'mistral', 'nvidia'])");
 ok(ordem[0] === 'mistral' && ordem.indexOf('gemini') > ordem.indexOf('nvidia'), 'quem acertou mais na academia vai primeiro: ' + ordem.join(' → '));
-ok(/versão (9[6-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 96 ou mais nova');
+ok(H.sheets.destilacao && H.sheets.destilacao.rows.some(l => /\[academia:gorjeta-por-pessoa\]/.test(l[1]) && l[6] === 'aprovada' && l[5] === 'codigo'), 'conserto aprovado pelas provas vira treino pro nosso cérebro (destilação)');
+ok(run('ACADEMIA_CEREBROS.filter(function(n){ return n === "mac" || n === "pc"; }).length') * 2 >= run('ACADEMIA_CEREBROS.length'), 'metade das rodadas é do nosso cérebro (Mac/PC)');
+ok(/versão (9[7-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 97 ou mais nova');

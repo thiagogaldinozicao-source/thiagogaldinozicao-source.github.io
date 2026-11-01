@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v97 (01/11): academia focada no NOSSO cérebro
+- Metade das rodadas é do Mac (qwen, 24h) e do PC (quando liga): `ACADEMIA_CEREBROS = ['mac','gemini','pc','mistral','mac','nvidia','pc','zai']`. É o nosso que a gente treina; os grandes servem de professor.
+- Conserto de cérebro grande (Gemini/Mistral/NVIDIA/Z.ai; nunca GPT/Groq/Claude) que PASSOU nas provas escondidas vai pra `destilacao` (tipo `codigo`, status `aprovada`, pergunta com `[academia:<id>]`): treino do nosso aprovado pela prova, não por juiz. O placar do Mac/PC na aba `academia` mostra se o nosso está melhorando. t74.
+
 ## v96 (01/11): ACADEMIA DE CÓDIGO (treina sozinha de madrugada)
 - `zicoai/academia/exercicios.json` (gerado por `gera.py`): 6 apps com UM defeito de verdade + provas ESCONDIDAS + o conserto de referência (só pra conferir que a prova pega o defeito): gorjeta por pessoa, lista apaga o item errado, dólar com vírgula (parseInt), estoque negativo, desconto em %, e a calculadora real (repo Calculadora-do-zicao no commit b4c7bf6, tabela 12x). Conferido com o testar-html v3: com defeito reprova, consertado passa.
 - `treinoCodigo()` (gatilho de hora em hora; só roda das 23h às 7h, ou `acao: 'treinoCodigo'` do dono na hora): 1 exercício × 1 cérebro por rodada (Gemini, Mistral, NVIDIA, Z.ai, PC; o Gemini Flash fica de fora pra não gastar a cota do dia). Ela recebe só o PEDIDO + o código (com foco), passa pela `programadora` igual a vida real, e a nota é das provas escondidas no Mac. Aba `academia` (Data, Exercício, Cérebro, Passou, Provas, Segundos, Detalhe). App que encolheu = reprovado; Mac fora = "sem teste" (não conta).
