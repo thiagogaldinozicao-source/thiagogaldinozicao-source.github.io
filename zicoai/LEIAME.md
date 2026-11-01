@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v96 (01/11): ACADEMIA DE CÓDIGO (treina sozinha de madrugada)
+- `zicoai/academia/exercicios.json` (gerado por `gera.py`): 6 apps com UM defeito de verdade + provas ESCONDIDAS + o conserto de referência (só pra conferir que a prova pega o defeito): gorjeta por pessoa, lista apaga o item errado, dólar com vírgula (parseInt), estoque negativo, desconto em %, e a calculadora real (repo Calculadora-do-zicao no commit b4c7bf6, tabela 12x). Conferido com o testar-html v3: com defeito reprova, consertado passa.
+- `treinoCodigo()` (gatilho de hora em hora; só roda das 23h às 7h, ou `acao: 'treinoCodigo'` do dono na hora): 1 exercício × 1 cérebro por rodada (Gemini, Mistral, NVIDIA, Z.ai, PC; o Gemini Flash fica de fora pra não gastar a cota do dia). Ela recebe só o PEDIDO + o código (com foco), passa pela `programadora` igual a vida real, e a nota é das provas escondidas no Mac. Aba `academia` (Data, Exercício, Cérebro, Passou, Provas, Segundos, Detalhe). App que encolheu = reprovado; Mac fora = "sem teste" (não conta).
+- `ordemPelaAcademia_`: quando ela mexe num app de verdade, o cérebro que mais acertou na academia (≥ 3 tentativas, 30 dias) vai primeiro. Ação `academia` mostra o placar. t74; t22 ajustado.
+
 ## v95 + extensão 2.8 (01/11): ela VÊ a imagem da página sozinha
 - Extensão 2.8: ação `imagens` (pega as imagens de verdade da página, mais recentes/visíveis primeiro, até 1600 px, JPEG dentro do limite; imagem protegida → erro e cai no print).
 - Chat pelo painel: pedido que precisa ver imagem (`RX_PEDE_IMAGEM`: imagem, foto, print, QR, "lê a…", MAC, key, ativação, comprovante) → `ponte('imagens')` → vira a foto da pergunta (cérebro que enxerga); sem imagem legível → `ponte('print')` da aba. Nada de pedir pro Thiago mandar print ou tocar em "Usar esta página" (regra no aviso da extensão: "VOCÊ TEM AS MÃOS NO CHROME DELE").

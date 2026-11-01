@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 95 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 96 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -281,6 +281,7 @@ function marcarPCdesligado() { CacheService.getScriptCache().put('pc_off', '1', 
 
 const ABAS = {
   provas_apps:  ['App', 'Nome', 'Prova (JSON)', 'Criada', 'Origem', 'Ativa'],
+  academia:     ['Data', 'Exercício', 'Cérebro', 'Passou', 'Provas', 'Segundos', 'Detalhe'],
   memoria:      ['Data', 'Lembrança', 'Origem'],
   aprendizados: ['Data', 'Erro', 'Certo', 'Assunto'],
   perfil:       ['Tópico', 'Informação'],
@@ -654,7 +655,9 @@ function doPost(e) {
       case 'projetoArquivoLer': { const l = linhas('projeto_arquivos').find(x => x[0] === String(req.projeto) && x[1] === String(req.nome)); return saida(l ? { ok: true, conteudo: l[2] } : { ok: false, erro: 'Arquivo não encontrado' }); }
       case 'dispositivos':  return saida(dispositivos());
       case 'memorias':      return saida(listarMemorias());
-      case 'revisarMemoria': return saida(revisarMemoria());   // v90: marca as lembranças suspeitas (não apaga)
+      case 'revisarMemoria': return saida(revisarMemoria());
+      case 'academia':      return saida({ ok: true, placar: placarAcademia_(), ultimas: linhas('academia').slice(-20).reverse() });
+      case 'treinoCodigo':  return saida(treinoCodigo(null, true));   // v96: roda 1 exercício agora (dono)   // v90: marca as lembranças suspeitas (não apaga)
       case 'treinoResumo':  return saida({ ok: true, treino: resumoTreino(), placar: placar(), revisar: exemplosParaRevisar(20) });
       case 'revisarExemplo': return saida(revisarExemplo(String(req.pergunta || ''), !!req.aprovado));
       case 'salvar':        return saida(salvarMemoria(req.texto, aparelho));
@@ -1064,7 +1067,8 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   // v89: mexendo num app grande (calculadora = 116 mil letras): só cérebro que aguenta arquivo grande e é rápido.
   // Groq/Cerebras não cabem (pulam sem custo), mas Nemotron/PC com 40 mil tokens demoram minutos e estouram os 6 min do Google.
   if (EDITANDO_APP && !imagem && (preferido === 'auto' || !preferido)) {
-    const grandes = ['geminiForte', 'gemini', 'mistral', 'nvidia'].filter(n => temCerebro(n));
+    let grandes = ['geminiForte', 'gemini', 'mistral', 'nvidia', 'zai'].filter(n => temCerebro(n));
+    try { grandes = ordemPelaAcademia_(grandes); } catch (e) { /* sem placar ainda: ordem padrão */ }
     if (grandes.length) { ordem = grandes; passo('Mexendo num app: vai no cérebro que aguenta arquivo grande (' + grandes.map(n => CEREBROS[n].nome).join(' → ') + ')'); }
   }
   // pedido difícil: o Gemini Flash (melhor, ~20/dia) vai na frente; acabou a cota do dia → segue a ordem normal
@@ -1810,6 +1814,89 @@ function testarApp(html, provas) {
   return { erros: erros, avisos: avisos, rodou: rodou, provas: resProvas };
 }
 const MAX_CONSERTOS = 2;
+
+/* ============================================================
+ *  v96: ACADEMIA DE CÓDIGO — de madrugada ela conserta apps com UM defeito de verdade (zicoai/academia/exercicios.json:
+ *  gorjeta, lista, dólar com vírgula, estoque negativo, desconto em %, e a calculadora real de 116 mil letras).
+ *  Ela só vê o PEDIDO (igual o Thiago pede); a nota é das provas ESCONDIDAS rodadas no Mac. Cada cérebro treina os mesmos
+ *  exercícios; o placar (aba academia) decide quem vai primeiro quando ela mexe num app de verdade.
+ * ============================================================ */
+const ACADEMIA_URL = () => 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/zicoai/academia/exercicios.json';   // função: GITHUB_REPO é declarado mais abaixo
+const ACADEMIA_CEREBROS = ['gemini', 'mistral', 'nvidia', 'zai', 'pc'];   // Gemini Flash fica de fora: a cota (~18/dia) é do Thiago
+const NOTA_PADRAO_CODIGO = { geminiForte: 0.9, gemini: 0.5, mistral: 0.45, nvidia: 0.4, zai: 0.35 };
+function exerciciosAcademia_() {
+  const c = CacheService.getScriptCache(), k = 'academia_ex';
+  const ja = c.get(k); if (ja) return JSON.parse(ja);
+  const r = UrlFetchApp.fetch(ACADEMIA_URL() + '?t=' + Date.now(), { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('não baixou os exercícios (' + r.getResponseCode() + ')');
+  const ex = JSON.parse(r.getContentText());
+  try { c.put(k, JSON.stringify(ex), 21600); } catch (e) { /* grande demais pro cache: baixa de novo da próxima */ }
+  return ex;
+}
+/** Placar da academia por cérebro (nome como aparece na resposta): { 'Gemini': { n, ok } } (últimos 30 dias). */
+function placarAcademia_() {
+  const lim = Utilities.formatDate(new Date(Date.now() - 30 * 86400000), FUSO, 'yyyy-MM-dd');
+  const out = {};
+  linhas('academia').forEach(l => {
+    if (String(l[0]).slice(0, 10) < lim || !/^(sim|não)$/.test(String(l[3]))) return;
+    const k = String(l[2] || '?'); out[k] = out[k] || { n: 0, ok: 0 }; out[k].n++; if (l[3] === 'sim') out[k].ok++;
+  });
+  return out;
+}
+function ordemPelaAcademia_(lista) {
+  const pl = placarAcademia_();
+  const nota = n => { const p = pl[(CEREBROS[n] || {}).nome]; return p && p.n >= 3 ? p.ok / p.n : (NOTA_PADRAO_CODIGO[n] || 0.3); };
+  const ordem = lista.slice().sort((a, b) => nota(b) - nota(a));
+  if (ordem.join() !== lista.join()) passo('Academia de código: quem mais acerta vai primeiro (' + ordem.map(n => CEREBROS[n].nome + ' ' + Math.round(nota(n) * 100) + '%').join(', ') + ')');
+  return ordem;
+}
+/** Uma rodada: 1 exercício × 1 cérebro (cabe nos 6 min). Trigger de hora em hora; só roda das 23h às 7h (ou forcar). */
+function treinoCodigo(evento, forcar) {
+  const h = Number(Utilities.formatDate(new Date(), FUSO, 'H'));
+  if (!forcar && !(h >= 23 || h < 7)) return { ok: true, pulou: 'fora do horário (a academia roda das 23h às 7h)' };
+  const c = CacheService.getScriptCache();
+  if (c.get('academia_rodando')) return { ok: false, erro: 'já tem uma rodada da academia rodando' };
+  c.put('academia_rodando', '1', 360);
+  try {
+    PASSOS = []; INICIO_REQ = Date.now(); EDITANDO_APP = true; TESTOU_AGORA = 0; CHAT_ATUAL = null;
+    const ex = exerciciosAcademia_();
+    const cands = ACADEMIA_CEREBROS.filter(n => n === 'pc' ? !!cerebroPCPonte() : temCerebro(n));
+    if (!ex.length || !cands.length) return { ok: false, erro: 'sem exercício ou sem cérebro' };
+    const props = PropertiesService.getScriptProperties();
+    const n = Number(props.getProperty('ACADEMIA_N') || 0);
+    props.setProperty('ACADEMIA_N', String(n + 1));
+    const cer = cands[n % cands.length], e = ex[Math.floor(n / cands.length) % ex.length];
+    let html = e.html;
+    if (!html && e.url) { const r = UrlFetchApp.fetch(e.url, { muteHttpExceptions: true }); html = r.getResponseCode() === 200 ? r.getContentText() : ''; }
+    if (!html) return { ok: false, erro: 'exercício sem arquivo: ' + e.id };
+    const t0 = Date.now();
+    const extra = REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + e.id + '" (o Thiago quer consertar este app)\n' + blocoCodigoApp_(html, e.pedido);
+    const res = conversar([{ role: 'user', content: e.pedido }], e.pedido, null, cer, extra, false);
+    let fim = null, detalhe = '';
+    if (!res || !res.ok) detalhe = 'nenhum cérebro respondeu: ' + String(res && res.erro || '').slice(0, 200);
+    else {
+      try { const pr = programadora(res, html, e.pedido, null); fim = extrairHtml(pr.texto); if (!fim) detalhe = String(pr.texto || '').split('\n').find(l => /⚠️|⛔|❌/.test(l)) || 'não saiu o app consertado'; }
+      catch (err) { detalhe = 'programadora: ' + String(err.message || err).slice(0, 150); }
+    }
+    let passou = 'não', provasTxt = '0/' + e.provas.length;
+    if (fim) {
+      if (fim.length < html.length * 0.85) detalhe = 'o app encolheu (' + fim.length + ' de ' + html.length + ' letras)';
+      else {
+        const nota = testarApp(fim, e.provas);
+        if (!nota.rodou) { passou = 'sem teste'; detalhe = 'Mac fora do ar: não deu pra dar nota'; }
+        else {
+          const okp = (nota.provas || []).filter(x => x.ok).length;
+          provasTxt = okp + '/' + e.provas.length;
+          if (!nota.erros.length && okp === e.provas.length) passou = 'sim';
+          else detalhe = (nota.erros[0] || ((nota.provas || []).find(x => !x.ok) || {}).detalhe || '').slice(0, 250);
+        }
+      }
+    }
+    const quem = (res && res.cerebro) || (CEREBROS[cer] || {}).nome || cer;
+    aba('academia').appendRow(["'" + agora(), e.id, quem, passou, "'" + provasTxt, Math.round((Date.now() - t0) / 1000), seguro(detalhe || 'ok')]);
+    return { ok: true, exercicio: e.id, cerebro: quem, passou: passou, provas: provasTxt, detalhe: detalhe, passos: PASSOS.slice(-12) };
+  } finally { c.remove('academia_rodando'); }
+}
 /** Pelo editor: confere se o Mac abre app no navegador (app bom e app com erro). */
 function testarNavegadorMac() {
   const bom = testarApp('<!doctype html><html><body><h1>Oi</h1><button onclick="document.body.append(1)">ok</button></body></html>');
@@ -4919,6 +5006,7 @@ function garantirRotinasTreino() {
     if (tem.indexOf('estudar') < 0) ScriptApp.newTrigger('estudar').timeBased().everyHours(4).create();   // reserva: o Mac chama de 30 em 30 min
     if (tem.indexOf('placarDiario') < 0) ScriptApp.newTrigger('placarDiario').timeBased().everyDays(1).atHour(2).create();
     if (tem.indexOf('placarSemanal') < 0) ScriptApp.newTrigger('placarSemanal').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();   // placar das aulas sozinho (não depende de lembrete)
+    if (tem.indexOf('treinoCodigo') < 0) ScriptApp.newTrigger('treinoCodigo').timeBased().everyHours(1).create();   // v96: academia de código (só roda de madrugada)
     if (tem.indexOf('arquivarMensagens') < 0) ScriptApp.newTrigger('arquivarMensagens').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(5).create();
     // aprender sozinha: de 10 em 10 min pra 30 em 30 (uma vez só), pra sobrar tempo de rotina pros agentes e o estudo
     const props = PropertiesService.getScriptProperties();

@@ -62,9 +62,9 @@ const criados = [];
 const nt = H.ctx.ScriptApp.newTrigger;
 H.ctx.ScriptApp.newTrigger = fn => ({ timeBased: () => ({ everyHours: h => ({ create: () => { criados.push(fn + '@h' + h); } }), everyDays: () => ({ atHour: h => ({ create: () => { criados.push(fn + '@' + h); } }) }), onWeekDay: d => ({ atHour: h => ({ create: () => { criados.push(fn + '@' + d + h); } }) }) }) });
 H.ctx.garantirRotinasTreino();
-ok(criados.join() === 'estudoNoturno@1,estudar@h4,placarDiario@2,placarSemanal@SUNDAY3,arquivarMensagens@SUNDAY5', 'estudo (1h), estudo 24h de reserva (4 em 4h), placar (2h) e arquivo (domingo 5h) ligados sozinhos: ' + criados.join());
+ok(criados.join() === 'estudoNoturno@1,estudar@h4,placarDiario@2,placarSemanal@SUNDAY3,treinoCodigo@h1,arquivarMensagens@SUNDAY5', 'estudo (1h), estudo 24h de reserva (4 em 4h), placar (2h), academia de código (de hora em hora, só de madrugada) e arquivo (domingo 5h) ligados sozinhos: ' + criados.join());
 H.ctx.garantirRotinasTreino();
-ok(criados.length === 5, 'não cria de novo (fica anotado no cache)');
+ok(criados.length === 6, 'não cria de novo (fica anotado no cache)');
 H.ctx.ScriptApp.newTrigger = nt;
 
 // resumo ao vivo: passos vão pro cache enquanto a resposta é montada

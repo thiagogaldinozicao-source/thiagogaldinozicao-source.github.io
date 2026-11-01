@@ -1,0 +1,345 @@
+[
+ {
+  "id": "gorjeta-por-pessoa",
+  "nome": "Gorjeta: total por pessoa",
+  "pedido": "na calculadora de gorjeta o \"Por pessoa\" tá errado: conta 100, gorjeta 10%, 2 pessoas tem que dar R$ 55,00 e tá dando R$ 110,00. corrige",
+  "html": "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Gorjeta</title><style>body{font-family:system-ui;background:#111;color:#eee;padding:16px}input,button{font-size:16px;margin:4px;padding:6px}</style></head><body><h1>Gorjeta</h1>\n<label>Conta <input id=\"conta\" inputmode=\"decimal\"></label><br>\n<label>Gorjeta % <input id=\"pct\" value=\"10\"></label><br>\n<label>Pessoas <input id=\"pessoas\" value=\"1\"></label><br>\n<button id=\"calc\">Calcular</button>\n<p>Por pessoa: <b id=\"porPessoa\">R$ 0,00</b></p>\n<script>\nfunction num(t){ return parseFloat(String(t).replace(',', '.')) || 0; }\nfunction brl(v){ return 'R$ ' + v.toFixed(2).replace('.', ','); }\ndocument.getElementById('calc').onclick = function(){\n  var c = num(document.getElementById('conta').value), p = num(document.getElementById('pct').value);\n  var n = Math.max(1, parseInt(document.getElementById('pessoas').value) || 1);\n  var total = c + c * p / 100;\n  document.getElementById('porPessoa').textContent = brl(total);\n};\n</script></body></html>",
+  "conserto": [
+   [
+    "document.getElementById('porPessoa').textContent = brl(total);",
+    "document.getElementById('porPessoa').textContent = brl(total / n);"
+   ]
+  ],
+  "provas": [
+   {
+    "nome": "100 + 10% em 2 = 55,00",
+    "passos": [
+     {
+      "preencher": "#conta",
+      "valor": "100"
+     },
+     {
+      "preencher": "#pct",
+      "valor": "10"
+     },
+     {
+      "preencher": "#pessoas",
+      "valor": "2"
+     },
+     {
+      "clicar": "#calc"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#porPessoa",
+      "contem": "R$ 55,00"
+     }
+    ]
+   },
+   {
+    "nome": "90 + 10% em 3 = 33,00",
+    "passos": [
+     {
+      "preencher": "#conta",
+      "valor": "90"
+     },
+     {
+      "preencher": "#pct",
+      "valor": "10"
+     },
+     {
+      "preencher": "#pessoas",
+      "valor": "3"
+     },
+     {
+      "clicar": "#calc"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#porPessoa",
+      "contem": "R$ 33,00"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "lista-apaga-errado",
+  "nome": "Lista de compras: apagar o item certo",
+  "pedido": "na lista de compras, quando eu apago um item some o item de cima dele em vez dele. corrige",
+  "html": "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Lista</title><style>body{font-family:system-ui;background:#111;color:#eee;padding:16px}input,button{font-size:16px;margin:4px;padding:6px}</style></head><body><h1>Lista de compras</h1>\n<input id=\"item\" placeholder=\"item\"><button id=\"add\">Adicionar</button>\n<ul id=\"lista\"></ul>\n<script>\nvar itens = [];\nfunction desenha(){\n  document.getElementById('lista').innerHTML = itens.map(function(t, i){ return '<li><span>' + t + '</span> <button class=\"del\" data-i=\"' + i + '\">apagar</button></li>'; }).join('');\n}\ndocument.getElementById('add').onclick = function(){\n  var c = document.getElementById('item'); if (!c.value.trim()) return;\n  itens.push(c.value.trim()); c.value = ''; desenha();\n};\ndocument.getElementById('lista').onclick = function(e){\n  if (e.target.classList.contains('del')) { itens.splice(Number(e.target.dataset.i) - 1, 1); desenha(); }\n};\n</script></body></html>",
+  "conserto": [
+   [
+    "itens.splice(Number(e.target.dataset.i) - 1, 1);",
+    "itens.splice(Number(e.target.dataset.i), 1);"
+   ]
+  ],
+  "provas": [
+   {
+    "nome": "apaga o 2º de A,B,C fica A,C",
+    "passos": [
+     {
+      "preencher": "#item",
+      "valor": "A"
+     },
+     {
+      "clicar": "#add"
+     },
+     {
+      "preencher": "#item",
+      "valor": "B"
+     },
+     {
+      "clicar": "#add"
+     },
+     {
+      "preencher": "#item",
+      "valor": "C"
+     },
+     {
+      "clicar": "#add"
+     },
+     {
+      "clicar": "#lista li:nth-child(2) .del"
+     }
+    ],
+    "conferir": [
+     {
+      "js": "var t=[...document.querySelectorAll('#lista li span')].map(s=>s.textContent).join(','); return t==='A,C' || ('ficou: '+t)"
+     }
+    ]
+   },
+   {
+    "nome": "apaga o 1º de A,B fica B",
+    "passos": [
+     {
+      "preencher": "#item",
+      "valor": "A"
+     },
+     {
+      "clicar": "#add"
+     },
+     {
+      "preencher": "#item",
+      "valor": "B"
+     },
+     {
+      "clicar": "#add"
+     },
+     {
+      "clicar": "#lista li:nth-child(1) .del"
+     }
+    ],
+    "conferir": [
+     {
+      "js": "var t=[...document.querySelectorAll('#lista li span')].map(s=>s.textContent).join(','); return t==='B' || ('ficou: '+t)"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "dolar-virgula",
+  "nome": "Conversor de dólar: vírgula",
+  "pedido": "no conversor de dólar, com dólar a 5,24 e US$ 100 tem que dar R$ 524,00 e tá dando R$ 500,00. corrige",
+  "html": "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Dólar</title><style>body{font-family:system-ui;background:#111;color:#eee;padding:16px}input,button{font-size:16px;margin:4px;padding:6px}</style></head><body><h1>Dólar → Real</h1>\n<label>US$ <input id=\"usd\" inputmode=\"decimal\"></label><br>\n<label>Cotação <input id=\"cot\" inputmode=\"decimal\"></label><br>\n<button id=\"calc\">Converter</button>\n<p>Total: <b id=\"res\">R$ 0,00</b></p>\n<script>\nfunction num(t){ return parseInt(String(t).replace(',', '.')) || 0; }\ndocument.getElementById('calc').onclick = function(){\n  var v = num(document.getElementById('usd').value) * num(document.getElementById('cot').value);\n  document.getElementById('res').textContent = 'R$ ' + v.toFixed(2).replace('.', ',');\n};\n</script></body></html>",
+  "conserto": [
+   [
+    "return parseInt(String(t).replace(',', '.')) || 0;",
+    "return parseFloat(String(t).replace(',', '.')) || 0;"
+   ]
+  ],
+  "provas": [
+   {
+    "nome": "US$ 100 a 5,24 = 524,00",
+    "passos": [
+     {
+      "preencher": "#usd",
+      "valor": "100"
+     },
+     {
+      "preencher": "#cot",
+      "valor": "5,24"
+     },
+     {
+      "clicar": "#calc"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#res",
+      "contem": "R$ 524,00"
+     }
+    ]
+   },
+   {
+    "nome": "US$ 12,5 a 5,1 = 63,75",
+    "passos": [
+     {
+      "preencher": "#usd",
+      "valor": "12,5"
+     },
+     {
+      "preencher": "#cot",
+      "valor": "5,1"
+     },
+     {
+      "clicar": "#calc"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#res",
+      "contem": "R$ 63,75"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "estoque-negativo",
+  "nome": "Contador de estoque: não ficar negativo",
+  "pedido": "no contador de estoque, o botão − deixa a quantidade ficar negativa. não pode passar de 0. o + tem que continuar funcionando",
+  "html": "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Estoque</title><style>body{font-family:system-ui;background:#111;color:#eee;padding:16px}input,button{font-size:16px;margin:4px;padding:6px}</style></head><body><h1>Estoque</h1>\n<button id=\"menos\">−</button> <b id=\"qtd\">1</b> <button id=\"mais\">+</button>\n<script>\nvar q = 1;\nfunction mostra(){ document.getElementById('qtd').textContent = q; }\ndocument.getElementById('menos').onclick = function(){ q--; mostra(); };\ndocument.getElementById('mais').onclick = function(){ q++; mostra(); };\n</script></body></html>",
+  "conserto": [
+   [
+    "document.getElementById('menos').onclick = function(){ q--; mostra(); };",
+    "document.getElementById('menos').onclick = function(){ if (q > 0) q--; mostra(); };"
+   ]
+  ],
+  "provas": [
+   {
+    "nome": "− 3x a partir de 1 fica 0",
+    "passos": [
+     {
+      "clicar": "#menos"
+     },
+     {
+      "clicar": "#menos"
+     },
+     {
+      "clicar": "#menos"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#qtd",
+      "igual": "0"
+     }
+    ]
+   },
+   {
+    "nome": "+ continua: 1 vira 2",
+    "passos": [
+     {
+      "clicar": "#mais"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#qtd",
+      "igual": "2"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "desconto-porcento",
+  "nome": "Desconto em %",
+  "pedido": "na tela de desconto, R$ 200 com 15% de desconto tem que dar R$ 170,00 e tá dando R$ 185,00. corrige",
+  "html": "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Desconto</title><style>body{font-family:system-ui;background:#111;color:#eee;padding:16px}input,button{font-size:16px;margin:4px;padding:6px}</style></head><body><h1>Desconto</h1>\n<label>Valor <input id=\"valor\" inputmode=\"decimal\"></label><br>\n<label>Desconto % <input id=\"pct\" inputmode=\"decimal\"></label><br>\n<button id=\"calc\">Calcular</button>\n<p>Com desconto: <b id=\"res\">R$ 0,00</b></p>\n<script>\nfunction num(t){ return parseFloat(String(t).replace(',', '.')) || 0; }\ndocument.getElementById('calc').onclick = function(){\n  var v = num(document.getElementById('valor').value), p = num(document.getElementById('pct').value);\n  var r = v - p;\n  document.getElementById('res').textContent = 'R$ ' + r.toFixed(2).replace('.', ',');\n};\n</script></body></html>",
+  "conserto": [
+   [
+    "var r = v - p;",
+    "var r = v * (1 - p / 100);"
+   ]
+  ],
+  "provas": [
+   {
+    "nome": "200 com 15% = 170,00",
+    "passos": [
+     {
+      "preencher": "#valor",
+      "valor": "200"
+     },
+     {
+      "preencher": "#pct",
+      "valor": "15"
+     },
+     {
+      "clicar": "#calc"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#res",
+      "contem": "R$ 170,00"
+     }
+    ]
+   },
+   {
+    "nome": "80 com 10% = 72,00",
+    "passos": [
+     {
+      "preencher": "#valor",
+      "valor": "80"
+     },
+     {
+      "preencher": "#pct",
+      "valor": "10"
+     },
+     {
+      "clicar": "#calc"
+     }
+    ],
+    "conferir": [
+     {
+      "texto": "#res",
+      "contem": "R$ 72,00"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "calculadora-12x",
+  "nome": "Calculadora do Zicão: tabela 12x (arquivo real, 116 mil letras)",
+  "pedido": "corrige a calculadora: na tabela de parcelas, R$ 1.000 em 12x mostra 12× 83,33 = 999,96. a 1ª parcela tem que ser 83,37 igual no resumo. não mexe no deslizar pra apagar nem na velocidade",
+  "url": "https://raw.githubusercontent.com/thiagogaldinozicao-source/Calculadora-do-zicao/b4c7bf6/index.html",
+  "conserto": [
+   [
+    "(c>1?money(x.par):'')",
+    "(c>1?(x.first?'1ª '+money(x.first):money(x.par)):'')"
+   ]
+  ],
+  "provas": [
+   {
+    "nome": "1000 em 12x: 1ª de 83,37 na tabela",
+    "passos": [
+     {
+      "clicar": "#tools button[data-t=\"tools\"]"
+     },
+     {
+      "preencher": "#pV",
+      "valor": "1000"
+     },
+     {
+      "escolher": "#pN",
+      "valor": "12"
+     },
+     {
+      "esperar": 400
+     }
+    ],
+    "conferir": [
+     {
+      "js": "const tr=[...document.querySelectorAll('#pTab tr')].find(t=>t.dataset.n==='12'); return tr && /83,37/.test(tr.innerText) || ('linha 12x: '+(tr?tr.innerText:'?'))"
+     }
+    ]
+   }
+  ]
+ }
+]
