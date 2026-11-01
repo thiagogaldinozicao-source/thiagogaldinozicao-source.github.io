@@ -1012,6 +1012,12 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   // nosso cérebro primeiro onde ele já provou no placar (a nuvem vira reserva)
   if (!imagem && !forte && (preferido === 'auto' || !preferido) && pc && pc.viaPonte && pcPrimario(pergunta)) { ordem = ['pc'].concat(ordem.filter(n => n !== 'pc')); passo('Assunto em que o cérebro do PC já ganhou da nuvem no placar: ele responde primeiro'); }
   else if (!imagem && !forte && (preferido === 'auto' || !preferido) && temCerebro('mac') && macPrimario(pergunta)) { ordem = ['mac'].concat(ordem.filter(n => n !== 'mac')); passo('Assunto em que o cérebro do Mac já ganhou da nuvem no placar: ele responde primeiro'); }
+  // v89: mexendo num app grande (calculadora = 116 mil letras): só cérebro que aguenta arquivo grande e é rápido.
+  // Groq/Cerebras não cabem (pulam sem custo), mas Nemotron/PC com 40 mil tokens demoram minutos e estouram os 6 min do Google.
+  if (EDITANDO_APP && !imagem && (preferido === 'auto' || !preferido)) {
+    const grandes = ['geminiForte', 'gemini', 'mistral', 'nvidia'].filter(n => temCerebro(n));
+    if (grandes.length) { ordem = grandes; passo('Mexendo num app: vai no cérebro que aguenta arquivo grande (' + grandes.map(n => CEREBROS[n].nome).join(' → ') + ')'); }
+  }
   // pedido difícil: o Gemini Flash (melhor, ~20/dia) vai na frente; acabou a cota do dia → segue a ordem normal
   if (forte && (preferido === 'auto' || !preferido) && temCerebro('geminiForte')) { ordem = ['geminiForte'].concat(ordem); passo('Pedido difícil: chamou o Gemini Flash (o melhor do grátis) primeiro'); }
 

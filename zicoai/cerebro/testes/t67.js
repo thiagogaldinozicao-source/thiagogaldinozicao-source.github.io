@@ -26,6 +26,7 @@ let r = H.post({ pin: '1234', acao: 'chat', aparelho: 'PC', mensagens: [{ role: 
 ok(r.ok && /### PROVAS DO APP/.test(sis), 'o cérebro recebe a regra de escrever provas');
 ok(!/dólar comercial|### MEMÓRIA|### BASE DA LOJA|### TABELA DE PREÇOS/.test(sis), 'mexendo no app: sem memória, base nem tabela de preços no sistema');
 ok(r.passos.some(p => /Programando num app: usou só/.test(p)), 'passo explica o sistema enxuto');
+ok(r.passos.some(p => /Mexendo num app: vai no cérebro que aguenta arquivo grande/.test(p)), 'mexendo no app: só cérebro rápido de arquivo grande (não estoura os 6 min)');
 ok(!/```provas/.test(r.resposta), 'bloco de provas não aparece pro Thiago');
 ok(run('_chamadas.length') === 2 && run('_chamadas[0].provas.length') === 1 && !/1ª R\$ 83,37/.test(run('_chamadas[0].html')), '1º roda a prova no código VELHO (tem que falhar)');
 ok(r.passos.some(p => /falharam no código antigo \(pegam o defeito\)/.test(p)), 'passo: a prova pega o defeito');
