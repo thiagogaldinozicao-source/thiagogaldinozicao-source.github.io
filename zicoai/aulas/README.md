@@ -121,6 +121,7 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D29 | [o método antes de responder](D/D29-metodo-antes-de-responder.md) | Entender, separar sabe × acha, não preencher o que falta, conferir; Gemini Flash só no difícil; revisor que não troca número da web |
 | D30 | [programar testando](D/D30-programar-testando.md) | Editar por trechos ANTES/DEPOIS, rodar no navegador do Mac, clicar nos botões, consertar a causa (2 voltas), selo do que foi testado |
 | D31 | [cérebro do Mac × nuvem](D/D31-cerebro-do-mac.md) | Ollama do Mac pela ponte: sem limite, mas 8B; estudo e resumo no Mac, nuvem corrige; Mac de reserva; "Load failed" recuperado |
+| D37 | [conferir o resultado de verdade](D/D37-conferir-o-resultado-de-verdade.md) | A função que rodou de fato, a versão que está no ar (implantação × salvamento), saída antecipada com motivo, parar em ferramenta instável |
 | D36 | [testar antes de entregar](D/D36-testar-antes-de-entregar.md) | Conta refeita por código (arredondamento da loja aceito), link aberto, app testado antes de publicar; "pronto" só depois de conferir |
 | D35 | [o navegador da ZicoAI](D/D35-navegador-da-zicoai.md) | Chrome próprio dela no Mac (web_*) pra pesquisar e depurar, print ao vivo no app, mesmas travas (Implantar só com OK); extensão com uma ZicoAI por aba |
 | D34 | [nosso cérebro vira o primário](D/D34-nosso-cerebro-primario.md) | Destilação das respostas boas da nuvem, placar Mac × nuvem às cegas por assunto, Mac primeiro onde ganhou, volta sozinho se piorar |
