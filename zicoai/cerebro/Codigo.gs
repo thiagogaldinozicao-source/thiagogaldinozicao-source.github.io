@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 82 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 83 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -124,9 +124,10 @@ function testarZai() {
 }
 /** Monta o cérebro do PC se ele estiver configurado e não tiver caído há pouco. */
 function cerebroPC() {
+  if (CacheService.getScriptCache().get('pc_off')) return null;
+  const pp = cerebroPCPonte(); if (pp) return pp;
   const base = String(prop('PC_URL') || '').trim().replace(/\/+$/, '');
   if (!base) return null;
-  if (CacheService.getScriptCache().get('pc_off')) return null;
   const modelo = prop('PC_MODELO') || 'zicoai';
   return Object.assign({}, CEREBROS.pc, { url: base + '/v1/chat/completions', modelo: modelo, nome: 'PC (' + modelo + ')' });
 }
@@ -134,8 +135,49 @@ function cerebroPC() {
 function cerebroPCcodigo() {
   const pc = cerebroPC();
   if (!pc) return null;
+  if (pc.viaPonte) return pc;   // pela ponte já é o modelo grande
   const m = prop('PC_MODELO_CODIGO');
   return m ? Object.assign({}, pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000 }) : pc;
+}
+/* ---------- ORQUESTRA (v83): Mac 24h + PC quando liga ----------
+ * O PC (RTX 3080 10 GB + 32 GB RAM) entra pela PONTE (sem Funnel): o Ollama dele responde via ponte.ps1 2.4.
+ * Modelo: o 1º desta lista que estiver instalado no PC (a ponte manda a lista a cada 5 min).
+ *  - qwen3.5:35b-a3b: 35B "mistura de especialistas" (só 3B ativos por palavra): cabe com parte na RAM e fica rápido.
+ *  - qwen3.5:9b: reserva (cabe inteiro na placa).
+ * Quem decide é o cérebro: com o PC ligado, a prova (placar contra a nuvem) roda nele; quando ele ganhar do Mac
+ * (8+ provas e taxa >= a do Mac), o trabalho de fundo do Mac (estudo, resumo) vai pro PC sozinho. Desligou → volta pro Mac.
+ */
+const PC_MODELOS_PONTE = ['qwen3.5:35b-a3b', 'qwen3.5:9b'];
+const PC_PONTE_ESPERA = 200000;
+function cerebroPCPonte() {
+  if (!prop('PONTE_SEGREDO') || !ponteViva('pc')) return null;
+  const c = CacheService.getScriptCache();
+  if (c.get('pc_off')) return null;
+  if (!(parseFloat(c.get('ponte_versao') || '0') >= 2.4)) return null;   // ponte antiga não tem ollama_chat
+  let tem = [];
+  try { tem = JSON.parse(c.get('ponte_modelos') || '[]'); } catch (e) { tem = []; }
+  const nomes = tem.map(m => String(m).replace(/:latest$/, ''));
+  const m = PC_MODELOS_PONTE.find(x => nomes.indexOf(x) >= 0);
+  if (!m) return null;
+  return Object.assign({}, CEREBROS.pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000, maxSaida: 4096, local: true, viaPonte: true, disp: 'pc' });
+}
+/** Placar acumulado (todas as categorias) do PC ou do Mac contra a nuvem. taxa = (ganhou + meio empate) / provas. */
+function placarTotal(Q) {
+  const t = { g: 0, e: 0, p: 0 };
+  TIPOS_PLACAR_MAC.forEach(tipo => { try { const a = JSON.parse(prop('PLACAR_' + Q + '_' + normalizar(tipo).toUpperCase()) || 'null'); if (a) ['g', 'e', 'p'].forEach(x => { t[x] += a[x] || 0; }); } catch (e) { /* ok */ } });
+  const n = t.g + t.e + t.p;
+  return { n: n, taxa: n ? (t.g + t.e / 2) / n : 0 };
+}
+/** O PC já provou que é melhor que o Mac? (só conta com 8+ provas; Mac sem prova conta como 0) */
+function pcNoLugarDoMac() {
+  const pc = placarTotal('PC'), mac = placarTotal('MAC');
+  return pc.n >= 8 && pc.taxa >= (mac.n >= 8 ? mac.taxa : 0);
+}
+/** Cérebro local pro trabalho de fundo: PC (ligado e aprovado na prova) ou Mac. Sem nenhum → null. */
+function cerebroLocal() {
+  const pc = cerebroPCPonte();
+  if (pc && pcNoLugarDoMac()) return pc;
+  return temCerebro('mac') ? CEREBROS.mac : null;
 }
 /* ============================================================
  *  CONTROLE DE COTA (pra não estourar o plano grátis)
@@ -226,7 +268,7 @@ function temCerebro(nome) {
   if (nome === 'mac') {
     if (/^(nao|não|0|false)$/i.test(String(prop('MAC_CEREBRO') || '')) || !prop('PONTE_SEGREDO_MAC')) return false;
     if (CacheService.getScriptCache().get('mac_off')) return false;
-    const v = ponteVisto('mac'); return v >= 0 && v < 90000;
+    return ponteViva('mac');
   }
   if (c.aposentado) return false;
   if (nome === 'cloudflare') return !!prop('CF_TOKEN') && !!prop('CF_ACCOUNT_ID');
@@ -864,9 +906,10 @@ function compactarSePrecisar(chatId) {
     { role: 'user', content: (resumoAtual ? 'RESUMO ANTERIOR:\n' + resumoAtual + '\n\n' : '') + 'CONVERSA:\n' + texto }
   ];
   let novo = null;
-  for (const nome of ['mac', 'gemini', 'mistral', 'groq', 'cerebras', 'nvidia', 'groq2']) {   // resumo: o Mac dá conta e não gasta cota
-    if (!temCerebro(nome)) continue;
-    try { novo = chamarCompat(CEREBROS[nome], msgs, 900, { temperature: 0.2 }); break; } catch (e) { /* próximo */ }
+  for (const nome of ['local', 'gemini', 'mistral', 'groq', 'cerebras', 'nvidia', 'groq2']) {   // resumo: o cérebro local (PC ou Mac) dá conta e não gasta cota
+    const c = nome === 'local' ? cerebroLocal() : (temCerebro(nome) ? CEREBROS[nome] : null);
+    if (!c) continue;
+    try { novo = chamarCompat(c, msgs, 900, { temperature: 0.2 }); break; } catch (e) { if (c.disp === 'pc') marcarPCdesligado(); }
   }
   if (!novo) return;
   a.getRange(r, 6, 1, 1).setValue(seguro(novo.slice(0, 4000)));
@@ -929,7 +972,8 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
   if (preferido === 'auto' || !preferido) { try { ordem = reordenarPorNota(ordem, pc); } catch (e) { /* segue a ordem padrão */ } }
   // nosso cérebro primeiro onde ele já provou no placar (a nuvem vira reserva)
-  if (!imagem && !forte && (preferido === 'auto' || !preferido) && temCerebro('mac') && macPrimario(pergunta)) { ordem = ['mac'].concat(ordem.filter(n => n !== 'mac')); passo('Assunto em que o cérebro do Mac já ganhou da nuvem no placar: ele responde primeiro'); }
+  if (!imagem && !forte && (preferido === 'auto' || !preferido) && pc && pc.viaPonte && pcPrimario(pergunta)) { ordem = ['pc'].concat(ordem.filter(n => n !== 'pc')); passo('Assunto em que o cérebro do PC já ganhou da nuvem no placar: ele responde primeiro'); }
+  else if (!imagem && !forte && (preferido === 'auto' || !preferido) && temCerebro('mac') && macPrimario(pergunta)) { ordem = ['mac'].concat(ordem.filter(n => n !== 'mac')); passo('Assunto em que o cérebro do Mac já ganhou da nuvem no placar: ele responde primeiro'); }
   // pedido difícil: o Gemini Flash (melhor, ~20/dia) vai na frente; acabou a cota do dia → segue a ordem normal
   if (forte && (preferido === 'auto' || !preferido) && temCerebro('geminiForte')) { ordem = ['geminiForte'].concat(ordem); passo('Pedido difícil: chamou o Gemini Flash (o melhor do grátis) primeiro'); }
 
@@ -992,10 +1036,11 @@ function esperarRitmo(c) {
   } finally { if (pegou) try { trava.releaseLock(); } catch (e) { /* ok */ } }
 }
 function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
-  if (c.viaPonte) {   // cérebro do Mac: vai pela ponte até o Ollama dele (foto não vai: o modelo do Mac não enxerga)
+  if (c.viaPonte) {   // cérebro do Mac ou do PC: vai pela ponte até o Ollama dele (foto não vai pela ponte)
     const limpas = msgs.map(m => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter(x => x.type === 'text').map(x => x.text).join('\n') : String(m.content || '') }));
-    // o 8B do Mac escreve ~25 palavras/s: mais de ~1.800 tokens passa do tempo da ponte (115 s)
-    const r = ponteSemDetalhe('ollama_chat', { modelo: c.modelo, mensagens: limpas, maxTokens: Math.min(maxSaida, 1800), temperatura: (extras && extras.temperature >= 0) ? extras.temperature : 0.6 }, 115000, 'mac');
+    const noPC = c.disp === 'pc';
+    // o 8B do Mac escreve ~25 palavras/s: mais de ~1.800 tokens passa do tempo da ponte (115 s). O PC (35B, parte na RAM) ganha mais tempo.
+    const r = ponteSemDetalhe('ollama_chat', { modelo: c.modelo, mensagens: limpas, maxTokens: Math.min(maxSaida, noPC ? 2500 : 1800), temperatura: (extras && extras.temperature >= 0) ? extras.temperature : 0.6 }, noPC ? PC_PONTE_ESPERA : 115000, noPC ? 'pc' : 'mac');
     return String(r.texto || '');
   }
   const chave = c.chave ? prop(c.chave) : 'ollama';
@@ -1455,7 +1500,8 @@ function contextoMeusCerebros(pergunta) {
     return '- ' + c.nome + ' (' + c.modelo + '): até ' + (c.rpd || '?') + ' pedidos/dia, ' + (c.rpm || '?') + '/min, ' + Math.round(c.limite / 1000) + ' mil tokens por pedido; hoje: ' + u + ' pedidos' + (CacheService.getScriptCache().get('off_' + n) ? ' (de castigo agora)' : '');
   });
   const pc = cerebroPC();
-  if (prop('PC_URL')) linhasC.push('- PC de casa (Ollama: ' + (prop('PC_MODELO') || 'zicoai') + ' e ' + (prop('PC_MODELO_CODIGO') || '-') + '): sem limite, mais fraco; ' + (pc ? 'ligado' : 'desligado agora'));
+  if (pc && pc.viaPonte) linhasC.push('- PC de casa pela ponte (Ollama ' + pc.modelo + ', RTX 3080): sem limite; ligado agora' + (pcNoLugarDoMac() ? ' e fazendo o trabalho de fundo no lugar do Mac' : ' (ainda fazendo a prova contra o Mac)'));
+  else if (prop('PC_URL') || prop('PONTE_SEGREDO')) linhasC.push('- PC de casa (Ollama ' + PC_MODELOS_PONTE[0] + '): sem limite; desligado agora (quando liga, pega o trabalho pesado sozinho)');
   let pl = '';
   try { const p = placar(); if (p.length) pl = '\nPLACAR NA MINHA PROVA (60 dias): ' + p.map(x => x.cerebro + ' ' + x.media + '/10 (' + x.perguntas + ' perguntas)').join(' · '); } catch (e) { /* sem placar */ }
   passo('Olhou os próprios cérebros e limites');
@@ -3553,6 +3599,7 @@ function aparelhosDaPonte(out) {
   }
   const vp = ponteVisto('pc');
   const servPc = (out || []).filter(d => !/Mac/.test(d.nome)).map(d => ({ nome: d.nome, ok: d.ok, detalhe: d.detalhe }));
+  if (prop('PONTE_SEGREDO')) { const pp = cerebroPCPonte(), st = placarTotal('PC'); servPc.push({ nome: 'Cérebro do PC (pela ponte)', ok: !!pp, detalhe: pp ? pp.modelo + ' · prova ' + st.n + (st.n >= 8 ? ' (' + Math.round(st.taxa * 100) + '%)' : '/8') + (pcNoLugarDoMac() ? ' · faz o trabalho do Mac' : '') : 'precisa da ponte 2.4 e do modelo (instalar.ps1)' }); }
   lista.push({ nome: c.get('ponte_nome') || 'DESKTOP-UL41KIJ', plataforma: 'Windows · PC de casa', ok: (vp >= 0 && vp < 90000) || servPc.some(x => x.ok), vistoMs: vp, servicos: servPc });
   if (prop('PONTE_SEGREDO_NAV')) {   // extensão do Chrome (v57): age e depura sites
     const vn = ponteVisto('nav'), okn = vn >= 0 && vn < 90000;
@@ -3604,6 +3651,7 @@ function ponteBuscar(req) {
   const disp = req.disp || 'pc';
   c.put(ponteChave('ponte_nome', disp), String(req.nome || disp.toUpperCase()).slice(0, 60), 21600);
   if (req.versao) c.put(ponteChave('ponte_versao', disp), String(req.versao).slice(0, 20), 21600);
+  if (req.modelos) c.put(ponteChave('ponte_modelos', disp), JSON.stringify((Array.isArray(req.modelos) ? req.modelos : String(req.modelos).split(/[\s,]+/)).map(String).filter(m => /^[a-z0-9._:\/-]+$/i.test(m)).slice(0, 40)), 21600);
   const fim = Date.now() + 20000;
   while (true) {
     c.put(ponteChave('ponte_visto', disp), String(Date.now()), 21600);
@@ -3633,15 +3681,24 @@ function ponteVisto(disp) {
   const v = parseInt(CacheService.getScriptCache().get(ponteChave('ponte_visto', disp)) || '0', 10);
   return v ? Date.now() - v : -1;
 }
+/** Ponte ligada: buscou pedido no último 1,5 min, ou está ocupada respondendo um pedido longo (Ollama). */
+function ponteViva(disp) {
+  const v = ponteVisto(disp);
+  if (v >= 0 && v < 90000) return true;
+  const oc = Number(CacheService.getScriptCache().get(ponteChave('ponte_ocupada', disp)) || 0);
+  return v >= 0 && oc > Date.now();
+}
 function ponteSemDetalhe(acao, dados, esperaMs, disp) {
   disp = ponteNorm(disp);
   const P = PONTES[disp], quem = P.quem;
   if (!prop(P.prop)) throw new Error(P.semPonte);
   const visto = ponteVisto(disp);
-  if (visto < 0 || visto > 90000) throw new Error(P.fora + (visto > 0 ? ' (última vez há ' + Math.round(visto / 60000) + ' min)' : ''));
+  if (!ponteViva(disp)) throw new Error(P.fora + (visto > 0 ? ' (última vez há ' + Math.round(visto / 60000) + ' min)' : ''));
   const c = CacheService.getScriptCache();
   const id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
   const limite = Date.now() + (esperaMs || 45000);
+  // a ponte faz um pedido por vez: enquanto o Ollama pensa ela não "bate o ponto"; marca ocupada pra ninguém achar que desligou
+  if (acao === 'ollama_chat') { const oc = Number(c.get(ponteChave('ponte_ocupada', disp)) || 0); c.put(ponteChave('ponte_ocupada', disp), String(Math.max(oc, limite)), 600); }
   dados = Object.assign({}, dados || {});
   if (typeof dados.html === 'string' && dados.html.length > PONTE_PEDACO) {   // cache guarda até 100 KB por chave: html grande vai em pedaços
     const n = Math.ceil(dados.html.length / PONTE_PEDACO);
@@ -4132,11 +4189,12 @@ function estudoNoturno(indice) {
     // gera com modelo ABERTO (Groq/NVIDIA): as respostas podem virar treino do cérebro do PC
     const gerar = [{ role: 'system', content: 'Você cria material de estudo pra ZicoAI, assistente do Thiago (Zicão Store, loja de iPhones em Itaú de Minas/MG, que também faz apps em HTML). Com base SÓ no MATERIAL, crie 3 exercícios práticos do tema, do jeito que o Thiago perguntaria (informal, "vc"). Cada um com a resposta ideal, curta e correta. ' + instrucaoEstudo_(t.tipo) + ' Responda SÓ JSON: {"exercicios":[{"pergunta":"...","resposta":"..."}]}' }, { role: 'user', content: 'TEMA: ' + t.tema + '\n\nMATERIAL:' + material.slice(0, 12000) }];
     let j = null, autor = '';
-    for (const nome of ['mac', 'groq', 'nvidia', 'groq2']) {   // Mac primeiro: sem limite; a nuvem só corrige (corrigirResposta)
-      if (!temCerebro(nome)) continue;
+    for (const nome of ['local', 'groq', 'nvidia', 'groq2']) {   // local primeiro (PC se ligado e aprovado, senão Mac): sem limite; a nuvem só corrige (corrigirResposta)
+      const c = nome === 'local' ? cerebroLocal() : (temCerebro(nome) ? CEREBROS[nome] : null);
+      if (!c) continue;
       const tk = estimarTokens(JSON.stringify(gerar)) + 3000;
-      if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
-      try { j = lerJSON(chamarCompat(CEREBROS[nome], gerar, 3000, { temperature: 0.4 })); registrarUso(nome, tk); autor = CEREBROS[nome].nome; if (j && j.exercicios) break; } catch (e) { /* próximo */ }
+      if (tk > c.limite || motivoNaoCabe(nome, c, tk)) continue;
+      try { j = lerJSON(chamarCompat(c, gerar, 3000, { temperature: 0.4 })); if (!c.local) registrarUso(nome, tk); autor = c.nome; if (j && j.exercicios) break; } catch (e) { if (c.disp === 'pc') marcarPCdesligado(); }
     }
     if (!j || !Array.isArray(j.exercicios)) { aba('treino').appendRow(["'" + hoje(), 'estudo', '', t.tema + ': nenhum cérebro aberto livre agora']); return { tema: t.tema, salvos: 0 }; }
     let salvos = 0; const det = [];
@@ -4259,22 +4317,27 @@ function marcarDestilacao(resposta, status) {
   return false;
 }
 const TIPOS_PLACAR_MAC = ['geral', 'loja', 'cliente', 'preço', 'comparativo', 'código'];
-function placarMacRodada(tipoForcado) {
-  if (!temCerebro('mac')) return { ok: false, motivo: 'Mac fora do ar' };
+function placarMacRodada(tipoForcado, quem) {
+  const noPC = quem === 'pc';
+  const cer = noPC ? cerebroPCPonte() : (temCerebro('mac') ? CEREBROS.mac : null);
+  if (!cer) return { ok: false, motivo: (noPC ? 'PC' : 'Mac') + ' fora do ar' };
+  const Q = noPC ? 'PC' : 'MAC';
   const props = PropertiesService.getScriptProperties();
-  const k = Number(props.getProperty('PLACAR_MAC_VEZ') || 0);
+  const k = Number(props.getProperty('PLACAR_' + Q + '_VEZ') || 0);
   const tipo = tipoForcado || TIPOS_PLACAR_MAC[k % TIPOS_PLACAR_MAC.length];
-  props.setProperty('PLACAR_MAC_VEZ', String(k + 1));
+  props.setProperty('PLACAR_' + Q + '_VEZ', String(k + 1));
+  const t0 = Date.now();
   const ls = linhas('destilacao').filter(l => l[5] === tipo && (l[6] === 'aprovada' || l[6] === 'ok') && !/```html/.test(l[3]));
   if (ls.length < 3) return { ok: true, tipo: tipo, motivo: 'poucas respostas desse tipo ainda (' + ls.length + ')' };
-  const amostra = ls.slice(-30).sort(() => Math.random() - 0.5).slice(0, 3);
+  const amostra = ls.slice(-30).sort(() => Math.random() - 0.5).slice(0, noPC ? 2 : 3);   // PC (35B, parte na RAM) é mais lento: 2 por rodada
   const res = { g: 0, e: 0, p: 0 };
   const aba_ = aba('aulas'), todas = linhas('aulas');
   amostra.forEach(l => {
     let sis = 'Você é a ZicoAI, assistente do Thiago (Zicão Store). Responda curto e direto, começando pela resposta, informal ("vc"). Nunca invente preço, garantia, endereço ou horário.';
     String(l[2] || '').split(/\s+/).filter(Boolean).slice(0, 2).forEach(id => { const a = todas.find(x => x[0] === id); if (a) sis += '\n\n### AULA\n[' + a[0] + '] ' + a[2] + '\nREGRA: ' + String(a[4]).slice(0, 600) + '\n' + String(a[5]).slice(0, 2000); });
+    if (Date.now() - t0 > 200000) return;   // a rodada inteira tem que caber nos 6 min do Google
     let doMac = '';
-    try { doMac = chamarCompat(CEREBROS.mac, [{ role: 'system', content: sis }, { role: 'user', content: l[1] }], 1200, { temperature: 0.4 }); } catch (e) { return; }
+    try { doMac = chamarCompat(cer, [{ role: 'system', content: sis }, { role: 'user', content: l[1] }], 1200, { temperature: 0.4 }); } catch (e) { if (noPC) marcarPCdesligado(); return; }
     const macPrimeiro = Math.random() < 0.5;
     const A = macPrimeiro ? doMac : l[3], B = macPrimeiro ? l[3] : doMac;
     const juiz = [{ role: 'system', content: 'Você é juiz. Compare duas respostas pro mesmo pedido do Thiago (dono de loja de celular). Vale: estar correta e sem inventar, resolver o que foi pedido, curta e no jeito dele. Responda SÓ JSON: {"melhor":"A"|"B"|"empate","motivo":"1 frase"}' },
@@ -4290,23 +4353,27 @@ function placarMacRodada(tipoForcado) {
     else if ((v.melhor === 'A') === macPrimeiro) res.g++; else res.p++;
   });
   // acumula as últimas ~24 provas desse tipo
-  const chave = 'PLACAR_MAC_' + normalizar(tipo).toUpperCase();
+  const chave = 'PLACAR_' + Q + '_' + normalizar(tipo).toUpperCase();
   const acc = JSON.parse(props.getProperty(chave) || '{"g":0,"e":0,"p":0}');
   ['g', 'e', 'p'].forEach(x => { acc[x] += res[x]; });
   const tot = acc.g + acc.e + acc.p;
   if (tot > 24) ['g', 'e', 'p'].forEach(x => { acc[x] = Math.round(acc[x] * 24 / tot); });
   props.setProperty(chave, JSON.stringify(acc));
-  const n = acc.g + acc.e + acc.p, primarios = String(props.getProperty('MAC_PRIMARIO') || '').split(',').filter(Boolean);
+  const n = acc.g + acc.e + acc.p, primarios = String(props.getProperty(Q + '_PRIMARIO') || '').split(',').filter(Boolean);
   let decisao = 'segue a nuvem';
-  if (n >= 8 && (acc.g + acc.e) / n >= 0.6 && acc.p / n <= 0.3) { if (primarios.indexOf(tipo) < 0) primarios.push(tipo); decisao = 'MAC PRIMEIRO'; }
+  if (n >= 8 && (acc.g + acc.e) / n >= 0.6 && acc.p / n <= 0.3) { if (primarios.indexOf(tipo) < 0) primarios.push(tipo); decisao = Q + ' PRIMEIRO'; }
   else if (primarios.indexOf(tipo) >= 0 && acc.p / n > 0.4) { primarios.splice(primarios.indexOf(tipo), 1); decisao = 'voltou pra nuvem'; }
-  if (primarios.length) props.setProperty('MAC_PRIMARIO', primarios.join(',')); else props.deleteProperty('MAC_PRIMARIO');   // vazio trava a tela de Propriedades
-  aba('placar_mac').appendRow(["'" + agora(), tipo, n, acc.g, acc.e, acc.p, decisao]);
-  return { ok: true, tipo: tipo, rodada: res, acumulado: acc, decisao: decisao };
+  if (primarios.length) props.setProperty(Q + '_PRIMARIO', primarios.join(',')); else props.deleteProperty(Q + '_PRIMARIO');   // vazio trava a tela de Propriedades
+  aba('placar_mac').appendRow(["'" + agora(), (noPC ? 'PC ' + cer.modelo + ' · ' : '') + tipo, n, acc.g, acc.e, acc.p, decisao]);
+  return { ok: true, quem: noPC ? 'pc' : 'mac', tipo: tipo, rodada: res, acumulado: acc, decisao: decisao };
 }
 /** Tipo de pedido em que o Mac já provou que dá conta: ele responde primeiro. */
 function macPrimario(pergunta) {
   const lista = String(prop('MAC_PRIMARIO') || '').split(',').filter(Boolean);
+  return lista.length && lista.indexOf(tipoTarefa(pergunta)) >= 0;
+}
+function pcPrimario(pergunta) {
+  const lista = String(prop('PC_PRIMARIO') || '').split(',').filter(Boolean);
   return lista.length && lista.indexOf(tipoTarefa(pergunta)) >= 0;
 }
 
@@ -4327,6 +4394,11 @@ function estudar() {
   if (!(r && r.aprendeu)) { try { const rv = revisoraRodada(); if (rv && rv.revisou) return Object.assign({ ok: true, erros: r, revisora: rv }, { tema: { tema: 'revisora: ' + rv.sinal + (rv.aprendeu ? ' → ' + String(rv.regra || '').slice(0, 50) : ' (' + (rv.motivo || 'ok') + ')'), salvos: 0 } }); } catch (e) { /* segue pro tema */ } }
   if (r && r.aprendeu) return Object.assign(r, { tema: { tema: 'erro corrigido (' + String(r.regra || '').slice(0, 60) + ')', salvos: 0 } });
   const n = Number(props.getProperty('ESTUDO_TEMA') || 0);
+  // PC ligado: a prova é dele (toda rodada até ter 8 provas; depois uma sim, outra não). O Mac fica com o resto.
+  if (cerebroPCPonte() && (placarTotal('PC').n < 8 || n % 2 === 1)) {
+    props.setProperty('ESTUDO_TEMA', String(n + 1));
+    try { const pp = placarMacRodada(null, 'pc'); if (pp && pp.ok) return { ok: true, erros: r, placarPC: pp, tema: { tema: 'placar PC × nuvem (' + (pp.tipo || 'sem tipo') + ')', salvos: 0 } }; } catch (e) { /* cai pro Mac/tema */ }
+  }
   if (n % 2 === 1 && temCerebro('mac')) {   // uma rodada sim, outra não: mede o Mac contra a nuvem
     props.setProperty('ESTUDO_TEMA', String(n + 1));
     try { const pm = placarMacRodada(); return { ok: true, erros: r, placarMac: pm, tema: { tema: 'placar Mac × nuvem (' + ((pm && pm.tipo) || 'sem tipo') + ')', salvos: 0 } }; } catch (e) { /* cai pro tema */ }

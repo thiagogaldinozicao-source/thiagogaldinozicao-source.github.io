@@ -79,6 +79,32 @@ foreach ($f in @('manifest.json', 'fundo.js', 'painel.html', 'painel.js', 'icone
 }
 Write-Host ('[ok] extensão do Chrome em ' + $ext)
 
+# 6) cérebro do PC (orquestra): baixa os modelos que a ZicoAI usa quando o PC está ligado.
+#    qwen3.5:35b-a3b (22 GB, o principal: 35B com 3B ativos, roda com parte na RAM) e qwen3.5:9b (6,6 GB, reserva).
+#    Não apaga nenhum modelo seu. Pula o que já tem. Precisa de ~30 GB livres no disco do Ollama.
+$cerebros = @('qwen3.5:35b-a3b', 'qwen3.5:9b')
+if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
+  Write-Host '[aviso] Ollama não encontrado: instala em https://ollama.com/download e roda este comando de novo.' -ForegroundColor Red
+} else {
+  $ErrorActionPreference = 'Continue'
+  Write-Host ('Ollama: ' + ((& ollama --version 2>&1 | Out-String).Trim()))
+  $tem = @(& ollama list 2>$null | Select-Object -Skip 1 | ForEach-Object { ([string]$_ -split '\s+')[0] })
+  $pastaModelos = $env:OLLAMA_MODELS; if (-not $pastaModelos) { $pastaModelos = Join-Path $HOME '.ollama\models' }
+  $livre = 999
+  try { $livre = [math]::Round((Get-PSDrive -Name ($pastaModelos.Substring(0, 1))).Free / 1GB, 1) } catch {}
+  foreach ($m in $cerebros) {
+    if ($tem -contains $m) { Write-Host ('[ok] ' + $m + ' já está no PC'); continue }
+    $precisa = 7; if ($m -like '*35b*') { $precisa = 24 }
+    if ($livre -lt $precisa) { Write-Host ('[aviso] sem espaço pro ' + $m + ' (precisa ' + $precisa + ' GB, tem ' + $livre + ' GB livres). Pulei.') -ForegroundColor Red; continue }
+    Write-Host ('Baixando ' + $m + ' (pode demorar; dá pra usar o PC enquanto isso)...') -ForegroundColor Yellow
+    & ollama pull $m
+    if ($LASTEXITCODE -eq 0) { Write-Host ('[ok] ' + $m + ' baixado') -ForegroundColor Green; $livre -= $precisa }
+    else { Write-Host ('[ERRO] não baixou o ' + $m + '. Se falar de versão, atualiza o Ollama (https://ollama.com/download) e roda de novo.') -ForegroundColor Red }
+  }
+  $ErrorActionPreference = 'Stop'
+  Write-Host '[ok] a ponte avisa a ZicoAI dos modelos em até 5 min'
+}
+
 Write-Host ''
 Write-Host '================ PRONTO ================' -ForegroundColor Yellow
 Write-Host ('Segredo da ponte: ' + $cfg.segredo) -ForegroundColor Cyan

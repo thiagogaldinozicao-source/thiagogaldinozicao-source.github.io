@@ -17,7 +17,7 @@ H.setFetch(() => ({ getResponseCode: () => 429, getContentText: () => 'rate limi
 let r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'me explica o que é margem de lucro' }] });
 ok(r.ok && /Mac/.test(r.cerebro) && r.passos.some(p => /Nuvem indisponível \(limite\), respondeu com o Mac/.test(p)), 'nuvem no limite: respondeu com o Mac (' + r.cerebro + ')');
 // estudo: Mac gera primeiro
-ok(/\['mac', 'groq', 'nvidia', 'groq2'\]/.test(run('estudoNoturno.toString()')), 'estudo: o Mac gera os exercícios, a nuvem só corrige');
+ok(/\['local', 'groq', 'nvidia', 'groq2'\]/.test(run('estudoNoturno.toString()')) && run('cerebroLocal().nome') === run('CEREBROS.mac.nome'), 'estudo: o cérebro local (Mac, ou PC quando ganhar a prova) gera os exercícios, a nuvem só corrige');
 // erro gravado na conversa
 run('ponteSemDetalhe = function(){ throw new Error("Mac fora"); }; CacheService.getScriptCache().put("mac_off","1",180);');
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'teste de erro' }] });

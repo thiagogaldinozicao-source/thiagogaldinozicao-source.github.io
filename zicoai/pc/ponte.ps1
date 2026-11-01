@@ -10,7 +10,7 @@ $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Dir) { $Dir = Join-Path $HOME 'ZicoAI-Ponte' }
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '2.3'
+$Versao = '2.4'
 
 function Log($t) {
   $linha = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t
@@ -213,6 +213,46 @@ function Comando($p) {
 }
 
 
+# Cérebro do PC (2.4): conversa com o Ollama local (só 127.0.0.1; o nome do modelo vem da ZicoAI e é conferido).
+# A ZicoAI usa o PC sozinha quando ele está ligado (orquestra: Mac 24h + PC quando liga).
+function OllamaChat($d) {
+  $modelo = [string]$d.modelo
+  if (-not $modelo) { $modelo = 'qwen3.5:35b-a3b' }
+  if ($modelo -notmatch '^[a-zA-Z0-9._:/-]+$') { throw 'nome de modelo inválido' }
+  $msgs = @()
+  foreach ($m in @($d.mensagens)) {
+    if (-not $m) { continue }
+    $papel = [string]$m.role
+    if (@('system', 'user', 'assistant') -notcontains $papel) { $papel = 'user' }
+    $txt = [string]$m.content
+    if ($txt.Length -gt 60000) { $txt = $txt.Substring(0, 60000) }
+    $msgs += @{ role = $papel; content = $txt }
+  }
+  if ($msgs.Count -eq 0) { throw 'sem mensagens' }
+  $temp = 0.6; if ($null -ne $d.temperatura -and [double]$d.temperatura -ge 0) { $temp = [double]$d.temperatura }
+  $np = 2048; if ($d.maxTokens) { $np = [math]::Min([int]$d.maxTokens, 8192) }
+  $ctx = 16384; if ($d.contexto) { $ctx = [math]::Min([int]$d.contexto, 32768) }
+  # keep_alive 5m: o modelo sai da placa 5 min depois do último uso (libera o PC pro Unreal/jogo)
+  $corpo = @{ model = $modelo; stream = $false; think = $false; keep_alive = '5m'; options = @{ temperature = $temp; num_predict = $np; num_ctx = $ctx }; messages = $msgs }
+  $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -Compress -Depth 6 $corpo))
+  $t0 = Get-Date
+  $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:11434/api/chat' -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8' -TimeoutSec 190
+  $j = [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json
+  if ($j.error) { throw ('Ollama: ' + $j.error) }
+  $texto = ([string]$j.message.content) -replace '(?s)<think>.*?</think>', ''
+  return @{ ok = $true; texto = $texto.Trim(); modelo = $modelo; ms = [int]((Get-Date) - $t0).TotalMilliseconds; tokens = [int]$j.eval_count }
+}
+# Modelos instalados (vai junto quando busca pedidos, a cada 5 min): a ZicoAI escolhe o melhor que o PC tem.
+$script:Modelos = ''
+$script:ModelosEm = [datetime]::MinValue
+function ModelosInstalados {
+  if (((Get-Date) - $script:ModelosEm).TotalMinutes -ge 5) {
+    $script:ModelosEm = Get-Date
+    try { $script:Modelos = ((& ollama list 2>$null | Select-Object -Skip 1 | ForEach-Object { ([string]$_ -split '\s+')[0] } | Where-Object { $_ }) -join ',') } catch { $script:Modelos = '' }
+  }
+  return $script:Modelos
+}
+
 # Chama a ZicoAI (Apps Script) e devolve o JSON. Texto sempre em UTF-8 (acentos e o "ã" do Zicão).
 function Chamar($obj) {
   $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -Compress -Depth 8 $obj))
@@ -235,6 +275,7 @@ function Executar($p) {
       'print'    { return (TirarPrint) }
       'abrir'    { return (Abrir $d) }
       'comando'  { return (Comando $d) }
+      'ollama_chat' { return (OllamaChat $d) }
       default    { return @{ ok = $false; erro = ('Ação desconhecida: ' + $acao) } }
     }
   } catch { return @{ ok = $false; erro = $_.Exception.Message } }
@@ -245,7 +286,7 @@ $falhas = 0
 $conectou = $false
 while ($true) {
   try {
-    $r = Chamar @{ acao = 'ponteBuscar'; segredo = [string]$cfg.segredo; nome = $env:COMPUTERNAME; versao = $Versao }
+    $r = Chamar @{ acao = 'ponteBuscar'; segredo = [string]$cfg.segredo; nome = $env:COMPUTERNAME; versao = $Versao; modelos = (ModelosInstalados) }
     if (-not $r.ok) { Log ('a ZicoAI recusou: ' + $r.erro); Start-Sleep -Seconds 60; continue }
     if (-not $conectou) { Log 'conectado na ZicoAI'; $conectou = $true }
     $falhas = 0
