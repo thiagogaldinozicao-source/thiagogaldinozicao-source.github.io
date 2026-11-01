@@ -1057,7 +1057,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
   // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
   const codigo = !imagem && ehProgramacao(pergunta);
-  const pc = PC_MODELO_FORCADO ? cerebroPCPonte() : (preferido === 'pc' || codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // v100: seletor em PC = o cérebro grande do PC (a destilada), não o 9B   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
+  const pc = PC_MODELO_FORCADO ? cerebroPCPonte() : ((preferido === 'pc' && !!cerebroPCPonte()) || codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // v100: seletor em PC = o cérebro grande do PC (a destilada), não o 9B   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
   let ordem;
   // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
   if (imagem) ordem = ['gemini', 'mistral', 'zaiv', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
