@@ -5,8 +5,10 @@ r = H.post({ pin: '1234', acao: 'teste' }); ok(r.ok, 'teste');
 // chat normal
 r = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', mensagens: [{ role: 'user', content: 'qual a bateria do iPhone 17 Pro Max?' }] });
 ok(r.ok && r.chatId && r.titulo, 'chat cria conversa');
+ok(!/MEMORIA/.test(r.resposta) && !H.sheets.memoria.rows.some(x => x[1] === 'Thiago gosta de café') && r.passos.some(p => /Não guardou na memória \(não foi o Thiago que disse\)/.test(p)), 'v90: ela NÃO guarda o que ela inventou (Thiago perguntou da bateria, não falou de café)');
+r = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', chatId: r.chatId, mensagens: [{ role: 'user', content: 'lembra que eu gosto de café' }] });
 ok(!/MEMORIA/.test(r.resposta) && r.salvou.includes('memória'), 'tag de memória processada: ' + r.resposta);
-ok(H.sheets.memoria.rows.some(x => x[1] === 'Thiago gosta de café'), 'memória gravada');
+ok(H.sheets.memoria.rows.some(x => x[1] === 'Thiago gosta de café'), 'memória gravada quando o Thiago pede pra lembrar');
 const principal = H.fetchLog.find(f => f.body && f.body.tools) || H.fetchLog[0];   // v80: antes vem a busca dos modelos (ficha por aparelho)
 const sys = principal.body.messages[0].content;
 ok(/17 Pro Max/.test(sys), 'base relevante incluiu 17 Pro Max');
@@ -21,12 +23,12 @@ ok(r.ok && r.cerebro === 'Gemini', 'fallback groq->gemini; ordem: ' + H.fetchLog
 console.log('passos:', r.passos);
 // abrir conversa
 const ab = H.post({ pin: '1234', acao: 'abrir', chatId: r.chatId });
-ok(ab.mensagens.length === 4, 'abrir traz 4 mensagens');
+ok(ab.mensagens.length === 6, 'abrir traz 6 mensagens');
 // refazer
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'nova versão' } }] }) }));
 r = H.post({ pin: '1234', acao: 'chat', chatId: r.chatId, refazer: true, mensagens: [{ role: 'user', content: 'faz um código html de calculadora' }] });
 const ab2 = H.post({ pin: '1234', acao: 'abrir', chatId: r.chatId });
-ok(ab2.mensagens.length === 4 && ab2.mensagens[3].content === 'nova versão', 'refazer substitui última resposta');
+ok(ab2.mensagens.length === 6 && ab2.mensagens[5].content === 'nova versão', 'refazer substitui última resposta');
 // pesquisa → gemini nativo com google
 H.fetchLog.length = 0;
 H.setFetch((u) => u.includes(':generateContent') ? { getResponseCode: () => 200, getContentText: () => JSON.stringify({ candidates: [{ content: { parts: [{ text: 'Dólar 5,40' }] }, groundingMetadata: { groundingChunks: [{ web: { uri: 'https://x.com', title: 'X' } }] } }] }) } : { getResponseCode: () => 500, getContentText: () => 'x' });

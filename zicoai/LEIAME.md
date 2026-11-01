@@ -155,6 +155,14 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v90 (01/11): memória limpa
+- Caso real: o contexto de toda resposta tinha "nome Átila significa paizinho", "dólar é referência externa", preço do iPhone 15, "todos os parcelamentos têm juros", ID da planilha, ficha do iPhone Duo... (as 25 últimas lembranças iam SEMPRE).
+- `motivoMemoriaRuim(t, origem)`: grande demais (>300, ficha/lista), detalhe interno do sistema (`RX_MEM_SISTEMA`); e, quando foi ela que tirou sozinha (`auto`): preço/garantia/endereço/horário/juros/ficha (`RX_MEM_LOJA`: só valem da base/tabela conferida), informação de fora (`RX_MEM_FORA`), dedução (`RX_MEM_DEDUCAO`).
+- `revisarMemoria()` (ação `revisarMemoria`, só dono; roda sozinha 1 vez via `MEM_REVISADA_V90`): marca Origem = `revisar` (NÃO apaga), anota motivo na aba `historico`. Pra voltar uma linha: trocar a Origem pra `thiago`.
+- `montarSistema`: `revisar` nunca entra; sempre entram só as 10 últimas lembranças curtas guardadas a pedido (não auto/app/rotina/prova/catalogo); o resto só se tiver a ver com a pergunta (`relevantes`, máx. 20).
+- `[[MEMORIA:]]` da resposta: se o Thiago não pediu pra lembrar/anotar (`RX_PEDIU_LEMBRAR`), só grava se passar no filtro e tiver apoio na fala dele. `pareceColado()`: código/lista/JSON colado não conta como "o Thiago disse" (nem no aprender sozinha). `apoiado` mais rígido (60% e no mínimo 2 palavras).
+- Brain order (v89, mesmo dia): com `EDITANDO_APP`, ordem = Gemini Flash → Gemini → Mistral → NVIDIA (só os que aguentam arquivo grande e não estouram os 6 min). t68 (com as 22 linhas reais da planilha); t1/t16 ajustados.
+
 ## v89 + mac/testar-html.js v2 (01/11): PROVAS do app + sistema enxuto ao programar
 - Caso real: "corrige um bug na minha calculadora" caiu (6 min do Google) e nos passos apareceu memória de dólar/preço de iPhone. E o erro dos centavos só foi achado porque alguém olhou os números: o teste do Mac só via se abria e se os botões funcionavam.
 - **Provas** (igual os testes do Claude): `REGRA_PROVAS` (dentro de `REGRA_EDICAO`) manda ela escrever um bloco ```provas (JSON: nome, passos clicar/preencher/escolher/teclas/esperar/js, conferir texto+contem/igual/naoContem ou js que devolve true/motivo). `extrairProvas_` tira do texto; `provasDoApp`/`guardarProvas_` (aba `provas_apps`: App, Nome, Prova, Criada, Origem, Ativa). `programadora`: roda as provas novas no código VELHO (têm que falhar = pegam o defeito; se passam, aviso e não guarda), depois antigas + novas no código novo (`testarApp(html, provas)`, ponte 120 s); falhou → conserto (máx. 2, não começa depois de ~3 min); passou → guarda as novas. Selo lista as provas. Sem prova → aviso.

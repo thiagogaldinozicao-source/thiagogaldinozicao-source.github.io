@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 89 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 90 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -653,6 +653,7 @@ function doPost(e) {
       case 'projetoArquivoLer': { const l = linhas('projeto_arquivos').find(x => x[0] === String(req.projeto) && x[1] === String(req.nome)); return saida(l ? { ok: true, conteudo: l[2] } : { ok: false, erro: 'Arquivo não encontrado' }); }
       case 'dispositivos':  return saida(dispositivos());
       case 'memorias':      return saida(listarMemorias());
+      case 'revisarMemoria': return saida(revisarMemoria());   // v90: marca as lembranças suspeitas (não apaga)
       case 'treinoResumo':  return saida({ ok: true, treino: resumoTreino(), placar: placar(), revisar: exemplosParaRevisar(20) });
       case 'revisarExemplo': return saida(revisarExemplo(String(req.pergunta || ''), !!req.aprovado));
       case 'salvar':        return saida(salvarMemoria(req.texto, aparelho));
@@ -868,7 +869,7 @@ function chat(req, aparelho) {
 
   // TESTA ANTES DE ENTREGAR (igual o Claude): refaz as contas e abre os links da resposta
   try { resultado.texto = conferirAntesDeEntregar(resultado.texto); } catch (e) { /* conferência nunca derruba a resposta */ }
-  const proc = processarTags(resultado.texto, aparelho);
+  const proc = processarTags(resultado.texto, aparelho, pergunta);
   let textoFinal = proc.texto;
   if (resultado.fontes && resultado.fontes.length) {
     textoFinal += '\n\n**Fontes:** ' + resultado.fontes.slice(0, 5).map(f => '[' + f.titulo + '](' + f.url + ')').join(' · ');
@@ -1976,9 +1977,12 @@ function montarSistema(pergunta, enxuto) {
   if (aprUsado.length) s += '\n\n### APRENDIZADOS (erros que já aconteceram e o jeito certo)\n' + aprUsado.map(l => '- ERRO: ' + l[1] + ' → CERTO: ' + l[2]).join('\n');
 
   const mem = linhas('memoria').filter(l => ehDono() ? !/^pessoa:/.test(String(l[2] || '')) : String(l[2] || '') === 'pessoa:' + PESSOA.id);   // cada um com a sua memória
-  const recentes = mem.slice(enxuto ? -8 : -25);
-  const antigas = mem.slice(0, Math.max(0, mem.length - recentes.length));
-  const memUsada = relevantes(antigas, pergunta, enxuto ? 8 : 35, l => l[1]).concat(recentes);
+  // v90: antes as 25 últimas iam SEMPRE (dólar, preço de iPhone, ID da planilha em toda resposta). Agora: 'revisar' nunca entra;
+  // sempre entram só as últimas lembranças curtas guardadas a pedido; o resto (inclusive o que ela tirou sozinha) só se tiver a ver com a pergunta
+  const memBoa = mem.filter(l => String(l[2] || '') !== 'revisar');
+  const recentes = memBoa.filter(l => !/^(auto|app|rotina|prova|catalogo)$/.test(String(l[2] || '')) && String(l[1]).length <= 300).slice(enxuto ? -5 : -10);
+  const antigas = memBoa.filter(l => recentes.indexOf(l) < 0);
+  const memUsada = relevantes(antigas, pergunta, enxuto ? 6 : 20, l => l[1]).concat(recentes);
   if (memUsada.length) s += '\n\n### MEMÓRIA (' + (ehDono() ? 'o que o Thiago já ensinou' : 'o que ' + PESSOA.nome + ' já contou') + ')\n' + memUsada.map(l => '- (' + l[0] + ') ' + l[1]).join('\n');
 
   let base = relevantes(linhas('base'), pergunta, enxuto ? 4 : 10, l => l[0] + ' ' + l[1], l => l[0]);
@@ -2175,7 +2179,7 @@ function relevantes(lista, pergunta, limite, textoDe, tituloDe) {
 
 const PARADAS = ['que', 'qual', 'quais', 'como', 'para', 'pra', 'com', 'uma', 'umas', 'uns', 'por', 'dos', 'das', 'nos', 'nas', 'esse', 'essa', 'isso', 'este', 'esta', 'isto', 'mais', 'menos', 'muito', 'voce', 'manda', 'faz', 'fazer', 'quero', 'preciso', 'tem', 'ter', 'sobre', 'ele', 'ela', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua', 'ser', 'tah', 'sim', 'nao', 'mas', 'quando', 'onde', 'porque', 'entao', 'tambem', 'tbm', 'aqui', 'ali', 'agora'];
 
-function processarTags(texto, aparelho) {
+function processarTags(texto, aparelho, pergunta) {
   const salvou = [];
   if (!ehDono()) {   // v81: outra pessoa: só memória própria; o resto vira sugestão pro Thiago ou some
     texto = texto.replace(/\[\[(BASE|PERFIL):\s*([\s\S]*?)\]\]/gi, (_, tipo, t) => {
@@ -2193,6 +2197,10 @@ function processarTags(texto, aparelho) {
   });
   texto = texto.replace(/\[\[MEMORIA:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     t = t.trim();
+    if (t && ehDono() && pergunta !== undefined && !RX_PEDIU_LEMBRAR.test(String(pergunta || ''))) {   // v90: ela não guarda sozinha o que ELA escreveu (ficha, "criado com sucesso")
+      const ruim = motivoMemoriaRuim(t, 'auto') || (pareceColado(pergunta) || !apoiado(t, String(pergunta || '') || ' ') ? 'não foi o Thiago que disse' : '');
+      if (ruim) { passo('Não guardou na memória (' + ruim + '): ' + t.slice(0, 60)); return ''; }
+    }
     if (t && !temDadoSensivel(t) && !jaSabe(t, linhas('memoria').filter(l => ehDono() ? !/^pessoa:/.test(String(l[2] || '')) : String(l[2] || '') === 'pessoa:' + PESSOA.id).map(l => l[1]))) {
       aba('memoria').appendRow(["'" + hoje(), seguro(t), aparelho]);
       salvou.push('memória'); passo('Guardou na memória: ' + t.slice(0, 80));
@@ -3241,6 +3249,7 @@ function aprenderSozinha() {
   if (!lock.tryLock(1000)) return;
   try {
     const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('MEM_REVISADA_V90')) { try { const rv = revisarMemoria(); Logger.log('Memória revisada (v90): ' + rv.marcadas.length + ' marcadas'); } catch (e) { Logger.log('revisarMemoria: ' + e.message); } props.setProperty('MEM_REVISADA_V90', hoje()); }
     const ultima = props.getProperty('APRENDIDO_ATE') || '';
     const deOutros = {}; linhas('chats').forEach(c => { if (c[7]) deOutros[c[0]] = 1; });   // v81: conversa de outra pessoa não ensina fato do Thiago
     const novas = linhas('mensagens').filter(l => l[1] > ultima && !deOutros[l[0]]).slice(0, 60);
@@ -3250,7 +3259,7 @@ function aprenderSozinha() {
     let conversa = '', falaThiago = '';
     novas.forEach(l => {
       const quem = l[2] === 'thiago' ? 'THIAGO' : 'ZICOAI';
-      if (quem === 'THIAGO') falaThiago += ' ' + String(l[3]).slice(0, 2500);
+      if (quem === 'THIAGO' && !pareceColado(l[3])) falaThiago += ' ' + String(l[3]).slice(0, 2500);   // v90: código/lista colada não é "o Thiago disse"
       conversa += quem + ': ' + String(l[3]).slice(0, quem === 'THIAGO' ? 2500 : 400) + '\n';
     });
     const memAtual = linhas('memoria').map(l => '- ' + l[1]).join('\n').slice(-12000);
@@ -3296,7 +3305,7 @@ function lerJSON(txt) {
   try { return JSON.parse(out.replace(/,\s*([}\]])/g, '$1')); } catch (e) { return null; }
 }
 
-/** O fato tem apoio no que o Thiago escreveu? (metade das palavras importantes precisa aparecer na fala dele) */
+/** O fato tem apoio no que o Thiago escreveu? (v90: 60% das palavras importantes e pelo menos 2 precisam aparecer na fala dele) */
 function apoiado(texto, falaThiago) {
   if (!falaThiago) return true;
   const pal = normalizar(texto).split(/[^a-z0-9]+/).filter(p => p.length >= 4 && PARADAS.indexOf(p) < 0);
@@ -3305,7 +3314,55 @@ function apoiado(texto, falaThiago) {
   const base = ' ' + normalizar(falaThiago) + ' ';
   const temNum = nums.every(n => base.indexOf(n) >= 0);
   const comum = pal.filter(p => base.indexOf(p) >= 0).length;
-  return temNum && comum / pal.length >= 0.5;
+  return temNum && comum >= Math.min(2, pal.length) && comum / pal.length >= 0.6;
+}
+
+/* v90: MEMÓRIA LIMPA. A memória tinha "nome Átila significa paizinho", "dólar é referência externa", preço do iPhone 15,
+ * "todos os parcelamentos têm juros", ID da planilha... e tudo isso ia em TODA resposta (até quando ele pedia pra corrigir a calculadora).
+ * Agora: fato da loja (preço, garantia, endereço, horário, juros, ficha) só vale da BASE/tabela conferida; detalhe interno do sistema,
+ * informação de fora e dedução não viram memória; texto colado (código, lista, JSON) não conta como "o Thiago disse". */
+const RX_MEM_LOJA = /(R\$\s*\d|pre[çc]o|garantia|endere[çc]o|hor[áa]rio|juros|parcel|ficha t[ée]cnica)/i;
+const RX_MEM_SISTEMA = /(apps? script|planilha|\bID\b|github|reposit[óo]rio|\bponte\b|powershell|\.ps1\b|\bscript\b|ferramentas?\b|\bagente\b|\[\[|c[ée]rebro da zicoai|defender|leiame|\birm\b|config\.json|\b(mac|pc)_[a-z]+|criad[oa] com sucesso)/i;
+const RX_MEM_FORA = /(cota[çc][ãa]o|d[óo]lar|significa|origem (g[óo]tica|latina|grega|hebraica|do nome)|em tempo real)/i;
+const RX_MEM_DEDUCAO = /\b(devido a|devido ao|por causa d|porque|todos os|todas as|deve ser consultad)/i;
+const RX_PEDIU_LEMBRAR = /(lembr[ae]\b|lembra (que|disso|dessa|desse)|anot[ae]\b|(salv|guard|grav)[ae] (isso|essa|esse|na mem)|memoriz|n[ãa]o (se )?esque[cç]|pra sempre)/i;
+const ORIGENS_SISTEMA = /^(app|rotina|prova|catalogo|revisar)$/;
+
+/** Por que esse texto NÃO deve ser memória ('' = pode). origem 'auto' (ela tirou da conversa) é julgada com mais rigor. */
+function motivoMemoriaRuim(t, origem) {
+  t = String(t || '');
+  if (t.length > 300) return 'grande demais (ficha/lista vai pra base)';
+  if (RX_MEM_SISTEMA.test(t)) return 'detalhe interno do sistema';
+  if (origem !== 'auto') return '';
+  if (RX_MEM_LOJA.test(t)) return 'preço/garantia/endereço/ficha só valem da base conferida';
+  if (RX_MEM_FORA.test(t)) return 'informação de fora (muda ou não é da loja)';
+  if (RX_MEM_DEDUCAO.test(t)) return 'dedução/generalização';
+  return '';
+}
+
+/** Texto colado (código, lista, JSON, ficha) não é o Thiago "dizendo" um fato. */
+function pareceColado(t) {
+  t = String(t || '');
+  return t.length > 1500 || /```|<\/?(html|div|script|td|table)\b|^\s*[\[{]/i.test(t) || (t.match(/\n/g) || []).length > 20;
+}
+
+/** Marca (sem apagar) as lembranças suspeitas como 'revisar': saem das respostas; pra voltar, trocar a Origem na planilha. */
+function revisarMemoria() {
+  const a = aba('memoria');
+  const n = a.getLastRow();
+  const marcadas = [];
+  if (n < 2) return { ok: true, marcadas: marcadas };
+  const vals = a.getRange(2, 1, n - 1, 3).getDisplayValues();
+  vals.forEach((l, i) => {
+    const o = String(l[2] || '');
+    if (ORIGENS_SISTEMA.test(o) || /^pessoa:/.test(o)) return;
+    const m = motivoMemoriaRuim(l[1], o);
+    if (!m) return;
+    a.getRange(i + 2, 3).setValue('revisar');
+    try { aba('historico').appendRow(["'" + agora(), 'memoria', 'revisar', seguro(String(l[1]).slice(0, 500)), m + ' (Origem era "' + o + '"; pra voltar, troque a Origem pra "thiago")', 'v90']); } catch (e) { /* ok */ }
+    marcadas.push({ texto: String(l[1]).slice(0, 120), motivo: m });
+  });
+  return { ok: true, marcadas: marcadas };
 }
 
 /** Grava o que foi aprendido sem duplicar o que já existe. */
@@ -3318,6 +3375,8 @@ function guardarAprendido(j, origem, falaThiago) {
     m = String(m || '').trim();
     if (m.length < 6 || temDadoSensivel(m) || jaSabe(m, existentes)) return;
     if (/n[ãa]o confirmad|deixa eu confirmar|segundo plano|compacta|n[ãa]o possui permiss|n[ãa]o consegue|n[ãa]o tem acesso/i.test(m)) return;   // ruído sobre o próprio sistema
+    const ruim = motivoMemoriaRuim(m, origem);
+    if (ruim) { feito.push('ignorou (' + ruim + '): ' + m.slice(0, 50)); return; }
     if (!ok(m)) return;
     aba('memoria').appendRow(["'" + hoje(), seguro(m.slice(0, 500)), origem]);
     existentes.push(m);

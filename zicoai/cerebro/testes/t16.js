@@ -13,13 +13,13 @@ H.setFetch((u, o) => { const b = JSON.parse(o.payload); if (/sistema de memória
   aprendizados: [{ erro: 'disse sem juros', certo: 'Todo parcelamento tem juros', assunto: 'pagamento' }, { erro: 'disse que trabalha em segundo plano', certo: 'Não inventar processos em segundo plano', assunto: 'sistema' }],
   esquecer: [],
   base: [{ assunto: 'Garantia TV Box', conteudo: 'TV Box tem 3 meses de garantia' }, { assunto: 'Endereço', conteudo: 'Rua Zeferino Paiva, 58, Itaú de Minas' }],
-  perfil: [{ topico: 'Outros', informacao: 'O Thiago tem interesse no significado de nomes' }, { topico: 'Outros', informacao: 'O Thiago mora em Itaú de Minas e todo parcelamento da loja tem juros' }]
+  perfil: [{ topico: 'Outros', informacao: 'O Thiago tem interesse no significado de nomes' }, { topico: 'Outros', informacao: 'Todo parcelamento da loja tem juros' }, { topico: 'Outros', informacao: 'O Thiago mora em Itaú de Minas' }]
 })); } return resp('ok'); });
 H.sheets.perfil.rows.push(['Outros', 'Plano de saúde: avaliando Unimed']);
 const perfilAntes = H.sheets.perfil.rows.map(r => r.join('|'));
 H.ctx.aprenderSozinha();
 const mem = H.sheets.memoria.rows.map(l => l[1]);
-ok(mem.some(m => /Zeferino Paiva/.test(m)), 'memória dita pelo Thiago entra');
+ok(!mem.some(m => /Zeferino Paiva/.test(m)) && H.sheets.base.rows.some(l => /Zeferino Paiva/.test(l[1])), 'v90: endereço dito pelo Thiago vai pra BASE, não pra memória solta');
 ok(!mem.some(m => /TV Box é de 3 meses/.test(m)) && !mem.some(m => /sinal para reserva/.test(m)), 'memória inventada pela ZicoAI NÃO entra');
 ok(!mem.some(m => /não possui permissão/.test(m)), 'ruído sobre o próprio sistema não entra');
 const apr = H.sheets.aprendizados.rows.map(l => l[2]);
@@ -28,7 +28,8 @@ ok(!apr.some(a => /segundo plano/.test(a)), 'aprendizado sobre o sistema não en
 ok(!H.sheets.base.rows.some(l => l[0] === 'Garantia TV Box') && H.sheets.base.rows.some(l => l[0] === 'Endereço'), 'base: só o fato apoiado pelo Thiago');
 ok(H.sheets.perfil.rows.some(r => /Plano de saúde: avaliando Unimed/.test(r[1])), 'perfil "Outros" original NÃO foi sobrescrito');
 ok(!H.sheets.perfil.rows.some(r => /interesse no significado/.test(r[1])), 'perfil: "tem interesse" (uso momentâneo) não entra');
-ok(H.sheets.perfil.rows.some(r => /mora em Itaú de Minas/.test(r[1])) && H.sheets.perfil.rows.filter(r => r[0] === 'Outros').length === 2, 'perfil: fato apoiado entra como linha NOVA em "Outros"');
+ok(H.sheets.perfil.rows.some(r => /Todo parcelamento da loja tem juros/.test(r[1])) && H.sheets.perfil.rows.filter(r => r[0] === 'Outros').length === 2, 'perfil: fato apoiado entra como linha NOVA em "Outros"');
+ok(!H.sheets.perfil.rows.some(r => /mora em Itaú/.test(r[1])), 'v90: "mora em Itaú de Minas" ele não disse: não entra');
 ok(/NADA que apareça só em linha ZICOAI/.test(pedido.messages[0].content) && /ZICOAI: Garantia TV Box: 3 meses/.test(pedido.messages[1].content), 'prompt avisa e linhas ZICOAI vão cortadas');
 // gravarFato direto (tag BASE dita pelo Thiago) continua substituindo assunto único e específico
 H.sheets.base.rows.push(['Garantia seminovo', 'Seminovo tem 6 meses']);
