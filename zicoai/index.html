@@ -386,6 +386,13 @@ header{display:flex}
 .tr-rev .bts button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--borda2);font-weight:600}
 .tr-rev .bts .sim{border-color:var(--verde);color:var(--verde)}
 .tr-rev .bts .nao{border-color:var(--erro);color:var(--erro)}
+.boas.inicio{align-items:flex-start;text-align:left;justify-content:flex-end;max-width:560px;margin:0 auto;padding:0 4px}
+.ini-logo{width:52px;height:52px;border-radius:14px;background:url(ava.png) center/cover;margin-bottom:14px}
+.boas.inicio h2{font-family:inherit;font-weight:500;letter-spacing:-.5px;line-height:1.15;font-size:clamp(30px,8vw,42px);color:var(--texto,#f2f2f2)}
+.atalhos{display:flex;flex-direction:column;gap:2px;margin-top:26px;width:100%}
+.atalho{display:flex;align-items:center;gap:14px;padding:12px 6px;border-radius:12px;font-size:16px;color:var(--cinza);text-align:left}
+.atalho:hover,.atalho:active{background:var(--card)}
+.atalho .ico{color:var(--cinza2);flex-shrink:0}
 .boas .proj{font-size:13px;color:var(--ouro2);border:1px solid #4a3c12;border-radius:20px;padding:3px 12px;margin-top:4px}
 
 @media (max-width:899px){
@@ -1043,13 +1050,20 @@ function desenha(){
   $('tituloTopo').textContent = (pjAberto ? pjAberto.nome + ' / ' : '') + (c ? c.titulo : 'Nova conversa');
   desenhaPainel();
   if(!mensagens.length){
-    t.innerHTML = '<div class="boas">' + (pjAberto ? '<span class="proj">📁 ' + esc(pjAberto.nome) + '</span>' : '') + '<h2>E aí, Thiago</h2><p>Bora criar? App, jogo, imagem, ideia nova. Me corrige quando eu errar: eu anoto e não repito.</p><div class="sugs">' +
-      [['Criar app','Faz um jogo da cobrinha em 1 arquivo HTML, modo escuro, pra celular'],
-       ['Imagem','Gera um sprite de personagem estilo pixel art, fundo transparente'],
-       ['Agente','Pesquisa as 5 melhores ideias de app simples pra loja e monta um plano'],
-       ['Loja','Resposta pra cliente pedindo desconto à vista']]
-      .map(s => '<button class="sug"><b>' + s[0] + '</b>' + s[1] + '</button>').join('') + '</div></div>';
-    t.querySelectorAll('.sug').forEach(b => b.onclick = () => { $('txt').value = b.childNodes[1].textContent; envia(); });
+    // tela inicial (estilo Mistral/Claude): saudação pela hora, pergunta grande e atalhos em lista com ícone
+    const h = new Date().getHours();
+    const oi = h >= 23 || h < 4 ? 'Ainda acordado, Thiago?' : h < 12 ? 'Bom dia, Thiago.' : h < 18 ? 'Boa tarde, Thiago.' : 'Boa noite, Thiago.';
+    const atalhos = [
+      ['web', 'Abrir o navegador', () => abreNavegador()],
+      ['agente', 'Pesquisar preço do iPhone nas lojas', 'Pesquisa no seu navegador o preço do iPhone 17 Pro Max nas lojas grandes e me mostra uma tabela com fonte'],
+      ['apps', 'Melhorar um app meu', 'Quero melhorar um app meu: me pergunta qual e o que eu quero mudar'],
+      ['loja', 'Responder cliente', 'Resposta pra cliente pedindo desconto à vista'],
+      ['computador', 'Ver meus aparelhos', () => abreDispositivos()]
+    ];
+    t.innerHTML = '<div class="boas inicio">' + (pjAberto ? '<span class="proj">📁 ' + esc(pjAberto.nome) + '</span>' : '') +
+      '<div class="ini-logo" aria-hidden="true"></div><h2>' + esc(oi) + '<br>Em que posso ajudar?</h2>' +
+      '<div class="atalhos">' + atalhos.map((a, k) => '<button class="atalho" data-k="' + k + '">' + ico(a[0] === 'loja' ? 'compartilhar' : a[0], 20) + '<span>' + esc(a[1]) + '</span></button>').join('') + '</div></div>';
+    t.querySelectorAll('.atalho').forEach(b => b.onclick = () => { const a = atalhos[+b.dataset.k]; if(typeof a[2] === 'function') a[2](); else { $('txt').value = a[2]; envia(); } });
     return;
   }
   mensagens.forEach((m, i) => t.appendChild(balao(m, i === mensagens.length - 1)));
