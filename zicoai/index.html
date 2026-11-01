@@ -993,8 +993,12 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- publicar app no GitHub Pages (vira link na hora) ---------- */
+const RX_APP_COM_ERRO = /Não ficou pronto|⚠️ Testei e ainda tem|Não testei de verdade/;
 async function publicarApp(html, botao){
   const m = html.match(/<title>([^<]{1,60})<\/title>/i);
+  const msgDona = mensagens.find(x => x.role === 'assistant' && String(x.content || '').includes(html));
+  if(!/<\/html>\s*$/i.test(html.trim())){ alert('Esse arquivo está cortado (sem </html> no fim). Não dá pra publicar: pede pra ela "continua" ou "refaz".'); return; }
+  if(msgDona && RX_APP_COM_ERRO.test(msgDona.content) && !confirm('O teste achou erro nesse app (ou ele não foi testado). Publicar mesmo assim?')) return;
   const nome = appAtual || prompt('Nome do app (vira o endereço):', m ? m[1].trim() : 'meu-app');
   if(!nome) return;
   const o = botao.textContent; botao.textContent = 'Publicando...'; botao.disabled = true;
@@ -1900,6 +1904,7 @@ async function envia(refazendo){
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
+    if(j.appAuto && typeof j.appAuto === 'string' && j.appAuto !== appAtual){ appAtual = j.appAuto; LS.set('appAtual', appAtual); mostraEdicao(); }
     mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, detalhes: Array.isArray(j.detalhes) ? j.detalhes.slice(0,60).map(d => ({tipo: mascaraDetalheUI(d.tipo), titulo: mascaraDetalheUI(d.titulo), pedido: mascaraDetalheUI(d.pedido, 6000), resposta: mascaraDetalheUI(d.resposta, 6000), ms: d.ms})) : [], ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
     status(true);
   }catch(e){
@@ -1922,7 +1927,7 @@ async function envia(refazendo){
 let appAtual = LS.get('appAtual', null);
 function mostraEdicao(){
   $('editando').classList.toggle('on', !!appAtual);
-  if(appAtual) $('editandoNome').textContent = appAtual;
+  if(appAtual) $('editandoNome').textContent = String(appAtual).replace(/^repo:/, '');
 }
 $('pararEdicao').onclick = () => { appAtual = null; LS.set('appAtual', null); mostraEdicao(); };
 function editarApp(slug){
@@ -2781,11 +2786,16 @@ function desenhaPainel(){
     const t = document.createElement('strong'); t.textContent = '↗ App publicado'; card.appendChild(t);
     const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = url; card.appendChild(a); saidas.appendChild(card);
   }
+  const versoes = {}, cardsApp = [];
   mensagens.filter(m => m.role === 'assistant' && !m.erro).forEach(m => {
     const texto = String(m.content || '');
     for(const bloco of texto.matchAll(/\x60{3}html?[^\n]*\n([\s\S]*?)\x60{3}/gi)){
       const card = document.createElement('div'); card.className = 'saida-card bloco';
-      const t = document.createElement('strong'); const titulo = bloco[1].match(/<title>([^<]+)<\/title>/i); t.textContent = '⌘ ' + (titulo ? titulo[1] : 'App HTML'); card.appendChild(t);
+      const t = document.createElement('strong'); const titulo = bloco[1].match(/<title>([^<]+)<\/title>/i);
+      const nomeApp = titulo ? titulo[1].trim() : 'App HTML'; versoes[nomeApp] = (versoes[nomeApp] || 0) + 1;
+      const ruim = RX_APP_COM_ERRO.test(texto) || !/<\/html>\s*$/i.test(bloco[1].trim());
+      t.textContent = '⌘ ' + nomeApp + ' · versão ' + versoes[nomeApp] + (ruim ? ' · ⚠️ com erro' : ''); card.appendChild(t);
+      cardsApp.push({ nome: nomeApp, t });
       const acts = document.createElement('div'); acts.className = 'acts';
       acts.innerHTML = '<button class="testar">▶ Testar</button><button class="testar publicar">⬆ Publicar</button>';
       card.appendChild(acts); const pre = document.createElement('pre'); pre.textContent = bloco[1]; card.appendChild(pre); saidas.appendChild(card);
@@ -2803,6 +2813,9 @@ function desenhaPainel(){
     }
     (m.passos || []).forEach(p => { const x = lerPasso(p); if(x.nome === 'publicar_app' && x.res) (x.res.match(/https?:\/\/[^\s<>"')\]]+/g) || []).forEach(linkApp); });
   });
+  // a última versão de cada app ganha "mais nova"
+  const ultimas = {}; cardsApp.forEach(c => { ultimas[c.nome] = c; });
+  Object.values(ultimas).forEach(c => { if(versoes[c.nome] > 1) c.t.textContent += ' · mais nova'; });
   if(!saidas.children.length) saidas.innerHTML = '<p class="painel-vazio">Apps HTML, imagens e links publicados ficam aqui.</p>';
 }
 function sincronizaPainel(){
@@ -2851,7 +2864,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v42';
+const VERSAO_APP = 'zicoai-v43';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

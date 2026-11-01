@@ -155,6 +155,14 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v85 + app v43 + pc/liberar-espaco.ps1 (01/11): programar no app DE VERDADE
+- Caso real: "corrige um bug na minha calculadora" → ela inventou `renderParcelas`/"linhas ~X-Y" porque a calculadora mora no repo **Calculadora-do-zicao** e ela só via /apps do site. (O bug real: na tabela, `calcParc` mostra só `x.par`; a 1ª parcela `x.first` só aparece no resumo — fica pra ela consertar.)
+- `reposApps()`: repositórios PÚBLICOS do Thiago viram apps "repo:<nome>" (cache 6 h; `REPOS_FORA` = site, catalogo, ZICAOSTOREGESTAO). `listarApps` junta os dois; `codigoDoApp`/`versoesDoApp`/`restaurarApp` entendem "repo:". `appDoPedido_`: pedido de mudança/correção que cita o app ("calculadora") → baixa o index.html real e entra como CÓDIGO ATUAL (edição por trechos + teste do arquivo inteiro); empate = não chuta. Chat devolve `appAuto` e `testado`.
+- `publicarNoRepo_`: Publicar de "repo:X" grava o index.html daquele repo (precisa o repo no GITHUB_TOKEN; arquivo sem `</html>` não sobe). Agente sozinho NUNCA publica em repo (só o botão do Thiago).
+- `programadora`: teste ainda com erro → "❌ **Não ficou pronto**" (cortado: pede "continua/refaz").
+- App v43: `appAuto` liga o modo "Editando <app>" (Publicar vai pro lugar certo); Publicar recusa arquivo cortado e pergunta se o teste achou erro; Saídas com nome, "versão N", "⚠️ com erro" e "mais nova". t65.
+- `pc/liberar-espaco.ps1` (PowerShell como admin, `irm … | iex`): mede e, com S/N, apaga só lixo que o Windows recria (temporários, Windows Update, cache de shader, relatórios de erro, dumps, lixeira, DISM) e oferece desligar a hibernação; só LISTA compactados grandes; nunca toca ZOMBIES/Unreal/Ollama/ZicoAI; com ≥25 GB oferece baixar o qwen3.5:35b-a3b.
+
 ## v84 (01/11): ela não diz que testou sem testar
 - Caso real (calculadora): "Testes confirmados no Mac" com 3 exemplos, 2 com soma errada (142,86 + 6×142,85 = 999,96, não 999,99; 72,73 + 17×72,72 = 1.308,97, não 1.299), e o arquivo cortado. Nenhum teste tinha rodado.
 - `TESTOU_AGORA` (zera a cada pedido) sobe quando `testarApp` abre o app no navegador do Mac ou o agente roda `mac_testar`; no agente também vale o log (`🔧 testar_app`/`mac_testar`, "Abriu o app no navegador do Mac"). `conferirAlegacaoTeste_` (dentro de `conferirAntesDeEntregar`): sem teste, cada frase "testei / testado / testes confirmados / rodei no / conferi no Mac…" fora de bloco de código ganha "_(⚠️ não foi testado de verdade)_" e a resposta abre com "⚠️ **Não testei de verdade**". O selo do próprio teste (`RX_SELO_TESTE`) e "não testei" ficam como estão.

@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 84 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 85 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -751,6 +751,19 @@ function chat(req, aparelho) {
     // edição igual o Claude faz: só os trechos que mudam (arquivo inteiro de volta = arquivo cortado e coisa sumindo)
     if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
   }
+  const pedeAppNovo0 = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta));
+  let appAuto = null;
+  if (!codigoApp && ehDono() && !pedeAppNovo0 && pergunta.length < 4000) {
+    try {
+      const sl = appDoPedido_(pergunta);
+      const cod = sl ? codigoDoApp(sl) : null;
+      if (cod) {
+        codigoApp = cod; appAuto = sl;
+        extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + sl.replace(/^repo:/, '') + '" (arquivo DE VERDADE, baixado agora do GitHub; o Thiago quer mudar este app)\n```html\n' + cod.slice(0, 150000) + '\n```';
+        passo('Abriu o código de verdade do app ' + sl.replace(/^repo:/, '') + ' (' + cod.length + ' letras, do GitHub)');
+      }
+    } catch (e) { /* sem GitHub: segue */ }
+  }
   // mudança no app que ela mesma mandou antes NESTA conversa (sem estar publicado): edita por trechos o último html
   const pedeAppNovo = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta)) && !/\b(nela|nele|nessa|nesse|dela|dele)\b/.test(normalizar(pergunta));
   if (!codigoApp && !pedeAppNovo && pergunta.length < 1500 && /(muda|mude|coloca|coloque|poe|tira|tire|corrig|arruma|ajusta|adiciona|acrescenta|troca|melhora|aument|diminu|layout|botao|cor |fonte|visor|tela|historico|funcao|nao funciona|quebrou|erro)/.test(normalizar(pergunta))) {
@@ -845,7 +858,7 @@ function chat(req, aparelho) {
   tocarChat(chatId);
   try { compactarSePrecisar(chatId); } catch (e) { /* compactação nunca derruba a resposta */ }
 
-  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, detalhes: detalhesSeguros(DETALHES), opcoes: proc.opcoes || undefined };
+  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, detalhes: detalhesSeguros(DETALHES), opcoes: proc.opcoes || undefined, appAuto: appAuto || undefined, testado: resultado.testado };
 }
 
 /* ---------- feedback (👍 / 👎 + reclamação) ---------- */
@@ -1678,8 +1691,9 @@ function programadora(resultado, codigoApp, pergunta) {
     if (!novo) { passo('Conserto não aplicou'); break; }
     html = novo; teste = testarApp(html);
   }
+  const cortado = teste.erros.some(e => /cortad|terminou no meio/i.test(e));
   const selo = teste.erros.length
-    ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ')
+    ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ') + (cortado ? '\n\n❌ **Não ficou pronto**: o arquivo veio cortado. Não publica; pede "continua" ou "refaz" que eu tento de novo.' : '\n\n❌ **Não ficou pronto**: ainda tem erro. Não publica; me manda "corrige" que eu tento de novo.')
     : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
   html = String(html).replace(/\s+$/, '');
   const veioPorTrechos = codigoApp && explicacao !== texto;
@@ -2881,6 +2895,7 @@ function publicarApp(nome, html) {
   if (!token) return { ok: false, erro: 'Falta GITHUB_TOKEN nas Propriedades (github.com/settings/tokens, fine-grained, Contents: write no repositório do site)' };
   html = String(html || '');
   if (html.length < 30 || !/<html|<!doctype/i.test(html)) return { ok: false, erro: 'Isso não parece um app HTML' };
+  if (/^repo:/.test(String(nome || ''))) return publicarNoRepo_(nome, html, token);
   const slug = normalizar(nome || 'app').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'app';
   const caminho = 'apps/' + slug + '/index.html';
   const base = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + caminho;
@@ -2899,36 +2914,111 @@ function publicarApp(nome, html) {
   return { ok: true, url: url, novo: !sha, aviso: 'O GitHub leva de 1 a 3 minutos pra colocar no ar.' };
 }
 
+/** App que mora no repositório próprio (repo:<nome>): grava o index.html dele. Arquivo cortado não sobe. */
+function publicarNoRepo_(slug, html, token) {
+  const rp = repoDoSlug_(slug);
+  if (!rp) return { ok: false, erro: 'Esse repositório não é um app que eu possa mexer' };
+  if (!/<\/html>\s*$/i.test(html.trim())) return { ok: false, erro: 'O arquivo está cortado (sem </html> no fim): não publiquei' };
+  const dono = GITHUB_REPO.split('/')[0];
+  const base = 'https://api.github.com/repos/' + dono + '/' + rp.repo + '/contents/index.html';
+  const cab = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const g = UrlFetchApp.fetch(base + '?ref=' + rp.branch, { headers: cab, muteHttpExceptions: true });
+  const sha = g.getResponseCode() === 200 ? JSON.parse(g.getContentText()).sha : null;
+  const corpo = { message: 'Atualiza ' + rp.repo + ' (ZicoAI, publicado pelo Thiago)', content: Utilities.base64Encode(html, Utilities.Charset.UTF_8), branch: rp.branch };
+  if (sha) corpo.sha = sha;
+  const r = UrlFetchApp.fetch(base, { method: 'put', contentType: 'application/json', headers: cab, payload: JSON.stringify(corpo), muteHttpExceptions: true });
+  const c = r.getResponseCode();
+  if (c === 403 || c === 404) return { ok: false, erro: 'O token não tem acesso ao repositório ' + rp.repo + ' (github.com/settings/tokens → editar o token → incluir o repo com Contents: Read and write)' };
+  if (c !== 200 && c !== 201) return { ok: false, erro: 'GitHub ' + c + ': ' + resumoErro(r.getContentText()) };
+  passo('Atualizou o app ' + rp.repo + ' no repositório dele');
+  try { aba('memoria').appendRow(["'" + hoje(), seguro('App "' + rp.repo + '" atualizado no repositório dele'), 'app']); } catch (e) { /* ok */ }
+  return { ok: true, url: rp.url, novo: false, aviso: 'O GitHub leva de 1 a 3 minutos pra colocar no ar.' };
+}
 /** Lista os apps publicados em /apps do site (API pública do GitHub; com token aumenta o limite). */
 function cabGitHub() {
   const cab = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
   if (prop('GITHUB_TOKEN')) cab.Authorization = 'Bearer ' + prop('GITHUB_TOKEN');
   return cab;
 }
+/* v85: os apps de verdade do Thiago que moram em repositórios próprios (Calculadora-do-zicao, emprestimo, maquininha…).
+ * Slug "repo:<nome>". Só repositórios PÚBLICOS dele; nunca o site, o catálogo nem o Gestão (REPOS_FORA). */
+const REPOS_FORA = /^(thiagogaldinozicao-source\.github\.io|catalogo|ZICAOSTOREGESTAO)$/i;
+function reposApps() {
+  const cache = CacheService.getScriptCache();
+  const c = cache.get('repos_apps'); if (c) return JSON.parse(c);
+  const dono = GITHUB_REPO.split('/')[0];
+  let lista = [];
+  try {
+    const r = UrlFetchApp.fetch('https://api.github.com/users/' + dono + '/repos?per_page=100&type=owner&sort=pushed', { headers: cabGitHub(), muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) lista = JSON.parse(r.getContentText()).filter(x => !x.fork && !x.archived && !x.private && !REPOS_FORA.test(x.name))
+      .map(x => ({ slug: 'repo:' + x.name, repo: x.name, branch: x.default_branch || 'main', url: 'https://' + dono + '.github.io/' + x.name + '/' }));
+  } catch (e) { lista = []; }
+  cache.put('repos_apps', JSON.stringify(lista), 21600);
+  return lista;
+}
+function repoDoSlug_(slug) {
+  const m = String(slug || '').match(/^repo:([A-Za-z0-9._-]{1,100})$/);
+  if (!m || REPOS_FORA.test(m[1])) return null;
+  return reposApps().find(x => x.repo.toLowerCase() === m[1].toLowerCase()) || null;
+}
+/** "corrige o bug da minha calculadora" → abre o código DE VERDADE do app (nunca inventa o arquivo). */
+const PALAVRAS_APP_FORA = ['zicao', 'zicaostore', 'store', 'minha', 'minhas', 'nosso', 'nossa', 'app', 'apps', 'site', 'pagina', 'html', 'codigo', 'arquivo'];
+function appDoPedido_(pergunta) {
+  const s = normalizar(pergunta);
+  if (!/(corrig|arruma|consert|bug|erro|nao funciona|quebrou|muda |mude |melhora|ajusta|adiciona|acrescenta|coloca|tira |troca|atualiza)/.test(s)) return null;
+  const palavras = s.split(/[^a-z0-9]+/).filter(w => w.length >= 5 && PALAVRAS_APP_FORA.indexOf(w) < 0);
+  if (!palavras.length) return null;
+  let apps = [];
+  try { apps = listarApps(); } catch (e) { return null; }
+  const notas = apps.map(a => {
+    const partes = normalizar(a.slug.replace(/^repo:/, '')).split(/[^a-z0-9]+/).filter(x => x.length >= 4 && PALAVRAS_APP_FORA.indexOf(x) < 0);
+    return { a: a, n: partes.filter(x => palavras.some(w => w === x || (w.length >= 6 && parecida(x, w)))).length };
+  }).filter(x => x.n > 0).sort((x, y) => y.n - x.n);
+  if (!notas.length || (notas[1] && notas[1].n === notas[0].n)) return null;   // empate: não chuta
+  return notas[0].a.slug;
+}
 function listarApps() {
   const cache = CacheService.getScriptCache();
   const c = cache.get('apps_lista');
-  if (c) return JSON.parse(c);
+  if (c) return JSON.parse(c).concat(reposApps());
   const r = UrlFetchApp.fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/apps', { headers: cabGitHub(), muteHttpExceptions: true });
   if (r.getResponseCode() !== 200) return [];
   const dono = GITHUB_REPO.split('/')[0];
   const apps = JSON.parse(r.getContentText()).filter(x => x.type === 'dir').map(x => ({ slug: x.name, url: 'https://' + dono + '.github.io/apps/' + x.name + '/' }));
   cache.put('apps_lista', JSON.stringify(apps), 300);
-  return apps;
+  return apps.concat(reposApps());
 }
 function codigoDoApp(slug) {
+  if (/^repo:/.test(String(slug || ''))) {
+    const rp = repoDoSlug_(slug); if (!rp) return null;
+    const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO.split('/')[0] + '/' + rp.repo + '/' + rp.branch + '/index.html', { muteHttpExceptions: true });
+    return r.getResponseCode() === 200 ? r.getContentText() : null;
+  }
   slug = String(slug || '').replace(/[^a-z0-9-]/g, '');
   if (!slug) return null;
   const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/apps/' + slug + '/index.html', { muteHttpExceptions: true });
   return r.getResponseCode() === 200 ? r.getContentText() : null;
 }
 function versoesDoApp(slug) {
+  const rp = repoDoSlug_(slug);
+  if (rp) {
+    const r = UrlFetchApp.fetch('https://api.github.com/repos/' + GITHUB_REPO.split('/')[0] + '/' + rp.repo + '/commits?path=index.html&per_page=10', { headers: cabGitHub(), muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) return [];
+    return JSON.parse(r.getContentText()).map(c => ({ sha: c.sha, quando: String(c.commit.author.date).slice(0, 16).replace('T', ' '), msg: c.commit.message.split('\n')[0] }));
+  }
   slug = String(slug || '').replace(/[^a-z0-9-]/g, '');
   const r = UrlFetchApp.fetch('https://api.github.com/repos/' + GITHUB_REPO + '/commits?path=apps/' + slug + '/index.html&per_page=10', { headers: cabGitHub(), muteHttpExceptions: true });
   if (r.getResponseCode() !== 200) return [];
   return JSON.parse(r.getContentText()).map(c => ({ sha: c.sha, quando: String(c.commit.author.date).slice(0, 16).replace('T', ' '), msg: c.commit.message.split('\n')[0] }));
 }
 function restaurarApp(slug, sha) {
+  const rp = repoDoSlug_(slug);
+  if (rp) {
+    if (!/^[0-9a-f]{7,40}$/.test(sha)) return { ok: false, erro: 'Versão inválida' };
+    const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO.split('/')[0] + '/' + rp.repo + '/' + sha + '/index.html', { muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) return { ok: false, erro: 'Não achei essa versão' };
+    return publicarApp(slug, r.getContentText());
+  }
   slug = String(slug || '').replace(/[^a-z0-9-]/g, '');
   if (!slug || !/^[0-9a-f]{7,40}$/.test(sha)) return { ok: false, erro: 'Versão inválida' };
   const r = UrlFetchApp.fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/' + sha + '/apps/' + slug + '/index.html', { muteHttpExceptions: true });
@@ -4900,9 +4990,10 @@ const FERRAMENTAS = {
   agenda_criar: { desc: 'Cria evento. args: {titulo, quando "AAAA-MM-DD HH:MM", minutos}', run: a => 'agendado: ' + criarEvento(a.titulo, a.quando, a.minutos).quando },
   email_rascunho: { desc: 'Cria rascunho no Gmail (nunca envia). args: {para, assunto, corpo}', run: a => { criarRascunho(a.para, a.assunto, a.corpo); return 'rascunho criado'; } },
   emails_recentes: { desc: 'Lê os e-mails recentes da caixa de entrada. args: {quantos}', run: a => listarEmails(Math.min(20, parseInt(a.quantos, 10) || 10)).join('\n') || '(nenhum)' },
-  listar_apps: { desc: 'Lista os apps publicados no site. args: {}', run: () => listarApps().map(x => x.slug + ' → ' + x.url).join('\n') || '(nenhum)' },
-  ler_app: { desc: 'Código atual de um app publicado. args: {slug}', run: a => codigoDoApp(a.slug) || '(não achei)' },
+  listar_apps: { desc: 'Lista os apps: os publicados no site e os que moram em repositório próprio (slug "repo:Nome", ex.: repo:Calculadora-do-zicao). args: {}', run: () => listarApps().map(x => x.slug + ' → ' + x.url).join('\n') || '(nenhum)' },
+  ler_app: { desc: 'Código atual (de verdade) de um app. Pra mudar um app EXISTENTE leia ele aqui ANTES; nunca invente o arquivo. args: {slug} (ex.: "repo:Calculadora-do-zicao")', run: a => codigoDoApp(a.slug) || '(não achei)' },
   publicar_app: { desc: 'Publica/atualiza um app HTML no site. ANTES de publicar o código é testado (sintaxe + navegador do Mac clicando nos botões); com erro NÃO publica e devolve os erros pra vc consertar. args: {nome, html}', run: a => {
+    if (/^repo:/.test(String(a.nome || ''))) return 'NÃO publiquei: app de repositório próprio (' + a.nome + ') só sobe com o botão Publicar do Thiago. Entregue o código pronto (testado) na resposta final.';
     const t = testarApp(String(a.html || ''));
     if (t.erros.length) return 'ERRO: testei antes de publicar e NÃO publiquei. Conserte e publique de novo:\n- ' + t.erros.slice(0, 8).join('\n- ');
     const r = publicarApp(a.nome, a.html);
