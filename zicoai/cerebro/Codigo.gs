@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 77 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 78 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -531,11 +531,12 @@ function doPost(e) {
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     // ponte do PC: usa o segredo dela, não o PIN
-    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar' || req.acao === 'ponteTrajetorias') {
+    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar' || req.acao === 'ponteTrajetorias' || req.acao === 'ponteTarefa') {
       req.disp = ponteDisp(req.segredo); // 'pc', 'mac' ou 'nav' (Chrome): cada um tem segredo e fila próprios
       if (!req.disp) return saida({ ok: false, erro: 'segredo errado' });
       if (req.acao === 'ponteEstudar' && req.disp === 'nav') return saida({ ok: false, erro: 'o Chrome não puxa estudo' });
       if (req.acao === 'ponteEstudar') return saida(estudar());   // Mac ligado 24h puxa uma rodada de estudo (não gasta a cota de gatilhos)
+      if (req.acao === 'ponteTarefa') return saida(req.disp === 'mac' ? trabalharPeloMac() : { ok: false, erro: 'só o Mac' });   // Mac é o trabalhador das tarefas (sem gastar os 90 min/dia de gatilhos)
       if (req.acao === 'ponteTrajetorias') return saida(req.disp === 'mac' ? trajetoriasTreinoJsonl() : { ok: false, erro: 'só o Mac' });   // treino2 puxa as trajetórias aprovadas
       return saida(req.acao === 'ponteBuscar' ? ponteBuscar(req) : ponteResposta(req));
     }
@@ -567,7 +568,7 @@ function doPost(e) {
       case 'appCodigo':     { const c = codigoDoApp(String(req.slug || '')); return saida(c ? { ok: true, html: c } : { ok: false, erro: 'App não encontrado' }); }
       case 'appVersoes':    return saida({ ok: true, versoes: versoesDoApp(String(req.slug || '')) });
       case 'appRestaurar':  return saida(restaurarApp(String(req.slug || ''), String(req.sha || '')));
-      case 'tarefas':       return saida({ ok: true, tarefas: listarTarefas() });
+      case 'tarefas':       { const lt = listarTarefas(); if (!macTrabalhando() && lt.some(t => t.status === 'pendente')) agendarRodada(); return saida({ ok: true, tarefas: lt }); }   // Mac caiu com tarefa na fila: o Google assume
       case 'cancelarTarefa': return saida({ ok: true, cancelada: cancelarTarefa(req.id) });
       case 'publicar':      return saida(publicarApp(req.nome, req.html));
       case 'historico':     return saida({ ok: true, historico: linhas('historico').slice(-60).reverse() });
@@ -4597,11 +4598,37 @@ function ehPedidoGrande(texto) {
 /** Liga mais um "trabalhador" (gatilho) se ainda não tiver o máximo. */
 function agendarRodada() {
   try {
+    CacheService.getScriptCache().remove('fila_vazia');   // chegou tarefa: o Mac pega na próxima batida (~10 s)
+    if (macTrabalhando()) return;                           // Mac ligado puxando tarefas: não gasta gatilho do Google
     const ja = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rodarTarefas').length;
     const rodando = linhas('tarefas').filter(l => l[4] === 'rodando').length;
     if (ja + rodando >= MAX_AGENTES_JUNTOS) return;
     ScriptApp.newTrigger('rodarTarefas').timeBased().after(1000).create();
   } catch (e) { Logger.log('não agendou rodada: ' + e.message); }
+}
+
+/* ---------- v78: o Mac é o trabalhador das tarefas ----------
+ * A ponte do Mac chama `ponteTarefa` (web app, segredo do Mac) a cada ~10 s: cada chamada roda UMA rodada de agente (até 5 min)
+ * e o Mac já chama de novo se sobrou tarefa. Web app não gasta os 90 min/dia de gatilhos e a tarefa emenda as rodadas na hora.
+ * Mac caiu (sem chamar há 2 min) → agendarRodada volta a usar os gatilhos do Google como antes. MAC_AGENTES=nao desliga. */
+const PRAZO_RODADA_MAC = 300000;   // 5 min por chamada (o web app corta em 6)
+function macTrabalhando() {
+  if (/^(nao|não|0|false)$/i.test(String(prop('MAC_AGENTES') || ''))) return false;
+  const v = Number(CacheService.getScriptCache().get('mac_agentes') || 0);
+  return v > 0 && Date.now() - v < 120000;
+}
+function trabalharPeloMac() {
+  const cache = CacheService.getScriptCache();
+  if (/^(nao|não|0|false)$/i.test(String(prop('MAC_AGENTES') || ''))) return { ok: true, nada: true, motivo: 'MAC_AGENTES desligado' };
+  cache.put('mac_agentes', String(Date.now()), 300);
+  if (cache.get('fila_vazia')) return { ok: true, nada: true };
+  destravarTarefas();
+  const l = pegarProxima();
+  if (!l) { cache.put('fila_vazia', '1', 90); return { ok: true, nada: true }; }
+  const t0 = Date.now();
+  try { agente(l[0], l[3], l[2], l[8], t0 + PRAZO_RODADA_MAC, l[9] || ''); }
+  catch (err) { atualizarTarefa(l[0], { status: 'erro', resultado: '⚠️ ' + String(err.message || err).slice(0, 500) }); avisarPai(l[9]); }
+  return { ok: true, rodou: l[0], status: statusTarefa(l[0]), ms: Date.now() - t0 };
 }
 
 /** Tarefa "rodando" sem sinal de vida há 8 min = a rodada morreu no meio. Volta pra fila. */
