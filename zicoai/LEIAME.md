@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v74 (01/11): estudo só aprova o que foi conferido de verdade
+- `checarExercicio_` roda antes do revisor da nuvem (de graça): marca `[PREÇO]/[GARANTIA]/…` na pergunta (ou dentro de código) reprova; link que não abre reprova (inclui `src=` de imagem, ex.: via.placeholder.com); código roda no Mac (`rodarCodigoEstudo_`: ```html no navegador, ```js dentro de uma página) e erro no navegador reprova; Python/SQL/Apps Script/Node e Mac desligado = não aprova ("sem como rodar"); comparativo precisa terminar com `Fonte: <link>` e o link tem que estar no material lido.
+- Prompt do gerador por tipo (`instrucaoEstudo_`): código genérico sem loja nem marca, html completo, sem imagem externa inventada; comparativo só com número do material.
+- `estudar()` devolve `tema.tema` em toda rodada (placar Mac × nuvem com o tipo, erro corrigido, pulou): acabou o "tema: ?" no log do Mac. Teste t52; t22 simula o Mac ligado.
+
 ## v73 (31/10): Mistral grátis com fila de 1 pedido por segundo
 - `rps: 1` no Mistral: `esperarRitmo` (LockService + cache `ritmo_<nome>`) faz os agentes em paralelo esperarem a vez (~1,15 s entre pedidos). 429 de limite por segundo: espera (Retry-After, 1,2–3 s) e tenta 1 vez; 429 de cota do mês/plano troca de cérebro na hora. Teste t51.
 - Pra usar: chave comum do console da Mistral (La Plateforme › API Keys, plano grátis), não a do Vibe; colar em MISTRAL_KEY.

@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 73 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 74 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -3944,6 +3944,62 @@ function conferirCodigo_(texto) {
   for (const b of blocos) { try { new Function(b); } catch (e) { return 'erro de sintaxe: ' + String(e.message).slice(0, 80); } }
   return '';
 }
+/* v74: o estudo só aprova o que foi conferido de verdade (defeitos da noite de 31/10):
+ *  - marca [PREÇO]/[GARANTIA]… na pergunta (e em código) reprova: o Thiago nunca pergunta assim;
+ *  - código roda no Mac (html no navegador; js dentro de uma página) e link de imagem/site tem que abrir;
+ *    código que não dá pra rodar aqui (Python, SQL, Apps Script) não é aprovado;
+ *  - comparativo só com "Fonte: <link do material>" e o link tem que estar no material lido. */
+const RX_MARCA_ESTUDO = /\[(PRE[ÇC]O|GARANTIA|MODELO|PARCELAS|BATERIA|LOCAL|ENDERE[ÇC]O|HOR[ÁA]RIO|NOME|LOJA)\]/i;
+function linksDoTexto_(texto) {
+  const urls = [];
+  String(texto).replace(/https?:\/\/[^\s"'<>()\[\]`{}]+/g, u => { u = u.replace(/[.,;:!?]+$/, ''); if (urls.indexOf(u) < 0) urls.push(u); return u; });
+  return urls;
+}
+function linksQuebrados_(texto) {
+  const lista = linksDoTexto_(texto).filter(u => !/localhost|127\.0\.0\.1|example\.(com|org)|seu-?site|SEU_|script\.google\.com\/macros/i.test(u)).slice(0, 6);
+  const ruins = [];
+  lista.forEach(u => {
+    try { const c = UrlFetchApp.fetch(u, { muteHttpExceptions: true, followRedirects: true }).getResponseCode(); if (c === 404 || c === 410 || c >= 500 && c !== 503) ruins.push(u); }
+    catch (e) { ruins.push(u); }   // site que nem existe (ex.: via.placeholder.com)
+  });
+  return ruins;
+}
+/** Roda o código da resposta no Mac. '' = rodou sem erro; senão o motivo da reprovação. */
+function rodarCodigoEstudo_(r) {
+  const html = [...r.matchAll(/```html\n([\s\S]*?)```/gi)].map(m => m[1]);
+  const js = [...r.matchAll(/```(?:js|javascript)\n([\s\S]*?)```/gi)].map(m => m[1]);
+  const outro = (r.match(/```(python|py|sql|bash|sh|gs|php|java|c\+\+|cpp|csharp|cs)\b/i) || [])[1];
+  if (outro) return 'sem como rodar ' + outro.toLowerCase() + ' no Mac ainda';
+  const paginas = html.concat(js.filter(b => !/SpreadsheetApp|UrlFetchApp|PropertiesService|ScriptApp|require\(|process\./.test(b)).map(b => '<!doctype html><html><body><script>\n' + b + '\n</script></body></html>'));
+  if (js.some(b => /SpreadsheetApp|UrlFetchApp|PropertiesService|ScriptApp|require\(|process\./.test(b))) return 'sem como rodar Apps Script/Node no Mac ainda';
+  for (const p of paginas) {
+    const t = testarApp(p);
+    if (!t.rodou) return 'Mac fora do ar: código não rodou';
+    if (t.erros.length) return 'rodou com erro: ' + String(t.erros[0]).slice(0, 100);
+  }
+  return '';
+}
+function checarExercicio_(tema, p, r, material) {
+  const marca = (p.match(RX_MARCA_ESTUDO) || (tema.tipo === 'código' && r.match(RX_MARCA_ESTUDO)) || [])[0];
+  if (marca) return 'marca ' + marca + ' vazou';
+  if (tema.tipo === 'comparativo') {
+    const f = (r.match(/fonte:?\s*(https?:\/\/\S+)/i) || [])[1];
+    if (!f) return 'comparativo sem fonte';
+    const base = f.replace(/[.,;:!?)]+$/, '').replace(/[?#].*$/, '').replace(/\/+$/, '');
+    if (String(material).indexOf(base) < 0) return 'fonte fora do material lido';
+  }
+  const erroCod = conferirCodigo_(r);
+  if (erroCod) return erroCod;
+  const ruins = linksQuebrados_(r);
+  if (ruins.length) return 'link que não abre: ' + ruins[0].slice(0, 60);
+  if (/```/.test(r)) { const rod = rodarCodigoEstudo_(r); if (rod) return rod; }
+  return '';
+}
+function instrucaoEstudo_(tipo) {
+  if (tipo === 'código') return 'Exercícios de programação GENÉRICOS: não fale da loja, de preço nem de garantia e nunca use marca entre colchetes. Código sempre completo e que roda: o que mexe na tela vai em UM bloco ```html completo (com <script> dentro); ```js só pra código que roda sozinho. Nada de imagem ou link externo inventado (nada de via.placeholder.com): use emoji, CSS ou só links que estão no MATERIAL.';
+  if (tipo === 'comparativo') return 'Use SÓ números e fatos que estão no MATERIAL (nada de memória). Termine cada resposta com "Fonte: <link exato do MATERIAL de onde tirou>". A pergunta nunca tem marca entre colchetes.';
+  return 'Nunca invente preço, garantia ou dado da loja: na RESPOSTA use [PREÇO]/[GARANTIA]; a PERGUNTA nunca tem marca entre colchetes (escreva do jeito que o Thiago fala).';
+}
 function estudoNoturno(indice) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return null;
@@ -3955,7 +4011,7 @@ function estudoNoturno(indice) {
     if (material.length < 800) { const b = resultadosBusca(t.busca); if (b) material += '\n\n[BUSCA ' + b.fonte + ']\n' + b.texto.slice(0, 6000); }
     if (material.length < 400) { aba('treino').appendRow(["'" + hoje(), 'estudo', '', t.tema + ': não achei material hoje']); return { tema: t.tema, salvos: 0 }; }
     // gera com modelo ABERTO (Groq/NVIDIA): as respostas podem virar treino do cérebro do PC
-    const gerar = [{ role: 'system', content: 'Você cria material de estudo pra ZicoAI, assistente do Thiago (Zicão Store, loja de iPhones em Itaú de Minas/MG, que também faz apps em HTML). Com base SÓ no MATERIAL, crie 3 exercícios práticos do tema, do jeito que o Thiago perguntaria (informal, "vc"). Cada um com a resposta ideal, curta e correta (código completo em bloco ```js ou ```html quando for código). Nunca invente preço, garantia ou dado da loja: use [PREÇO]/[GARANTIA]. Responda SÓ JSON: {"exercicios":[{"pergunta":"...","resposta":"..."}]}' }, { role: 'user', content: 'TEMA: ' + t.tema + '\n\nMATERIAL:' + material.slice(0, 12000) }];
+    const gerar = [{ role: 'system', content: 'Você cria material de estudo pra ZicoAI, assistente do Thiago (Zicão Store, loja de iPhones em Itaú de Minas/MG, que também faz apps em HTML). Com base SÓ no MATERIAL, crie 3 exercícios práticos do tema, do jeito que o Thiago perguntaria (informal, "vc"). Cada um com a resposta ideal, curta e correta. ' + instrucaoEstudo_(t.tipo) + ' Responda SÓ JSON: {"exercicios":[{"pergunta":"...","resposta":"..."}]}' }, { role: 'user', content: 'TEMA: ' + t.tema + '\n\nMATERIAL:' + material.slice(0, 12000) }];
     let j = null, autor = '';
     for (const nome of ['mac', 'groq', 'nvidia', 'groq2']) {   // Mac primeiro: sem limite; a nuvem só corrige (corrigirResposta)
       if (!temCerebro(nome)) continue;
@@ -3968,11 +4024,11 @@ function estudoNoturno(indice) {
     j.exercicios.slice(0, 3).forEach(ex => {
       const p = String(ex.pergunta || '').trim(), r = String(ex.resposta || '').trim();
       if (p.length < 10 || r.length < 20) return;
-      const erroCod = conferirCodigo_(r);
-      if (erroCod) { det.push('reprovado (' + erroCod + ')'); return; }
+      const motivo = checarExercicio_(t, p, r, material);   // de graça (Mac e fetch) antes de gastar o revisor da nuvem
+      if (motivo) { det.push('reprovado (' + motivo + ')'); return; }
       const cr = corrigirResposta(p, 'Resposta correta e sem informação inventada | Responde exatamente o que foi perguntado | Código completo e funcionando quando houver código | Explicação curta, em português simples', 'inventar fato ou código que não funciona', r);
       if (!cr || cr.nota < 7.5) { det.push('reprovado pelo revisor (' + (cr ? cr.nota : 'sem revisor') + ')'); return; }
-      if (guardarExemplo(p, r, autor, 'estudo (revisar)', t.tipo)) { salvos++; det.push('aprovado ' + cr.nota); }
+      if (guardarExemplo(p, r, autor, 'estudo (revisar)', t.tipo)) { salvos++; det.push('aprovado ' + cr.nota + (/```/.test(r) ? ' (rodou no Mac)' : '')); }
     });
     aba('treino').appendRow(["'" + hoje(), 'estudo', salvos, seguro((t.tema + ': ' + det.join(' | ')).slice(0, 1500))]);
     return { tema: t.tema, salvos: salvos, detalhe: det };
@@ -4143,21 +4199,21 @@ const RX_RECLAMACAO = /(errad|errou|nao existe|de onde (vc|voce) tirou|inventou|
 function estudar() {
   const props = PropertiesService.getScriptProperties();
   const ultima = Number(props.getProperty('ESTUDO_ULTIMA') || 0);
-  if (Date.now() - ultima < 20 * 60000) return { ok: true, pulou: 'estudou há menos de 20 min' };
+  if (Date.now() - ultima < 20 * 60000) return { ok: true, pulou: 'estudou há menos de 20 min', tema: { tema: 'pulou (estudou há menos de 20 min)', salvos: 0 } };
   props.setProperty('ESTUDO_ULTIMA', String(Date.now()));
   const dia = Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd');
   if (props.getProperty('MODELOS_TESTADOS') !== dia) { try { const m = testarModelos(); props.setProperty('MODELOS_TESTADOS', dia); Logger.log('modelos: ' + JSON.stringify(m)); } catch (e) { /* tenta amanhã */ } }
   let r = null;
   try { r = aprenderComErros(); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
-  if (r && r.aprendeu) return r;
+  if (r && r.aprendeu) return Object.assign(r, { tema: { tema: 'erro corrigido (' + String(r.regra || '').slice(0, 60) + ')', salvos: 0 } });
   const n = Number(props.getProperty('ESTUDO_TEMA') || 0);
   if (n % 2 === 1 && temCerebro('mac')) {   // uma rodada sim, outra não: mede o Mac contra a nuvem
     props.setProperty('ESTUDO_TEMA', String(n + 1));
-    try { return { ok: true, erros: r, placarMac: placarMacRodada() }; } catch (e) { /* cai pro tema */ }
+    try { const pm = placarMacRodada(); return { ok: true, erros: r, placarMac: pm, tema: { tema: 'placar Mac × nuvem (' + ((pm && pm.tipo) || 'sem tipo') + ')', salvos: 0 } }; } catch (e) { /* cai pro tema */ }
   }
   props.setProperty('ESTUDO_TEMA', String(n + 1));
   const t = estudoNoturno(n);
-  return { ok: true, erros: r, tema: t };
+  return { ok: true, erros: r, tema: t || { tema: 'pulou (outra rodada rodando)', salvos: 0 } };
 }
 /** Acha a próxima reclamação do Thiago ("de onde vc tirou", "tá errado", "falhou"...), pesquisa o certo na web e escreve a correção + aula. */
 function aprenderComErros() {

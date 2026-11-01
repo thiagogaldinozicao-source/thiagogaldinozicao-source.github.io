@@ -33,6 +33,7 @@ H.setFetch((u, o) => {
   if (/corrige a prova/.test(sys)) { const u2 = b.messages[1].content; return resp(/preço do iphone 15/.test(u2) ? '{"nota":2.5,"faltou":"inventou preço"}' : '{"nota":9,"faltou":""}'); }
   return resp('ok');
 });
+H.ctx.testarApp = () => ({ erros: [], avisos: [], rodou: true });   // v74: código só é aprovado depois de rodar no Mac
 const e1 = H.ctx.estudoNoturno(0);
 const novos = H.sheets.exemplos.rows.filter(l => /revisar/.test(l[6] || ''));
 ok(e1.salvos === 1 && novos.length === 1 && /centralizo um botão/.test(novos[0][1]) && novos[0][5] === 'código', 'estudo: salvou só o exercício aprovado (' + e1.detalhe.join(' | ') + ')');
