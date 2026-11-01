@@ -1,0 +1,29 @@
+{
+  "_leia": "Aparelhos POR ENCOMENDA que aparecem no catálogo mesmo sem estar no estoque. Se o mesmo modelo/GB/cor entrar no estoque do Zicão Gestão, vale o do estoque. Pra tirar, apague a linha.",
+  "itens": [
+    {"modelo": "iPhone 18 Pro Max", "cap": "256GB", "cor": "Azul", "preco": 9780},
+    {"modelo": "iPhone 18 Pro Max", "cap": "256GB", "cor": "Preto", "preco": 9750},
+    {"modelo": "iPhone 18 Pro Max", "cap": "256GB", "cor": "Bordô", "preco": 9700},
+    {"modelo": "iPhone 18 Pro Max", "cap": "256GB", "cor": "Prateado", "preco": 9400},
+    {"modelo": "iPhone 18 Pro", "cap": "256GB", "cor": "Preto", "preco": 8850},
+    {"modelo": "iPhone 18 Pro", "cap": "256GB", "cor": "Prateado", "preco": 8500},
+    {"modelo": "iPhone 18 Pro", "cap": "256GB", "cor": "Azul", "preco": 8450},
+    {"modelo": "iPhone 18 Pro", "cap": "256GB", "cor": "Bordô", "preco": 8350},
+    {"modelo": "iPhone 17 Pro Max", "cap": "256GB", "cor": "Prateado", "preco": 7750},
+    {"modelo": "iPhone 17 Pro Max", "cap": "256GB", "cor": "Laranja-cósmico", "preco": 7500},
+    {"modelo": "iPhone 17 Pro Max", "cap": "256GB", "cor": "Azul-profundo", "preco": 7499},
+    {"modelo": "iPhone 17 Pro", "cap": "256GB", "cor": "Azul-profundo", "preco": 7350},
+    {"modelo": "iPhone 17 Pro", "cap": "256GB", "cor": "Prateado", "preco": 7300},
+    {"modelo": "iPhone 17 Pro", "cap": "256GB", "cor": "Laranja-cósmico", "preco": 7050},
+    {"modelo": "iPhone 17", "cap": "256GB", "cor": "Lavanda", "preco": 5800},
+    {"modelo": "iPhone 17", "cap": "256GB", "cor": "Branco", "preco": 5800},
+    {"modelo": "iPhone 17", "cap": "256GB", "cor": "Preto", "preco": 5800},
+    {"modelo": "iPhone 17", "cap": "256GB", "cor": "Azul-glacial", "preco": 5700},
+    {"modelo": "iPhone 17", "cap": "256GB", "cor": "Verde", "preco": 5600},
+    {"modelo": "iPhone 16", "cap": "128GB", "cor": "Rosa", "preco": 4850},
+    {"modelo": "iPhone 16", "cap": "128GB", "cor": "Azul", "preco": 4750},
+    {"modelo": "iPhone 16", "cap": "128GB", "cor": "Branco", "preco": 4750},
+    {"modelo": "iPhone 16", "cap": "128GB", "cor": "Preto", "preco": 4750},
+    {"modelo": "iPhone 16", "cap": "128GB", "cor": "Verde", "preco": 4700}
+  ]
+}

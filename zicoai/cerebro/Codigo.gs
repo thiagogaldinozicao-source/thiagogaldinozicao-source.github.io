@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 81 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 82 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -673,6 +673,18 @@ function chat(req, aparelho) {
     gravarMensagem(chatId, 'zicoai', txt, 'agente', aparelho);
     tocarChat(chatId);
     return { ok: true, chatId: chatId, titulo: titulo, resposta: txt, cerebro: 'agente', salvou: ['tarefa'], passos: PASSOS, detalhes: detalhesSeguros(DETALHES), tarefaId: t.id };
+  }
+
+  // v82: lista de preço do fornecedor → catálogo (lacrados por encomenda). Conta feita no código, grava só com "ok".
+  if (ehDono() && !temFoto && !req.refazer) {
+    let txtCat = null;
+    try { const ult = historico.slice(0, -1).reverse().find(m => m.role === 'assistant'); txtCat = catalogoNoChat_(pergunta, chatId, ult && ult.content); }
+    catch (e) { txtCat = '⚠️ Deu erro no catálogo (' + e.message + '). Nada mudou.'; }
+    if (txtCat) {
+      gravarMensagem(chatId, 'zicoai', txtCat, 'catalogo', aparelho);
+      tocarChat(chatId);
+      return { ok: true, chatId: chatId, titulo: titulo, resposta: txtCat, cerebro: 'catalogo', salvou: [], passos: PASSOS, detalhes: detalhesSeguros(DETALHES) };
+    }
   }
 
   if (temFoto) passo(req.fotoRepetida ? 'Olhou de novo a foto que vc mandou antes' : 'Analisou a foto');
@@ -5731,4 +5743,358 @@ function blocoPessoa() {
     'Nesta conta vc NÃO tem: dados pessoais do Thiago, e-mail, agenda, Drive, o Mac/PC, código e apps, nem agente em segundo plano. ' +
     'Não grave nada na base nem no perfil (se ' + PESSOA.nome + ' corrigir uma informação da loja, diga que vai pro Thiago confirmar). ' +
     (PESSOA.perfil === 'convidado' ? 'Esta pessoa NÃO é da loja: não fale de preço, estoque, fornecedor nem dados da Zicão Store.' : 'Dados da loja: só o que está na base; nunca invente preço, garantia, endereço ou horário.');
+}
+
+/* ============================================================
+ *  CATÁLOGO: PREÇO DO DIA DOS LACRADOS (v82)
+ *  O Thiago cola a lista do fornecedor (custo por cor) + o lucro do dia.
+ *  Preço = custo + lucro. Ela mostra "antes → depois" e SÓ grava com "ok".
+ *  - O que NÃO está no estoque entra/atualiza no catálogo como "por encomenda"
+ *    (sync/encomenda.json + estoque.json do repo catalogo), sem quantidade.
+ *  - O que ESTÁ no estoque tem o preço vindo do Zicão Gestão: ela não mexe,
+ *    só entrega o texto pronto pro Thiago passar pro Claude mudar no Gestão.
+ *  - Semi-novos e acessórios: nunca. Quem gera é a sincronização das 23:40.
+ *  Token: o mesmo GITHUB_TOKEN, com o repositório "catalogo" (Contents: write).
+ * ============================================================ */
+const CATALOGO_REPO = 'thiagogaldinozicao-source/catalogo';
+const CATALOGO_SITE = 'https://thiagogaldinozicao-source.github.io/catalogo/';
+const CATALOGO_PRAZO = 6 * 3600 * 1000;          // proposta vale 6 h
+const CORES_CANON = {
+  prateado: ['prata', 'prateado', 'prateada', 'silver'], preto: ['preto', 'preta', 'black', 'midnight', 'meia-noite'],
+  branco: ['branco', 'branca', 'white'], laranja: ['laranja', 'orange', 'cosmic', 'cosmico'], azul: ['azul', 'blue'],
+  bordo: ['bordo', 'vinho', 'burgundy', 'marsala'], lavanda: ['lavanda', 'lavender', 'lilas', 'roxo', 'purple'],
+  verde: ['verde', 'green', 'salvia', 'sage'], rosa: ['rosa', 'pink'], dourado: ['dourado', 'dourada', 'gold'],
+  natural: ['natural'], deserto: ['deserto', 'desert'], amarelo: ['amarelo', 'yellow'], vermelho: ['vermelho', 'red']
+};
+const CORES_NOME = { prateado: 'Prateado', preto: 'Preto', branco: 'Branco', laranja: 'Laranja-cósmico', azul: 'Azul', bordo: 'Bordô', lavanda: 'Lavanda', verde: 'Verde', rosa: 'Rosa', dourado: 'Dourado', natural: 'Titânio-natural', deserto: 'Titânio-deserto', amarelo: 'Amarelo', vermelho: 'Vermelho' };
+const QUALIF_COR = { profundo: ['profundo', 'deep', 'escuro'], glacial: ['glacial', 'claro', 'nevoa', 'mist', 'sky', 'ceu'], cosmico: ['cosmico', 'cosmic'] };
+
+function reaisInt_(v) { return 'R$ ' + String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function chaveLacrado_(m, cap, cor) { return [m, cap, cor].map(x => normalizar(x || '').replace(/[^a-z0-9]+/g, ' ').trim()).join('|'); }
+function idLacrado_(m, cap, cor) { return 'n-' + normalizar([m, cap, cor].join(' ')).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+/** "17 pro max 256" → { modelo: 'iPhone 17 Pro Max', cap: '256GB' } (o que achar na linha). */
+function modeloDaLinha_(n) {
+  const m = n.match(/(?:^|[^\d.,])(?:iphone|ip)?\s*(1[1-9])(e)?(?!\d|[.,]\d)\s*(pro\s*max|promax|pm|pro|plus|max|air|mini)?\b/);
+  if (!m) return null;
+  let v = (m[3] || '').replace(/\s+/g, ' ');
+  v = v === 'promax' || v === 'pm' ? 'pro max' : v;
+  const nome = 'iPhone ' + m[1] + (m[2] ? 'e' : '') + (v ? ' ' + v.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ') : '');
+  return nome;
+}
+function capDaLinha_(n) {
+  const t = n.match(/(?<![\d.,])([12])\s*tb\b/); if (t) return t[1] + 'TB';
+  const g = n.match(/(?<![\d.,])(64|128|256|512)(?!\d|[.,]\d)\s*(gb|g)?\b/); return g ? g[1] + 'GB' : '';
+}
+/** maior valor de preço da linha (R$ 7.200 / 7200 / 7.200,00), fora o GB. */
+function precoDaLinha_(linha) {
+  let achou = null;
+  String(linha).replace(/(?<![\d.,])(?:r\$\s*)?(\d{1,2}\.\d{3}(?:,\d{1,2})?|\d{4,5}(?:,\d{1,2})?)(?!\d|[.,]\d)(?!\s*(?:gb|tb|mah|w\b))/gi, (s, v) => { const x = numeroBR(v); if (x >= 1000 && x <= 40000) achou = x; return s; });
+  return achou;
+}
+function coresDaLinha_(n, conhecidas) {
+  const pedacos = n.split(/\/|,|\be\b|\bou\b/).map(x => x.trim()).filter(x => corDaLinha_(x, conhecidas));
+  if (pedacos.length > 1) return pedacos.map(x => corDaLinha_(x, conhecidas));
+  const c = corDaLinha_(n, conhecidas); return c ? [c] : [];
+}
+function corDaLinha_(n, conhecidas) {
+  const palavras = n.replace(/[^a-z\s-]/g, ' ').split(/[\s-]+/).filter(Boolean);
+  const canon = w => { for (const k in CORES_CANON) if (CORES_CANON[k].indexOf(w) >= 0) return k; for (const k in QUALIF_COR) if (QUALIF_COR[k].indexOf(w) >= 0) return '~' + k; return null; };
+  const ditos = palavras.map(canon).filter(Boolean);
+  const base = ditos.find(c => c[0] !== '~');
+  if (!base) return null;
+  const qualif = ditos.filter(c => c[0] === '~').map(c => c.slice(1));
+  const lista = (conhecidas || []).map(c => ({ c, p: normalizar(c).split(/[\s-]+/).map(w => canon(w) || w) }));
+  let cands = lista.filter(x => x.p[0] === base);
+  if (cands.length > 1 && qualif.length) { const f = cands.filter(x => qualif.some(q => x.p.indexOf('~' + q) >= 0)); if (f.length) cands = f; }
+  if (cands.length > 1 && !qualif.length) { const puro = cands.filter(x => x.p.length === 1); if (puro.length === 1) cands = puro; }
+  if (cands.length === 1) return cands[0].c;
+  if (cands.length > 1) return { ambigua: cands.map(x => x.c) };
+  if (lista.length) return { naoTem: true };      // o modelo já tem cores no catálogo e essa não é nenhuma: não inventa
+  // modelo que o catálogo ainda não tem: nome padrão da cor
+  let nome = CORES_NOME[base];
+  if (base === 'azul' && qualif.indexOf('profundo') >= 0) nome = 'Azul-profundo';
+  else if (base === 'azul' && qualif.indexOf('glacial') >= 0) nome = 'Azul-glacial';
+  else if (base === 'laranja' && !qualif.length) nome = 'Laranja-cósmico';
+  return nome;
+}
+
+/** Parece a lista de preço do fornecedor? (várias linhas com preço + modelo de iPhone) */
+function ehListaPrecos_(texto) {
+  const n = normalizar(texto);
+  const linhas = n.split(/\n+/);
+  const comPreco = linhas.filter(l => precoDaLinha_(l) && !/lucro/.test(l)).length;
+  if (comPreco < 3 || !linhas.some(l => modeloDaLinha_(l))) return false;
+  return /lucro|custo|catalogo|lista do dia|fornecedor|encomenda|preco do dia|precos de hoje/.test(n) || comPreco >= 5;
+}
+
+/** Lê a lista colada. conhecidas: { 'iPhone 17 Pro Max': { cores: [...], caps: [...] } } */
+function lerListaPrecos_(texto, conhecidas) {
+  const out = { itens: [], lucro: null, lucros: {}, naoEntendi: [] };
+  let atual = null, capAtual = '';
+  String(texto).split(/\n+/).forEach(bruta => {
+    const linha = bruta.trim(); if (!linha) return;
+    const n = normalizar(linha);
+    if (/lucro/.test(n)) {
+      const antes = n.split('lucro')[0], depois = n.split('lucro').slice(1).join(' ');
+      const m = modeloDaLinha_(antes) || modeloDaLinha_(depois);
+      const resto = depois.replace(/(?:iphone|ip)?\s*1[1-9]e?(?!\d)\s*(pro\s*max|promax|pro|plus|max|air|mini)?/, ' ').replace(/(?<![\d.,])(64|128|256|512)\s*gb|\b[12]\s*tb/g, ' ');
+      const v = (resto.match(/(?<![\d.,])(?:r\$\s*)?(\d{1,2}\.\d{3}|\d{2,5})(?!\d)/) || [])[1];
+      if (v && numeroBR(v) >= 10) { if (m) out.lucros[m] = numeroBR(v); else out.lucro = numeroBR(v); }
+      return;
+    }
+    const m = modeloDaLinha_(n), cap = capDaLinha_(n), preco = precoDaLinha_(linha);
+    if (m) { atual = m; capAtual = cap || ''; }
+    else if (cap && !preco) capAtual = cap;
+    if (!preco) return;
+    const modelo = m || atual;
+    if (!modelo) { out.naoEntendi.push(linha); return; }
+    const info = conhecidas[modelo] || { cores: [], caps: [] };
+    let c = cap || capAtual;
+    if (!c && info.caps.length === 1) c = info.caps[0];
+    const cores = coresDaLinha_(n.replace(/(?:iphone|ip)?\s*1[1-9]e?\s*(pro\s*max|promax|pro|plus|max|air|mini)?/, ' ').replace(/[\d.,]+/g, ' '), info.cores);
+    const confusa = cores.find(x => typeof x === 'object');
+    if (!c || !cores.length || confusa) { out.naoEntendi.push(linha + (!c ? '  (faltou o GB)' : !cores.length ? '  (faltou a cor)' : confusa.naoTem ? '  (cor que o ' + modelo + ' não tem no catálogo)' : '  (cor confusa: ' + confusa.ambigua.join(' ou ') + ')')); return; }
+    cores.forEach(cor => out.itens.push({ modelo: modelo, cap: c, cor: cor, custo: Math.round(preco), linha: linha }));
+  });
+  return out;
+}
+
+/* ---------- GitHub do catálogo ---------- */
+function cabCatalogo_() {
+  const cab = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'ZicoAI' };
+  if (prop('GITHUB_TOKEN')) cab.Authorization = 'Bearer ' + prop('GITHUB_TOKEN');
+  return cab;
+}
+function lerArquivoCatalogo_(caminho) {
+  const r = UrlFetchApp.fetch('https://api.github.com/repos/' + CATALOGO_REPO + '/contents/' + caminho + '?ref=main', { headers: cabCatalogo_(), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return { ok: false, erro: 'GitHub ' + r.getResponseCode() + ' ao ler ' + caminho };
+  const j = JSON.parse(r.getContentText());
+  const texto = Utilities.newBlob(Utilities.base64Decode(String(j.content || '').replace(/\s/g, ''))).getDataAsString('UTF-8');
+  return { ok: true, sha: j.sha, texto: texto };
+}
+function gravarArquivoCatalogo_(caminho, texto, msg, sha) {
+  if (!prop('GITHUB_TOKEN')) return { ok: false, erro: 'falta o GITHUB_TOKEN' };
+  const corpo = { message: msg, content: Utilities.base64Encode(texto, Utilities.Charset.UTF_8), branch: 'main' };
+  if (sha) corpo.sha = sha;
+  const r = UrlFetchApp.fetch('https://api.github.com/repos/' + CATALOGO_REPO + '/contents/' + caminho, { method: 'put', contentType: 'application/json', headers: cabCatalogo_(), payload: JSON.stringify(corpo), muteHttpExceptions: true });
+  const c = r.getResponseCode();
+  if (c === 200 || c === 201) return { ok: true, sha: (JSON.parse(r.getContentText()).content || {}).sha };
+  if (c === 403 || c === 404) return { ok: false, erro: 'o token não tem acesso ao repositório catalogo (github.com/settings/tokens → editar o token → incluir o repo "catalogo" com Contents: Read and write)' };
+  if (c === 409) return { ok: false, erro: 'o catálogo mudou enquanto eu gravava (sincronização da noite?); manda a lista de novo' };
+  return { ok: false, erro: 'GitHub ' + c + ': ' + resumoErro(r.getContentText()) };
+}
+
+/** Estado atual: estoque.json e encomenda.json do repo. */
+function estadoCatalogo_() {
+  const est = lerArquivoCatalogo_('estoque.json'); if (!est.ok) return est;
+  const enc = lerArquivoCatalogo_('sync/encomenda.json'); if (!enc.ok) return enc;
+  let e1, e2;
+  try { e1 = JSON.parse(est.texto); e2 = JSON.parse(enc.texto); } catch (e) { return { ok: false, erro: 'arquivo do catálogo quebrado: ' + e.message }; }
+  const conhecidas = {};
+  const junta = (m, cap, cor) => { const k = conhecidas[m] || (conhecidas[m] = { cores: [], caps: [] }); if (cor && k.cores.indexOf(cor) < 0) k.cores.push(cor); if (cap && k.caps.indexOf(cap) < 0) k.caps.push(cap); };
+  (e1.itens || []).filter(i => i.cond === 'novo' && i.tipo === 'iPhone').forEach(i => junta(i.modelo, i.cap, i.cor));
+  (e2.itens || []).forEach(i => junta(i.modelo, i.cap, i.cor));
+  return { ok: true, estoque: e1, encomenda: e2, shaEst: est.sha, shaEnc: enc.sha, conhecidas: conhecidas };
+}
+
+/** Monta o que muda. Não grava nada. */
+function planoCatalogo_(lista, est) {
+  const noEstoque = {};
+  (est.estoque.itens || []).filter(i => i.cond === 'novo' && !i.enc).forEach(i => { noEstoque[chaveLacrado_(i.modelo, i.cap, i.cor)] = i; });
+  const encAntes = (est.encomenda.itens || []).map(e => Object.assign({}, e));
+  const porChave = {}; encAntes.forEach((e, i) => { porChave[chaveLacrado_(e.modelo, e.cap, e.cor)] = i; });
+  const plano = { muda: [], novo: [], igual: [], gestao: [], fora: [], semLucro: [], oculto: [] };
+  const vistos = {};
+  lista.itens.forEach(it => {
+    const k = chaveLacrado_(it.modelo, it.cap, it.cor);
+    if (vistos[k]) return; vistos[k] = 1;
+    const lucro = lista.lucros[it.modelo] != null ? lista.lucros[it.modelo] : lista.lucro;
+    if (lucro == null) { plano.semLucro.push(it); return; }
+    const preco = Math.round(it.custo + lucro);
+    const linha = { modelo: it.modelo, cap: it.cap, cor: it.cor, custo: it.custo, lucro: lucro, depois: preco };
+    if (noEstoque[k]) {
+      linha.antes = noEstoque[k].preco; if (linha.antes !== preco) plano.gestao.push(linha); else plano.igual.push(linha);
+      if (porChave[k] != null && encAntes[porChave[k]].preco !== preco) plano.oculto.push({ modelo: it.modelo, cap: it.cap, cor: it.cor, antes: encAntes[porChave[k]].preco, depois: preco });
+      return;
+    }
+    if (porChave[k] != null) { linha.antes = encAntes[porChave[k]].preco; (linha.antes === preco ? plano.igual : plano.muda).push(linha); }
+    else plano.novo.push(linha);
+  });
+  // por encomenda do mesmo modelo/GB que não veio na lista de hoje (fica como está, a não ser que ele mande tirar)
+  const modelosHoje = {}; lista.itens.forEach(i => { modelosHoje[chaveLacrado_(i.modelo, i.cap, '')] = 1; });
+  encAntes.forEach(e => { const k = chaveLacrado_(e.modelo, e.cap, e.cor); if (modelosHoje[chaveLacrado_(e.modelo, e.cap, '')] && !vistos[k]) plano.fora.push({ modelo: e.modelo, cap: e.cap, cor: e.cor, antes: e.preco }); });
+  return plano;
+}
+function assinaturaPlano_(p, tirar) {
+  const f = l => l.map(x => [x.modelo, x.cap, x.cor, x.antes, x.depois].join(':')).sort().join(',');
+  return [f(p.muda), f(p.novo), f(p.gestao), f(p.oculto || []), tirar ? f(p.fora) : ''].join('#');
+}
+function textoPlano_(p, lista) {
+  const lin = x => '| ' + x.modelo.replace('iPhone ', '') + ' ' + x.cap + ' ' + x.cor + ' | ' + (x.antes != null ? reaisInt_(x.antes) : '—') + ' | ' + (x.depois != null ? reaisInt_(x.depois) : '—') + ' |' + (x.antes && x.depois && Math.abs(x.depois - x.antes) / x.antes > 0.2 ? ' ⚠️ confere' : '');
+  const partes = [];
+  const lucros = Object.keys(lista.lucros).map(m => m.replace('iPhone ', '') + ' ' + reaisInt_(lista.lucros[m]));
+  partes.push('**Catálogo · lacrados por encomenda** (preço = custo + lucro' + (lista.lucro != null ? ' de ' + reaisInt_(lista.lucro) : '') + (lucros.length ? '; ' + lucros.join(', ') : '') + ')');
+  const muda = p.muda.concat(p.novo);
+  if (muda.length) partes.push('| Aparelho | Antes | Depois |\n|---|---|---|\n' + p.muda.map(lin).join('\n') + (p.muda.length && p.novo.length ? '\n' : '') + p.novo.map(x => lin(x) + ' 🆕').join('\n'));
+  else partes.push('No catálogo (encomenda) não muda nada.');
+  if (p.igual.length) partes.push('Já tão certos: ' + p.igual.map(x => x.modelo.replace('iPhone ', '') + ' ' + x.cor).join(', ') + '.');
+  if (p.fora.length) partes.push('Não vieram na lista de hoje (ficam com o preço de antes): ' + p.fora.map(x => x.modelo.replace('iPhone ', '') + ' ' + x.cor + ' ' + reaisInt_(x.antes)).join(', ') + '. Se o fornecedor não tem mais, responde **ok tira**.');
+  if (p.gestao.length) partes.push('**No estoque (o preço vem do Gestão, eu não mexo).** Passa isso pro Claude:\n```\nAtualiza o preço dos lacrados no Zicão Gestão:\n' + p.gestao.map(x => x.modelo + ' ' + x.cap + ' ' + x.cor + ': ' + reaisInt_(x.antes) + ' → ' + reaisInt_(x.depois)).join('\n') + '\n```\nO catálogo pega o preço novo na sincronização da noite (23:40).');
+  if (lista.naoEntendi.length) partes.push('Não entendi estas linhas (ficaram de fora):\n' + lista.naoEntendi.slice(0, 8).map(l => '- ' + l).join('\n'));
+  if (p.oculto.length) partes.push('Também deixo pronto o preço de encomenda de ' + p.oculto.map(x => x.modelo.replace('iPhone ', '') + ' ' + x.cor).join(', ') + ' (vale quando acabar no estoque).');
+  if (muda.length || p.oculto.length) partes.push('Responde **ok** que eu atualizo o catálogo. Sem o ok, nada muda.');
+  return partes.filter(Boolean).join('\n\n');
+}
+
+/** Monta o encomenda.json novo (mantém a ordem, troca preço, põe os novos junto do mesmo modelo). */
+function encomendaNova_(antes, plano, tirar) {
+  const itens = (antes.itens || []).map(e => Object.assign({}, e));
+  const idx = {}; itens.forEach((e, i) => { idx[chaveLacrado_(e.modelo, e.cap, e.cor)] = i; });
+  plano.muda.concat(plano.oculto || []).forEach(x => { itens[idx[chaveLacrado_(x.modelo, x.cap, x.cor)]].preco = x.depois; });
+  let lista = itens;
+  if (tirar) { const sai = {}; plano.fora.forEach(x => { sai[chaveLacrado_(x.modelo, x.cap, x.cor)] = 1; }); lista = lista.filter(e => !sai[chaveLacrado_(e.modelo, e.cap, e.cor)]); }
+  plano.novo.forEach(x => {
+    const e = { modelo: x.modelo, cap: x.cap, cor: x.cor, preco: x.depois };
+    let pos = -1; lista.forEach((y, i) => { if (y.modelo === x.modelo) pos = i; });
+    if (pos < 0) lista.unshift(e); else lista.splice(pos + 1, 0, e);
+  });
+  // dentro do mesmo modelo, do mais caro pro mais barato (igual a lista de hoje)
+  const ordemModelo = []; lista.forEach(e => { if (ordemModelo.indexOf(e.modelo) < 0) ordemModelo.push(e.modelo); });
+  lista.sort((a, b) => ordemModelo.indexOf(a.modelo) - ordemModelo.indexOf(b.modelo) || b.preco - a.preco);
+  const js = v => JSON.stringify(v);
+  return '{\n  "_leia": ' + js(antes._leia || '') + ',\n  "itens": [\n' +
+    lista.map(e => '    {"modelo": ' + js(e.modelo) + ', "cap": ' + js(e.cap) + ', "cor": ' + js(e.cor) + ', "preco": ' + e.preco + '}').join(',\n') + '\n  ]\n}\n';
+}
+
+/** Refaz os itens "por encomenda" do estoque.json igual a sincronização da noite faz (sync/estoque_para_catalogo.py). */
+function estoqueComEncomenda_(estoque, encTexto) {
+  const enc = JSON.parse(encTexto).itens || [];
+  const velhos = {}; (estoque.itens || []).filter(i => i.enc).forEach(i => { velhos[i.i] = i; });
+  const itens = (estoque.itens || []).filter(i => !i.enc);
+  const tem = {}; itens.filter(i => i.cond === 'novo').forEach(i => { tem[chaveLacrado_(i.modelo, i.cap, i.cor)] = 1; });
+  const fotoDe = (m, cor) => { const x = (estoque.itens || []).find(i => i.f && i.cond === 'novo' && i.modelo === m && normalizar(i.cor) === normalizar(cor)); return x ? [x.f, x.fg] : null; };
+  enc.forEach(e => {
+    if (tem[chaveLacrado_(e.modelo, e.cap, e.cor)] || !e.preco) return;
+    const cor = String(e.cor).charAt(0).toUpperCase() + String(e.cor).slice(1);
+    const it = { s: 'apple', g: 'iPhone', tipo: 'iPhone', modelo: e.modelo, preco: Math.round(e.preco), cor: cor, cond: 'novo', cap: e.cap, enc: 1 };
+    it.i = idLacrado_(e.modelo, e.cap, e.cor);
+    const f = (velhos[it.i] && velhos[it.i].f) ? [velhos[it.i].f, velhos[it.i].fg] : fotoDe(e.modelo, e.cor);
+    if (f && f[0]) { it.f = f[0]; it.fg = f[1] || f[0]; }
+    itens.push(it);
+  });
+  const ORD = { apple: 0, android: 1, acessorios: 2 };
+  const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  itens.sort((a, b) => (ORD[a.s] - ORD[b.s]) || cmp(a.g, b.g) || cmp(a.marca || '', b.marca || '') || cmp(a.modelo, b.modelo) || (a.preco - b.preco) || ((b.bat || 0) - (a.bat || 0)) || cmp(a.cor || '', b.cor || ''));
+  return { atualizado: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), itens: itens };
+}
+
+/** Grava e confere. tirar = tira os por encomenda que não vieram na lista. */
+function aplicarCatalogo_(lista, assinatura, tirar) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { ok: false, erro: 'outra gravação no catálogo em andamento; tenta de novo em 1 minuto' };
+  try {
+    const est = estadoCatalogo_(); if (!est.ok) return est;
+    const plano = planoCatalogo_(lista, est);
+    if (assinaturaPlano_(plano, tirar) !== assinatura) return { ok: false, mudou: true, plano: plano };
+    if (!plano.muda.length && !plano.novo.length && !plano.oculto.length && !(tirar && plano.fora.length)) return { ok: true, nada: true, plano: plano };
+    const encTexto = encomendaNova_(est.encomenda, plano, tirar);
+    const quando = Utilities.formatDate(new Date(), FUSO, 'dd/MM HH:mm');
+    const g1 = gravarArquivoCatalogo_('sync/encomenda.json', encTexto, 'Preço do dia dos lacrados por encomenda ' + quando + ' (ZicoAI, OK do Thiago)', est.shaEnc);
+    if (!g1.ok) return g1;
+    const novoEst = estoqueComEncomenda_(est.estoque, encTexto);
+    const g2 = gravarArquivoCatalogo_('estoque.json', JSON.stringify(novoEst) + '\n', 'Catálogo: lacrados por encomenda ' + quando + ' (ZicoAI)', est.shaEst);
+    if (!g2.ok) return { ok: false, erro: 'gravei a lista de encomenda mas o catálogo não: ' + g2.erro + '. Na sincronização da noite ele pega a lista certa.' };
+    // confere no repositório o que ficou gravado
+    const depois = estadoCatalogo_();
+    const errados = [];
+    if (depois.ok) {
+      const noSite = {}; (depois.estoque.itens || []).filter(i => i.enc).forEach(i => { noSite[chaveLacrado_(i.modelo, i.cap, i.cor)] = i.preco; });
+      plano.muda.concat(plano.novo).forEach(x => { if (noSite[chaveLacrado_(x.modelo, x.cap, x.cor)] !== x.depois) errados.push(x.modelo + ' ' + x.cor); });
+    }
+    try { aba('memoria').appendRow(["'" + hoje(), seguro('Catálogo: preço do dia dos lacrados por encomenda (' + (plano.muda.length + plano.novo.length) + ' mudanças) com OK do Thiago'), 'catalogo']); } catch (e) { /* ok */ }
+    passo('Atualizou o catálogo no GitHub e conferiu');
+    return { ok: !errados.length && depois.ok, plano: plano, errados: errados, conferiu: depois.ok, tirou: tirar ? plano.fora.length : 0 };
+  } finally { lock.releaseLock(); }
+}
+
+/** Conferência no site de verdade (GitHub Pages leva 1 a 3 min). */
+function conferirSiteCatalogo_(esperado) {
+  try {
+    const r = UrlFetchApp.fetch(CATALOGO_SITE + 'estoque.json?t=' + Date.now(), { muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) return { ok: false, erro: 'site respondeu ' + r.getResponseCode() };
+    const noSite = {}; (JSON.parse(r.getContentText()).itens || []).filter(i => i.enc).forEach(i => { noSite[chaveLacrado_(i.modelo, i.cap, i.cor)] = i.preco; });
+    const faltam = esperado.filter(x => noSite[chaveLacrado_(x.modelo, x.cap, x.cor)] !== x.depois);
+    return { ok: !faltam.length, faltam: faltam };
+  } catch (e) { return { ok: false, erro: e.message }; }
+}
+
+/** Entrada pelo chat (só o Thiago). Devolve o texto da resposta ou null (segue a conversa normal). */
+function catalogoNoChat_(pergunta, chatId, ultimaResposta) {
+  if (!ehDono()) return null;
+  const ps = PropertiesService.getScriptProperties();
+  const chave = 'CATALOGO_PEND_' + chatId, feito = 'CATALOGO_FEITO_' + chatId;
+  const n = normalizar(pergunta).trim();
+  let pend = null; try { pend = JSON.parse(ps.getProperty(chave) || 'null'); } catch (e) { pend = null; }
+  if (pend && Date.now() - pend.t > CATALOGO_PRAZO) { ps.deleteProperty(chave); pend = null; }
+
+  if (pend && n.length < 60 && /Catálogo · lacrados|Qual o lucro de hoje|O catálogo mudou desde/.test(String(ultimaResposta || ''))) {
+    if (/^(nao|n|cancela|deixa|esquece|para)\b/.test(n)) { ps.deleteProperty(chave); return 'Beleza, não mexi no catálogo.'; }
+    if (pend.faltaLucro) {
+      const v = (n.match(/^(?:o\s+)?(?:lucro\s*(?:de|e|:)?\s*)?(?:r\$\s*)?(\d{2,5})(?:\s*reais)?$/) || [])[1];
+      if (v) { pend.lista.lucro = Number(v); return mostrarPlanoCatalogo_(pend.lista, chatId); }
+    } else if (/^(ok|pode|manda|confirmo|sim|bora|isso|atualiza|fechou|blz|beleza)\b/.test(n)) {
+      const tirar = /\btira\b/.test(n);
+      const r = aplicarCatalogo_(pend.lista, tirar ? pend.assinaturaTira : pend.assinatura, tirar);
+      if (r.mudou) { const txt = mostrarPlanoCatalogo_(pend.lista, chatId); return 'O catálogo mudou desde a proposta (sincronização da noite ou outra mudança). Refiz a conta com o que tá lá agora:\n\n' + txt; }
+      ps.deleteProperty(chave);
+      if (r.nada) return 'Não tinha nada pra mudar: o catálogo já tá com esses preços.';
+      if (!r.ok && r.erro) return '⚠️ Não atualizei: ' + r.erro;
+      const mud = r.plano.muda.concat(r.plano.novo);
+      ps.setProperty(feito, JSON.stringify({ t: Date.now(), esperado: mud.map(x => ({ modelo: x.modelo, cap: x.cap, cor: x.cor, depois: x.depois })) }));
+      if (r.errados && r.errados.length) return '⚠️ Gravei, mas na conferência ' + r.errados.join(', ') + ' não ficou com o preço certo. Não mexe mais até eu ver: me chama aqui que confiro de novo.';
+      return '✅ Catálogo atualizado: ' + mud.length + ' preço(s) por encomenda' + (r.tirou ? ' e tirei ' + r.tirou + ' que não vieram na lista' : '') + '. Conferi no GitHub e tá certo.\nO site (' + CATALOGO_SITE + ') mostra em 1 a 3 minutos; depois me pergunta "subiu?" que eu confiro lá.' + (r.plano.gestao.length ? '\nFalta só o Gestão (os que tão no estoque): o texto pro Claude tá ali em cima.' : '');
+    }
+  }
+  if (/^(subiu|ta no ar|confere o catalogo|conferiu|ja ta no site|atualizou o site)\b/.test(n)) {
+    let f = null; try { f = JSON.parse(ps.getProperty(feito) || 'null'); } catch (e) { f = null; }
+    if (f) {
+      const c = conferirSiteCatalogo_(f.esperado);
+      if (c.ok) { ps.deleteProperty(feito); return '✅ Subiu: conferi no site e os ' + f.esperado.length + ' preço(s) tão certos.'; }
+      return c.erro ? '⚠️ Não consegui abrir o site agora (' + c.erro + '). Tenta de novo em 1 minuto.' : 'Ainda não: no site ' + c.faltam.map(x => x.modelo.replace('iPhone ', '') + ' ' + x.cor).join(', ') + ' tá com o preço antigo. O GitHub às vezes demora; me pergunta de novo em 2 minutos.';
+    }
+  }
+  if (!ehListaPrecos_(pergunta)) return null;
+  const est = estadoCatalogo_();
+  if (!est.ok) return '⚠️ Não consegui ler o catálogo agora (' + est.erro + '). Nada mudou.';
+  const lista = lerListaPrecos_(pergunta, est.conhecidas);
+  if (!lista.itens.length) return null;
+  return mostrarPlanoCatalogo_(lista, chatId, est);
+}
+function mostrarPlanoCatalogo_(lista, chatId, est) {
+  const ps = PropertiesService.getScriptProperties();
+  const chave = 'CATALOGO_PEND_' + chatId;
+  const semLucro = lista.lucro == null && lista.itens.some(i => lista.lucros[i.modelo] == null);
+  if (semLucro) {
+    ps.setProperty(chave, JSON.stringify({ t: Date.now(), faltaLucro: true, lista: lista }));
+    passo('Leu a lista do fornecedor: ' + lista.itens.length + ' preços; faltou o lucro');
+    return 'Li ' + lista.itens.length + ' custo(s) da lista. Qual o lucro de hoje? (manda só o número, ex.: **300**)';
+  }
+  est = est || estadoCatalogo_();
+  if (!est.ok) return '⚠️ Não consegui ler o catálogo agora (' + est.erro + '). Nada mudou.';
+  const plano = planoCatalogo_(lista, est);
+  const tem = plano.muda.length + plano.novo.length + plano.fora.length + plano.oculto.length;
+  if (tem) ps.setProperty(chave, JSON.stringify({ t: Date.now(), lista: lista, assinatura: assinaturaPlano_(plano, false), assinaturaTira: assinaturaPlano_(plano, true) }));
+  else ps.deleteProperty(chave);
+  passo('Montou o antes → depois do catálogo (' + (plano.muda.length + plano.novo.length) + ' mudanças, ' + plano.gestao.length + ' no estoque/Gestão); esperando o ok');
+  return textoPlano_(plano, lista);
+}
+
+/** Rode no editor: confere se o token consegue gravar no catálogo. */
+function testarCatalogo() {
+  const r = UrlFetchApp.fetch('https://api.github.com/repos/' + CATALOGO_REPO, { headers: cabCatalogo_(), muteHttpExceptions: true });
+  Logger.log('repo catalogo → ' + r.getResponseCode());
+  try { const p = JSON.parse(r.getContentText()).permissions || {}; Logger.log('pode gravar: ' + (p.push ? 'SIM' : 'NÃO (edita o token e inclui o repo catalogo com Contents: Read and write)')); } catch (e) { /* ok */ }
+  const est = estadoCatalogo_();
+  Logger.log(est.ok ? 'leu estoque.json (' + est.estoque.itens.length + ' itens) e encomenda.json (' + est.encomenda.itens.length + ')' : 'ERRO: ' + est.erro);
 }
