@@ -36,5 +36,11 @@ H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.strin
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz uma calculadora' }, { role: 'assistant', content: 'Aqui:\n```html\n' + appAnt + '\n```' }, { role: 'user', content: 'faz uma calculadora estilo iPhone com botão de copiar e histórico' }] });
 ok(!r.passos.some(p => /mudar o app que mandou antes/.test(p)), '"faz uma calculadora…" é app novo, não edição da anterior');
 ok((r.resposta.match(/```html/g) || []).length === 1, 'html não sai duplicado');
+// v91: arquivo inteiro só vale se não encolher (o do mock de cima é menor: seria recusado); aqui volta inteiro e maior
+H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Aqui:\n```html\n' + appAnt.replace('<button>1</button>', '<button>1</button>\n<select id="tema"><option>escuro</option><option>claro</option></select>') + '\n```\nComo usar: salva e abre.' } }] }) }));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz uma calculadora' }, { role: 'assistant', content: 'Aqui:\n```html\n' + appAnt + '\n```' }, { role: 'user', content: 'coloca temas nessa calculadora' }] });
 ok(r.passos.some(p => /mudar o app que mandou antes/.test(p)) && (r.resposta.match(/```html/g) || []).length === 1, 'mudança devolvendo o arquivo inteiro (sem trechos) também não duplica');
+// v91: arquivo inteiro MENOR que o app (outro app no lugar): recusado, nada muda
+H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Aqui:\n```html\n<!doctype html>\n<html><body><p>outro</p></body></html>\n```' } }] }) }));
+r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz uma calculadora' }, { role: 'assistant', content: 'Aqui:\n```html\n' + appAnt + '\n```' }, { role: 'user', content: 'coloca temas nessa calculadora' }] });
+ok(/⛔ Não mexi no app/.test(r.resposta) && !/<p>outro<\/p>/.test(r.resposta) && r.passos.some(p => /recusado, pediu só os trechos/.test(p)), 'v91: arquivo inteiro menor (outro app no lugar) é recusado');

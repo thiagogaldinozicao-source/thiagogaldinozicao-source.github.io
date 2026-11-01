@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 90 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 91 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -688,7 +688,30 @@ function prop(nome) {
  *  CHAT
  * ============================================================ */
 
+/* v91: UM pedido por vez em cada conversa. 01/11 12:20 ele mandou "corrige" com o pedido anterior ainda rodando: os dois mexeram
+ * no mesmo rascunho ao mesmo tempo e um deles trocou a calculadora por outro app. Conversa nova (sem chatId) não trava nada. */
 function chat(req, aparelho) {
+  const cid = String(req.chatId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40);
+  if (!cid || req.refazer === 'forcar') return chatSemTrava(req, aparelho);
+  const c = CacheService.getScriptCache(), chave = 'chat_rodando_' + cid;
+  const lock = LockService.getScriptLock();
+  let dono = '';
+  try {
+    if (lock.tryLock(5000)) {
+      const ja = c.get(chave);
+      if (ja && Date.now() - Number(ja) < 380000) dono = ja; else c.put(chave, String(Date.now()), 400);
+      lock.releaseLock();
+    }
+  } catch (e) { /* sem trava, segue */ }
+  if (dono) {
+    const seg = Math.round((Date.now() - Number(dono)) / 1000);
+    return { ok: false, ocupada: true, chatId: req.chatId, erro: 'Ainda tô trabalhando no seu pedido anterior nesta conversa (começou há ' + seg + ' s). Espera ele chegar (até ~6 min) antes de mandar outro aqui, senão um atrapalha o outro. Se for outro assunto, abre uma conversa nova.' };
+  }
+  try { return chatSemTrava(req, aparelho); }
+  finally { try { c.remove(chave); } catch (e) { /* ok */ } }
+}
+
+function chatSemTrava(req, aparelho) {
   const historico = (req.mensagens || []).slice(-12)
     .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 20000) }))
     .filter(m => m.content);
@@ -756,6 +779,17 @@ function chat(req, aparelho) {
   let codigoApp = null;
   let rascunho = null;
   if (ehDono()) { try { rascunho = lerRascunho_(chatId); } catch (e) { rascunho = null; } }
+  // v91: rascunho muito menor que o app de verdade = estragado (foi trocado por outro app): volta pro original sozinho
+  if (rascunho && rascunho.slug) {
+    try {
+      const orig = codigoDoApp(String(rascunho.slug));
+      if (orig && rascunho.html.length < orig.length * 0.6) {
+        passo('O rascunho desta conversa estava estragado (' + rascunho.html.length + ' de ' + orig.length + ' letras): voltou pro app original');
+        guardarRascunho_(chatId, rascunho.slug, orig);
+        rascunho = { slug: rascunho.slug, html: orig };
+      }
+    } catch (e) { /* segue com o rascunho */ }
+  }
   if (req.appSlug && ehDono() && rascunho && rascunho.slug === String(req.appSlug)) {
     codigoApp = rascunho.html;
     extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(req.appSlug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa: já tem as mudanças anteriores; o Thiago quer mudar mais)\n```html\n' + codigoApp.slice(0, 150000) + '\n```';
@@ -1624,7 +1658,7 @@ function geminiComGoogleSemDetalhe(sistema, historico) {
 }
 
 /* ---------- programadora: editar por trechos, testar e corrigir antes de entregar (o jeito do Claude) ---------- */
-const REGRA_EDICAO_BASE = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.';
+const REGRA_EDICAO_BASE = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.\nANTES DE MUDAR, ACHE A CAUSA: se o defeito é algo que aparece errado na TELA (ex.: um valor numa tabela), procure no arquivo o código que MONTA aquele pedaço da tela (o id/classe do elemento, o innerHTML/textContent que escreve nele) e mude ALI. Se uma parte da tela já mostra certo (ex.: o resumo), a conta está certa: o defeito está em quem mostra a outra parte. Diga em 1 linha qual função/linha é a causa.';
 /* v89: PROVAS do app (igual os testes que o Claude roda): ela escreve, o Mac roda a cada mudança, ficam guardadas por app. */
 const REGRA_PROVAS = '\n\n### PROVAS DO APP (obrigatório)\nDepois dos trechos, escreva provas do que o Thiago pediu num bloco ```provas com JSON (lista). Cada prova: {"nome":"o que confere","passos":[{"clicar":"seletor"},{"preencher":"seletor","valor":"1000"},{"escolher":"seletor","valor":"12"},{"teclas":"Enter"},{"esperar":300},{"js":"código que roda na página"}],"conferir":[{"texto":"seletor","contem":"83,37"},{"js":"código que devolve true se está certo ou um texto dizendo o que está errado"}]}.\n- Use SÓ seletores (id/classe) que existem no código do app.\n- O app abre do zero (nada salvo): tutorial/aviso na frente → feche no primeiro passo.\n- Conta: o js lê os números da tela e calcula (ex.: somar as parcelas e comparar com o total no centavo). Nunca escreva o resultado esperado de cabeça.\n- A prova tem que FALHAR no defeito que o Thiago contou e passar quando estiver certo. 1 a 4 provas, curtas.';
 const REGRA_EDICAO = REGRA_EDICAO_BASE + REGRA_PROVAS;
@@ -1735,7 +1769,19 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
       }
       if (!ed.ok) { passo('Edição não aplicou; entregou o pedido de mudança sem mexer no app'); return Object.assign({}, resultado, { texto: texto + '\n\n⚠️ Não consegui aplicar a mudança no arquivo (os trechos não bateram). Pede de novo que eu tento.' }); }
       html = ed.codigo; passo('Aplicou ' + ed.qtd + ' trecho(s) de edição no app (o resto do arquivo ficou igual)');
-    } else html = extrairHtml(texto);
+    } else {
+      html = extrairHtml(texto);
+      // v91: 01/11 12:22 ela devolveu OUTRO app (29 mil letras, "Orçamento") no lugar da calculadora (116 mil) e virou rascunho com "✅ testei".
+      // App que já existe só muda por trechos; arquivo inteiro só vale se não encolher (e mesmo assim avisa).
+      const encolheu = html && html.length < codigoApp.length * 0.85;
+      if (html && encolheu) {
+        passo('⛔ Devolveu o arquivo inteiro e MENOR (' + html.length + ' de ' + codigoApp.length + ' letras): recusado, pediu só os trechos');
+        const r2 = consertarCodigo(codigoApp, ['Você devolveu o arquivo INTEIRO reescrito e ele perdeu ' + Math.round(100 - html.length * 100 / codigoApp.length) + '% do app. Isso é proibido: devolva SÓ os blocos <<<<<<< ANTES / ======= / >>>>>>> DEPOIS com a mudança pedida.'], pergunta, '');
+        const ed2 = r2 ? aplicarTrechos(codigoApp, r2.texto) : { ok: false, qtd: 0 };
+        if (ed2.ok && ed2.qtd) { html = ed2.codigo; explicacao = String(r2.texto).replace(RX_BLOCO_EDICAO, '').replace(RX_BLOCO_PROVAS, '').replace(/\n{3,}/g, '\n\n').trim(); texto = r2.texto; passo('Aplicou ' + ed2.qtd + ' trecho(s) de edição no app (o resto do arquivo ficou igual)'); }
+        else return Object.assign({}, resultado, { texto: '⛔ Não mexi no app: em vez de mudar só o trecho, saiu um arquivo inteiro diferente e menor (' + html.length + ' letras; o app tem ' + codigoApp.length + '). Ia apagar parte da calculadora. O rascunho e o app continuam como estavam. Pede de novo numa conversa nova.', testado: false });
+      } else if (html) passo('⚠️ Devolveu o arquivo inteiro (do mesmo tamanho): conferindo pelo teste');
+    }
   } else html = extrairHtml(texto);
   if (!html) {
     // código solto (js): pelo menos a sintaxe
@@ -1756,7 +1802,7 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
     if (!r) break;
     let novo = null;
     const ed = aplicarTrechos(html, r.texto);
-    if (ed.ok) novo = ed.codigo; else { const inteiro = extrairHtml(r.texto); if (inteiro && inteiro.length > html.length * 0.6) novo = inteiro; }
+    if (ed.ok) novo = ed.codigo; else { const inteiro = extrairHtml(r.texto); if (inteiro && inteiro.length >= html.length * 0.85) novo = inteiro; }   // v91: conserto não pode encolher o app
     if (!novo) { passo('Conserto não aplicou'); break; }
     html = novo; teste = testarApp(html, provas);
   }
@@ -3211,7 +3257,15 @@ function agora() { return Utilities.formatDate(new Date(), FUSO, 'yyyy-MM-dd HH:
 function hoje() { return Utilities.formatDate(new Date(), FUSO, 'dd/MM/yyyy'); }
 function seguro(t) { t = String(t == null ? '' : t); return /^[=+\-@]/.test(t) ? "'" + t : t; }
 function normalizar(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
-function estimarTokens(t) { return Math.ceil(String(t).length / 3.2); }
+// v91: foto vai em base64 (700 KB = ~1 milhão de letras) e era contada como texto: ~300 mil "tokens" → TODO cérebro dizia
+// "conversa grande demais" com uma foto só. Foto conta ~1.300 tokens (o que o Gemini cobra de verdade), não o tamanho do base64.
+const RX_DATA_URL = /data:[a-z]+\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/gi;
+function estimarTokens(t) {
+  t = String(t);
+  let fotos = 0;
+  if (t.length > 20000 && t.indexOf(';base64,') >= 0) t = t.replace(RX_DATA_URL, () => { fotos++; return ''; });
+  return Math.ceil(t.length / 3.2) + fotos * 1300;
+}
 function resumoErro(txt) {
   try { const j = JSON.parse(txt); const e = Array.isArray(j) ? j[0].error : j.error; return (e && (e.message || e.status)) || String(txt).slice(0, 200); }
   catch (e) { return String(txt).slice(0, 200); }

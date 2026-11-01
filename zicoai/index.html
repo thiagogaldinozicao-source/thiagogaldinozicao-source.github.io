@@ -1112,7 +1112,12 @@ function consoleNoApp(tk){
   });
   window.addEventListener('error', function(e){
     var el = e.target;
-    if(el && el !== window && (el.src || el.href)){ manda('erro', ['Não carregou: ' + (el.src || el.href)]); return; }
+    if(el && el !== window && el.tagName && (el.hasAttribute('src') || el.hasAttribute('href'))){
+      // v45: <img src=""> aponta pra própria página e arquivo ao lado do app (fonts/, icons/) não vem na prévia: é aviso, não erro do app
+      var u = el.src || el.href || '', vazio = !(el.getAttribute('src') || el.getAttribute('href')), pasta = String(document.baseURI || '').replace(/[^\/]*$/, '');
+      if(vazio || (pasta && u.indexOf(pasta) === 0)){ manda('aviso', [(vazio ? 'Elemento sem endereço (src vazio)' : 'Arquivo ao lado do app não vem na prévia') + ': ' + u]); return; }
+      manda('erro', ['Não carregou: ' + u]); return;
+    }
     if(/^Script error\.?$/.test(e.message || '')) return;
     manda('erro', [e.message || 'Erro'], e.lineno ? 'linha ' + e.lineno : '');
   }, true);
@@ -2891,7 +2896,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v44';
+const VERSAO_APP = 'zicoai-v45';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

@@ -155,6 +155,16 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v91 + app v45 + mac/testar-html.js v3 (01/11): calculadora sem desastre
+- Caso real 12:20–12:22: Thiago mandou "corrige" com o pedido anterior rodando → 2 pedidos no mesmo rascunho; um devolveu OUTRO app ("Orçamento", 29 mil letras) no lugar da calculadora (116 mil), virou rascunho com "✅ testei"; o outro mexeu em `parcCalc` (conta certa) em vez da tabela; o teste não clicava em nada (tutorial "Bem-vindo… Entendi" tampando); a prévia reclamou de `<img src="">`.
+- `chat()` = trava por conversa (`chat_rodando_<id>` no cache, 380 s; conversa nova não trava) → `chatSemTrava()`. Resposta `{ok:false, ocupada:true}`.
+- `programadora`: app que já existe + arquivo inteiro MENOR que 85% → recusado, pede só os trechos 1×; não deu → "⛔ Não mexi no app" (rascunho intacto). Conserto também não pode encolher (85%).
+- Rascunho < 60% do app de verdade = estragado → volta pro original sozinho (`codigoDoApp`).
+- `REGRA_EDICAO_BASE`: ACHE A CAUSA (o que aparece errado na tela: mude quem MONTA aquele pedaço; se o resumo mostra certo, a conta está certa).
+- `estimarTokens`: foto em base64 conta ~1.300 tokens (antes 1 MB de foto = 300 mil → "conversa grande demais" em todos). t69.
+- `mac/testar-html.js` v3: `fecharBoasVindas` (camada de CIMA que cobre ≥50% da tela, ≤8 botões, botão Entendi/OK/Pular/Fechar/Começar/Continuar/✕; × sozinho não = multiplicar); botão que abre painel cobre os outros → recarrega e tenta de novo; fonte/ícone ao lado (ERR_FILE_NOT_FOUND) é aviso. Testado com a calculadora real: prova 12x falha no original e passa na corrigida; 12/12 botões.
+- App v45: prévia — `src=""` e arquivo ao lado do app (fonts/) viram aviso, não "erro" mandado pra ela consertar. t70; t40 ajustado.
+
 ## v90 (01/11): memória limpa
 - Caso real: o contexto de toda resposta tinha "nome Átila significa paizinho", "dólar é referência externa", preço do iPhone 15, "todos os parcelamentos têm juros", ID da planilha, ficha do iPhone Duo... (as 25 últimas lembranças iam SEMPRE).
 - `motivoMemoriaRuim(t, origem)`: grande demais (>300, ficha/lista), detalhe interno do sistema (`RX_MEM_SISTEMA`); e, quando foi ela que tirou sozinha (`auto`): preço/garantia/endereço/horário/juros/ficha (`RX_MEM_LOJA`: só valem da base/tabela conferida), informação de fora (`RX_MEM_FORA`), dedução (`RX_MEM_DEDUCAO`).
