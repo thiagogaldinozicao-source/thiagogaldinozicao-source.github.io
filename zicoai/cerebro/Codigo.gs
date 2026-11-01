@@ -5060,7 +5060,7 @@ function paresAntigos_() {
   const aulas = {}; linhas('aulas').forEach(l => { aulas[String(l[0])] = String(l[6] || ''); });
   let n = 0;
   linhas('estudo_erros').forEach(l => {
-    if (!l[8]) return;
+    if (!l[8] || /descartad|^n[ãa]o\b/i.test(String(l[10] || ''))) return;   // lição descartada (erro era do teste) não vira par
     const m = String(l[10] || '').match(/virou aula (X\d+)/), onde = m ? (aulas[m[1]] || '') : '';
     const autor = (onde.match(/autor ([^)]+)\)/) || [])[1] || '';
     if (guardarPar_(/revisora/.test(String(l[9])) ? 'revisora' : 'reclamação', l[2], l[8], l[3], autor, '', m && autor ? 'aprovada' : 'revisar')) n++;

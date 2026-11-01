@@ -41,8 +41,10 @@ ok(['aprovada', 'revisar'].indexOf(pe[7]) >= 0, 'status depende da nota de outro
 H.sheets.aulas.rows.push(['X7', 'X', 'Garantia', 'garantia', 'Garantia só da base.', '...', 'aprendeu sozinha com o erro de 2026-10-31 (nota 9 de outro cérebro; autor Gemini 3.1 Flash-Lite)']);
 H.sheets.estudo_erros.rows.push(['2026-10-31', 'c9', 'qual a garantia do seminovo?', 'É 1 ano!', 'tá errado', 'inventou', 'regra', 'aula', 'A garantia tá na base: 90 dias.', '', 'virou aula X7']);
 H.sheets.estudo_erros.rows.push(['2026-10-31', 'c8', 'faz um post', 'post ruim', 'feio', 'x', 'regra', 'aula', 'post melhor', '', 'revisar']);
+H.sheets.estudo_erros.rows.push(['2026-11-01', 'c7', 'arruma a calculadora', 'conserto certo', 'corrige', 'x', 'regra', 'aula', 'outro', '', 'descartado 01/11 (Claude): erro era do TESTE']);
 const n = run('paresAntigos_()');
 ok(n === 2 && P().find(l => /garantia do seminovo/.test(l[2]))[7] === 'aprovada' && P().find(l => /faz um post/.test(l[2]))[7] === 'revisar', 'erros antigos viram par (só o que virou aula fica aprovado)');
+ok(!P().some(l => /arruma a calculadora/.test(l[2])), 'lição descartada não vira par');
 
 // 4) exporta só aprovados, sem GPT, no formato DPO; só o Mac puxa
 const j = run('preferenciasJsonl()');
