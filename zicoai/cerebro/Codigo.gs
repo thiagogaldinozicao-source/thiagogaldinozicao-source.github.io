@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 83 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 84 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -388,6 +388,7 @@ const PERSONA = [
 
 /** Lista do que a ZicoAI fez em cada resposta (aparece no app em "Como respondi"). */
 let PASSOS = [];
+let TESTOU_AGORA = 0;   // v84: quantos testes DE VERDADE rodaram nesta resposta (app aberto no navegador do Mac, testes do Mac)
 let DETALHES = [];
 let ABA_ATUAL = 0;   // aba do Chrome de onde o Thiago está falando (painel da extensão: cada aba tem a sua conversa)
 let TAREFA_DETALHE = "";
@@ -555,7 +556,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PESSOA = DONO; PASSOS = []; DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
+  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -1619,7 +1620,7 @@ function testarApp(html) {
   if (!erros.length) {
     try {
       const r = ponte('testar_html', { html: html, largura: 390 }, 60000, 'mac');
-      rodou = true; (r.erros || []).forEach(e => erros.push('No navegador: ' + e)); avisos = r.avisos || [];
+      rodou = true; TESTOU_AGORA++; (r.erros || []).forEach(e => erros.push('No navegador: ' + e)); avisos = r.avisos || [];
       passo('Abriu o app no navegador do Mac (celular), clicou em ' + (r.botoesTestados || 0) + ' botão(ões): ' + (erros.length ? erros.length + ' erro(s)' : 'sem erro'));
     } catch (e) { passo('Navegador do Mac indisponível (' + String(e.message).slice(0, 60) + '): conferiu só a sintaxe'); }
   }
@@ -3757,15 +3758,15 @@ function conferirContas(texto) {
   const RES = '((?:R\\$\\s?)?\\d{1,9}(?:[.,]\\d{1,3}){0,4})(?![\\d])';
   const rxConta = new RegExp('((?:' + NUM + ')(?:[ \\t]{0,3}[x×*+\\-−\\/÷][ \\t]{0,3}(?:' + NUM + ')){1,5})[ \\t]{0,3}=[ \\t]{0,3}' + RES, 'g');
   const rxPct = new RegExp('(?<![\\d.,])(\\d{1,3}(?:,\\d{1,2})?)\\s?%\\s+de\\s+(' + NUM + ')[ \\t]{0,3}(?:=|é|dá|da|fica)[ \\t]{0,3}' + RES, 'gi');
-  const confere = (certo, escrito, original, troca) => {
+  const confere = (certo, escrito, original, troca, estrito) => {
     total++;
     const v = numeroBR(escrito);
     if (!isFinite(certo) || !isFinite(v)) return original;
     // valor sem centavos é arredondamento da loja ("põe 100 de lucro" = 2.089, final 9): aceita até R$ 1 ou 1%
     const semCentavos = !/,\d*[1-9]\d*$/.test(escrito.trim());
     const dif = Math.abs(certo - v);
-    if (dif <= Math.max(0.011, Math.abs(certo) * 0.001)) return original;
-    if (semCentavos && Math.abs(certo) >= 10 && (dif <= 1.01 || (/9$/.test(String(Math.round(v))) && dif <= 10))) return original;
+    if (dif <= (estrito ? 0.011 : Math.max(0.011, Math.abs(certo) * 0.001))) return original;   // parcela: no centavo
+    if (!estrito && semCentavos && Math.abs(certo) >= 10 && (dif <= 1.01 || (/9$/.test(String(Math.round(v))) && dif <= 10))) return original;
     const novo = troca(formatarComo(certo, escrito));
     erradas.push(original.trim() + ' → ' + novo.trim());
     return novo;
@@ -3782,6 +3783,9 @@ function conferirContas(texto) {
     });
     // "12x de R$ 150,00 = R$ 1.800,00" / "10x R$ 99 (total R$ 990)"
     partes[k] = partes[k].replace(/(?<![\d.,])(\d{1,2}) ?x ?(?:de )?(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)[ \t]{0,3}(?:=|→|\(? ?total(?: de)?:?|d[aá]|fica)[ \t]{0,3}(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)/gi, (m, n, parc, tot) => confere(numeroBR(n) * numeroBR(parc), tot, m, f => m.slice(0, m.length - tot.length) + (tot.match(/^R\$\s?/) || [''])[0] + f));
+    // "1ª de R$ 83,37 + 11x de R$ 83,33 (soma: R$ 1.000,00)": a soma das parcelas tem que bater no centavo
+    partes[k] = partes[k].replace(/(?:1ª|1a|primeira)(?: parcela)? de `?(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)`? ?\+ ?`?(\d{1,2}) ?x (?:de )?`?(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)[^\n]{0,20}?(?:soma|total|=)[: ]{0,3}(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)/gi,
+      (m, a, n, b, tot) => confere(numeroBR(a) + numeroBR(n) * numeroBR(b), tot, m, f => m.slice(0, m.length - tot.length) + (tot.match(/^R\$\s?/) || [''])[0] + f, true));
     partes[k] = partes[k].replace(rxPct, (m, pct, base, res) => confere(numeroBR(pct) * numeroBR(base) / 100, res, m, f => m.slice(0, m.length - res.length) + (/^R\$/.test(res) ? (res.match(/^R\$\s?/) || [''])[0] : '') + f));
   }
   if (erradas.length) passo('Conferiu as contas: corrigiu ' + erradas.length + ' (' + erradas.slice(0, 3).join('; ') + ')');
@@ -3815,10 +3819,32 @@ function conferirLinks(texto) {
   });
   return t;
 }
-function conferirAntesDeEntregar(texto) {
+function conferirAntesDeEntregar(texto, testouAntes) {
   let t = conferirContas(texto);
   try { t = conferirLinks(t); } catch (e) { /* sem rede: segue */ }
+  t = conferirAlegacaoTeste_(t, testouAntes || TESTOU_AGORA > 0);
   return t;
+}
+/* v84: ela NÃO pode dizer que testou sem ter testado (caso real 01/11: "Testes confirmados no Mac" com somas erradas e arquivo cortado).
+ * Se nenhum teste rodou nesta resposta (TESTOU_AGORA = 0 e o agente não usou ferramenta de teste), a frase ganha "não foi testado de verdade"
+ * e a resposta abre com o aviso. O selo do próprio teste ("✅ Testei a sintaxe…", "⚠️ Testei e ainda tem…") não conta: é ele que diz o que rodou. */
+const RX_DIZ_QUE_TESTOU = /\b(testei\b|testad[oa]s?\b|testes? (confirmad|feit|rodad|aprovad|passa|ok)|rodei (no|o|os|a|as|ele|tudo)\b|conferi no (mac|navegador|pc)\b|verifiquei no (mac|navegador|pc)\b|funcion(a|ou) certinho no (mac|navegador))/;
+const RX_SELO_TESTE = /^\s*(⚠️|✅) Testei (e ainda tem|no navegador|a sintaxe)/;
+function conferirAlegacaoTeste_(texto, testou) {
+  if (testou) return texto;
+  const partes = String(texto || '').split(/(```[\s\S]*?```)/);
+  let achou = 0;
+  for (let k = 0; k < partes.length; k += 2) {
+    partes[k] = partes[k].split('\n').map(l => {
+      const n = normalizar(l);
+      if (RX_SELO_TESTE.test(l) || !RX_DIZ_QUE_TESTOU.test(n) || /\bnao (test|rodei|conferi)/.test(n)) return l;
+      achou++;
+      return l.replace(/✅\s*/g, '') + ' _(⚠️ não foi testado de verdade)_';
+    }).join('\n');
+  }
+  if (!achou) return texto;
+  passo('Ela disse que testou, mas nenhum teste rodou nesta resposta: marcou como NÃO testado');
+  return '⚠️ **Não testei de verdade**: nenhum teste rodou nesta resposta. Onde diz que testou, não vale; confere antes de usar.\n\n' + partes.join('');
 }
 
 /* ---------- o código da própria ZicoAI (pra ela se avaliar e melhorar) ---------- */
@@ -4900,7 +4926,7 @@ const FERRAMENTAS = {
   pc_testar: { desc: 'Roda os testes automáticos da ZicoAI no PC (baixa a versão do GitHub e roda node t*.js). Use DEPOIS de mudar seu código: só diga que funciona se passar. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000); return String(r.saida).slice(0, 6000); } },
   pc_comando: { desc: 'Roda um comando SEGURO da lista no PC: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, diagnostico (erros do Windows 24 h, log do Ollama, memória, disco, placa de vídeo: use pra DEPURAR o PC). args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }); return String(r.saida).slice(0, 6000); } },
   mac_status: { desc: 'Oficina 24h (Mac Mini M4): nome, pastas liberadas e espaço livre. args: {}', run: () => { const s = ponte('status', null, null, 'mac'); return 'Mac ' + s.nome + ' (' + s.hora + ')\nPastas: ' + s.pastas.map(p => p.caminho + (p.escrever ? ' (lê e escreve)' : ' (só lê)')).join('; ') + (s.disco ? '\n' + s.disco : ''); } },
-  mac_testar: { desc: 'Roda os testes automáticos da ZicoAI na oficina (Mac, ligado 24h): baixa a versão do GitHub e roda node t*.js. Use quando o PC estiver desligado. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000, 'mac'); return String(r.saida).slice(0, 6000); } },
+  mac_testar: { desc: 'Roda os testes automáticos da ZicoAI na oficina (Mac, ligado 24h): baixa a versão do GitHub e roda node t*.js. Use quando o PC estiver desligado. args: {}', run: () => { const r = ponte('comando', { nome: 'testes_zicoai' }, 170000, 'mac'); TESTOU_AGORA++; return String(r.saida).slice(0, 6000); } },
   mac_abrir: { desc: 'Abre no Mac um site (https://...) no navegador, um app da lista (safari, chrome, calculadora, textedit, finder) ou um arquivo de pasta liberada. args: {alvo}', run: a => { const r = ponte('abrir', { alvo: String(a.alvo || '') }, null, 'mac'); return 'aberto no Mac: ' + r.aberto; } },
   mac_comando: { desc: 'Roda um comando SEGURO da lista no Mac: espaco_disco, processos, gpu, ip, sistema, ollama_modelos, testes_zicoai, diagnostico (memória, disco, mais pesados, serviços da ZicoAI, log do Ollama e da ponte, programas que travaram: use pra DEPURAR o Mac). args: {nome}', run: a => { const r = ponte('comando', { nome: String(a.nome || '') }, null, 'mac'); return String(r.saida).slice(0, 6000); } },
   nav_abas: { desc: 'CHROME do Thiago (extensão): lista as abas abertas (id, título, endereço, qual está ativa). args: {}', run: () => { const r = ponte('abas', {}, null, 'nav'); return (r.abas || []).map(a => (a.ativa ? '▶ ' : '  ') + a.id + ' · ' + a.titulo + ' · ' + a.url).join('\n') || '(nenhuma aba)'; } },
@@ -5028,7 +5054,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   } else anota('Continuou de onde parou (rodada ' + est.rodadas + (est.plano && etapaAtual(est.plano) >= 0 ? ', etapa ' + (etapaAtual(est.plano) + 1) + ' de ' + est.plano.etapas.length : '') + ')');
   const msgs = est.msgs;
   const finalizar = (texto) => {
-    try { texto = conferirAntesDeEntregar(texto); est.log = est.log.concat(PASSOS.filter(x => /^Conferiu|^Link/.test(x) && est.log.indexOf(x) < 0)); } catch (e) { /* ok */ }
+    try { texto = conferirAntesDeEntregar(texto, est.log.some(x => /🔧 (testar_app|mac_testar)\b|Abriu o app no navegador do Mac/.test(String(x)))); est.log = est.log.concat(PASSOS.filter(x => /^Conferiu|^Link/.test(x) && est.log.indexOf(x) < 0)); } catch (e) { /* ok */ }
     const final = processarTags(texto, aparelho || 'agente').texto + conferenciaFinal(est.plano);
     atualizarTarefa(id, { status: 'concluída', resultado: final, passos: compacto(est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')'])) });
     if (est.salvou) estadoApagar(id);
@@ -5678,6 +5704,8 @@ const SINAIS_REVISORA = [
     ve: (ped, resp) => /^\s*(🧠[^\n]*\n+)?\s*\{\s*"resposta"|\[\[etapa:/i.test(resp) },
   { id: 'agente_perguntou_no_fim', desc: 'o agente terminou a tarefa perguntando o que fazer ("o que vc prefere", "me confirma") em vez de decidir e fazer',
     ve: (ped, resp) => /resultado da tarefa/i.test(resp) && /(o que|qual) (vc|voce) prefere|me confirm[ae]|quer que eu (faca|siga|continue|comece)|o que vc quer (ajustar|primeiro)/.test(normalizar(resp.slice(-400))) },
+  { id: 'disse_que_testou', desc: 'ela disse que testou ("testei", "testes confirmados no Mac") sem ter rodado nenhum teste: inventou resultado de teste. Certo: só dizer que testou quando a ferramenta de teste rodou; senão dizer "não testei"',
+    ve: (ped, resp) => /Não testei de verdade/.test(resp) },
   { id: 'pediu_o_que_podia_buscar', desc: 'ela pediu pro Thiago algo que podia buscar sozinha (link do próprio app, colar código dela, colar mensagem que estava na aba aberta, "não encontrei o arquivo")',
     ve: (ped, resp) => resp.length < 900 && /(me (passa|manda|cola|envia) (o )?(link|codigo|arquivo|html|slug)|nao (encontrei|achei) o arquivo|cola (aqui )?(o codigo|a mensagem)|ainda nao consigo ver a aba)/.test(normalizar(resp)) }
 ];

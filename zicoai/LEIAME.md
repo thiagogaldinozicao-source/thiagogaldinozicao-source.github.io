@@ -155,6 +155,12 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v84 (01/11): ela não diz que testou sem testar
+- Caso real (calculadora): "Testes confirmados no Mac" com 3 exemplos, 2 com soma errada (142,86 + 6×142,85 = 999,96, não 999,99; 72,73 + 17×72,72 = 1.308,97, não 1.299), e o arquivo cortado. Nenhum teste tinha rodado.
+- `TESTOU_AGORA` (zera a cada pedido) sobe quando `testarApp` abre o app no navegador do Mac ou o agente roda `mac_testar`; no agente também vale o log (`🔧 testar_app`/`mac_testar`, "Abriu o app no navegador do Mac"). `conferirAlegacaoTeste_` (dentro de `conferirAntesDeEntregar`): sem teste, cada frase "testei / testado / testes confirmados / rodei no / conferi no Mac…" fora de bloco de código ganha "_(⚠️ não foi testado de verdade)_" e a resposta abre com "⚠️ **Não testei de verdade**". O selo do próprio teste (`RX_SELO_TESTE`) e "não testei" ficam como estão.
+- `conferirContas`: "1ª de R$ A + Nx de R$ B (soma/total/= R$ C)" confere no centavo (`estrito`: sem a folga de 0,1% nem o "arredondamento da loja").
+- Revisora: sinal `disse_que_testou` vira aula. t64.
+
 ## App v42 (01/11): navegador igual navegador de verdade no computador
 - Problema (print do Thiago no Chrome do PC): tela dela fixa em 1280×800 num painel alto → faixa preta embaixo e tudo pequeno; o card "Navegador da ZicoAI" no chat repetia o que ele mesmo fazia no painel; digitar só pela caixinha de baixo.
 - `nvTamanhoIdeal()`: a tela dela no Mac ganha o formato do painel (PC 1280 × altura proporcional; celular 430 × proporcional; 480–1200, múltiplo de 20); confere de novo 1,5 s depois de abrir (as abas encolhem o painel) e quando a janela muda de tamanho (`nvConfereTamanho`).

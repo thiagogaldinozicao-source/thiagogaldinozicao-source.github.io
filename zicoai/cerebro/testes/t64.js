@@ -1,0 +1,25 @@
+// v84: ela não pode dizer que testou sem testar; soma de parcelas confere no centavo (caso real da calculadora, 01/11)
+const H = require('./harness'), vm = require('vm');
+const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) process.exitCode = 1; };
+const run = c => vm.runInContext(c, H.ctx);
+const conf = (t, testou) => run('TESTOU_AGORA = 0; conferirAntesDeEntregar(' + JSON.stringify(t) + (testou ? ', true' : '') + ')');
+run('conferirLinks = function(t){ return t; }');
+const RESP = '**Detalhes da correção:**\n1. Lógica\n\n3. **Testes confirmados no Mac**:\n   - **R$ 1.000 em 12x**: Tabela agora mostra `1ª de R$ 83,37 + 11x de R$ 83,33` (soma: R$ 1.000,00).\n   - **R$ 999,99 em 7x**: Tabela mostra `1ª de R$ 142,86 + 6x de R$ 142,85` (soma: R$ 999,99).\n   - **R$ 1.299 em 18x**: Tabela mostra `1ª de R$ 72,73 + 17x de R$ 72,72` (soma: R$ 1.299,00).\n\n```js\n// testei aqui dentro do código não conta\nconst x = 1;\n```';
+let t = conf(RESP);
+ok(/^⚠️ \*\*Não testei de verdade\*\*/.test(t), 'sem teste rodando: abre com o aviso de NÃO testado');
+ok(/Testes confirmados no Mac\*\*:.*não foi testado de verdade/.test(t), 'a frase "Testes confirmados no Mac" ganha a marca');
+ok(/testei aqui dentro do código não conta/.test(t) && !/código não conta _\(/.test(t), 'comentário dentro de bloco de código não é mexido');
+ok(/R\$ 83,33` \(soma: R\$ 1\.000,00\)/.test(t), 'soma certa fica (83,37 + 11 × 83,33 = 1.000,00)');
+ok(/R\$ 142,85` \(soma: R\$ 999,96\)/.test(t), 'soma errada é corrigida no centavo (999,99 → 999,96)');
+ok(/R\$ 72,72` \(soma: R\$ 1\.308,97\)/.test(t), 'soma errada "redonda" também (1.299,00 → 1.308,97; parcela não tem arredondamento da loja)');
+t = conf(RESP, true);
+ok(!/Não testei de verdade/.test(t), 'agente que usou ferramenta de teste: sem aviso');
+run('ponte = function(){ return { erros: [], avisos: [], botoesTestados: 2 }; }');
+run('TESTOU_AGORA = 0; testarApp("<!doctype html><html><body><button>ok</button></body></html>")');
+ok(run('TESTOU_AGORA') === 1, 'app aberto no navegador do Mac conta como teste');
+ok(!/Não testei/.test(run('conferirAntesDeEntregar("Testei no navegador do Mac e funcionou.")')), 'com teste rodado nesta resposta: pode dizer que testou');
+ok(conf('Pronto!\n\n✅ Testei a sintaxe: sem erro.') === 'Pronto!\n\n✅ Testei a sintaxe: sem erro.', 'selo do próprio teste não é marcado');
+ok(conf('Não testei, mas a lógica é essa.') === 'Não testei, mas a lógica é essa.', '"não testei" é honesto: fica igual');
+ok(conf('O 17 Pro Max tem tela de 6,9".') === 'O 17 Pro Max tem tela de 6,9".', 'resposta sem falar de teste: fica igual');
+ok(run('SINAIS_REVISORA.some(function(s){ return s.id === "disse_que_testou" && s.ve("", "⚠️ **Não testei de verdade**: x"); })'), 'revisora transforma isso em aula');
+ok(/versão (8[4-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 84 ou mais nova');
