@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## pc/otimizar-pc.ps1 (01/11)
+- PowerShell como admin (`irm … | iex`), um S/N por passo, mostra como desfazer no fim: 1) driver NVIDIA (mostra a versão e abre o NVIDIA App; instalação é do Thiago); 2) `winget upgrade` (todos ou só o Ollama); 3) energia Alto desempenho; 4) HAGS (HwSchMode=2); 5) caminhos longos (+ git core.longpaths); 6) Defender: exceção só em `.ollama\models`, `C:\ZOMBIES` e `%LOCALAPPDATA%\UnrealEngine`; 7) Sensor de Armazenamento mensal (nunca Downloads); 8) Ollama rápido (OLLAMA_FLASH_ATTENTION=1, OLLAMA_KV_CACHE_TYPE=q8_0, 1 modelo e 1 pedido por vez).
+
 ## v85 + app v43 + pc/liberar-espaco.ps1 (01/11): programar no app DE VERDADE
 - Caso real: "corrige um bug na minha calculadora" → ela inventou `renderParcelas`/"linhas ~X-Y" porque a calculadora mora no repo **Calculadora-do-zicao** e ela só via /apps do site. (O bug real: na tabela, `calcParc` mostra só `x.par`; a 1ª parcela `x.first` só aparece no resumo — fica pra ela consertar.)
 - `reposApps()`: repositórios PÚBLICOS do Thiago viram apps "repo:<nome>" (cache 6 h; `REPOS_FORA` = site, catalogo, ZICAOSTOREGESTAO). `listarApps` junta os dois; `codigoDoApp`/`versoesDoApp`/`restaurarApp` entendem "repo:". `appDoPedido_`: pedido de mudança/correção que cita o app ("calculadora") → baixa o index.html real e entra como CÓDIGO ATUAL (edição por trechos + teste do arquivo inteiro); empate = não chuta. Chat devolve `appAuto` e `testado`.
