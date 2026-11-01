@@ -3,6 +3,7 @@
 #   irm https://raw.githubusercontent.com/thiagogaldinozicao-source/thiagogaldinozicao-source.github.io/main/zicoai/pc/liberar-espaco.ps1 | iex
 # 1) AVALIA: mede cada item e mostra quanto libera (não apaga nada ainda).
 # 2) Pergunta antes de apagar. Só lixo que o Windows/drivers recriam sozinhos.
+# 01/11: tela azul (CRITICAL_PROCESS_DIED) no minuto da 1ª limpeza → saiu o que mexe dentro de C:\Windows (Temp do sistema, Windows Update parando serviço). O Windows Update é limpo pelo DISM, que é o jeito oficial.
 # NUNCA mexe: projeto ZOMBIES, Unreal (projetos e cache), Ollama/modelos, ZicoAI, ponte, Documentos, Downloads, Área de Trabalho, jogos.
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -21,8 +22,6 @@ if (-not $admin) { Write-Host '[aviso] Não está como Administrador: os itens d
 $L = $env:LOCALAPPDATA
 $itens = @(
   @{ n = 'Temporários do usuário';                p = $env:TEMP;                                   adm = $false },
-  @{ n = 'Temporários do Windows (ADM)';          p = 'C:\Windows\Temp';                           adm = $true },
-  @{ n = 'Downloads do Windows Update (ADM)';     p = 'C:\Windows\SoftwareDistribution\Download'; adm = $true },
   @{ n = 'Cache de shader da NVIDIA (DX)';        p = "$L\NVIDIA\DXCache";                         adm = $false },
   @{ n = 'Cache de shader da NVIDIA (GL)';        p = "$L\NVIDIA\GLCache";                         adm = $false },
   @{ n = 'Cache de shader do DirectX';            p = "$L\D3DSCache";                              adm = $false },
@@ -49,7 +48,7 @@ Write-Host 'Também dá pra limpar versões velhas do Windows Update (DISM, ADM)
 Write-Host ''
 $r = Read-Host 'Apagar o lixo seguro agora? (S/N)'
 if ($r -match '^[sS]') {
-  foreach ($i in $itens) { if ($i.adm -and -not $admin) { continue }; if ($i.n -like '*Windows Update*') { Stop-Service wuauserv -Force; Stop-Service bits -Force }; Esvazia $i.p; if ($i.n -like '*Windows Update*') { Start-Service bits; Start-Service wuauserv } }
+  foreach ($i in $itens) { if ($i.adm -and -not $admin) { continue }; Esvazia $i.p }
   if ($admin -and $dmp -gt 0) { Remove-Item 'C:\Windows\MEMORY.DMP' -Force }
   Clear-RecycleBin -Force -ErrorAction SilentlyContinue
   if ($admin) { try { Delete-DeliveryOptimizationCache -Force -ErrorAction Stop } catch {} }
