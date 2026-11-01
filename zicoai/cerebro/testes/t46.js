@@ -18,7 +18,7 @@ const F = n => (a, ctx) => run('FERRAMENTAS.' + n + '.run(' + JSON.stringify(a |
 let t = F('web_pesquisar')({ texto: 'iphone 17 preço' });
 ok(/RESULTADOS[\s\S]*iPhone 17[\s\S]*apple\.com\/br/.test(t) && run('__ult.disp') === 'mac', 'web_pesquisar vai pro navegador do Mac e devolve resultados + links');
 ok(!/QUJD/.test(t), 'o print não vai pro texto do agente (só pro app)');
-const tela = JSON.parse(run('CacheService.getScriptCache().get("tela_vivo")'));
+const tela = JSON.parse(run('CacheService.getScriptCache().get("tela_vivo_geral")'));
 ok(tela && tela.img === 'QUJD' && tela.acao === 'pesquisar', 'print guardado pro app mostrar ao vivo');
 t = F('web_ler')({});
 ok(/\[precisa OK\]/.test(t) && /\[protegido\]/.test(t), 'web_ler marca botão perigoso e campo protegido');
@@ -30,7 +30,7 @@ ok(run('__ult.d.confirmado') === false, 'confirmado:true do agente sozinho não 
 // detalhe técnico não guarda o base64
 const det = JSON.stringify(run('DETALHES'));
 ok(!/QUJD/.test(det) && /print da tela/.test(det), '"Solicitação/Resposta" mostra "(print da tela)" no lugar da imagem');
-const tela2 = JSON.parse(run('CacheService.getScriptCache().get("tela_vivo")'));
+const tela2 = JSON.parse(run('CacheService.getScriptCache().get("tela_vivo_geral")'));
 // ao vivo: aoVivo e telaVivo só mandam o print quando é novo
 let r = H.post({ pin: '1234', acao: 'aoVivo', reqId: 'abc', desde: 0 });
 ok(r.ok && r.tela && r.tela.img === 'QUJD', 'aoVivo leva o print do navegador');

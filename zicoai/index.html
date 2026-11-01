@@ -994,7 +994,9 @@ async function carregaLista(){
 async function abrir(id){
   fechaLado();
   if(controle) return;
+  if(nvAberto && nvSessao() !== id) api({ acao:'navegar', op:'soltar', chatId: nvSessao() }).catch(() => {});   // saiu da conversa: solta a aba dela
   atual = id; guardaAtual();
+  if(nvAberto && nvDaConversa !== nvSessao()) abreNavegador();   // painel aberto: mostra a aba desta conversa
   mensagens = LS.get('msgs_' + id, []);
   desenha(); desenhaLista();
   try{
@@ -1545,7 +1547,7 @@ function mostraTrabalhando(etapas, reqId){
     const busca = async () => {
       if(parado) return;
       try{
-        const j = await api({ acao:'aoVivo', reqId, desde: desdeTela });
+        const j = await api({ acao:'aoVivo', reqId, desde: desdeTela, chatId: atual });
         if(!parado && j.tela){ desdeTela = j.tela.quando + 1; mostraTela(corpo, j.tela, det); }
         if(!parado && ((j.passos && j.passos.length) || (j.detalhes && j.detalhes.length))){
           temVivo = true; clearTimeout(tmr);
@@ -1792,7 +1794,7 @@ async function buscaTelaTarefa(t){
   tmrTelaTarefa = 1;
   const desde = telaTarefa && telaTarefa.id === t.id ? telaTarefa.tela.quando + 1 : Date.parse(String(t.criada || '').replace(' ', 'T')) - 60000 || 0;
   try{
-    const j = await api({ acao:'telaVivo', desde });
+    const j = await api({ acao:'telaVivo', desde, chatId: t.chatId || atual });
     if(j.tela){ telaTarefa = { id: t.id, tela: j.tela }; const card = document.querySelector('#vivoTarefa .vivo'); if(card) mostraTela(card, j.tela, card.querySelector('.rz-tit') && card.querySelector('.rz-tit').nextSibling); }
   }catch(e){}
   const ainda = tarefas.some(x => x.id === t.id && x.status === 'rodando') && document.getElementById('vivoTarefa');
@@ -2120,7 +2122,9 @@ async function atualizaChipDisp(){
 setTimeout(atualizaChipDisp, 1500); setInterval(() => { if(!document.hidden) atualizaChipDisp(); }, 60000);
 
 /* ---------- Navegador da ZicoAI: o Thiago usa o Chrome dela no Mac (o mesmo que o agente usa) ---------- */
-let nvAberto = false, nvTamanho = '', nvOcupado = false, nvDesde = 0, nvTmr = null;
+let nvAberto = false, nvTamanho = '', nvOcupado = false, nvDesde = 0, nvTmr = null, nvDaConversa = '';
+// cada conversa tem a SUA aba no navegador dela (v35): a sessão é o id da conversa aberta
+function nvSessao(){ return atual || 'geral'; }
 function nvMostra(t){
   if(!t || !t.img) return;
   $('nvImg').src = 'data:image/jpeg;base64,' + t.img; $('nvVazio').hidden = true;
@@ -2134,7 +2138,7 @@ async function nvFaz(dados, aviso){
   nvOcupado = true; $('nvTela').classList.add('carregando'); nvStatus(aviso || 'Carregando…');
   let j = null;
   try{
-    j = await api(Object.assign({ acao:'navegar' }, dados));
+    j = await api(Object.assign({ acao:'navegar', chatId: nvSessao() }, dados));
     if(j.tela) nvMostra(j.tela);
     if(Array.isArray(j.abas)) nvAbas(j.abas);
     if(!j.ok) nvStatus('⚠️ ' + (j.erro || 'não deu'), true);
@@ -2160,10 +2164,11 @@ function nvAbas(abas){
 // enquanto aberto: o que o agente fizer aparece aqui também
 async function nvVivo(){
   if(!nvAberto) return;
-  if(!nvOcupado){ try{ const j = await api({ acao:'telaVivo', desde: nvDesde }); if(j.tela && !nvOcupado) nvMostra(j.tela); }catch(e){} }
+  if(!nvOcupado){ try{ const j = await api({ acao:'telaVivo', desde: nvDesde, chatId: nvSessao() }); if(j.tela && !nvOcupado) nvMostra(j.tela); }catch(e){} }
   nvTmr = setTimeout(nvVivo, 2500);
 }
 function abreNavegador(){
+  nvDaConversa = nvSessao(); $('nvImg').removeAttribute('src'); $('nvVazio').hidden = false; $('nvAbas').replaceChildren(); nvTamanho = '';
   nvAberto = true; $('mNav').hidden = false; document.body.classList.add('nav-aberto');
   nvDesde = 0; clearTimeout(nvTmr); nvVivo();
   // no celular a tela dela vira de celular (site legível); no computador, de computador
@@ -2171,7 +2176,7 @@ function abreNavegador(){
   if(nvTamanho !== quer){ nvTamanho = quer; nvFaz(quer === 'cel' ? { op:'tamanho', w:430, h:860 } : { op:'tamanho', w:1280, h:800 }, 'Abrindo o navegador dela no Mac…'); }
   else if(!$('nvImg').getAttribute('src')) nvFaz({ op:'tela' }, 'Abrindo o navegador dela no Mac…');
 }
-function fechaNavegador(){ nvAberto = false; clearTimeout(nvTmr); $('mNav').hidden = true; document.body.classList.remove('nav-aberto'); api({ acao:'navegar', op:'soltar' }).catch(() => {}); }   // fechou: ela pode usar de novo
+function fechaNavegador(){ nvAberto = false; clearTimeout(nvTmr); $('mNav').hidden = true; document.body.classList.remove('nav-aberto'); api({ acao:'navegar', op:'soltar', chatId: nvSessao() }).catch(() => {}); }   // fechou: ela pode usar de novo
 $('bNav').onclick = () => nvAberto ? fechaNavegador() : abreNavegador();
 $('nvFechar').onclick = fechaNavegador;
 $('nvVoltar').onclick = () => nvFaz({ op:'voltar' }, 'Voltando…');

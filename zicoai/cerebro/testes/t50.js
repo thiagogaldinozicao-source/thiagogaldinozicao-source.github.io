@@ -17,7 +17,7 @@ r = H.post({ pin: '1234', acao: 'navegar', op: 'abrir', url: 'meubanco.com' });
 ok(!r.ok && /banco/.test(r.erro), 'banco continua recusado mesmo pelo Thiago');
 ok(H.post({ pin: '1234', acao: 'navegar', op: 'apagarTudo' }).ok === false, 'ação fora da lista é recusada');
 ok(H.post({ acao: 'navegar', op: 'tela' }).ok === false, 'sem PIN não usa o navegador');
-const t = JSON.parse(run('CacheService.getScriptCache().get("tela_vivo")'));
+const t = JSON.parse(run('CacheService.getScriptCache().get("tela_vivo_geral")'));
 ok(t && t.acao === 'Thiago: abrir' || t.acao === 'Thiago: escrever', 'o que o Thiago faz também vira print ao vivo');
 ok(!Object.keys(run('FERRAMENTAS')).some(k => /^(web|nav)_(tocar|escrever|roda|tamanho)$/.test(k)) && !/OPS_MANUAIS/.test(run('webNav.toString()')), 'agente NÃO ganhou tocar/escrever/rolar sem trava (continua só com web_*)');
 // chip

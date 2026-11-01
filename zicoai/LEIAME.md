@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v75 + app v35 + navegador-zico v2 (01/11): uma aba por conversa
+- Cada conversa tem as SUAS abas no navegador dela (sessão = id da conversa). Cérebro: `sessaoNav(id)`; `webNav(d, sessao)` manda `d.sessao`; `webNavAgente` usa `ctx.chatId`; `navegarManual` usa `req.chatId`; trava do Thiago por conversa (`nav_thiago_<sessão>`); print ao vivo por conversa (`tela_vivo_<sessão>`; `telaVivo`/`aoVivo` recebem `chatId`). Sem conversa = `geral` (testarNavegadorZico).
+- App v35 (cache `zicoai-v35`): `nvSessao()` = conversa aberta; manda `chatId` no navegar/telaVivo/aoVivo; trocar de conversa com o painel aberto solta a aba da anterior e mostra a da nova.
+- Mac `ponte-mac/navegador-zico.js` v2 (cópia em `zicoai/mac/navegador-zico.js`): `sessoes` (nome → abas, ativa, tamanho, último uso); aba aberta por link vai pra conversa de quem clicou (opener), aba sem dono fecha; erros/rede por aba; trocar/fechar aba por índice DENTRO da conversa; `fechar` fecha só a conversa; conversa parada 30 min fecha as abas dela, Chrome fecha com 15 min sem uso. Teste com Chrome de verdade 13/13; t55 no cérebro (t46/t50 lêem `tela_vivo_geral`). Cópia do script antigo no Mac: `navegador-zico.antes-v2.js.bak`.
+
 ## v74 (01/11): estudo só aprova o que foi conferido de verdade
 - `checarExercicio_` roda antes do revisor da nuvem (de graça): marca `[PREÇO]/[GARANTIA]/…` na pergunta (ou dentro de código) reprova; link que não abre reprova (inclui `src=` de imagem, ex.: via.placeholder.com); código roda no Mac (`rodarCodigoEstudo_`: ```html no navegador, ```js dentro de uma página) e erro no navegador reprova; Python/SQL/Apps Script/Node e Mac desligado = não aprova ("sem como rodar"); comparativo precisa terminar com `Fonte: <link>` e o link tem que estar no material lido.
 - Prompt do gerador por tipo (`instrucaoEstudo_`): código genérico sem loja nem marca, html completo, sem imagem externa inventada; comparativo só com número do material.
