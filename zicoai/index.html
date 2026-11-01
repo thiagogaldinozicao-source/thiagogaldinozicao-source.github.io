@@ -209,9 +209,56 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 #mPrevia .painel{max-width:1100px;height:92dvh;max-height:92dvh;padding:0;display:flex;flex-direction:column;overflow:hidden}
 #mPrevia .previa-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--borda2)}
 #mPrevia .previa-top b{flex:1;font-family:'Bebas Neue';font-weight:400;font-size:22px;color:var(--ouro);letter-spacing:1px}
-#mPrevia iframe{flex:1;width:100%;border:none;background:#fff}
+#mPrevia .previa-corpo{flex:1;min-height:0;display:flex;flex-direction:column}
+#mPrevia iframe{flex:1;min-height:0;width:100%;border:none;background:#fff}
+/* console da prévia: embaixo no celular (recolhível), do lado no computador */
+.pc{display:flex;flex-direction:column;background:#0d0d0d;border-top:1px solid var(--borda2);font-size:13px;min-height:0}
+.pc-top{display:flex;align-items:center;gap:4px;padding:4px 6px 4px 4px;min-height:44px;border-bottom:1px solid var(--borda)}
+.pc-tit{display:flex;align-items:center;gap:8px;flex:1;min-width:0;min-height:40px;padding:0 8px;border-radius:9px;font-weight:600;color:var(--txt);text-align:left}
+.pc-tit:active{background:var(--card2)}
+.pc-seta{display:inline-block;transition:transform .15s;color:var(--cinza)}
+.pc:not(.fechado) .pc-seta{transform:rotate(90deg)}
+.pc-conta{font-size:12px;font-weight:600;color:var(--cinza);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-conta.erro{color:var(--erro)} .pc-conta.aviso{color:var(--ouro)}
+.pc-top .pc-b{min-width:40px;min-height:40px;border-radius:9px;color:var(--cinza);font-size:13px;padding:0 8px}
+.pc-top .pc-b:active,.pc-top .pc-b:hover{background:var(--card2);color:var(--txt)}
+.pc-filtros{display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid var(--borda);overflow-x:auto}
+.pc-filtros button{font-size:12px;padding:5px 10px;border-radius:99px;border:1px solid var(--borda2);color:var(--cinza);white-space:nowrap;min-height:30px}
+.pc-filtros button.on{border-color:var(--ouro);color:var(--ouro);background:var(--ouro-fundo)}
+.pc-lista{flex:1;min-height:0;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.45;padding:2px 0}
+.pc-item{display:flex;gap:8px;padding:5px 10px;border-bottom:1px solid #1a1a1a}
+.pc-item .ic{width:14px;flex-shrink:0;text-align:center;color:var(--cinza2)}
+.pc-item pre{margin:0;flex:1;min-width:0;white-space:pre-wrap;word-break:break-word;font:inherit;color:#ddd}
+.pc-item .meta{flex-shrink:0;color:var(--cinza2);font-size:11px}
+.pc-item.erro{background:#2a0f10} .pc-item.erro pre,.pc-item.erro .ic{color:#ff8a8a}
+.pc-item.aviso{background:#241d07} .pc-item.aviso pre,.pc-item.aviso .ic{color:#f4cb63}
+.pc-item.cmd pre{color:var(--ouro2)} .pc-item.resultado pre{color:#9fd8ff} .pc-item.sistema pre{color:var(--cinza2)}
+.pc-vazio{padding:14px 12px;color:var(--cinza2);font-family:'Barlow',sans-serif;font-size:13px}
+.pc-cmd{display:flex;align-items:center;gap:6px;border-top:1px solid var(--borda);padding:4px 10px;min-height:44px}
+.pc-cmd span{color:var(--ouro);font-family:ui-monospace,Menlo,monospace}
+#pcCmd{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;border-radius:0;color:var(--txt);font:13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:8px 0}
+.pc-corrigir{margin:6px 10px;min-height:40px;border-radius:10px;background:var(--ouro);color:#111;font-weight:700;font-size:13px}
+.pc.fechado .pc-filtros,.pc.fechado .pc-lista,.pc.fechado .pc-cmd,.pc.fechado .pc-corrigir{display:none}
+.pc:not(.fechado){height:52%}
+@media (min-width:900px){
+  #mPrevia .previa-corpo{flex-direction:row}
+  .pc{width:380px;border-top:none;border-left:1px solid var(--borda2)}
+  .pc:not(.fechado){height:auto}
+  .pc.fechado{width:auto;writing-mode:horizontal-tb}
+  .pc.fechado .pc-top{flex-direction:column;height:100%;align-items:stretch;border-bottom:none}
+  .pc.fechado .pc-tit{flex-direction:column;justify-content:flex-start;padding-top:10px;min-width:44px}
+  .pc.fechado .pc-b{display:none}
+  .pc.fechado .pc-tit .rot,.pc.fechado .pc-conta{writing-mode:vertical-rl;transform:rotate(180deg)}
+  .pc.fechado .pc-seta{transform:rotate(180deg)}
+}
 #mPrevia .previa-top button{font-size:14px;padding:7px 12px;border-radius:9px;border:1px solid var(--borda2)}
 #mPrevia .previa-top .fechar{background:var(--card2)}
+@media (max-width:520px){
+  #mPrevia .previa-top{gap:6px;padding:8px 8px 8px 12px}
+  #mPrevia .previa-top b{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  #mPrevia .previa-top button{padding:0 10px;min-height:40px;font-size:13px;white-space:nowrap}
+  #mPrevia .so-pc{display:none}
+}
 .chip-ic.on{border-color:var(--erro);color:var(--erro);animation:pisca 1s infinite}
 .hist-item{padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px;line-height:1.4}
 .hist-item small{color:var(--cinza2);display:block;font-size:12px}
@@ -736,8 +783,24 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 
 <div class="modal" id="mPrevia">
   <div class="painel">
-    <div class="previa-top"><b>Testando o app</b><button class="baixar" id="pBaixar">⬇ Baixar .html</button><button class="baixar" id="pPublicar">⬆ Publicar</button><button class="fechar" id="pFechar">✕ Fechar</button></div>
-    <iframe id="pFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups" title="prévia"></iframe>
+    <div class="previa-top"><b>Testando<span class="so-pc"> o app</span></b><button class="baixar" id="pBaixar">⬇ Baixar<span class="so-pc"> .html</span></button><button class="baixar" id="pPublicar">⬆ Publicar</button><button class="fechar" id="pFechar">✕ Fechar</button></div>
+    <div class="previa-corpo">
+      <iframe id="pFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups" title="prévia"></iframe>
+      <section id="pConsole" class="pc fechado" aria-label="Console do app">
+        <div class="pc-top">
+          <button type="button" class="pc-tit" id="pcAbre" aria-expanded="false" aria-controls="pcLista"><span class="pc-seta">▸</span><span class="rot">Console</span><span class="pc-conta" id="pcConta">sem mensagens</span></button>
+          <button type="button" class="pc-b" id="pcRodar" title="Rodar o app de novo" aria-label="Rodar o app de novo">↻</button>
+          <button type="button" class="pc-b" id="pcCopiar" title="Copiar tudo">Copiar</button>
+          <button type="button" class="pc-b" id="pcLimpar" title="Limpar o console">Limpar</button>
+        </div>
+        <div class="pc-filtros" role="group" aria-label="Filtrar">
+          <button type="button" data-f="tudo" class="on">Tudo</button><button type="button" data-f="erro">Erros</button><button type="button" data-f="aviso">Avisos</button><button type="button" data-f="log">Logs</button>
+        </div>
+        <div class="pc-lista" id="pcLista" role="log" aria-live="polite"></div>
+        <button type="button" class="pc-corrigir" id="pcCorrigir" hidden>Pedir correção pra ZicoAI</button>
+        <form class="pc-cmd" id="pcForm"><span aria-hidden="true">›</span><input id="pcCmd" type="text" placeholder="rodar JavaScript no app (ex.: document.title)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Rodar JavaScript no app"></form>
+      </section>
+    </div>
   </div>
 </div>
 
@@ -941,13 +1004,133 @@ function autoTesta(bloco){
 let previaHtml = '';
 // dentro da prévia o localStorage é de mentira (só na memória), pra o app testado não mexer nos dados da ZicoAI
 const SHIM = '<script>(function(){function faz(){var m={};return{getItem:function(k){return k in m?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}}try{Object.defineProperty(window,"localStorage",{value:faz(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:faz(),configurable:true})}catch(e){}})();<\/script>';
+/* ---------- console da prévia ----------
+ * Roda DENTRO do app testado (iframe isolado): copia console.log/info/warn/error, erros de script, arquivo que não carregou,
+ * promessa sem tratamento e fetch com falha, e manda pro app com uma senha da prévia (pcToken). Também roda JS que o Thiago digitar. */
+function consoleNoApp(tk){
+  var ser = function(v){
+    try{
+      if(v instanceof Error) return v.name + ': ' + v.message;
+      if(typeof v === 'string') return v;
+      if(v === undefined) return 'undefined';
+      if(typeof v === 'function') return 'ƒ ' + (v.name || 'anônima') + '()';
+      if(v && v.nodeType === 1) return '<' + v.tagName.toLowerCase() + (v.id ? '#' + v.id : '') + '>';
+      var s = JSON.stringify(v, function(k, x){ return typeof x === 'bigint' ? String(x) : x; }, 2);
+      return s === undefined ? String(v) : s;
+    }catch(e){ try{ return String(v); }catch(x){ return '[objeto]'; } }
+  };
+  var manda = function(tipo, args, onde){
+    try{
+      var t = Array.prototype.map.call(args, ser).join(' ');
+      if(t.length > 4000) t = t.slice(0, 4000) + '…';
+      parent.postMessage({ zicoaiConsole: tk, tipo: tipo, texto: t, onde: onde || '' }, '*');
+    }catch(e){}
+  };
+  ['log', 'info', 'debug', 'warn', 'error'].forEach(function(n){
+    var o = console[n];
+    console[n] = function(){ manda(n === 'warn' ? 'aviso' : n === 'error' ? 'erro' : 'log', arguments); if(o) try{ o.apply(console, arguments); }catch(e){} };
+  });
+  window.addEventListener('error', function(e){
+    var el = e.target;
+    if(el && el !== window && (el.src || el.href)){ manda('erro', ['Não carregou: ' + (el.src || el.href)]); return; }
+    if(/^Script error\.?$/.test(e.message || '')) return;
+    manda('erro', [e.message || 'Erro'], e.lineno ? 'linha ' + e.lineno : '');
+  }, true);
+  window.addEventListener('unhandledrejection', function(e){ manda('erro', ['Promise sem tratamento: ' + ser(e.reason)]); });
+  if(window.fetch){
+    var f = window.fetch;
+    window.fetch = function(){
+      var u = arguments[0]; u = (u && u.url) || String(u);
+      return f.apply(this, arguments).then(function(r){ if(!r.ok) manda('aviso', ['fetch ' + r.status + ' · ' + u]); return r; },
+        function(err){ manda('erro', ['fetch falhou · ' + u + ' (' + (err && err.message || err) + ')']); throw err; });
+    };
+  }
+  window.addEventListener('message', function(e){
+    var d = e.data; if(!d || d.zicoaiEval !== tk) return;
+    try{ manda('resultado', [(0, eval)(d.codigo)]); }catch(err){ manda('erro', [err]); }
+  });
+  window.addEventListener('load', function(){ manda('sistema', ['App carregou']); });
+}
+let pcToken = '', pcItens = [], pcFiltro = 'tudo', pcAbriuSozinho = false;
+const PC_ICONE = { erro:'✕', aviso:'⚠', log:'›', cmd:'›', resultado:'←', sistema:'•' };
+const pcCasa = it => pcFiltro === 'tudo' || it.tipo === pcFiltro || (pcFiltro === 'log' && /^(log|cmd|resultado)$/.test(it.tipo));
+function pcLinha(it){
+  const d = document.createElement('div'); d.className = 'pc-item ' + it.tipo;
+  const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = PC_ICONE[it.tipo] || '›';
+  const pre = document.createElement('pre'); pre.textContent = it.texto;
+  const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = it.onde || it.hora;
+  d.append(ic, pre, meta); return d;
+}
+function pcDesenha(){
+  const l = $('pcLista'); l.replaceChildren();
+  const vis = pcItens.filter(pcCasa);
+  if(!vis.length){ const v = document.createElement('div'); v.className = 'pc-vazio'; v.textContent = pcItens.length ? 'Nada nesse filtro.' : 'Nada ainda. Mexe no app: erros e console.log aparecem aqui.'; l.appendChild(v); }
+  vis.forEach(it => l.appendChild(pcLinha(it)));
+  l.scrollTop = l.scrollHeight;
+  pcConta();
+}
+function pcConta(){
+  const e = pcItens.filter(i => i.tipo === 'erro').length, a = pcItens.filter(i => i.tipo === 'aviso').length, n = pcItens.filter(i => i.tipo !== 'sistema').length;
+  const c = $('pcConta');
+  c.textContent = e ? e + (e > 1 ? ' erros' : ' erro') + (a ? ' · ' + a + (a > 1 ? ' avisos' : ' aviso') : '') : a ? a + (a > 1 ? ' avisos' : ' aviso') : n ? n + (n > 1 ? ' mensagens' : ' mensagem') : 'sem erros';
+  c.className = 'pc-conta' + (e ? ' erro' : a ? ' aviso' : '');
+  $('pcCorrigir').hidden = !e;
+}
+function pcAdd(tipo, texto, onde){
+  const it = { tipo: tipo, texto: String(texto || ''), onde: onde || '', hora: new Date().toLocaleTimeString('pt-BR') };
+  const ult = pcItens[pcItens.length - 1];
+  if(ult && ult.tipo === it.tipo && ult.texto === it.texto && ult.onde === it.onde){ ult.vezes = (ult.vezes || 1) + 1; ult.onde = (it.onde ? it.onde + ' ' : '') + '×' + ult.vezes; pcDesenha(); return; }
+  pcItens.push(it); if(pcItens.length > 500) pcItens.shift();
+  if(tipo === 'erro' && !pcAbriuSozinho){ pcAbriuSozinho = true; pcAbre(true); }   // 1º erro abre o console sozinho
+  const l = $('pcLista');
+  if(l.querySelector('.pc-vazio')) l.replaceChildren();
+  if(pcCasa(it)){ const perto = l.scrollHeight - l.scrollTop - l.clientHeight < 40; l.appendChild(pcLinha(it)); if(perto) l.scrollTop = l.scrollHeight; }
+  pcConta();
+}
+function pcAbre(abrir){
+  const p = $('pConsole'), a = abrir === undefined ? p.classList.contains('fechado') : abrir;
+  p.classList.toggle('fechado', !a); $('pcAbre').setAttribute('aria-expanded', a ? 'true' : 'false');
+  if(a){ const l = $('pcLista'); l.scrollTop = l.scrollHeight; }
+}
+function pcRoda(html){
+  pcToken = 'zt' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  pcItens = []; pcAbriuSozinho = false; pcDesenha();
+  const cab = '<script>(' + consoleNoApp.toString().replace(/\n\s*/g, ' ') + ')(' + JSON.stringify(pcToken) + ');<\/script>' + SHIM;   // numa linha só: não muda o número da linha dos erros do app
+  $('pFrame').srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + cab) : cab + html;
+}
+window.addEventListener('message', e => {
+  const d = e.data;
+  if(!d || !pcToken || d.zicoaiConsole !== pcToken || e.source !== $('pFrame').contentWindow) return;
+  pcAdd(/^(erro|aviso|log|resultado|sistema)$/.test(d.tipo) ? d.tipo : 'log', d.texto, d.onde);
+});
+$('pcAbre').onclick = () => pcAbre();
+$('pcRodar').onclick = () => { if(previaHtml) pcRoda(previaHtml); };
+$('pcLimpar').onclick = () => { pcItens = []; pcDesenha(); };
+$('pcCopiar').onclick = async () => {
+  const t = pcItens.map(i => '[' + i.tipo + '] ' + i.texto + (i.onde ? ' (' + i.onde + ')' : '')).join('\n') || '(console vazio)';
+  try { await navigator.clipboard.writeText(t); $('pcCopiar').textContent = 'Copiado'; } catch(err){ $('pcCopiar').textContent = 'Não deu'; }
+  setTimeout(() => { $('pcCopiar').textContent = 'Copiar'; }, 1500);
+};
+document.querySelectorAll('#pConsole .pc-filtros button').forEach(b => b.onclick = () => {
+  pcFiltro = b.dataset.f; document.querySelectorAll('#pConsole .pc-filtros button').forEach(x => x.classList.toggle('on', x === b)); pcDesenha();
+});
+$('pcForm').onsubmit = e => {
+  e.preventDefault(); const cod = $('pcCmd').value.trim(); if(!cod) return;
+  pcAdd('cmd', cod); $('pcCmd').value = '';
+  try { $('pFrame').contentWindow.postMessage({ zicoaiEval: pcToken, codigo: cod }, '*'); } catch(err){ pcAdd('erro', 'Não consegui falar com o app: ' + err.message); }
+};
+$('pcCorrigir').onclick = () => {
+  const erros = pcItens.filter(i => i.tipo === 'erro').slice(0, 4).map(i => i.texto + (i.onde ? ' (' + i.onde + ')' : ''));
+  $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; pcToken = '';
+  $('txt').value = 'Testei o app e o console mostrou ' + (erros.length > 1 ? 'esses erros' : 'esse erro') + ': ' + erros.join(' | ') + '. Corrige e me devolve só os trechos que mudam.';
+  envia();
+};
 function testarApp(html){
   previaHtml = html;
-  const comShim = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + SHIM) : SHIM + html;
-  $('pFrame').srcdoc = comShim;
+  pcRoda(html);
   $('mPrevia').classList.add('aberto');
 }
-$('pFechar').onclick = () => { $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; };
+$('pFechar').onclick = () => { $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; pcToken = ''; };
 $('pPublicar').onclick = () => publicarApp(previaHtml, $('pPublicar'));
 $('pBaixar').onclick = () => {
   const m = previaHtml.match(/<title>([^<]{1,60})<\/title>/i);

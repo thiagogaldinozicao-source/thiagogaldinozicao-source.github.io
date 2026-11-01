@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v39 (01/11): console na prévia ("Testando o app")
+- Painel `#pConsole` (embaixo e recolhível no celular, 52% da altura; do lado com 380 px no computador, recolhe numa faixa vertical). `consoleNoApp(tk)` é injetado NUMA LINHA dentro do app testado (não desloca o número da linha): copia console.log/info/debug/warn/error (objeto vira JSON), erro de script com a linha, arquivo que não carregou, promessa sem tratamento, fetch com falha; roda JS digitado (`zicoaiEval`). Mensagens só valem com o token da prévia (`pcToken`) e vindas do iframe. Repetida seguida vira ×N; filtros Tudo/Erros/Avisos/Logs; ↻ roda de novo limpo; Copiar; Limpar; 1º erro abre sozinho; "Pedir correção pra ZicoAI" manda os erros pro chat pedindo só os trechos que mudam. Teste Playwright (app quebrado de propósito) 28/28 em 390 e 1440.
+
 ## v80 (01/11): comparativo com a ficha de CADA aparelho
 - Pedido real "Realme 14 5G vs Realme C85 NFC vs Note 15 Pro 5G" saiu sem nenhum número (uma pesquisa só com a frase inteira). Agora `fichasConferidas`: `modelosDoPedido_` (cérebro rápido lista os modelos exatos, até 4) → `fichaDeUm_` por modelo: `buscarLinks` (prefere `SITES_FICHA`: gsmarena, tudocelular, kimovil, fabricantes…) + `lerPaginas` (2 páginas) + extração JSON dos `CAMPOS_FICHA` com fonte; página de OUTRO modelo (`mesmo_modelo:false`) não vale; campo sem dado = "não confirmado". Entra no sistema como `### FICHAS CONFERIDAS NA WEB`; se achou todos, pula a pesquisa genérica (`fichasOk` evita o aviso "a pesquisa falhou"). t60; t1 acha a chamada principal pela ferramenta de busca.
 
