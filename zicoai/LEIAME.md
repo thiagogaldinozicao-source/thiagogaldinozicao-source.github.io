@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v79 (01/11): revisora do dia
+- `revisoraRodada()` (dentro do `estudar`, depois do `aprenderComErros`): relê `mensagens` depois de `REVISORA_ATE` e acha erro SEM reclamação do Thiago, por sinais (`SINAIS_REVISORA`): pedido pra melhorar ELA virou app genérico; JSON/[[etapa]] vazou; agente terminou perguntando; pediu pro Thiago algo que podia buscar. Resposta seguida de reclamação fica pro `aprenderComErros`.
+- O professor (`licaoDoErro_`, extraído do `aprenderComErros`) confirma se foi erro mesmo (`{"erro":false}` = agiu certo, não grava), escreve causa/regra/aula/resposta certa na `estudo_erros` (Fontes começa com "revisora", Status revisar) e passa pelo `aulaSozinha` (outro cérebro, nota ≥ 8, até 3/dia). Máx. 6 lições da revisora por dia (`REVISORA_<dia>`). t59.
+
 ## App v37 (01/11): menu do cérebro dentro da tela
 - `cabeNaTela(m)`: ao abrir o menu do cérebro (#menuModelo), mede e empurra pra dentro (8 px de margem); no iPhone ele começava 33–63 px fora da tela pela esquerda. Medido com Playwright em 360/390/430/1440.
 

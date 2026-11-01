@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 78 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 79 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -4272,6 +4272,7 @@ function estudar() {
   if (props.getProperty('MODELOS_TESTADOS') !== dia) { try { const m = testarModelos(); props.setProperty('MODELOS_TESTADOS', dia); Logger.log('modelos: ' + JSON.stringify(m)); } catch (e) { /* tenta amanhã */ } }
   let r = null;
   try { r = aprenderComErros(); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
+  if (!(r && r.aprendeu)) { try { const rv = revisoraRodada(); if (rv && rv.revisou) return Object.assign({ ok: true, erros: r, revisora: rv }, { tema: { tema: 'revisora: ' + rv.sinal + (rv.aprendeu ? ' → ' + String(rv.regra || '').slice(0, 50) : ' (' + (rv.motivo || 'ok') + ')'), salvos: 0 } }); } catch (e) { /* segue pro tema */ } }
   if (r && r.aprendeu) return Object.assign(r, { tema: { tema: 'erro corrigido (' + String(r.regra || '').slice(0, 60) + ')', salvos: 0 } });
   const n = Number(props.getProperty('ESTUDO_TEMA') || 0);
   if (n % 2 === 1 && temCerebro('mac')) {   // uma rodada sim, outra não: mede o Mac contra a nuvem
@@ -4298,30 +4299,38 @@ function aprenderComErros() {
   let ped = null;
   for (let k = alvo - 2; k >= 0 && k >= alvo - 8; k--) if (ls[k][0] === rec[0] && ls[k][2] === 'thiago') { ped = ls[k]; break; }
   const pedido = String(ped ? ped[3] : '').slice(0, 2000);
+  const r = licaoDoErro_({ conversa: rec[0], pedido: pedido, errada: errada[3], quando: rec[1], reclamacao: rec[3] });
+  if (!r || !r.aprendeu) return r || { ok: false, aprendeu: false };
+  props.setProperty('ERROS_ATE', rec[1]);
+  try { marcarDestilacao(errada[3], 'reclamada'); } catch (e) { /* ok */ }
+  return r;
+}
+/** Professor: analisa UM erro (reclamado pelo Thiago ou achado pela revisora), grava causa + regra + aula na estudo_erros e tenta virar aula sozinha. */
+function licaoDoErro_(o) {
+  const pedido = String(o.pedido || '').slice(0, 2000), errada = [o.conversa, o.quando, 'zicoai', String(o.errada || '')], rec = [o.conversa, o.quando, 'thiago', String(o.reclamacao || '')];
   // material da web (o certo tem que ter fonte, senão é chute de novo)
   let material = '', fontes = [];
   try {
-    const b = resultadosBusca(String(pedido || errada[3]).replace(/\[📷[^\]]*\]/g, '').slice(0, 200));
+    const b = o.revisora ? null : resultadosBusca(String(pedido || errada[3]).replace(/\[📷[^\]]*\]/g, '').slice(0, 200));
     if (b && b.texto) { material = b.texto.slice(0, 7000); fontes.push(b.fonte); }
   } catch (e) { /* sem web: escreve só a regra de comportamento */ }
   const msgs = [{ role: 'system', content: [
-    'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). Ela errou e o Thiago reclamou. Analise e ensine.',
+    (o.revisora ? 'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). A REVISORA dela achou um possível erro numa conversa (o Thiago não reclamou). Primeiro decida se foi erro MESMO; se ela agiu certo, responda só {"erro":false}. Se errou, analise e ensine.' : 'Você é professor da ZicoAI (assistente do Thiago, Zicão Store). Ela errou e o Thiago reclamou. Analise e ensine.'),
     'Responda SÓ JSON: {"causa":"por que ela errou (1-2 frases: faltou pesquisar? inventou? pegou aula errada? não viu a foto?)","regra":"o jeito certo, 1 frase","porque":"o porquê da regra, 2-3 frases","situacoes":["como isso aparece em outras palavras", "..."],"erro_comum":"1 frase","resposta_certa":"a resposta que ela devia ter dado, no jeito do Thiago (curta, informal). Use SÓ dados do MATERIAL; o que o material não confirma vira \\"não confirmado\\". Se o pedido era só conversa, responda como deveria ter respondido.","tipo":"cliente|comparativo|preço|código|loja|geral"}',
     'Nunca invente preço, garantia, endereço, horário. Ficha técnica só com número que está no MATERIAL.',
     'resposta_certa nunca diz que fez, mandou ou corrigiu algo ("já corrigi", "mandei o arquivo"): é o texto que ela devia ter respondido. Se o certo é um código grande, descreva o conserto em 1-2 frases em vez do código.'
-  ].join('\n') }, { role: 'user', content: 'PEDIDO DO THIAGO:\n' + (pedido || '(não achei)') + '\n\nRESPOSTA DELA (errada):\n' + String(errada[3]).slice(0, 3000) + '\n\nRECLAMAÇÃO:\n' + String(rec[3]).slice(0, 800) + '\n\nMATERIAL DA WEB (' + (fontes[0] || 'nenhum') + '):\n' + (material || '(nenhum)') }];
+  ].join('\n') }, { role: 'user', content: 'PEDIDO DO THIAGO:\n' + (pedido || '(não achei)') + '\n\nRESPOSTA DELA (errada):\n' + String(errada[3]).slice(0, 3000) + (o.revisora ? '\n\nSINAL DA REVISORA:\n' : '\n\nRECLAMAÇÃO:\n') + String(rec[3]).slice(0, 800) + '\n\nMATERIAL DA WEB (' + (fontes[0] || 'nenhum') + '):\n' + (material || '(nenhum)') }];
   let j = null, autor = '';
   for (const nome of ['gemini', 'mistral', 'nvidia', 'groq', 'mac']) {
     if (!temCerebro(nome)) continue;
     const tk = estimarTokens(JSON.stringify(msgs)) + 2000;
     if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
-    try { j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 2000, { temperature: 0.2 })); registrarUso(nome, tk); autor = CEREBROS[nome].nome; if (j && j.regra) break; } catch (e) { /* próximo */ }
+    try { j = lerJSON(chamarCompat(CEREBROS[nome], msgs, 2000, { temperature: 0.2 })); registrarUso(nome, tk); autor = CEREBROS[nome].nome; if (j && (j.regra || j.erro === false)) break; } catch (e) { /* próximo */ }
   }
+  if (j && j.erro === false) return { ok: true, aprendeu: false, motivo: 'professor: ela agiu certo', autor: autor };
   if (!j || !j.regra) return { ok: false, aprendeu: false, motivo: 'nenhum cérebro livre agora (tenta na próxima rodada)' };
-  props.setProperty('ERROS_ATE', rec[1]);
-  try { marcarDestilacao(errada[3], 'reclamada'); } catch (e) { /* ok */ }
   const aula = '**Regra:** ' + j.regra + '\n\n## Por quê\n' + (j.porque || '') + '\n\n## Situações em que aparece\n' + (Array.isArray(j.situacoes) ? j.situacoes.map(x => '- ' + x).join('\n') : '') + '\n\n## Exemplo (' + String(rec[1]).slice(0, 10) + ')\n- Pedido: ' + pedido.slice(0, 300) + '\n- Errou: ' + String(j.causa || '') + '\n\n## Erro comum\n- ' + (j.erro_comum || '');
-  aba('estudo_erros').appendRow(["'" + agora(), rec[0], seguro(pedido), seguro(String(errada[3]).slice(0, 3000)), seguro(String(rec[3]).slice(0, 800)), seguro(String(j.causa || '')), seguro(String(j.regra)), seguro(aula.slice(0, 6000)), seguro(String(j.resposta_certa || '').slice(0, 4000)), fontes.join(' '), 'revisar']);
+  aba('estudo_erros').appendRow(["'" + agora(), rec[0], seguro(pedido), seguro(String(errada[3]).slice(0, 3000)), seguro(String(rec[3]).slice(0, 800)), seguro(String(j.causa || '')), seguro(String(j.regra)), seguro(aula.slice(0, 6000)), seguro(String(j.resposta_certa || '').slice(0, 4000)), (o.revisora ? 'revisora ' : '') + fontes.join(' '), 'revisar']);
   if (pedido && j.resposta_certa) guardarExemplo(pedido, String(j.resposta_certa), autor, 'erro corrigido (revisar)', j.tipo);
   let virouAula = null;
   try { virouAula = aulaSozinha(j, aula, pedido, rec[1], autor); } catch (e) { /* fica pra revisar */ }
@@ -5528,4 +5537,49 @@ function trajetoriasAntigas() {
   fb.forEach(r => { const x = trajetoriaPeloFeedback(r); if (x && x.ok && !x.ja) novas++; else if (x && !x.ok) sem++; });
   Logger.log('trajetórias novas: ' + novas + ' · sem passos gravados: ' + sem);
   return { novas: novas, semPassos: sem };
+}
+
+/* ---------- v79: REVISORA DO DIA ----------
+ * Ela relê as próprias conversas e acha erro SEM o Thiago precisar reclamar (o aprenderComErros só pega reclamação).
+ * Sinais baratos (regex) apontam o suspeito; um professor (outro cérebro) confirma se foi erro mesmo e escreve
+ * causa + regra + aula; vai pra aba estudo_erros (revisar) e pelo mesmo caminho do aulaSozinha (outro cérebro dá nota ≥ 8 → aula valendo).
+ * Uma lição por rodada do estudo (a cada 30 min no Mac), no máximo REVISORA_DIA por dia. Dado de cliente sai mascarado. */
+const REVISORA_DIA = 6;
+const RX_PEDIDO_ELA_MESMA = /(melhora(r)? (vc|voce|a ia|nossa ia|a zica)|vc (ja )?e minha ia|nossa (ia|zica ?ai)|sua (tela|interface|cara)|seu (app|codigo|design)|se melhora|te melhorar)/;
+const SINAIS_REVISORA = [
+  { id: 'app_generico_pra_ela', desc: 'o Thiago pediu pra melhorar ELA (o app/código dela) e ela entregou um app novo genérico, em vez de ler o próprio código (ler_meu_codigo) e mudar o app dela',
+    ve: (ped, resp) => RX_PEDIDO_ELA_MESMA.test(normalizar(ped)) && /```html[\s\S]{0,400}<!doctype/i.test(resp) },
+  { id: 'json_vazou', desc: 'a resposta saiu com JSON ou marcação interna crua ({"resposta"…, [[etapa…) em vez de texto pro Thiago',
+    ve: (ped, resp) => /^\s*(🧠[^\n]*\n+)?\s*\{\s*"resposta"|\[\[etapa:/i.test(resp) },
+  { id: 'agente_perguntou_no_fim', desc: 'o agente terminou a tarefa perguntando o que fazer ("o que vc prefere", "me confirma") em vez de decidir e fazer',
+    ve: (ped, resp) => /resultado da tarefa/i.test(resp) && /(o que|qual) (vc|voce) prefere|me confirm[ae]|quer que eu (faca|siga|continue|comece)|o que vc quer (ajustar|primeiro)/.test(normalizar(resp.slice(-400))) },
+  { id: 'pediu_o_que_podia_buscar', desc: 'ela pediu pro Thiago algo que podia buscar sozinha (link do próprio app, colar código dela, colar mensagem que estava na aba aberta, "não encontrei o arquivo")',
+    ve: (ped, resp) => resp.length < 900 && /(me (passa|manda|cola|envia) (o )?(link|codigo|arquivo|html|slug)|nao (encontrei|achei) o arquivo|cola (aqui )?(o codigo|a mensagem)|ainda nao consigo ver a aba)/.test(normalizar(resp)) }
+];
+/** Acha o próximo suspeito depois de REVISORA_ATE (sem reclamação do Thiago logo depois: essa o aprenderComErros pega). */
+function suspeitoRevisora(ls, ate) {
+  for (let i = 1; i < ls.length; i++) {
+    const m = ls[i];
+    if (m[1] <= ate || m[2] !== 'zicoai') continue;
+    const prox = ls.slice(i + 1).find(x => x[0] === m[0] && x[2] === 'thiago');
+    if (prox && RX_RECLAMACAO.test(normalizar(String(prox[3])))) continue;
+    let ped = null; for (let k = i - 1; k >= 0 && k >= i - 8; k--) if (ls[k][0] === m[0] && ls[k][2] === 'thiago') { ped = ls[k]; break; }
+    const pedido = String(ped ? ped[3] : ''), resp = String(m[3] || '');
+    const s = SINAIS_REVISORA.find(x => { try { return x.ve(pedido, resp); } catch (e) { return false; } });
+    if (s) return { i: i, msg: m, pedido: pedido, sinal: s };
+  }
+  return null;
+}
+function revisoraRodada() {
+  const props = PropertiesService.getScriptProperties(), dia = Utilities.formatDate(new Date(), FUSO, 'yyyyMMdd');
+  const feitas = Number(props.getProperty('REVISORA_' + dia) || 0);
+  if (feitas >= REVISORA_DIA) return { ok: true, revisou: false, motivo: 'já revisou ' + feitas + ' hoje' };
+  const ate = props.getProperty('REVISORA_ATE') || '';
+  const ls = linhas('mensagens');
+  const s = suspeitoRevisora(ls, ate);
+  if (!s) { if (ls.length) props.setProperty('REVISORA_ATE', ls[ls.length - 1][1]); return { ok: true, revisou: false, motivo: 'nenhum erro novo nas conversas' }; }
+  const r = licaoDoErro_({ conversa: s.msg[0], pedido: s.pedido, errada: s.msg[3], quando: s.msg[1], reclamacao: '(sem reclamação: a REVISORA achou) ' + s.sinal.desc, revisora: true });
+  props.setProperty('REVISORA_ATE', s.msg[1]);   // não olha a mesma de novo (mesmo se o professor disser que tava certo)
+  if (r && r.aprendeu) props.setProperty('REVISORA_' + dia, String(feitas + 1));
+  return Object.assign({ ok: true, revisou: true, sinal: s.sinal.id }, r || {});
 }
