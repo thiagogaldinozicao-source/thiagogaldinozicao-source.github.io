@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 80 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 81 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -243,6 +243,7 @@ const ABAS = {
   placar_mac:   ['Data', 'Tipo', 'Provas', 'Mac ganhou', 'Empate', 'Nuvem ganhou', 'Decisão'],
   estudo_erros: ['Data', 'Conversa', 'Pedido', 'Resposta errada', 'Reclamação', 'Causa', 'Regra', 'Aula (rascunho)', 'Resposta certa', 'Fontes', 'Status'],
   chats:        ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Fixada', 'Projeto'],
+  pessoas:      ['Id', 'Nome', 'Perfil', 'Chave (hash)', 'Criado', 'Ativo', 'Último uso'],
   projetos:     ['Id', 'Nome', 'Instruções', 'Criado', 'Atualizado'],
   projeto_arquivos: ['Projeto', 'Nome', 'Conteúdo', 'Data'],
   mensagens:    ['Conversa', 'Data', 'Quem', 'Mensagem', 'Cérebro', 'Aparelho', 'Passos', 'DetalhesId'],
@@ -264,7 +265,7 @@ const ABAS = {
   placar_aulas: ['Quando', 'Versão', 'Perguntas', '1º lugar %', 'Nas 2 %', 'Nas 5 %', 'Só palavra nas 2 %']
 };
 // a aba chats ganhou 2 colunas (resumo da conversa) sem quebrar as linhas antigas
-ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte'];
+ABAS.chats = ['Conversa', 'Título', 'Criada', 'Atualizada', 'Aparelho', 'Resumo', 'ResumidoAte', 'Pessoa'];   // v81: col. 8 = de quem é a conversa ('' = Thiago)
 
 const PERSONA = [
   'Você é a ZicoAI, parceira de criação e assistente pessoal do Thiago. O que ele mais faz com vc: criar apps e jogos (HTML em 1 arquivo, PWA, Supabase), criar a própria IA, gerar imagens (logos, sprites, fundos, posts), e organizar a vida. Ele também é dono da Zicão Store (iPhones, Itaú de Minas/MG): a loja é UM dos assuntos, não o centro. Só fale de loja quando ele falar.',
@@ -512,7 +513,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PASSOS = []; DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
+  PESSOA = DONO; PASSOS = []; DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -542,7 +543,19 @@ function doPost(e) {
     }
     const cache = CacheService.getScriptCache();
     if (cache.get('pin_bloqueado')) return saida({ ok: false, erro: 'Muitas tentativas de PIN. Espera 10 minutos.' });
-    if (!req.pin || String(req.pin) !== String(prop('PIN'))) {
+    PESSOA = DONO;
+    if (req.convite) {   // v81: login por convite (cada pessoa com a própria chave)
+      const pe = pessoaDoConvite(req.convite);
+      if (!pe) {
+        const erros = parseInt(cache.get('pin_erros') || '0', 10) + 1;
+        cache.put('pin_erros', String(erros), 600);
+        if (erros >= 10) cache.put('pin_bloqueado', '1', 600);
+        return saida({ ok: false, erro: 'Convite inválido ou cancelado. Pede um link novo pro Thiago.' });
+      }
+      PESSOA = pe;
+      if (ACOES_PESSOA.indexOf(req.acao) < 0) return saida({ ok: false, erro: 'Isso não está liberado na sua conta.' });
+      if (['abrir', 'apagarChat', 'chatMeta', 'cortarConversa'].indexOf(req.acao) >= 0 && !podeVerChat(req.chatId)) return saida({ ok: false, erro: 'Essa conversa não é sua.' });
+    } else if (!req.pin || String(req.pin) !== String(prop('PIN'))) {
       const erros = parseInt(cache.get('pin_erros') || '0', 10) + 1;
       cache.put('pin_erros', String(erros), 600);
       if (erros >= 10) cache.put('pin_bloqueado', '1', 600);
@@ -551,7 +564,11 @@ function doPost(e) {
     const aparelho = String(req.aparelho || 'app').slice(0, 40);
 
     switch (req.acao) {
-      case 'teste':         return saida({ ok: true, msg: 'Conectado ✅', cotas: cotas() });
+      case 'teste':         return saida({ ok: true, msg: ehDono() ? 'Conectado ✅' : 'Conectado como ' + PESSOA.nome + ' ✅', cotas: cotas(), pessoa: { nome: PESSOA.nome, perfil: PESSOA.perfil } });
+      case 'quemSou':       return saida({ ok: true, pessoa: { nome: PESSOA.nome, perfil: PESSOA.perfil } });
+      case 'convidar':      return saida(convidarPessoa(req));
+      case 'pessoas':       return saida({ ok: true, pessoas: listarPessoas() });
+      case 'cancelarConvite': return saida(cancelarConvite(req.id));
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
       case 'sincronizarAulas': return saida(sincronizarAulas());
       case 'telaVivo':      return saida({ ok: true, tela: telaRecente(Number(req.desde) || 0, req.chatId) });
@@ -636,18 +653,20 @@ function chat(req, aparelho) {
   // conversa (cria se for nova)
   let chatId = req.chatId;
   let titulo = null;
+  if (chatId && !podeVerChat(chatId)) return { ok: false, erro: 'Essa conversa não é sua.' };
   if (!chatId) {
     chatId = Utilities.getUuid().slice(0, 8) + Date.now().toString(36);
     titulo = criarTitulo(pergunta);
-    aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho, '', String(req.projeto || '')]);
+    if (!ehDono()) garantirColunaPessoa();
+    aba('chats').appendRow([chatId, seguro(titulo), "'" + agora(), "'" + agora(), aparelho, '', ehDono() ? String(req.projeto || '') : '', PESSOA.id || '']);
   }
   if (req.refazer) apagarUltimaResposta(chatId);
   else gravarMensagem(chatId, 'thiago', pergunta + (temFoto ? (req.fotoRepetida ? '\n[📷 mesma foto de antes]' : '\n[📷 foto enviada]') : ''), '', aparelho);
   CHAT_ATUAL = chatId;
 
   // modo agente: o Thiago pediu explicitamente segundo plano; ou o pedido é CLARAMENTE grande/multi-etapa (rota automática, v57)
-  const autoAgente = modo === 'auto' && !temFoto && !req.refazer && ehPedidoGrande(pergunta);
-  if (modo === 'agente' || autoAgente) {
+  const autoAgente = ehDono() && modo === 'auto' && !temFoto && !req.refazer && ehPedidoGrande(pergunta);
+  if (ehDono() && (modo === 'agente' || autoAgente)) {
     const t = criarTarefa(pergunta, chatId, aparelho);
     const txt = t.ok ? '🧠 Agente trabalhando nisso em segundo plano (tarefa ' + t.id + '), em etapas e conferindo cada uma. O resultado aparece aqui quando terminar.' : '⚠️ ' + t.erro;
     passo(autoAgente ? 'Pedido grande com várias etapas: mandou direto pro agente (planeja, faz uma por vez e confere)' : 'Criou uma tarefa em segundo plano');
@@ -668,11 +687,11 @@ function chat(req, aparelho) {
   let extraSistema = modo === 'imagem'
     ? '\n\nO Thiago quer GERAR UMA IMAGEM agora. Responda curto e use obrigatoriamente [[IMAGEM: ...]].'
     : '';
-  try { extraSistema += contextoProjeto(req.projeto || projetoDoChat(chatId)); } catch (e) { /* sem projeto */ }
+  if (ehDono()) try { extraSistema += contextoProjeto(req.projeto || projetoDoChat(chatId)); } catch (e) { /* sem projeto */ }
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
   let codigoApp = null;
-  if (req.appSlug) {
+  if (req.appSlug && ehDono()) {
     codigoApp = codigoDoApp(String(req.appSlug));
     // edição igual o Claude faz: só os trechos que mudam (arquivo inteiro de volta = arquivo cortado e coisa sumindo)
     if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
@@ -692,7 +711,7 @@ function chat(req, aparelho) {
     extraSistema += '\n\n### TEXTO LONGO COLADO\nA última mensagem do Thiago é um texto grande que ele colou (documento, status, conversa ou código). Leia como DOCUMENTO: entenda do que se trata e responda ao que ele quer com isso (se ele não disse, resuma em poucas linhas e diga o que vc faria a seguir). Palavras, números e links dentro do texto NÃO são perguntas novas. Não mude de assunto por causa da conversa anterior.';
     passo('Texto longo colado: leu como documento (sem pesquisar nem abrir links dele)');
   }
-  if (!colado) try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
+  if (!colado && ehDono()) try { extraSistema += contextoConectores(pergunta); } catch (e) { passo('Conector indisponível: ' + String(e.message || e).slice(0, 80)); }
   // já tem dado ao vivo (dólar, clima, notícias)? então não precisa pesquisar na web
   const temDadoVivo = /### (DÓLAR AGORA|CLIMA EM|NOTÍCIAS|FERIADOS)/.test(extraSistema);
   if (querPesquisa && temDadoVivo && modo !== 'web' && !ficha) { querPesquisa = false; passo('Dado ao vivo já veio, não precisou pesquisar'); }
@@ -788,11 +807,11 @@ function feedback(req, aparelho) {
   // 👍 numa resposta vira EXEMPLO: os cérebros mais fracos recebem esses exemplos como modelo do jeito certo (destilação).
   const pergunta = String(req.pergunta || '').trim().slice(0, 1500);
   const respostaCheia = String(req.resposta || '').trim();
-  if (nota === '👍' && pergunta && guardarExemplo(pergunta, respostaCheia, String(req.cerebro || ''), '👍 Thiago')) salvou.push('exemplo');
+  if (nota === '👍' && pergunta && guardarExemplo(pergunta, respostaCheia, String(req.cerebro || ''), '👍 ' + PESSOA.nome)) salvou.push('exemplo');
   try { marcarDestilacao(respostaCheia || resposta, nota === '👍' ? 'aprovada' : 'reclamada'); } catch (e) { /* ok */ }
-  if (nota === '👍') try { const tr = trajetoriaPeloFeedback(respostaCheia || resposta); if (tr && tr.ok && !tr.ja) salvou.push('trajetória'); } catch (e) { /* ok */ }
+  if (nota === '👍' && ehDono()) try { const tr = trajetoriaPeloFeedback(respostaCheia || resposta); if (tr && tr.ok && !tr.ja) salvou.push('trajetória'); } catch (e) { /* ok */ }
   // Reclamação escrita pelo Thiago vira aprendizado (é palavra dele, não dedução da IA). Curtida só registra.
-  if (nota === '👎' && coment.length >= 8 && !temDadoSensivel(coment)) {
+  if (nota === '👎' && ehDono() && coment.length >= 8 && !temDadoSensivel(coment)) {
     const erro = resposta ? 'Resposta: "' + resposta.slice(0, 160).replace(/\s+/g, ' ') + (resposta.length > 160 ? '…' : '') + '"' : 'Resposta reprovada';
     if (!jaSabe(coment, linhas('aprendizados').map(l => l[2]))) {
       aba('aprendizados').appendRow(["'" + hoje(), seguro(erro), seguro(coment), 'feedback']);
@@ -1786,19 +1805,20 @@ function montarSistema(pergunta, enxuto) {
     .replace('{AMANHA}', Utilities.formatDate(amanhaD, FUSO, 'EEEE, dd/MM/yyyy') + ' (' + Utilities.formatDate(amanhaD, FUSO, 'yyyy-MM-dd') + ')')
     .split('{VERSAO}').join(VERSAO_CEREBRO);
 
-  const perfil = linhas('perfil');
+  const perfil = ehDono() ? linhas('perfil') : [];
   const perfilUsado = (enxuto || modoCliente) ? perfil.filter(l => /como responder|^loja$/i.test(l[0])) : perfil;
   if (perfilUsado.length) s += '\n\n### PERFIL DO THIAGO\n' + perfilUsado.map(l => '- [' + l[0] + '] ' + l[1]).join('\n');
+  if (!ehDono()) s += blocoPessoa();
 
   const apr = linhas('aprendizados');
   const aprUsado = enxuto ? relevantes(apr, pergunta, 5, l => l[1] + ' ' + l[2] + ' ' + l[3]) : apr.slice(-80);
   if (aprUsado.length) s += '\n\n### APRENDIZADOS (erros que já aconteceram e o jeito certo)\n' + aprUsado.map(l => '- ERRO: ' + l[1] + ' → CERTO: ' + l[2]).join('\n');
 
-  const mem = linhas('memoria');
+  const mem = linhas('memoria').filter(l => ehDono() ? !/^pessoa:/.test(String(l[2] || '')) : String(l[2] || '') === 'pessoa:' + PESSOA.id);   // cada um com a sua memória
   const recentes = mem.slice(enxuto ? -8 : -25);
   const antigas = mem.slice(0, Math.max(0, mem.length - recentes.length));
   const memUsada = relevantes(antigas, pergunta, enxuto ? 8 : 35, l => l[1]).concat(recentes);
-  if (memUsada.length) s += '\n\n### MEMÓRIA (o que o Thiago já ensinou)\n' + memUsada.map(l => '- (' + l[0] + ') ' + l[1]).join('\n');
+  if (memUsada.length) s += '\n\n### MEMÓRIA (' + (ehDono() ? 'o que o Thiago já ensinou' : 'o que ' + PESSOA.nome + ' já contou') + ')\n' + memUsada.map(l => '- (' + l[0] + ') ' + l[1]).join('\n');
 
   let base = relevantes(linhas('base'), pergunta, enxuto ? 4 : 10, l => l[0] + ' ' + l[1], l => l[0]);
   // busca por significado (embeddings do Gemini): acha trechos que a busca por palavra não acha
@@ -1806,10 +1826,11 @@ function montarSistema(pergunta, enxuto) {
     const extraBase = semelhantes('base', pergunta, enxuto ? 2 : 4, base);
     if (extraBase.length) { base = base.concat(extraBase); passo('Achou ' + extraBase.length + ' trecho(s) por significado'); }
   } catch (e) { /* sem embeddings, segue só por palavra */ }
+  if (PESSOA.perfil === 'convidado') base = [];   // amigo não vê dado da loja
   if (base.length) s += '\n\n### BASE DA LOJA (trechos ligados à pergunta)\n' + base.map(l => '- ' + l[0] + ': ' + l[1]).join('\n');
 
   // tabela de preços: entra quando a pergunta fala de preço/valor/estoque ou cita um produto da tabela
-  const tp = tabelaPrecos(pergunta, modoCliente);
+  const tp = PESSOA.perfil === 'convidado' ? '' : tabelaPrecos(pergunta, modoCliente);
   if (tp) s += tp;
 
   try { s += exemplosPara(pergunta, enxuto ? 1 : 2); } catch (e) { /* sem exemplos */ }
@@ -1995,6 +2016,15 @@ const PARADAS = ['que', 'qual', 'quais', 'como', 'para', 'pra', 'com', 'uma', 'u
 
 function processarTags(texto, aparelho) {
   const salvou = [];
+  if (!ehDono()) {   // v81: outra pessoa: só memória própria; o resto vira sugestão pro Thiago ou some
+    texto = texto.replace(/\[\[(BASE|PERFIL):\s*([\s\S]*?)\]\]/gi, (_, tipo, t) => {
+      try { aba('historico').appendRow(["'" + agora(), tipo.toLowerCase(), 'sugestão de ' + PESSOA.nome, '', seguro(String(t).slice(0, 1500)), 'pessoa:' + PESSOA.id]); } catch (e) { /* ok */ }
+      salvou.push('sugestão pro Thiago'); passo('Anotou a correção de ' + PESSOA.nome + ' pro Thiago confirmar');
+      return '';
+    });
+    texto = texto.replace(/\[\[(ESQUECER|AGENDA|EMAIL_RASCUNHO|VENDA|TAREFA|APRENDIZADO):\s*([\s\S]*?)\]\]/gi, '');
+    aparelho = 'pessoa:' + PESSOA.id;
+  }
   texto = texto.replace(/\[\[ESQUECER:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     const n = esquecer(t.trim(), false);
     if (n) { salvou.push('esqueceu'); passo('Apagou ' + n + ' lembrança(s) antiga(s)'); }
@@ -2002,7 +2032,7 @@ function processarTags(texto, aparelho) {
   });
   texto = texto.replace(/\[\[MEMORIA:\s*([\s\S]*?)\]\]/gi, (_, t) => {
     t = t.trim();
-    if (t && !temDadoSensivel(t) && !jaSabe(t, linhas('memoria').map(l => l[1]))) {
+    if (t && !temDadoSensivel(t) && !jaSabe(t, linhas('memoria').filter(l => ehDono() ? !/^pessoa:/.test(String(l[2] || '')) : String(l[2] || '') === 'pessoa:' + PESSOA.id).map(l => l[1]))) {
       aba('memoria').appendRow(["'" + hoje(), seguro(t), aparelho]);
       salvou.push('memória'); passo('Guardou na memória: ' + t.slice(0, 80));
     }
@@ -2182,7 +2212,7 @@ function tocarChat(chatId) {
 
 function listarChats() {
   const trab = chatsTrabalhando();
-  return linhas('chats')
+  return linhas('chats').filter(l => String(l[7] || '') === (PESSOA.id || ''))
     .map(l => ({ id: l[0], titulo: l[1], atualizada: l[3], fixada: l[5] === 'sim', projeto: l[6] || '', trabalhando: !!trab[l[0]] }))
     .sort((a, b) => (a.fixada !== b.fixada ? (a.fixada ? -1 : 1) : (a.atualizada < b.atualizada ? 1 : -1)))
     .slice(0, 100);
@@ -2975,7 +3005,8 @@ function aprenderSozinha() {
   try {
     const props = PropertiesService.getScriptProperties();
     const ultima = props.getProperty('APRENDIDO_ATE') || '';
-    const novas = linhas('mensagens').filter(l => l[1] > ultima).slice(0, 60);
+    const deOutros = {}; linhas('chats').forEach(c => { if (c[7]) deOutros[c[0]] = 1; });   // v81: conversa de outra pessoa não ensina fato do Thiago
+    const novas = linhas('mensagens').filter(l => l[1] > ultima && !deOutros[l[0]]).slice(0, 60);
     if (!novas.length) return;
     if (!novas.some(l => l[2] === 'thiago')) { props.setProperty('APRENDIDO_ATE', novas[novas.length - 1][1]); return; }
 
@@ -5088,7 +5119,8 @@ function conferirCodigo(novo, antigo) {
   // declarações de verdade (início de linha), pra não confundir com este próprio texto
   const obrigatorios = [
     [/^function doPost\(e\) \{/m, 'doPost'],
-    [/^\s+if \(!req\.pin \|\| String\(req\.pin\) !== String\(prop\('PIN'\)\)\)/m, 'checagem do PIN'],
+    [/^\s+(\} else )?if \(!req\.pin \|\| String\(req\.pin\) !== String\(prop\('PIN'\)\)\)/m, 'checagem do PIN'],
+    [/function pessoaDoConvite\(/, 'checagem do convite'],
     [/^function autoMelhorar\(/m, 'autoMelhorar'],
     [/^function desfazerCodigo\(/m, 'desfazerCodigo'],
     [/^function apiScript\(/m, 'apiScript'],
@@ -5635,4 +5667,68 @@ function fichasConferidas(pergunta) {
   passo('Ficha de cada aparelho: ' + fichas.map(f => f.modelo + (f.achou ? ' ✓' : ' ✗')).join(' · '));
   const texto = fichas.map(f => '**' + f.modelo + '**' + (f.achou ? ' (fonte: ' + f.fonte + ')\n' + CAMPOS_FICHA.map(c => '- ' + c.replace('_', '/') + ': ' + (f.ficha[c] || 'não confirmado')).join('\n') : '\n- NÃO ACHEI a ficha desse modelo na pesquisa (não invente nada dele)')).join('\n\n');
   return { modelos: modelos, achou: ok.length, total: modelos.length, texto: texto };
+}
+
+/* ---------- v81: LOGIN POR CONVITE (cada pessoa com o próprio acesso) ----------
+ * O Thiago (PIN) gera um link por pessoa: ...#convite=<link do cérebro>~<chave longa>. A chave fica só no celular da pessoa;
+ * na planilha (aba pessoas) vai só o hash dela. Cada conversa grava de quem é (coluna Pessoa da aba chats).
+ * Perfis: socia (Karen, dia a dia), funcionaria (Karina, Isis), convidado (amigo). Nenhum deles vê o perfil/memória do Thiago,
+ * e-mail/agenda/Drive, Mac/PC, código, apps, tarefas do agente; nem muda base/perfil (vira sugestão). Convidado não vê a loja. */
+const DONO = { id: '', nome: 'Thiago', perfil: 'dono' };
+let PESSOA = DONO;
+const PERFIS_PESSOA = {
+  socia: 'sócia da Zicão Store; usa no dia a dia (pesquisar, tirar dúvida, textos)',
+  funcionaria: 'funcionária da Zicão Store (atendimento, estoque, Instagram)',
+  convidado: 'convidado do Thiago (amigo); não é da loja'
+};
+const ACOES_PESSOA = ['teste', 'cotas', 'quemSou', 'chat', 'feedback', 'transcrever', 'texto', 'chats', 'abrir', 'apagarChat', 'chatMeta', 'cortarConversa', 'aoVivo'];
+function ehDono() { return !PESSOA || PESSOA.perfil === 'dono'; }
+function hashChave(t) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(t)).map(b => ('0' + ((b + 256) % 256).toString(16)).slice(-2)).join(''); }
+function pessoaDoConvite(chave) {
+  chave = String(chave || '').trim();
+  if (chave.length < 24) return null;
+  const h = hashChave(chave), a = aba('pessoas'), ls = linhas('pessoas');
+  const i = ls.findIndex(l => l[3] === h && l[5] === 'sim');
+  if (i < 0) return null;
+  try { a.getRange(i + 2, 7).setValue("'" + agora()); } catch (e) { /* ok */ }
+  return { id: ls[i][0], nome: ls[i][1], perfil: PERFIS_PESSOA[ls[i][2]] ? ls[i][2] : 'convidado' };
+}
+function convidarPessoa(req) {
+  const nome = String(req.nome || '').trim().slice(0, 40), perfil = String(req.perfil || '');
+  if (!nome) return { ok: false, erro: 'Falta o nome' };
+  if (!PERFIS_PESSOA[perfil]) return { ok: false, erro: 'Perfil tem que ser: ' + Object.keys(PERFIS_PESSOA).join(', ') };
+  const chave = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 16);   // 48 letras aleatórias
+  const id = 'p' + Date.now().toString(36);
+  aba('pessoas').appendRow([id, seguro(nome), perfil, hashChave(chave), "'" + agora(), 'sim', '']);
+  return { ok: true, id: id, nome: nome, perfil: perfil, chave: chave };   // a chave só aparece AGORA (na planilha fica só o hash)
+}
+function listarPessoas() { return linhas('pessoas').map(l => ({ id: l[0], nome: l[1], perfil: l[2], criado: l[4], ativo: l[5] === 'sim', ultimoUso: l[6] })); }
+function cancelarConvite(id) {
+  const ls = linhas('pessoas'), i = ls.findIndex(l => l[0] === String(id || ''));
+  if (i < 0) return { ok: false, erro: 'Pessoa não encontrada' };
+  aba('pessoas').getRange(i + 2, 6).setValue('não');
+  return { ok: true };
+}
+/** A conversa é de quem? ('' = do Thiago) */
+function donoDoChat(chatId) {
+  const r = linhaDoChat(chatId);
+  if (!r) return null;
+  return String(aba('chats').getRange(r, 8, 1, 1).getDisplayValues()[0][0] || '');
+}
+function podeVerChat(chatId) {
+  if (!chatId) return true;
+  const d = donoDoChat(chatId);
+  if (d === null) return true;   // conversa nova
+  return d === (PESSOA.id || '');
+}
+function garantirColunaPessoa() {
+  const a = aba('chats');
+  if (a.getRange(1, 8, 1, 1).getDisplayValues()[0][0] !== 'Pessoa') a.getRange(1, 8, 1, 1).setValue('Pessoa');
+}
+/** O que entra no sistema no lugar do PERFIL DO THIAGO quando quem fala é outra pessoa. */
+function blocoPessoa() {
+  return '\n\n### QUEM ESTÁ FALANDO AGORA\nVocê está conversando com **' + PESSOA.nome + '** (' + (PERFIS_PESSOA[PESSOA.perfil] || 'convidado') + '), NÃO com o Thiago. Chame pelo nome dela/dele. ' +
+    'Nesta conta vc NÃO tem: dados pessoais do Thiago, e-mail, agenda, Drive, o Mac/PC, código e apps, nem agente em segundo plano. ' +
+    'Não grave nada na base nem no perfil (se ' + PESSOA.nome + ' corrigir uma informação da loja, diga que vai pro Thiago confirmar). ' +
+    (PESSOA.perfil === 'convidado' ? 'Esta pessoa NÃO é da loja: não fale de preço, estoque, fornecedor nem dados da Zicão Store.' : 'Dados da loja: só o que está na base; nunca invente preço, garantia, endereço ou horário.');
 }

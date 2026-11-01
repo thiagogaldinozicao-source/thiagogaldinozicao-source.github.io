@@ -209,6 +209,18 @@ header .titulo{flex:1;min-width:0;text-align:center;font-weight:600;overflow:hid
 #mPrevia .painel{max-width:1100px;height:92dvh;max-height:92dvh;padding:0;display:flex;flex-direction:column;overflow:hidden}
 #mPrevia .previa-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--borda2)}
 #mPrevia .previa-top b{flex:1;font-family:'Bebas Neue';font-weight:400;font-size:22px;color:var(--ouro);letter-spacing:1px}
+body.conta-pessoa #bProj,body.conta-pessoa #bApps,body.conta-pessoa #bTarefas2,body.conta-pessoa #bMem,body.conta-pessoa #bTreino,body.conta-pessoa #bDisp,body.conta-pessoa #bDispTopo,body.conta-pessoa #bNav,body.conta-pessoa #bTarefas,body.conta-pessoa #cAgente,body.conta-pessoa .so-dono{display:none!important}
+body:not(.conta-pessoa) .so-pessoa{display:none!important}
+.pessoas-lista{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.pessoa-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--borda2);border-radius:10px;font-size:14px}
+.pessoa-item .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pessoa-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pessoa-item small{color:var(--cinza)}
+.pessoa-item button{min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--borda2);font-size:13px;color:var(--cinza)}
+.pessoa-item.off{opacity:.5}
+.convite-link{display:flex;flex-direction:column;gap:8px;margin-top:8px;padding:10px;border:1px solid var(--ouro);border-radius:12px;background:var(--ouro-fundo)}
+.convite-link code{font-size:12px;word-break:break-all;color:var(--ouro2)}
+.convite-link .linha-btn{margin-top:0}
 #versaoNova{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:50%;transform:translateX(-50%);z-index:60;background:var(--ouro);color:#111;border-radius:99px;padding:10px 16px;min-height:44px;font-size:14px;box-shadow:0 8px 24px #0008;white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis}
 #mPrevia .previa-corpo{flex:1;min-height:0;display:flex;flex-direction:column}
 #mPrevia iframe{flex:1;min-height:0;width:100%;border:none;background:#fff}
@@ -751,16 +763,32 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 <div class="modal" id="mCfg">
   <div class="painel">
     <h3>Configurar</h3>
+    <div class="so-pessoa"><p class="aviso" id="cQuem" style="color:var(--txt)"></p></div>
+    <div class="so-dono">
     <label>Link do script (termina com /exec)</label>
     <input id="cUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" autocapitalize="off" spellcheck="false">
     <label>PIN</label>
     <input id="cPin" type="password" autocomplete="off">
+    <label>Recebeu um link de convite? Cola aqui</label>
+    <input id="cConvite" placeholder="link de convite" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
     <label>Nome deste aparelho</label>
     <input id="cAparelho" placeholder="iPhone, PC, Mac...">
     <div class="aviso" id="cAviso"></div>
     <div class="linha-btn">
       <button class="btn cinza" id="cTestar">Testar</button>
       <button class="btn ouro" id="cSalvar">Salvar</button>
+    </div>
+    <div class="so-pessoa"><button class="btn cinza" id="cSair" style="width:100%;margin-top:8px">Sair deste aparelho</button></div>
+    <div class="so-dono" id="cPessoasBox">
+      <h3 style="margin-top:18px">Pessoas</h3>
+      <p class="aviso">Cada pessoa entra pelo próprio link: não vê suas coisas (memória, e-mail, Mac, código). Cancelar tira o acesso na hora.</p>
+      <div class="pessoas-lista" id="cPessoas"></div>
+      <label>Nome</label><input id="pNome" placeholder="Karina, Isis, Karen…" autocomplete="off">
+      <label>Tipo</label>
+      <select id="pPerfil"><option value="funcionaria">Funcionária (loja)</option><option value="socia">Sócia / dia a dia</option><option value="convidado">Amigo (sem dados da loja)</option></select>
+      <div class="linha-btn"><button class="btn ouro" id="pGerar">Gerar link de convite</button></div>
+      <div id="pLink"></div>
     </div>
   </div>
 </div>
@@ -828,7 +856,27 @@ const LS = {
   set(k, v){ try{ localStorage.setItem('zicoai_' + k, JSON.stringify(v)); }catch(e){} }
 };
 
-let cfg = Object.assign({ url:'', pin:'', aparelho:'', cerebro:'auto', pcUrl:'http://localhost:11434', pcModelo:'zicoai' }, LS.get('cfg', {}));
+let cfg = Object.assign({ url:'', pin:'', convite:'', pessoa:null, aparelho:'', cerebro:'auto', pcUrl:'http://localhost:11434', pcModelo:'zicoai' }, LS.get('cfg', {}));
+/* ---------- login por convite (v41) ----------
+ * Link: …/zicoai/#convite=<link do cérebro>~<chave>. O # não vai pro servidor do GitHub. A chave fica só neste aparelho. */
+function lerConvite(texto){
+  const m = String(texto || '').match(/convite=([^&\s]+)/); if(!m) return false;
+  let v = m[1]; try{ v = decodeURIComponent(v); }catch(e){}
+  const i = v.lastIndexOf('~'), url = v.slice(0, i), chave = v.slice(i + 1);
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url) || !/^[\w-]{24,}$/.test(chave)) return false;
+  cfg.url = url; cfg.convite = chave; cfg.pin = ''; cfg.pessoa = null; LS.set('cfg', cfg);
+  return true;
+}
+lerConvite(location.hash);
+const nomeQuemUsa = () => (cfg.convite && cfg.pessoa && cfg.pessoa.nome) || 'Thiago';
+function aplicaPessoa(){
+  const p = cfg.convite ? cfg.pessoa : null;
+  document.body.classList.toggle('conta-pessoa', !!p);
+  document.body.classList.toggle('conta-convidado', !!p && p.perfil === 'convidado');
+  const nome = nomeQuemUsa();
+  const pb = document.querySelector('.perfil b'), pa = document.querySelector('.perfil-avatar');
+  if(pb) pb.textContent = nome; if(pa) pa.textContent = nome.slice(0, 1).toUpperCase();
+}
 let chats = LS.get('chats', []);            // [{id,titulo,atualizada}]
 // painel da extensão: cada ABA do Chrome tem a sua conversa (?aba=ID); fora dela, a conversa aberta de sempre
 const ABA_EXT = Number((location.search.match(/[?&]aba=(\d+)/) || [])[1]) || 0;
@@ -851,10 +899,10 @@ let pagina = null;                          // página aberta no Chrome (extens�
 
 /* ---------- servidor ---------- */
 async function api(corpo, sinal){
-  if(!cfg.url || !cfg.pin) throw new Error('Configura o link e o PIN em ⚙️ Configurar');
+  if(!cfg.url || !(cfg.pin || cfg.convite)) throw new Error('Configura o link e o PIN em ⚙️ Configurar (ou abre o link de convite que te mandaram)');
   const r = await fetch(cfg.url, {
     method:'POST',
-    body: JSON.stringify(Object.assign({ pin: cfg.pin, aparelho: cfg.aparelho || 'app' }, corpo)),
+    body: JSON.stringify(Object.assign(cfg.pin ? { pin: cfg.pin } : { convite: cfg.convite }, { aparelho: cfg.aparelho || (cfg.pessoa ? 'app ' + cfg.pessoa.nome : 'app') }, corpo)),
     signal: sinal
   });
   const t = await r.text();
@@ -1241,8 +1289,13 @@ function desenha(){
   if(!mensagens.length){
     // tela inicial (estilo Mistral/Claude): saudação pela hora, pergunta grande e atalhos em lista com ícone
     const h = new Date().getHours();
-    const oi = h >= 23 || h < 4 ? 'Ainda acordado, Thiago?' : h < 12 ? 'Bom dia, Thiago.' : h < 18 ? 'Boa tarde, Thiago.' : 'Boa noite, Thiago.';
-    const atalhos = [
+    const nm = nomeQuemUsa();
+    const oi = h >= 23 || h < 4 ? 'Ainda acordado, ' + nm + '?' : h < 12 ? 'Bom dia, ' + nm + '.' : h < 18 ? 'Boa tarde, ' + nm + '.' : 'Boa noite, ' + nm + '.';
+    const atalhos = cfg.convite ? [
+      ['web', 'Pesquisar algo', 'Pesquisa pra mim: '],
+      ['loja', 'Escrever uma mensagem', 'Me ajuda a escrever uma mensagem: '],
+      ['apps', 'Tirar uma dúvida', 'Tenho uma dúvida: ']
+    ].filter(a => !(cfg.pessoa && cfg.pessoa.perfil === 'convidado' && a[0] === 'loja')) : [
       ['web', 'Abrir o navegador', () => abreNavegador()],
       ['agente', 'Pesquisar preço do iPhone nas lojas', 'Pesquisa no seu navegador o preço do iPhone 17 Pro Max nas lojas grandes e me mostra uma tabela com fonte'],
       ['apps', 'Melhorar um app meu', 'Quero melhorar um app meu: me pergunta qual e o que eu quero mudar'],
@@ -1252,7 +1305,7 @@ function desenha(){
     t.innerHTML = '<div class="boas inicio">' + (pjAberto ? '<span class="proj">📁 ' + esc(pjAberto.nome) + '</span>' : '') +
       '<div class="ini-logo" aria-hidden="true"></div><h2>' + esc(oi) + '<br>Em que posso ajudar?</h2>' +
       '<div class="atalhos">' + atalhos.map((a, k) => '<button class="atalho" data-k="' + k + '">' + ico(a[0] === 'loja' ? 'compartilhar' : a[0], 20) + '<span>' + esc(a[1]) + '</span></button>').join('') + '</div></div>';
-    t.querySelectorAll('.atalho').forEach(b => b.onclick = () => { const a = atalhos[+b.dataset.k]; if(typeof a[2] === 'function') a[2](); else { $('txt').value = a[2]; envia(); } });
+    t.querySelectorAll('.atalho').forEach(b => b.onclick = () => { const a = atalhos[+b.dataset.k]; if(typeof a[2] === 'function') a[2](); else if(/: $/.test(a[2])) { $('txt').value = a[2]; $('txt').focus(); } else { $('txt').value = a[2]; envia(); } });
     return;
   }
   mensagens.forEach((m, i) => t.appendChild(balao(m, i === mensagens.length - 1)));
@@ -2468,12 +2521,56 @@ $('bNovo2').onclick = () => novaConversa();
 /* ---------- configurar ---------- */
 $('bCfg').onclick = () => {
   fechaLado();
-  $('cUrl').value = cfg.url; $('cPin').value = cfg.pin; $('cAparelho').value = cfg.aparelho;
-  $('cAviso').textContent = ''; $('mCfg').classList.add('aberto');
+  $('cUrl').value = cfg.url; $('cPin').value = cfg.pin; $('cAparelho').value = cfg.aparelho; $('cConvite').value = '';
+  $('cQuem').textContent = cfg.convite ? (cfg.pessoa ? 'Conectada como ' + cfg.pessoa.nome + '.' : 'Entrou pelo link de convite.') : '';
+  $('cAviso').textContent = ''; $('pLink').replaceChildren(); $('mCfg').classList.add('aberto');
+  $('cPessoasBox').hidden = !(cfg.pin && !cfg.convite);
+  if(!cfg.convite && cfg.pin) carregaPessoas();
 };
-const lerCfg = () => Object.assign({}, cfg, {
-  url: $('cUrl').value.trim(), pin: $('cPin').value.trim(), aparelho: $('cAparelho').value.trim() || 'app'
-});
+const lerCfg = () => {
+  const c = $('cConvite').value.trim();
+  if(c){ const antes = Object.assign({}, cfg); if(lerConvite(c)) return Object.assign({}, cfg, { aparelho: $('cAparelho').value.trim() || cfg.aparelho || 'app' }); cfg = antes; }
+  return Object.assign({}, cfg, cfg.convite ? { aparelho: $('cAparelho').value.trim() || 'app' } : { url: $('cUrl').value.trim(), pin: $('cPin').value.trim(), aparelho: $('cAparelho').value.trim() || 'app' });
+};
+$('cSair').onclick = () => {
+  if(!confirm('Sair deste aparelho? Pra entrar de novo vai precisar do link de convite.')) return;
+  cfg.convite = ''; cfg.pessoa = null; cfg.url = ''; LS.set('cfg', cfg); location.hash = ''; location.reload();
+};
+async function carregaPessoas(){
+  const box = $('cPessoas'); box.innerHTML = '<p class="aviso">Carregando…</p>';
+  try{
+    const j = await api({ acao:'pessoas' });
+    const nomes = { funcionaria:'funcionária', socia:'sócia', convidado:'amigo' };
+    box.replaceChildren();
+    if(!j.pessoas.length){ box.innerHTML = '<p class="aviso">Ninguém convidado ainda.</p>'; return; }
+    j.pessoas.forEach(p => {
+      const d = document.createElement('div'); d.className = 'pessoa-item' + (p.ativo ? '' : ' off');
+      const b = document.createElement('b'); b.textContent = p.nome;
+      const sm = document.createElement('small'); sm.textContent = (nomes[p.perfil] || p.perfil) + (p.ativo ? (p.ultimoUso ? ' · usou ' + String(p.ultimoUso).slice(5, 16) : ' · ainda não entrou') : ' · cancelado');
+      const info = document.createElement('div'); info.className = 'info'; info.append(b, sm); d.appendChild(info);
+      if(p.ativo){ const x = document.createElement('button'); x.textContent = 'Cancelar'; x.onclick = async () => { if(!confirm('Tirar o acesso de ' + p.nome + '?')) return; try{ await api({ acao:'cancelarConvite', id:p.id }); carregaPessoas(); }catch(e){ alert(e.message); } }; d.appendChild(x); }
+      box.appendChild(d);
+    });
+  }catch(e){ box.innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
+}
+$('pGerar').onclick = async () => {
+  const nome = $('pNome').value.trim(); if(!nome){ $('pNome').focus(); return; }
+  const btn = $('pGerar'); btn.disabled = true; btn.textContent = 'Gerando…';
+  try{
+    const j = await api({ acao:'convidar', nome, perfil: $('pPerfil').value });
+    const link = location.origin + location.pathname + '#convite=' + encodeURIComponent(cfg.url + '~' + j.chave);
+    const caixa = document.createElement('div'); caixa.className = 'convite-link';
+    caixa.innerHTML = '<b></b><code></code><small class="aviso">Manda esse link só pra ' + esc(nome) + '. Ela abre no Safari e toca em Compartilhar → Adicionar à Tela de Início. Se o app abrir sem entrar, é só colar o link em ⚙️ Configurar.</small><div class="linha-btn"><button class="btn cinza" type="button">Copiar</button><button class="btn ouro" type="button">Enviar</button></div>';
+    caixa.querySelector('b').textContent = 'Convite de ' + nome;
+    caixa.querySelector('code').textContent = link;
+    const [bc, be] = caixa.querySelectorAll('button');
+    bc.onclick = async () => { try{ await navigator.clipboard.writeText(link); bc.textContent = 'Copiado'; }catch(e){ bc.textContent = 'Não deu'; } };
+    be.onclick = async () => { try{ await navigator.share({ title: 'ZicoAI', text: 'Seu acesso à ZicoAI:', url: link }); }catch(e){ try{ await navigator.clipboard.writeText(link); be.textContent = 'Copiado'; }catch(x){} } };
+    $('pLink').replaceChildren(caixa); $('pNome').value = '';
+    carregaPessoas();
+  }catch(e){ $('pLink').innerHTML = '<p class="aviso" style="color:var(--erro)">' + esc(e.message) + '</p>'; }
+  btn.disabled = false; btn.textContent = 'Gerar link de convite';
+};
 $('cTestar').onclick = async () => {
   const antes = cfg; cfg = lerCfg();
   $('cAviso').style.color = 'var(--cinza)'; $('cAviso').textContent = 'Testando...';
@@ -2487,7 +2584,15 @@ $('cTestar').onclick = async () => {
   catch(e){ $('cAviso').style.color = 'var(--erro)'; $('cAviso').textContent = e.message; }
   cfg = antes;
 };
-$('cSalvar').onclick = () => { cfg = lerCfg(); LS.set('cfg', cfg); $('mCfg').classList.remove('aberto'); status(); carregaLista(); };
+$('cSalvar').onclick = () => { cfg = lerCfg(); LS.set('cfg', cfg); $('mCfg').classList.remove('aberto'); status(); carregaLista(); confereQuemSou(); };
+/** Conta de convite: pergunta pro cérebro quem é (nome e tipo) e ajusta a tela. */
+async function confereQuemSou(){
+  aplicaPessoa();
+  if(!cfg.convite || !cfg.url) return;
+  try{ const j = await api({ acao:'quemSou' }); cfg.pessoa = j.pessoa; LS.set('cfg', cfg); aplicaPessoa(); desenha(); }
+  catch(e){ if(/inválido|cancelado/i.test(e.message)) { cfg.pessoa = null; LS.set('cfg', cfg); aplicaPessoa(); } }
+}
+confereQuemSou();
 
 /* ---------- memória ---------- */
 async function abreMemoria(){
@@ -2705,7 +2810,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v40';
+const VERSAO_APP = 'zicoai-v41';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;
