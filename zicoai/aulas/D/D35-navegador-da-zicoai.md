@@ -30,3 +30,9 @@
 
 ## Como conferir
 - Teste `t46` e `progresso.playwright.cjs` (card do print ao vivo, 390 e 1440 de largura). No app, o card "Navegador da ZicoAI" durante a tarefa. No Mac, a janela do Chrome dela abre na primeira vez.
+
+## Atualização v71: o Thiago usa também
+- Painel **Navegador** no app (🌐 no topo): barra de endereço (endereço abre, texto pesquisa no Google), voltar/avançar/recarregar, toque na tela = clique no mesmo ponto, rolar, digitar no campo tocado, Enter. O que o agente faz aparece ali também (busca `telaVivo` a cada 2,5 s).
+- No celular a tela dela vira de celular (430×860) pra o site ficar legível; no computador, 1280×800. O clique usa o tamanho real do print (`naturalWidth`).
+- Ação `navegar` (com PIN): só ela tem tocar/escrever/roda/tamanho; o agente continua só com as `web_*`, que passam pelas travas. Banco continua recusado.
+- Chip de aparelhos no topo (`aparelhosRapido`): uma bolinha por aparelho (verde = ligado agora), sem chamar os aparelhos, então abre na hora.

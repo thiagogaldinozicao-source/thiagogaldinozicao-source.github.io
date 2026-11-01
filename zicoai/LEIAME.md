@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v71 + app v31 + ponte mac-1.8 (31/10): navegador pro Thiago + chip de aparelhos
+- App: botão 🌐 abre o painel Navegador (tela cheia no celular, do lado do chat em tela ≥1200 px): endereço/pesquisa, ←, →, ↻, toque = clique, ▲▼, digitar, ⏎. Chip no topo com uma bolinha por aparelho (verde = ligado). Cache `zicoai-v31`.
+- Cérebro: ação `navegar` (PIN; ops abrir, pesquisar, tocar, escrever, teclas, roda, voltar, avancar, recarregar, tela, tamanho) e `aparelhosRapido` (só olha quando cada ponte foi vista). `testarNavegadorZico` também testa tamanho/rolar/tocar.
+- Mac: `navegador-zico.js` ganhou tocar (x/y no tamanho real), escrever, roda, avancar, tamanho. Teste t50.
+
 ## v70 (31/10): placar das aulas sem perder pergunta e sozinho
 - `placarAulas`: lote que bate no limite por minuto do Google espera 65 s e tenta de novo (até 3x); saída antecipada diz o motivo no registro. Placar de 31/10 22:52: 1º 66% · nas 2 82% · nas 5 93,3% (só 100/150 com vetor).
 - Gatilho `placarSemanal` (domingo 3h) roda o placar sem ninguém clicar. Testes de versão viraram "≥ N" (não quebram a cada versão). Teste t49.

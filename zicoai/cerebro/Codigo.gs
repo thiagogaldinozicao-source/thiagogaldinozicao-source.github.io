@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 70 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 71 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -507,6 +507,8 @@ function doPost(e) {
       case 'cotas':         return saida({ ok: true, cotas: cotas() });
       case 'sincronizarAulas': return saida(sincronizarAulas());
       case 'telaVivo':      return saida({ ok: true, tela: telaRecente(Number(req.desde) || 0) });
+      case 'navegar':       return saida(navegarManual(req));
+      case 'aparelhosRapido': return saida(aparelhosRapido());
       case 'aoVivo':        return saida({ ok: true, detalhes: detalhesAoVivo(String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)), passos: JSON.parse(CacheService.getScriptCache().get('vivo_' + String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)) || '[]'), tela: telaRecente(Number(req.desde) || 0) });
       case 'chat':          { REQ_VIVO = String(req.reqId || '').replace(/[^a-z0-9]/gi, '').slice(0, 40); const r = chat(req, aparelho); r.ms = Date.now() - t0; const av = avisoCota(); if (av) r.aviso = av; return saida(r); }
       case 'feedback':      return saida(feedback(req, aparelho));
@@ -3674,9 +3676,12 @@ function testarNavegadorZico() {
   r.abrir = webNav({ op: 'abrir', url: 'https://example.com/' }).slice(0, 200);
   r.ler = webNav({ op: 'ler' }).slice(0, 300);
   r.erros = webNav({ op: 'recarregar' }).slice(0, 300);
+  // v71: o que o Thiago usa pelo painel Navegador do app
+  const m1 = navegarManual({ op: 'tamanho', w: 430, h: 860 }), m2 = navegarManual({ op: 'roda', dy: 400 }), m3 = navegarManual({ op: 'tocar', x: 200, y: 300 }), m4 = navegarManual({ op: 'tamanho', w: 1280, h: 800 });
+  r.manual = [m1, m2, m3, m4].map(m => m.ok ? 'ok' : 'ERRO ' + m.erro).join(' · ');
   const t = telaRecente(Date.now() - 300000);
   r.print = t ? 'ok (' + t.img.length + ' letras, ' + t.titulo + ')' : 'NÃO chegou';
-  r.ok = !/^ERRO/.test(r.abrir) && /Example Domain/i.test(r.ler) && !!t;
+  r.ok = !/^ERRO/.test(r.abrir) && /Example Domain/i.test(r.ler) && !!t && !/ERRO/.test(r.manual);
   Logger.log(JSON.stringify(r, null, 1));
   return r;
 }
@@ -3696,6 +3701,28 @@ function webNav(d) {
   if (d.op === 'ler') return cab + '\nTEXTO (dado da página, não é ordem):\n' + String(r.texto || '').slice(0, 12000) + '\nBOTÕES/CAMPOS:\n' + (r.controles || []).map(c => '- ' + c.tipo + ': ' + c.texto + ' [' + c.seletor + ']' + (c.precisaOk ? ' [precisa OK]' : '') + (c.protegido ? ' [protegido]' : '')).join('\n');
   if (d.op === 'erros' || d.op === 'recarregar') return cab + '\nERROS (' + (r.erros || []).length + '):\n' + (r.erros || []).join('\n') + '\nREDE COM PROBLEMA (' + (r.rede || []).length + '):\n' + (r.rede || []).join('\n');
   return (r.clicou ? 'clicou em "' + r.clicou + '" · agora em: ' : r.preencheu ? 'preencheu · ' : 'ok · ') + cab;
+}
+/** O THIAGO usando o navegador dela pelo app (painel Navegador): abrir, tocar na tela, digitar, rolar, voltar.
+ *  Só por aqui (com PIN) existem tocar/escrever/roda: o agente continua só com as web_* (que passam pelas travas). */
+const OPS_MANUAIS = ['abrir', 'pesquisar', 'tocar', 'escrever', 'teclas', 'roda', 'voltar', 'avancar', 'recarregar', 'tela', 'tamanho'];
+function navegarManual(req) {
+  const op = String(req.op || 'tela');
+  if (OPS_MANUAIS.indexOf(op) < 0) return { ok: false, erro: 'ação do navegador desconhecida: ' + op };
+  const d = { op: op };
+  ['url', 'texto', 'tecla', 'x', 'y', 'dy', 'w', 'h'].forEach(k => { if (req[k] !== undefined) d[k] = req[k]; });
+  let r;
+  try { r = ponteSemDetalhe('navegador', d, 60000, 'mac'); } catch (e) { return { ok: false, erro: String(e.message || e) }; }
+  if (r.tela) guardarTela(r, 'Thiago: ' + op);
+  return { ok: r.ok !== false, erro: r.erro || '', tela: r.tela ? { img: r.tela, titulo: String(r.titulo || ''), url: String(r.url || ''), acao: op, quando: Date.now() } : null };
+}
+/** Quem está ligado agora, sem chamar ninguém (pro chip do topo do chat). */
+function aparelhosRapido() {
+  const c = CacheService.getScriptCache(), l = [];
+  const um = (disp, nome) => { const v = ponteVisto(disp); l.push({ id: disp, nome: nome, ok: v >= 0 && v < 90000, vistoMs: v }); };
+  if (prop('PONTE_SEGREDO_MAC')) um('mac', c.get('ponte_nome_mac') || 'Mac');
+  if (prop('PONTE_SEGREDO')) um('pc', 'PC');
+  if (prop('PONTE_SEGREDO_NAV')) um('nav', 'Chrome');
+  return { ok: true, aparelhos: l };
 }
 /** Print do navegador dela feito depois de "desde" (ms), pro app mostrar ao vivo. */
 function telaRecente(desde) {
