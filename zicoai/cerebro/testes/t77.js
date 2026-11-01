@@ -37,3 +37,16 @@ delete C.ponte_visto; C.pc_off = '1';
 d = run('dueloAcademia(true)');
 ok(d.faltam > 0 && /PC desligado/.test(d.feitos.join()), 'PC desligado: pausa e espera (não troca de cérebro)');
 ok(/versão (1\d\d|1\d\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 100');
+
+// seletor em PC: conversa usa o grande do PC (a destilada) e o agente leva o PC junto
+pcLiga(); delete C.pc_off;
+run(`ponteSemDetalhe = function(acao, dados){ if (acao === 'ollama_chat') return { ok: true, texto: 'oi do PC' }; return { ok: true }; };`);
+let rc = H.post({ pin: '1234', acao: 'chat', aparelho: 'IPHONE', cerebro: 'pc', mensagens: [{ role: 'user', content: 'me explica o que é uma função em javascript' }] });
+ok(rc.ok && /Opus destilada/.test(rc.cerebro), 'seletor em PC: responde a destilada (não o 9B): ' + rc.cerebro);
+rc = H.post({ pin: '1234', acao: 'chat', aparelho: 'IPHONE', cerebro: 'pc', modo: 'agente', mensagens: [{ role: 'user', content: 'cria uma calculadora moderna pra mim' }] });
+const tf = H.sheets.tarefas.rows[H.sheets.tarefas.rows.length - 1];
+ok(rc.ok && /\[cerebro:pc\]/.test(tf[3]), 'agente com o seletor em PC: a tarefa leva a marca do PC');
+run(`ponteSemDetalhe = function(acao, dados){ if (acao === 'ollama_chat') return { ok: true, texto: '{"final":"Pronto, calculadora feita pelo PC"}' }; return { ok: true }; };`);
+try { run(`agente(${JSON.stringify(tf[0])}, ${JSON.stringify(tf[3])}, ${JSON.stringify(tf[2])}, 'IPHONE', Date.now() + 200000, '')`); } catch (e) { console.log('agente: ' + e.message); }
+const tf2 = H.sheets.tarefas.rows.find(l => l[0] === tf[0]);
+ok(/PC \(Qwen3\.6 35B Opus destilada\)/.test(String(tf2[5]) + String(tf2[6])), 'agente com seletor em PC: trabalhou com o PC (' + String(tf2[5]).slice(-120) + ')');

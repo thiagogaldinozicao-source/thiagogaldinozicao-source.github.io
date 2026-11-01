@@ -752,7 +752,7 @@ function chatSemTrava(req, aparelho) {
   // modo agente: o Thiago pediu explicitamente segundo plano; ou o pedido é CLARAMENTE grande/multi-etapa (rota automática, v57)
   const autoAgente = ehDono() && modo === 'auto' && !temFoto && !req.refazer && ehPedidoGrande(pergunta);
   if (ehDono() && (modo === 'agente' || autoAgente)) {
-    const t = criarTarefa(pergunta, chatId, aparelho);
+    const t = criarTarefa(pergunta + (preferido === 'pc' ? ' [cerebro:pc]' : ''), chatId, aparelho);   // v100: seletor em PC vale pro agente também
     const txt = t.ok ? '🧠 Agente trabalhando nisso em segundo plano (tarefa ' + t.id + '), em etapas e conferindo cada uma. O resultado aparece aqui quando terminar.' : '⚠️ ' + t.erro;
     passo(autoAgente ? 'Pedido grande com várias etapas: mandou direto pro agente (planeja, faz uma por vez e confere)' : 'Criou uma tarefa em segundo plano');
     gravarMensagem(chatId, 'zicoai', txt, 'agente', aparelho);
@@ -1057,7 +1057,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
   // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
   const codigo = !imagem && ehProgramacao(pergunta);
-  const pc = PC_MODELO_FORCADO ? cerebroPCPonte() : (codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
+  const pc = PC_MODELO_FORCADO ? cerebroPCPonte() : (preferido === 'pc' || codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // v100: seletor em PC = o cérebro grande do PC (a destilada), não o 9B   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
   let ordem;
   // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
   if (imagem) ordem = ['gemini', 'mistral', 'zaiv', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
@@ -5648,7 +5648,8 @@ const PROMPT_AGENTE = [
 ].join('\n');
 
 function agente(id, pedido, chatId, aparelho, prazo, pai) {
-  { const mn = String(pedido || '').match(/\[nav:([a-z0-9]{4,16})\]/i); if (mn) NAV_ATUAL = mn[1]; }   // v94: a tarefa volta pro Chrome que pediu
+  { const mn = String(pedido || '').match(/\[nav:([a-z0-9]{4,16})\]/i); if (mn) NAV_ATUAL = mn[1]; }
+  const soPC = /\[cerebro:pc\]/i.test(String(pedido || ''));   // v100: o Thiago pediu o PC no seletor: o agente usa o PC primeiro   // v94: a tarefa volta pro Chrome que pediu
   prazo = prazo || (Date.now() + PRAZO_RODADA);
   const salvo = estadoLer(id);
   DETALHES = detalhesSeguros(salvo && salvo.detalhes || lerDetalhes(id)); TAREFA_DETALHE = id; REQ_VIVO = '';
@@ -5662,6 +5663,13 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
   // forte=true (plano e conferência final): tenta o Gemini Flash primeiro (~18 por dia); sem cota, segue com os normais
   const chamar = (msgs, maxSaida, temp, semPrazo, forte) => {
+    if (soPC) {
+      const pc = cerebroPCcodigo();
+      if (pc && estimarTokens(JSON.stringify(msgs)) + maxSaida <= pc.limite) {
+        try { return { texto: chamarCompat(pc, msgs, maxSaida, { temperature: temp }), cerebro: pc.nome }; }
+        catch (e) { anota('PC não respondeu (' + String(e.message || e).slice(0, 80) + '): usou a nuvem'); }
+      } else anota(pc ? 'Pedido grande demais pro PC: usou a nuvem' : 'PC desligado: usou a nuvem');
+    }
     for (let rodada = 0; rodada < 3; rodada++) {
       let soMinuto = true, tentou = false;
       for (const nome of (forte && rodada === 0 ? ['geminiForte'] : []).concat(['gemini', 'groq', 'mistral', 'zai', 'cerebras', 'nvidia', 'groq2'])) {
@@ -5722,7 +5730,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     if (pai) { avisarPai(pai); return; }   // parte de tarefa maior: quem avisa o Thiago é o chefe
     if (chatId) {
       PASSOS = ['Agente em segundo plano (' + est.usadas + ' ferramentas): ' + est.log.join(' → ')];
-      const pedTit = String(pedido).replace(/\n?\(Pedido feito pelo painel[\s\S]*$/, '').replace(/\s*\[nav:[a-z0-9]+\]/i, '').trim();   // v94: sem a marca interna no título
+      const pedTit = String(pedido).replace(/\n?\(Pedido feito pelo painel[\s\S]*$/, '').replace(/\s*\[nav:[a-z0-9]+\]/i, '').replace(/\s*\[cerebro:pc\]/i, '').trim();   // v94: sem a marca interna no título
       gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedTit.slice(0, 80) + (pedTit.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + est.cerebro, aparelho || 'agente');
       tocarChat(chatId);
     }
