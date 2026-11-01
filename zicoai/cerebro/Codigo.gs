@@ -211,6 +211,7 @@ const ABAS = {
   exemplos:     ['Data', 'Pergunta', 'Resposta', 'Cérebro', 'Assunto', 'Tipo', 'Origem'],
   placar:       ['Data', 'Cérebro', 'Tipo', 'Nota', 'Pergunta nº', 'O que faltou'],
   trajetorias:  ['Data', 'Pedido', 'Passos (ferramenta → resultado)', 'Lições', 'Autor'],
+  trajetorias_ela: ['Data', 'Tarefa', 'Pedido', 'Trajetória (JSON)', 'Passos', 'Status', 'Origem'],
   aulas:        ['ID', 'Módulo', 'Título', 'Palavras-chave', 'Regra', 'Conteúdo', 'Onde'],
   treino:       ['Data', 'Tipo', 'Nota', 'Detalhe'],
   tarefas:      ['Id', 'Criada', 'Conversa', 'Pedido', 'Status', 'Passos', 'Resultado', 'Atualizada', 'Aparelho', 'Pai'],
@@ -485,11 +486,12 @@ function doPost(e) {
     }
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     // ponte do PC: usa o segredo dela, não o PIN
-    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar') {
+    if (req.acao === 'ponteBuscar' || req.acao === 'ponteResposta' || req.acao === 'ponteEstudar' || req.acao === 'ponteTrajetorias') {
       req.disp = ponteDisp(req.segredo); // 'pc', 'mac' ou 'nav' (Chrome): cada um tem segredo e fila próprios
       if (!req.disp) return saida({ ok: false, erro: 'segredo errado' });
       if (req.acao === 'ponteEstudar' && req.disp === 'nav') return saida({ ok: false, erro: 'o Chrome não puxa estudo' });
       if (req.acao === 'ponteEstudar') return saida(estudar());   // Mac ligado 24h puxa uma rodada de estudo (não gasta a cota de gatilhos)
+      if (req.acao === 'ponteTrajetorias') return saida(req.disp === 'mac' ? trajetoriasTreinoJsonl() : { ok: false, erro: 'só o Mac' });   // treino2 puxa as trajetórias aprovadas
       return saida(req.acao === 'ponteBuscar' ? ponteBuscar(req) : ponteResposta(req));
     }
     const cache = CacheService.getScriptCache();
@@ -733,6 +735,7 @@ function feedback(req, aparelho) {
   const respostaCheia = String(req.resposta || '').trim();
   if (nota === '👍' && pergunta && guardarExemplo(pergunta, respostaCheia, String(req.cerebro || ''), '👍 Thiago')) salvou.push('exemplo');
   try { marcarDestilacao(respostaCheia || resposta, nota === '👍' ? 'aprovada' : 'reclamada'); } catch (e) { /* ok */ }
+  if (nota === '👍') try { const tr = trajetoriaPeloFeedback(respostaCheia || resposta); if (tr && tr.ok && !tr.ja) salvou.push('trajetória'); } catch (e) { /* ok */ }
   // Reclamação escrita pelo Thiago vira aprendizado (é palavra dele, não dedução da IA). Curtida só registra.
   if (nota === '👎' && coment.length >= 8 && !temDadoSensivel(coment)) {
     const erro = resposta ? 'Resposta: "' + resposta.slice(0, 160).replace(/\s+/g, ' ') + (resposta.length > 160 ? '…' : '') + '"' : 'Resposta reprovada';
@@ -4895,7 +4898,8 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
       else {
         est.usadas++;
         const argsTxt = JSON.stringify(j.args || {}).slice(0, 70);
-        try { obs = String(observarDetalhe('ferramenta', nome, {nome: nome, args: j.args || {}}, () => f.run(j.args || {}, ctx)) || '(sem retorno)'); }
+        const porque = String(j.pensamento || j.porque || '').replace(/\s+/g, ' ').trim().slice(0, 300);   // a decisão vai junto (trajetória completa)
+        try { obs = String(observarDetalhe('ferramenta', nome, Object.assign({nome: nome, args: j.args || {}}, porque ? {porque: porque} : {}), () => f.run(j.args || {}, ctx)) || '(sem retorno)'); }
         catch (e) { obs = 'ERRO: ' + String(e.message || e).slice(0, 200); }
         // ferramenta que deu certo vira "prova possível" da etapa atual
         if (!/^(ERRO|LIMITE)\b|indispon[ií]vel|n[ãa]o consegui|n[ãa]o achei/i.test(obs.slice(0, 120))) (est.okDesde = est.okDesde || []).push(nome);
@@ -5391,3 +5395,61 @@ function transcrever(audioBase64, tipo) { return observarDetalhe("cerebro", "Tra
 function gerarImagemPC(prompt) { return observarDetalhe("ponte", "Geração de imagem no PC", {aparelho: "pc", prompt: prompt}, () => gerarImagemPCSemDetalhe(prompt)); }
 
 function resumoDaConversa(chatId) { return observarDetalhe("memoria", "Resumo da conversa usado", {chatId: chatId}, () => resumoDaConversaSemDetalhe(chatId)); }
+
+/* ---------- v74: trajetórias DELA pro treino do Mac ----------
+ * Trajetória completa = pedido → (decisão + ferramenta + args → resultado)… → resposta final.
+ * Só entra tarefa do AGENTE dela que deu certo e que o Thiago APROVOU (👍 no resultado ou aprovarTrajetoria).
+ * A aba `trajetorias` (autor Claude) é só CONSULTA: nunca vira treino (termos da Anthropic proíbem treinar IA com saída do Claude).
+ * Sem segredo (mascarar) e sem dado de cliente (CPF/telefone → •••; se sobrar algum, a trajetória não entra).
+ * Os detalhes da tarefa são apagados com o tempo (limparDetalhes): por isso a trajetória é copiada na hora da aprovação. */
+const SISTEMA_TRAJETORIA = 'Você é a ZicoAI trabalhando como AGENTE pro Thiago (Zicão Store). Resolva o pedido usando ferramentas, uma por vez: responda SÓ JSON {"porque":"...","ferramenta":"nome","args":{...}} pra usar uma ferramenta, ou {"resposta":"..."} quando terminar. Confira antes de afirmar; nunca invente preço, garantia, endereço ou horário.';
+function limparTrajeto_(t) { return esconderPessoal(String(t == null ? '' : t)); }
+/** Monta a trajetória de uma tarefa pelos detalhes gravados. null = sem passos ou com dado de cliente. */
+function trajetoriaDaTarefa(id) {
+  const t = linhas('tarefas').find(l => l[0] === id);
+  if (!t) return null;
+  const passos = lerDetalhes(id).filter(d => d.tipo === 'ferramenta');
+  if (!passos.length || !String(t[6] || '').trim()) return null;
+  const msgs = [{ role: 'user', content: limparTrajeto_(t[3]) }];
+  passos.forEach(d => {
+    let p = {}; try { p = JSON.parse(d.pedido); } catch (e) { p = { args: d.pedido }; }
+    const acao = { ferramenta: d.titulo, args: p.args || {} };
+    if (p.porque) acao.porque = p.porque;
+    msgs.push({ role: 'assistant', content: limparTrajeto_(JSON.stringify(mascarar(Object.assign(p.porque ? { porque: p.porque } : {}, { ferramenta: acao.ferramenta, args: acao.args })))) });
+    msgs.push({ role: 'user', content: 'RESULTADO: ' + limparTrajeto_(String(d.resposta || '').slice(0, 3000)) });
+  });
+  msgs.push({ role: 'assistant', content: limparTrajeto_(JSON.stringify({ resposta: String(t[6]) })) });
+  if (temDadoSensivel(JSON.stringify(msgs).replace(/9915.?8.?0070/g, ''))) return null;
+  return { id: id, pedido: String(t[3]), passos: passos.length, msgs: msgs };
+}
+/** Grava a trajetória aprovada (uma vez por tarefa). */
+function aprovarTrajetoria(id, origem) {
+  const ja = linhas('trajetorias_ela').some(l => l[1] === id);
+  if (ja) return { ok: true, ja: true };
+  const tr = trajetoriaDaTarefa(id);
+  if (!tr) return { ok: false, erro: 'tarefa sem passos gravados, sem resultado ou com dado de cliente' };
+  aba('trajetorias_ela').appendRow(["'" + agora(), id, seguro(tr.pedido.slice(0, 1000)), seguro(JSON.stringify(tr.msgs).slice(0, 45000)), tr.passos, 'aprovada', origem || '👍 Thiago']);
+  return { ok: true, passos: tr.passos };
+}
+/** 👍 numa resposta: se ela é o resultado de uma tarefa concluída do agente, a trajetória vira treino. */
+function trajetoriaPeloFeedback(resposta) {
+  const alvo = String(resposta || '').trim().slice(0, 160);
+  if (alvo.length < 15) return null;
+  const t = linhas('tarefas').slice(-200).reverse().find(l => /conclu/i.test(l[4]) && String(l[6] || '').trim().slice(0, 160) === alvo);
+  return t ? aprovarTrajetoria(t[0], '👍 Thiago') : null;
+}
+/** JSONL pro treino do Mac (MLX: {"messages":[...]} por linha). Só aprovadas, só dela. */
+function trajetoriasTreinoJsonl() {
+  const ls = linhas('trajetorias_ela').filter(l => l[5] === 'aprovada');
+  const out = [];
+  ls.forEach(l => { try { out.push(JSON.stringify({ messages: [{ role: 'system', content: SISTEMA_TRAJETORIA }].concat(JSON.parse(l[3])) })); } catch (e) { /* linha cortada: fica de fora */ } });
+  return { ok: true, total: out.length, jsonl: out.join('\n') };
+}
+/** Pelo editor: aprova de uma vez as tarefas antigas que já ganharam 👍 (enquanto os detalhes delas ainda existem). */
+function trajetoriasAntigas() {
+  const fb = linhas('feedback').filter(l => l[2] === '👍').map(l => String(l[5] || '').trim());
+  let novas = 0, sem = 0;
+  fb.forEach(r => { const x = trajetoriaPeloFeedback(r); if (x && x.ok && !x.ja) novas++; else if (x && !x.ok) sem++; });
+  Logger.log('trajetórias novas: ' + novas + ' · sem passos gravados: ' + sem);
+  return { novas: novas, semPassos: sem };
+}
