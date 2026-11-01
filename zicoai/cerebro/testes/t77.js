@@ -7,7 +7,8 @@ H.PROPS.PONTE_SEGREDO = 'segpc';
 const C = H.CACHE, OPUS = 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M';
 const pcLiga = () => { C.ponte_visto = String(run('Date.now()')); C.ponte_versao = '2.4'; C.ponte_modelos = JSON.stringify(['qwen3.5:9b', 'qwen3.6:35b', OPUS]); delete C.pc_off; };
 pcLiga();
-ok(run('cerebroPCPonte().modelo') === 'qwen3.6:35b', 'sem duelo: o PC continua no 3.6 oficial');
+ok(run('cerebroPCPonte().modelo') === OPUS, 'no dia a dia o PC usa a destilada (pedido do Thiago)');
+ok(run(`PC_MODELO_FORCADO = 'qwen3.6:35b'; var _m = cerebroPCPonte().modelo; PC_MODELO_FORCADO = null; _m`) === 'qwen3.6:35b', 'no duelo dá pra forçar o oficial');
 ok(run(`PC_MODELO_FORCADO = ${JSON.stringify(OPUS)}; var _n = cerebroPCPonte().nome; PC_MODELO_FORCADO = null; _n`) === 'PC (Qwen3.6 35B Opus destilada)', 'nome curto da destilada');
 // quem respondeu de verdade
 let pedidos = [];

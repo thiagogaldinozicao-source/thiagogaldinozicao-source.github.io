@@ -147,7 +147,8 @@ function cerebroPCcodigo() {
  * Quem decide é o cérebro: com o PC ligado, a prova (placar contra a nuvem) roda nele; quando ele ganhar do Mac
  * (8+ provas e taxa >= a do Mac), o trabalho de fundo do Mac (estudo, resumo) vai pro PC sozinho. Desligou → volta pro Mac.
  */
-const PC_MODELOS_PONTE = ['qwen3.6:35b', 'qwen3.5:35b-a3b', 'qwen3.5:9b'];   // v86: o PC já tinha o qwen3.6:35b (35B-A3B, mais novo): vai primeiro
+const PC_MODELO_OPUS = 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M';
+const PC_MODELOS_PONTE = [PC_MODELO_OPUS, 'qwen3.6:35b', 'qwen3.5:35b-a3b', 'qwen3.5:9b'];   // v100: a destilada (mesmo 3.6 + LoRA do Opus) vai primeiro a pedido do Thiago; o duelo decide se fica   // v86: o PC já tinha o qwen3.6:35b (35B-A3B, mais novo): vai primeiro
 const PC_PONTE_ESPERA = 200000;
 /* v87: igual era antes (zicoai pra conversa, zicoai-dev pra código), agora com os modelos novos:
  * LEVE (rápido, cabe inteiro na placa) pra conversa do dia a dia; PESADO (35B) pra código, capricho, prova e trabalho de fundo. */
