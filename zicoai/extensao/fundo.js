@@ -9,7 +9,7 @@
  */
 importScripts('seguranca.js');
 const S = self.ZicoSeguranca;
-const VERSAO = 'nav-2.6';
+const VERSAO = 'nav-2.7';
 const URL_PADRAO = 'https://script.google.com/macros/s/AKfycbzQXrIM8oV2Gygqm_4DA-_4li3mdicbmfnThdieLvNEvsNYoj6jyVPKWo-6CBSyP-aOow/exec';
 const ALARME = 'zicoai-ponte';
 const LIMITE_PRINT = 300000;   // ~300 KB de base64 no máximo
@@ -50,9 +50,17 @@ chrome.runtime.onConnect.addListener(porta => {
 
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 
+// v2.7: cada Chrome tem um número próprio (navId): com a extensão em 2 computadores, o pedido volta pro Chrome que pediu
+async function navId() {
+  const c = await chrome.storage.local.get('zicoNav');
+  if (c.zicoNav) return c.zicoNav;
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 12);
+  await chrome.storage.local.set({ zicoNav: id });
+  return id;
+}
 async function config() {
   const c = await chrome.storage.local.get(['zicoUrl', 'zicoSegredo']);
-  return { url: String(c.zicoUrl || URL_PADRAO).trim(), segredo: String(c.zicoSegredo || '').trim() };
+  return { url: String(c.zicoUrl || URL_PADRAO).trim(), segredo: String(c.zicoSegredo || '').trim(), nav: await navId() };
 }
 async function estado(ok, msg) {
   try { await chrome.storage.local.set({ zicoEstado: { ok: ok, msg: String(msg).slice(0, 200), quando: Date.now(), versao: VERSAO } }); } catch (e) { /* ok */ }
@@ -80,7 +88,7 @@ async function laco() {
       const cfg = await config();
       if (!cfg.segredo) { await estado(false, 'Não conectado: cole o segredo no painel.'); return; }
       let r;
-      try { r = await chamar(cfg, { acao: 'ponteBuscar', dispositivo: 'nav', nome: 'Chrome (' + plataforma() + ')', versao: VERSAO }); }
+      try { r = await chamar(cfg, { acao: 'ponteBuscar', dispositivo: 'nav', nome: 'Chrome (' + plataforma() + ')', versao: VERSAO, navId: cfg.nav }); }
       catch (e) {
         falhas++;
         await estado(false, 'Sem conexão com a ZicoAI: ' + (e.name === 'AbortError' ? 'demorou demais' : e.message));
@@ -269,3 +277,6 @@ async function acPrint(d) {
   if (b64.length > LIMITE_PRINT) return { ok: false, erro: 'print grande demais mesmo reduzido' };
   return { ok: true, abaId: aba.id, titulo: aba.title, url: aba.url, mime: 'image/jpeg', largura: larg, altura: alt, base64: b64 };
 }
+
+// v2.7: o painel pergunta o número deste Chrome
+chrome.runtime.onMessage.addListener((m, quem, responder) => { if (m && m.zicoNav) { navId().then(n => responder({ nav: n })); return true; } });

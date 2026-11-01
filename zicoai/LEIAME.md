@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v94 + extensão 2.7 + app v48 (01/11): extensão em 2 computadores
+- Caso real 14:22 (Thiago no outro Mac): o pedido "lê a imagem" foi pro Chrome do OUTRO computador (fila 'nav' única) → "No tab with id". Agora cada Chrome tem `navId` (extensão 2.7 cria e guarda em `chrome.storage.local.zicoNav`, manda no `ponteBuscar` e o painel passa `&nav=` pro app), o app manda `navId` no chat, o cérebro marca o pedido com `nav` e o `ponteBuscar` entrega só o que é daquele Chrome (ou sem dono). Chrome que pediu desligado → aviso claro. Tarefa leva `[nav:…]` no pedido; o título do "Resultado da tarefa" não mostra mais a marca interna.
+- `esconderPessoal`: "Username:/Password:/senha:/usuário:/login:" de cliente (lista IPTV no WhatsApp) viram ••• antes da nuvem e da planilha.
+- `ehProgramacao` olha só o que o Thiago escreveu (antes de "PÁGINA ABERTA NO CHROME"): "o app é ótimo" na conversa do cliente não chamava mais o cérebro de código. t72.
+
 ## v93 (01/11): FOCO NO CÓDIGO (igual o Claude: procura, lê só ali, muda ali)
 - App grande (> 40 mil letras) não vai mais inteiro pro cérebro: `blocoCodigoApp_` manda o MAPA (`mapaDoCodigo_`: seções, funções com linha, ids) + os TRECHOS ligados ao pedido (`trechosDoCodigo_`: palavras do pedido + sinônimos de código, ex. tabela→tab/<tr, parcela→parc/pkeys, 1ª→first; janela que sobe até o começo da função; ~26 mil letras). O que ele mandou "não mexer" não vira alvo. O ANTES copiado do trecho é aplicado no arquivo inteiro.
 - Calculadora real: de ~125 mil letras pro cérebro → ~45 mil, com a linha da tabela e a `parcCalc` dentro. Vale no pedido e no conserto (`consertarCodigo` usa pedido + erros do teste pra achar os trechos). t71 (com o arquivo real `testes/calc_real.html`).

@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 93 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 94 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -396,6 +396,7 @@ let TESTOU_AGORA = 0;
 let EDITANDO_APP = false;   // v89: mexendo num app que já existe → sistema enxuto (sem memória/preços/base que nada têm a ver)
 let INICIO_REQ = Date.now();   // v84: quantos testes DE VERDADE rodaram nesta resposta (app aberto no navegador do Mac, testes do Mac)
 let DETALHES = [];
+let NAV_ATUAL = '';   // v94: QUAL Chrome (extensão instalada em mais de um computador): o pedido vai pra ele, não pro primeiro que buscar
 let ABA_ATUAL = 0;   // aba do Chrome de onde o Thiago está falando (painel da extensão: cada aba tem a sua conversa)
 let TAREFA_DETALHE = "";
 let CHAT_ATUAL = null;
@@ -562,7 +563,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; EDITANDO_APP = false; INICIO_REQ = Date.now(); DETALHES = []; ABA_ATUAL = 0; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
+  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; EDITANDO_APP = false; INICIO_REQ = Date.now(); DETALHES = []; ABA_ATUAL = 0; NAV_ATUAL = ''; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -846,7 +847,8 @@ function chatSemTrava(req, aparelho) {
   // falou do Chrome/WhatsApp/"esse cliente" e não mandou a página: a extensão lê a aba aberta agora
   // pela extensão (app aberto no painel do Chrome): o site do lado É o assunto, então lê a aba sempre (menos conversa à toa)
   const viaExtensao = !!req.naExtensao && !ehConversaAToa(pergunta);
-  ABA_ATUAL = Number(req.abaId) > 0 ? Math.floor(Number(req.abaId)) : 0;   // painel aberto numa aba: lê ESSA aba, não a que estiver na frente
+  ABA_ATUAL = Number(req.abaId) > 0 ? Math.floor(Number(req.abaId)) : 0;
+  NAV_ATUAL = String(req.navId || '').replace(/[^a-z0-9]/gi, '').slice(0, 16);   // painel aberto numa aba: lê ESSA aba, não a que estiver na frente
   if (req.naExtensao) extraSistema += '\n\nO Thiago está falando com vc pelo PAINEL DA EXTENSÃO no Chrome, do lado do site aberto. "Isso", "aqui", "esse cliente", "essa página" = o que está na aba aberta. MAS "vc", "você mesma", "nossa IA", "a ZicoAI", "aqui onde vc está aberta", "esse painel", "seu design" = VOCÊ (o app da ZicoAI dentro do painel): pra se avaliar, mande o agente usar ler_meu_codigo (o código do seu app e da extensão), não a aba.';
   if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && (viaExtensao || pergunta.length < 400) && (viaExtensao || /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|\b(esse|essa|este|esta|desse|dessa|deste|desta|nesse|nessa|neste|nesta|pro|pra|ao|a) (cliente|mensagem|conversa|pessoa|cara|moco|moca|contato)\b|respond\w* (pra|pro|a|ao) (ele|ela|cliente|cara)|o ?que (eu )?respond|ta aqui|aqui na tela|na tela|(erro|bug|depur|console|quebr).{0,40}(app|site|pagina|aba|aqui|isso)|(app|site|pagina|aba).{0,40}(erro|bug|depur|quebr))/.test(normalizar(pergunta))) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
     try {
@@ -1917,6 +1919,7 @@ function consertarCodigo(codigo, problemas, pergunta, respostaAnterior) {
 /** Telefone e CPF de cliente (página do WhatsApp, site colado) viram ••• antes de ir pra nuvem e pra planilha. O número da loja fica. */
 function esconderPessoal(t) {
   return String(t || '')
+    .replace(/\b(senha|password|passwd|pass|pin|usu[áa]rio|username|user|login)(\s*[:=]\s*)(\S+)/gi, (m, k, sep, v) => /^(•+|errad|cert)/i.test(v) ? m : k + sep + '•••')   // v94: senha/usuário de cliente (lista IPTV) na conversa do WhatsApp
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, m => /991580070/.test(m.replace(/\D/g, '')) ? m : '•••')
     .replace(/(?:\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}\b/g, m => /9915.?8.?0070|991580070/.test(m.replace(/\D/g, '')) ? m : '•••');
 }
@@ -2025,6 +2028,8 @@ function revisarResposta(pergunta, resultado, extraSistema) {
 }
 
 function ehProgramacao(t) {
+  // v94: conversa do WhatsApp colada ("o app e otimo recomendo") não é pedido de programação: olha só o que o Thiago escreveu
+  t = String(t || '').split(/\n-{3,}\n(?:PÁGINA ABERTA NO CHROME|TEXTO COLADO)/)[0];
   return /(codigo|html|css|javascript|\bjs\b|python|unreal|blueprint|vs ?code|script|programa|aplicativo|\bapp\b|funcao|\bbug\b|pwa|supabase|github|\bapi\b|json|planilha.*formula|formula.*planilha)/.test(normalizar(t));
 }
 
@@ -4011,7 +4016,10 @@ function ponteBuscar(req) {
   while (true) {
     c.put(ponteChave('ponte_visto', disp), String(Date.now()), 21600);
     const agoraMs = Date.now();
-    const peds = ponteFila(f => f.splice(0, f.length), disp).filter(p => p.ate > agoraMs);
+    const meuNav = disp === 'nav' ? String(req.navId || '').replace(/[^a-z0-9]/gi, '').slice(0, 16) : '';
+    if (meuNav) c.put('ponte_visto_nav_' + meuNav, String(Date.now()), 21600);
+    // v94: com 2 Chromes na mesma fila, cada um pega só o que é dele (ou o que não tem dono)
+    const peds = ponteFila(f => { const meus = [], resto = []; f.forEach(p => ((!p.nav || p.nav === meuNav) ? meus : resto).push(p)); f.length = 0; resto.forEach(p => f.push(p)); return meus; }, disp).filter(p => p.ate > agoraMs);
     peds.forEach(p => {   // remonta o html que foi em pedaços
       const n = p.dados && p.dados._htmlPedacos;
       if (!n) return;
@@ -4060,7 +4068,12 @@ function ponteSemDetalhe(acao, dados, esperaMs, disp) {
     for (let i = 0; i < n; i++) c.put('pdat_' + id + '_' + i, dados.html.slice(i * PONTE_PEDACO, (i + 1) * PONTE_PEDACO), 300);
     dados.html = null; dados._htmlPedacos = n;
   }
-  ponteFila(f => { f.push({ id: id, acao: acao, dados: dados, ate: limite }); }, disp);
+  const pNav = disp === 'nav' && NAV_ATUAL ? NAV_ATUAL : '';
+  if (pNav) {   // v94: o Chrome deste computador está ligado?
+    const vn = parseInt(c.get('ponte_visto_nav_' + pNav) || '0', 10);
+    if (vn && Date.now() - vn > 90000) throw new Error('A extensão do Chrome deste computador não está conectada agora (a do outro computador está). Abre o painel da ZicoAI nesse Chrome e confere o segredo.');
+  }
+  ponteFila(f => { f.push(pNav ? { id: id, acao: acao, dados: dados, ate: limite, nav: pNav } : { id: id, acao: acao, dados: dados, ate: limite }); }, disp);
   while (Date.now() < limite) {
     Utilities.sleep(700);
     const n = parseInt(c.get('pres_' + id + '_n') || '0', 10);
@@ -4924,6 +4937,7 @@ function criarTarefa(pedido, chatId, aparelho, pai) {
   pedido = String(pedido || '').trim().slice(0, 4000);
   if (pedido.length < 8) return { ok: false, erro: 'Pedido curto demais' };
   if (ABA_ATUAL && !pai && !/abaId/.test(pedido)) pedido += '\n(Pedido feito pelo painel da aba ' + ABA_ATUAL + ' do Chrome: nas ferramentas nav_* use abaId ' + ABA_ATUAL + ')';
+  if (NAV_ATUAL && !/\[nav:/.test(pedido)) pedido += ' [nav:' + NAV_ATUAL + ']';
   const id = 'tf' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
   const a = aba('tarefas');
   if (pai && a.getRange(1, 10, 1, 1).getDisplayValues()[0][0] !== 'Pai') a.getRange(1, 10, 1, 1).setValue('Pai');
@@ -5400,6 +5414,7 @@ const PROMPT_AGENTE = [
 ].join('\n');
 
 function agente(id, pedido, chatId, aparelho, prazo, pai) {
+  { const mn = String(pedido || '').match(/\[nav:([a-z0-9]{4,16})\]/i); if (mn) NAV_ATUAL = mn[1]; }   // v94: a tarefa volta pro Chrome que pediu
   prazo = prazo || (Date.now() + PRAZO_RODADA);
   const salvo = estadoLer(id);
   DETALHES = detalhesSeguros(salvo && salvo.detalhes || lerDetalhes(id)); TAREFA_DETALHE = id; REQ_VIVO = '';
@@ -5473,7 +5488,8 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     if (pai) { avisarPai(pai); return; }   // parte de tarefa maior: quem avisa o Thiago é o chefe
     if (chatId) {
       PASSOS = ['Agente em segundo plano (' + est.usadas + ' ferramentas): ' + est.log.join(' → ')];
-      gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedido.slice(0, 80) + (pedido.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + est.cerebro, aparelho || 'agente');
+      const pedTit = String(pedido).replace(/\n?\(Pedido feito pelo painel[\s\S]*$/, '').replace(/\s*\[nav:[a-z0-9]+\]/i, '').trim();   // v94: sem a marca interna no título
+      gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedTit.slice(0, 80) + (pedTit.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + est.cerebro, aparelho || 'agente');
       tocarChat(chatId);
     }
     try { if (prop('TELEGRAM_TOKEN')) tgEnviar(null, '🧠 Tarefa pronta: ' + pedido.slice(0, 80) + '\n\n' + final.slice(0, 3500)); } catch (e) { /* ok */ }

@@ -907,6 +907,7 @@ function aplicaPessoa(){
 let chats = LS.get('chats', []);            // [{id,titulo,atualizada}]
 // painel da extensão: cada ABA do Chrome tem a sua conversa (?aba=ID); fora dela, a conversa aberta de sempre
 const ABA_EXT = Number((location.search.match(/[?&]aba=(\d+)/) || [])[1]) || 0;
+const NAV_EXT = ((location.search.match(/[?&]nav=([a-z0-9]{4,16})/i) || [])[1]) || '';   // v48: qual Chrome (extensão em mais de um computador)
 function lerAtual(){
   if(!ABA_EXT) return LS.get('atual', null);
   const x = LS.get('atual_aba_' + ABA_EXT, null);   // id de aba volta a existir depois de reiniciar o Chrome: vale só 12 h
@@ -1960,7 +1961,7 @@ async function envia(refazendo){
     const cAtual = chats.find(x => x.id === atual);
     const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
-      acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio, naExtensao: NA_EXTENSAO || undefined, abaId: ABA_EXT || undefined,
+      acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio, naExtensao: NA_EXTENSAO || undefined, abaId: ABA_EXT || undefined, navId: NAV_EXT || undefined,
       imagem: fotoEnvio || undefined, fotoRepetida: fotoRepetida || undefined, erroAnterior, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
     }, controle.signal);
     para();
@@ -2937,7 +2938,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v47';
+const VERSAO_APP = 'zicoai-v48';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

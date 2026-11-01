@@ -1,7 +1,8 @@
 const ORIGEM = 'https://thiagogaldinozicao-source.github.io';
 // v2.6: este painel é DESTA aba (cada aba tem a sua ZicoAI e a sua conversa)
 const ABA = Number(new URLSearchParams(location.search).get('aba')) || 0;
-document.getElementById('app').src = ORIGEM + '/zicoai/?ext=1' + (ABA ? '&aba=' + ABA : '');
+// v2.7: manda junto o número deste Chrome (navId), pro cérebro mandar os pedidos de volta pra ele
+chrome.runtime.sendMessage({ zicoNav: true }).catch(() => null).then(r => { document.getElementById('app').src = ORIGEM + '/zicoai/?ext=1' + (ABA ? '&aba=' + ABA : '') + (r && r.nav ? '&nav=' + encodeURIComponent(r.nav) : ''); });
 async function minhaAba() {
   if (ABA) { const a = await chrome.tabs.get(ABA).catch(() => null); if (a) return a; }
   const [aba] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
