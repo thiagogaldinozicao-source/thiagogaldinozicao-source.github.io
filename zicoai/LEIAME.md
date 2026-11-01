@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v69 (31/10): testa antes de entregar
+- `conferirAntesDeEntregar` em toda resposta do chat e no resultado do agente: `conferirContas` (A op B = C, N% de A, 12x de R$ V; corrige no texto; aceita arredondamento da loja; fora de bloco de código) + `conferirLinks` (até 5, fetchAll; 404/410/5xx ganha ⚠️).
+- `publicar_app` testa no navegador do Mac antes; com erro não publica. Teste t48, aula D36.
+
 ## v68 (31/10): consertos das conversas das 20:37–20:47
 - `lerJSON` aceita quebra de linha/tab crua dentro do texto e vírgula sobrando (o "Resultado da tarefa" saía como `{"resposta":"…"}` cru).
 - `ler_meu_codigo` lê o app (`zicoai/index.html`), o cérebro, o LEIAME e a extensão pelo GitHub: mapa com nº da linha, termo, linhas. Cérebro com termo tenta a API do Apps Script e cai pro GitHub (ela dizia "habilite a API" / "não achei o app").

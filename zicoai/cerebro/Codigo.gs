@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 68 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 69 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -696,6 +696,8 @@ function chat(req, aparelho) {
   // programadora: aplica a edição, TESTA o app (sintaxe + navegador do Mac) e corrige o que quebrou antes de entregar
   if ((codigoApp || ehProgramacao(pergunta) || /```html|^\s*<!doctype html/i.test(String(resultado.texto || '')))) { try { resultado = programadora(resultado, codigoApp, pergunta); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
 
+  // TESTA ANTES DE ENTREGAR (igual o Claude): refaz as contas e abre os links da resposta
+  try { resultado.texto = conferirAntesDeEntregar(resultado.texto); } catch (e) { /* conferência nunca derruba a resposta */ }
   const proc = processarTags(resultado.texto, aparelho);
   let textoFinal = proc.texto;
   if (resultado.fontes && resultado.fontes.length) {
@@ -3540,6 +3542,93 @@ function descreverImagem(b64, mime, pergunta) {
   if (pc) { try { return chamarCompat(pc, msgs, 1200); } catch (e) { marcarPCdesligado(); } }
   return '(não consegui olhar a imagem agora)';
 }
+/* ---------- testa antes de entregar: contas refeitas e links abertos ---------- */
+/** "1.234,56" / "1234.5" / "R$ 1.800" → número (padrão brasileiro). */
+function numeroBR(t) {
+  t = String(t).replace(/R\$\s?/g, '').trim();
+  if (/,/.test(t)) return parseFloat(t.replace(/\./g, '').replace(',', '.'));
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return parseFloat(t.replace(/\./g, ''));
+  return parseFloat(t);
+}
+function formatarComo(v, modelo) {
+  const dec = /,\d+$/.test(modelo) ? (modelo.split(',').pop().length) : (Math.abs(v - Math.round(v)) < 0.005 ? 0 : 2);
+  const [i, d] = Math.abs(v).toFixed(dec).split('.');
+  const mil = /\d\.\d{3}/.test(modelo) || (!/\./.test(modelo) && i.length > 3 && /R\$/.test(modelo)) || i.length > 3 && !/^\d+$/.test(modelo.replace(/R\$\s?/, ''));
+  return (v < 0 ? '-' : '') + (mil ? i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : i) + (d ? ',' + d : '');
+}
+/** Acha "A op B = C" e "N% de A = B" no texto e refaz a conta; conta errada é corrigida no texto. */
+function conferirContas(texto) {
+  const partes = String(texto).split(/(```(?:html|js|javascript|css|python|json|gs|ts|bash|sh)[\s\S]*?```)/i);   // código fica de fora
+  let total = 0; const erradas = [];
+  // número com tamanho limitado e sem começar no meio de outro (texto com base64/números longos não trava)
+  const NUM = '(?<![\\d.,])(?:R\\$\\s?)?\\d{1,9}(?:[.,]\\d{1,3}){0,4}(?![\\d])';
+  const RES = '((?:R\\$\\s?)?\\d{1,9}(?:[.,]\\d{1,3}){0,4})(?![\\d])';
+  const rxConta = new RegExp('((?:' + NUM + ')(?:[ \\t]{0,3}[x×*+\\-−\\/÷][ \\t]{0,3}(?:' + NUM + ')){1,5})[ \\t]{0,3}=[ \\t]{0,3}' + RES, 'g');
+  const rxPct = new RegExp('(?<![\\d.,])(\\d{1,3}(?:,\\d{1,2})?)\\s?%\\s+de\\s+(' + NUM + ')[ \\t]{0,3}(?:=|é|dá|da|fica)[ \\t]{0,3}' + RES, 'gi');
+  const confere = (certo, escrito, original, troca) => {
+    total++;
+    const v = numeroBR(escrito);
+    if (!isFinite(certo) || !isFinite(v)) return original;
+    // valor sem centavos é arredondamento da loja ("põe 100 de lucro" = 2.089, final 9): aceita até R$ 1 ou 1%
+    const semCentavos = !/,\d*[1-9]\d*$/.test(escrito.trim());
+    const dif = Math.abs(certo - v);
+    if (dif <= Math.max(0.011, Math.abs(certo) * 0.001)) return original;
+    if (semCentavos && Math.abs(certo) >= 10 && (dif <= 1.01 || (/9$/.test(String(Math.round(v))) && dif <= 10))) return original;
+    const novo = troca(formatarComo(certo, escrito));
+    erradas.push(original.trim() + ' → ' + novo.trim());
+    return novo;
+  };
+  for (let k = 0; k < partes.length; k += 2) {
+    partes[k] = partes[k].replace(rxConta, (m, conta, res) => {
+      const nums = conta.split(/\s*[x×*+\-−\/÷]\s*(?=R\$|\d)/), ops = conta.match(/\s[x×*+\-−\/÷]\s|(?<=\d)[x×*+\-−\/÷](?=\s?(?:R\$|\d))/g) || [];
+      if (nums.length !== ops.length + 1) return m;
+      if (/^\d{1,2}\/\d{1,2}$/.test(conta.trim())) return m;   // data (31/10)
+      const expr = nums.map((n, i) => (i ? ({ 'x': '*', '×': '*', '÷': '/', '−': '-' }[ops[i - 1].trim()] || ops[i - 1].trim()) : '') + '(' + numeroBR(n) + ')').join('');
+      if (!/^[\d().*+\-\/e]+$/.test(expr)) return m;
+      let certo; try { certo = Function('return ' + expr)(); } catch (e) { return m; }
+      return confere(certo, res, m, f => m.slice(0, m.length - res.length) + (/^R\$/.test(res) ? (res.match(/^R\$\s?/) || [''])[0] : '') + f);
+    });
+    // "12x de R$ 150,00 = R$ 1.800,00" / "10x R$ 99 (total R$ 990)"
+    partes[k] = partes[k].replace(/(?<![\d.,])(\d{1,2}) ?x ?(?:de )?(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)[ \t]{0,3}(?:=|→|\(? ?total(?: de)?:?|d[aá]|fica)[ \t]{0,3}(R\$ ?\d{1,9}(?:[.,]\d{1,3}){0,4})(?!\d)/gi, (m, n, parc, tot) => confere(numeroBR(n) * numeroBR(parc), tot, m, f => m.slice(0, m.length - tot.length) + (tot.match(/^R\$\s?/) || [''])[0] + f));
+    partes[k] = partes[k].replace(rxPct, (m, pct, base, res) => confere(numeroBR(pct) * numeroBR(base) / 100, res, m, f => m.slice(0, m.length - res.length) + (/^R\$/.test(res) ? (res.match(/^R\$\s?/) || [''])[0] : '') + f));
+  }
+  if (erradas.length) passo('Conferiu as contas: corrigiu ' + erradas.length + ' (' + erradas.slice(0, 3).join('; ') + ')');
+  else if (total) passo('Conferiu ' + total + ' conta(s) refazendo: todas certas');
+  return partes.join('');
+}
+/** Abre os links da resposta (até 5); link que não abre (404, site que não existe) ganha ⚠️. */
+function conferirLinks(texto) {
+  const urls = [];
+  String(texto).replace(/(!?)\[[^\]]*\]\((https?:\/\/[^)\s]+)\)|(?:^|[\s(<])(https?:\/\/[^\s)<>\]"']+)/g, (m, img, u1, u2) => {
+    const u = (u1 || u2 || '').replace(/[.,;:!?]+$/, '');
+    if (!img && u && urls.indexOf(u) < 0 && !/pollinations\.ai|script\.google|googleusercontent|localhost|127\.0\.0\.1|wa\.me|api\.whatsapp/i.test(u)) urls.push(u);
+    return m;
+  });
+  if (!urls.length) return texto;
+  const lista = urls.slice(0, 5), quebrados = [];
+  const ruim = r => { const c = r.getResponseCode(); return c === 404 || c === 410 || c >= 500 && c !== 503; };
+  let resp = null;
+  try { resp = UrlFetchApp.fetchAll(lista.map(u => ({ url: u, muteHttpExceptions: true, followRedirects: true }))); } catch (e) { resp = null; }
+  lista.forEach((u, i) => {
+    let r = resp && resp[i];
+    if (!r) { try { r = UrlFetchApp.fetch(u, { muteHttpExceptions: true, followRedirects: true }); } catch (e) { quebrados.push(u); return; } }
+    if (ruim(r)) quebrados.push(u);
+  });
+  if (!quebrados.length) { passo('Abriu ' + lista.length + ' link(s) da resposta: todos abrem'); return texto; }
+  passo('Link que não abre: ' + quebrados.map(u => u.slice(0, 60)).join(', '));
+  let t = String(texto);
+  quebrados.forEach(u => {
+    const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    t = t.replace(new RegExp('(\\]\\(' + esc + '\\))|(' + esc + ')(?![^\\s]*\\))', ''), m => m + ' ⚠️ _(esse link não abriu agora)_');
+  });
+  return t;
+}
+function conferirAntesDeEntregar(texto) {
+  let t = conferirContas(texto);
+  try { t = conferirLinks(t); } catch (e) { /* sem rede: segue */ }
+  return t;
+}
+
 /* ---------- o código da própria ZicoAI (pra ela se avaliar e melhorar) ---------- */
 const MEUS_ARQUIVOS = { app: 'zicoai/index.html', cerebro: 'zicoai/cerebro/Codigo.gs', 'cérebro': 'zicoai/cerebro/Codigo.gs', leiame: 'zicoai/LEIAME.md', sw: 'zicoai/sw.js', manifest: 'zicoai/manifest.json' };
 function lerMeuCodigo(arquivo, procurar, linhas) {
@@ -4444,7 +4533,12 @@ const FERRAMENTAS = {
   emails_recentes: { desc: 'Lê os e-mails recentes da caixa de entrada. args: {quantos}', run: a => listarEmails(Math.min(20, parseInt(a.quantos, 10) || 10)).join('\n') || '(nenhum)' },
   listar_apps: { desc: 'Lista os apps publicados no site. args: {}', run: () => listarApps().map(x => x.slug + ' → ' + x.url).join('\n') || '(nenhum)' },
   ler_app: { desc: 'Código atual de um app publicado. args: {slug}', run: a => codigoDoApp(a.slug) || '(não achei)' },
-  publicar_app: { desc: 'Publica/atualiza um app HTML no site. args: {nome, html}', run: a => { const r = publicarApp(a.nome, a.html); return r.ok ? 'publicado em ' + r.url : 'ERRO: ' + r.erro; } },
+  publicar_app: { desc: 'Publica/atualiza um app HTML no site. ANTES de publicar o código é testado (sintaxe + navegador do Mac clicando nos botões); com erro NÃO publica e devolve os erros pra vc consertar. args: {nome, html}', run: a => {
+    const t = testarApp(String(a.html || ''));
+    if (t.erros.length) return 'ERRO: testei antes de publicar e NÃO publiquei. Conserte e publique de novo:\n- ' + t.erros.slice(0, 8).join('\n- ');
+    const r = publicarApp(a.nome, a.html);
+    return r.ok ? 'publicado em ' + r.url + (t.rodou ? ' (testado antes no navegador do Mac: sem erro)' : ' (só a sintaxe foi conferida: Mac fora)') : 'ERRO: ' + r.erro;
+  } },
   telegram: { desc: 'Manda mensagem pro Thiago no Telegram. args: {texto}', run: a => tgEnviar(null, String(a.texto)) ? 'enviado' : '(Telegram não configurado)' },
   gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() },
   ler_meu_codigo: { desc: 'O SEU PRÓPRIO código (você é a ZicoAI). arquivo: "app" (a tela/design: zicoai/index.html), "cerebro" (Codigo.gs, o padrão), "leiame", "extensao/painel.html", "extensao/fundo.js", "extensao/pagina.js"... Sem termo/procurar: mapa das seções e funções com nº da linha. termo (ou procurar): trechos/funções onde aparece. linhas: "120-220". Use antes de editar. args: {arquivo (opcional), termo (opcional), linhas (opcional)}', run: a => {
@@ -4590,7 +4684,8 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     anota('Começou a trabalhar');
   } else anota('Continuou de onde parou (rodada ' + est.rodadas + (est.plano && etapaAtual(est.plano) >= 0 ? ', etapa ' + (etapaAtual(est.plano) + 1) + ' de ' + est.plano.etapas.length : '') + ')');
   const msgs = est.msgs;
-  const finalizar = texto => {
+  const finalizar = (texto) => {
+    try { texto = conferirAntesDeEntregar(texto); est.log = est.log.concat(PASSOS.filter(x => /^Conferiu|^Link/.test(x) && est.log.indexOf(x) < 0)); } catch (e) { /* ok */ }
     const final = processarTags(texto, aparelho || 'agente').texto + conferenciaFinal(est.plano);
     atualizarTarefa(id, { status: 'concluída', resultado: final, passos: compacto(est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')'])) });
     if (est.salvou) estadoApagar(id);
