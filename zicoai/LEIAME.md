@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v95 + extensão 2.8 (01/11): ela VÊ a imagem da página sozinha
+- Extensão 2.8: ação `imagens` (pega as imagens de verdade da página, mais recentes/visíveis primeiro, até 1600 px, JPEG dentro do limite; imagem protegida → erro e cai no print).
+- Chat pelo painel: pedido que precisa ver imagem (`RX_PEDE_IMAGEM`: imagem, foto, print, QR, "lê a…", MAC, key, ativação, comprovante) → `ponte('imagens')` → vira a foto da pergunta (cérebro que enxerga); sem imagem legível → `ponte('print')` da aba. Nada de pedir pro Thiago mandar print ou tocar em "Usar esta página" (regra no aviso da extensão: "VOCÊ TEM AS MÃOS NO CHROME DELE").
+- Agente: ferramenta `nav_imagens` (lê as imagens da página com `descreverImagem`). t73.
+
 ## v94 + extensão 2.7 + app v48 (01/11): extensão em 2 computadores
 - Caso real 14:22 (Thiago no outro Mac): o pedido "lê a imagem" foi pro Chrome do OUTRO computador (fila 'nav' única) → "No tab with id". Agora cada Chrome tem `navId` (extensão 2.7 cria e guarda em `chrome.storage.local.zicoNav`, manda no `ponteBuscar` e o painel passa `&nav=` pro app), o app manda `navId` no chat, o cérebro marca o pedido com `nav` e o `ponteBuscar` entrega só o que é daquele Chrome (ou sem dono). Chrome que pediu desligado → aviso claro. Tarefa leva `[nav:…]` no pedido; o título do "Resultado da tarefa" não mostra mais a marca interna.
 - `esconderPessoal`: "Username:/Password:/senha:/usuário:/login:" de cliente (lista IPTV no WhatsApp) viram ••• antes da nuvem e da planilha.

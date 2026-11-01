@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 94 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 95 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -849,12 +849,24 @@ function chatSemTrava(req, aparelho) {
   const viaExtensao = !!req.naExtensao && !ehConversaAToa(pergunta);
   ABA_ATUAL = Number(req.abaId) > 0 ? Math.floor(Number(req.abaId)) : 0;
   NAV_ATUAL = String(req.navId || '').replace(/[^a-z0-9]/gi, '').slice(0, 16);   // painel aberto numa aba: lê ESSA aba, não a que estiver na frente
-  if (req.naExtensao) extraSistema += '\n\nO Thiago está falando com vc pelo PAINEL DA EXTENSÃO no Chrome, do lado do site aberto. "Isso", "aqui", "esse cliente", "essa página" = o que está na aba aberta. MAS "vc", "você mesma", "nossa IA", "a ZicoAI", "aqui onde vc está aberta", "esse painel", "seu design" = VOCÊ (o app da ZicoAI dentro do painel): pra se avaliar, mande o agente usar ler_meu_codigo (o código do seu app e da extensão), não a aba.';
+  if (req.naExtensao) extraSistema += '\n\nO Thiago está falando com vc pelo PAINEL DA EXTENSÃO no Chrome, do lado do site aberto. "Isso", "aqui", "esse cliente", "essa página" = o que está na aba aberta. MAS "vc", "você mesma", "nossa IA", "a ZicoAI", "aqui onde vc está aberta", "esse painel", "seu design" = VOCÊ (o app da ZicoAI dentro do painel): pra se avaliar, mande o agente usar ler_meu_codigo (o código do seu app e da extensão), não a aba.\nVOCÊ TEM AS MÃOS NO CHROME DELE (igual a extensão do Claude): lê a página, vê as imagens dela, tira print, clica, rola, abre site, pesquisa. NUNCA peça pro Thiago tocar em "Usar esta página", mandar print, mandar foto ou colar o texto: isso vc faz. Se precisar clicar/navegar várias telas, mande [[TAREFA: …]] que o agente faz no Chrome dele.';
   if (!/PÁGINA ABERTA NO CHROME/.test(pergunta) && (viaExtensao || pergunta.length < 400) && (viaExtensao || /(chrome|navegador|\baba\b|pagina|\bsite\b|whatsapp|\bzap\b|\b(esse|essa|este|esta|desse|dessa|deste|desta|nesse|nessa|neste|nesta|pro|pra|ao|a) (cliente|mensagem|conversa|pessoa|cara|moco|moca|contato)\b|respond\w* (pra|pro|a|ao) (ele|ela|cliente|cara)|o ?que (eu )?respond|ta aqui|aqui na tela|na tela|(erro|bug|depur|console|quebr).{0,40}(app|site|pagina|aba|aqui|isso)|(app|site|pagina|aba).{0,40}(erro|bug|depur|quebr))/.test(normalizar(pergunta))) && ponteVisto('nav') >= 0 && ponteVisto('nav') < 90000) {
     try {
       const pg = ponte('ler', ABA_ATUAL ? { max: 12000, abaId: ABA_ATUAL } : { max: 12000 }, 45000, 'nav');
       extraSistema += '\n\n### PÁGINA ABERTA NO CHROME (a extensão leu agora)\n' + String(pg.titulo || '') + ' (' + String(pg.url || '').slice(0, 120) + ')\n' + esconderPessoal(String(pg.texto || '')).slice(-12000);
       passo('Leu a aba aberta no Chrome: ' + String(pg.titulo || '').slice(0, 60));
+      // v95: "lê a imagem", "o que tem nessa foto", "manda o MAC": pega a IMAGEM de verdade da página (ou o print da aba)
+      if (!req.imagem && RX_PEDE_IMAGEM.test(normalizar(pergunta))) {
+        try {
+          const im = ponte('imagens', { abaId: pg.abaId, max: 2 }, 45000, 'nav');
+          const boa = (im.imagens || []).find(x => x && x.dataUrl);
+          if (boa) { req.imagem = boa.dataUrl; passo('Pegou a imagem que está na página (' + boa.largura + 'x' + boa.altura + ') pra ler'); }
+          else {
+            const pr = ponte('print', { abaId: pg.abaId }, 50000, 'nav');
+            if (pr && pr.base64) { req.imagem = 'data:' + (pr.mime || 'image/jpeg') + ';base64,' + pr.base64; passo('Tirou print da aba do Chrome pra ver a imagem'); }
+          }
+        } catch (e) { passo('Não conseguiu pegar a imagem da página (' + String(e.message || e).slice(0, 60) + ')'); }
+      }
       // pediu pra achar erro/depurar: já traz os erros e a rede dessa aba (responde na hora, sem mandar agente)
       if (/(erro|bug|depur|console|quebr|nao funciona|nao carrega|travad|lento|demora|por que nao)/.test(normalizar(pergunta))) {
         try {
@@ -872,7 +884,7 @@ function chatSemTrava(req, aparelho) {
     passo('O app avisou o erro da mensagem anterior: ' + String(req.erroAnterior).slice(0, 60));
   }
   // falou de foto sem mandar foto (a foto só vai junto da mensagem em que foi enviada)
-  if (!temFoto && /(foto|print|imagem|screenshot|captura)/.test(normalizar(pergunta)) && historico.some(m => /\[📷 (foto enviada|mesma foto de antes)\]/.test(m.content))) {
+  if (!temFoto && !req.imagem && /(foto|print|imagem|screenshot|captura)/.test(normalizar(pergunta)) && historico.some(m => /\[📷 (foto enviada|mesma foto de antes)\]/.test(m.content))) {
     extraSistema += '\n\n### FOTO DE ANTES\nO Thiago fala de uma foto que ele mandou antes nesta conversa. Você só enxerga a foto na mensagem em que ela vem; nesta ela não veio. Não diga que a foto "não chegou": diga que só consegue ver a foto de novo se ele reenviar (ou use o que você já respondeu sobre ela).';
   }
 
@@ -1713,6 +1725,8 @@ function trechosDoCodigo_(codigo, pedido, limite) {
   }
   return out.join('\n').slice(0, limite + 4000);
 }
+// v95: pedido que precisa VER uma imagem da página (foto da conversa, QR, print do cliente, tela do app de TV)
+const RX_PEDE_IMAGEM = /(imagem|foto|print|figura|\bqr\b|codigo de barras|o que (tem|aparece|ta escrito|esta escrito)|\ble (a|o|essa|esse|isso)\b|\bler (a|o|essa|esse)\b|\bmac\b|\bkey\b|chave do app|ativa(r|cao)|comprovante|pix que ele mandou)/;
 /** O código do app que vai pro cérebro: inteiro se for pequeno; grande = mapa + trechos ligados ao pedido (o resto do arquivo fica igual). */
 function blocoCodigoApp_(codigo, pedido) {
   codigo = String(codigo || '');
@@ -5385,6 +5399,7 @@ const FERRAMENTAS = {
   nav_preencher: { desc: 'CHROME: escreve num campo (pelo rótulo/placeholder ou seletor). NUNCA senha, cartão, CPF, conta bancária (a extensão recusa). Preencher não envia: pra enviar precisa nav_clicar com o OK. args: {rotulo ou seletor, valor, abaId (opcional)}', run: a => { const r = ponteSemErro('preencher', navDados(a, { rotulo: a.rotulo, seletor: a.seletor, valor: String(a.valor == null ? '' : a.valor) })); return r.ok ? 'preenchido: ' + r.campo : 'ERRO: ' + r.erro + (r.campos ? '\nCampos visíveis: ' + r.campos.join(' | ') : ''); } },
   nav_rolar: { desc: 'CHROME: rola a página (direcao: baixo, cima, topo, fim) ou até um texto/seletor. args: {direcao ou texto ou seletor, abaId (opcional)}', run: a => { const r = ponte('rolar', navDados(a, { direcao: a.direcao, texto: a.texto, seletor: a.seletor, pixels: a.pixels }), null, 'nav'); return 'rolou: posição ' + r.y + ' de ' + r.altura + ' (janela ' + r.janela + ')'; } },
   nav_abrir: { desc: 'CHROME: abre um site (http/https) numa aba nova (ou na abaId). Banco/pagamento e download são recusados. args: {url, abaId (opcional)}', run: a => { const r = ponte('abrir', navDados(a, { url: String(a.url || '') }), 50000, 'nav'); return 'aberto no Chrome (aba ' + r.abaId + '): ' + r.titulo + ' · ' + r.url + (r.carregou ? '' : ' (ainda carregando)'); } },
+  nav_imagens: { desc: 'CHROME: pega as IMAGENS de verdade que estão na página (foto da conversa do WhatsApp, QR, comprovante, print do cliente) e diz o que tem nelas (lê textos, MAC, key, valores). As mais recentes primeiro. args: {abaId (opcional), max (1-4), pergunta (opcional: o que procurar)}', run: a => { const r = ponte('imagens', navDados(a, { max: Math.min(Number(a.max) || 2, 4) }), 50000, 'nav'); const ims = (r.imagens || []).filter(x => x && x.dataUrl); if (!ims.length) return 'Nenhuma imagem legível na página (' + r.titulo + '): ' + ((r.imagens || []).map(x => x.erro).filter(Boolean).join('; ') || 'sem imagem grande visível') + '. Tente nav_print.'; return ims.map((x, i) => 'Imagem ' + (i + 1) + ' (' + x.largura + 'x' + x.altura + '): ' + descreverImagem(x.dataUrl.split(',')[1], 'image/jpeg', a.pergunta || 'Leia tudo que está escrito nesta imagem (números, códigos, MAC, key, valores) e descreva o que aparece.')).join('\n'); } },
   nav_print: { desc: 'CHROME: tira print da aba aberta e diz o que aparece (layout quebrado, mensagem de erro, botão sumido). args: {abaId (opcional), pergunta (opcional: o que procurar)}', run: a => { const r = ponte('print', navDados(a), 50000, 'nav'); return 'Print do Chrome (' + r.titulo + ' · ' + r.url + ', ' + r.largura + 'x' + r.altura + '):\n' + descreverImagem(r.base64, r.mime, a.pergunta ? 'Olhe este print de um site aberto no Chrome e responda: ' + a.pergunta : 'Descreva este print de um site aberto no Chrome: o que aparece, textos importantes, mensagens de erro e o que parece quebrado.'); } },
   dividir_em_agentes: { desc: 'Divide um pedido GRANDE em 2 a 4 partes independentes que outros agentes fazem AO MESMO TEMPO (ex.: pesquisar 4 lojas, uma por agente). Você espera e recebe todos os resultados juntos pra montar a resposta final. args: {partes: ["descrição completa da parte 1", "parte 2", ...]}', run: (a, ctx) => {
     const partes = (Array.isArray(a.partes) ? a.partes : []).map(x => String(x || '').trim()).filter(x => x.length >= 8).slice(0, 4);

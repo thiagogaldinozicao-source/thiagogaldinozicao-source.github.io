@@ -9,7 +9,7 @@
  */
 importScripts('seguranca.js');
 const S = self.ZicoSeguranca;
-const VERSAO = 'nav-2.7';
+const VERSAO = 'nav-2.8';
 const URL_PADRAO = 'https://script.google.com/macros/s/AKfycbzQXrIM8oV2Gygqm_4DA-_4li3mdicbmfnThdieLvNEvsNYoj6jyVPKWo-6CBSyP-aOow/exec';
 const ALARME = 'zicoai-ponte';
 const LIMITE_PRINT = 300000;   // ~300 KB de base64 no máximo
@@ -112,7 +112,7 @@ async function laco() {
 /* ---------- as ações ---------- */
 async function acTabelas(d) { const aba = await abaAlvo(d); return naPagina(aba, 'tabelas', { linhas: d.linhas }); }
 async function acRede(d) { const aba = await abaAlvo(d); return naPagina(aba, 'rede', { max: d.max }); }
-const ACOES = { status: acStatus, abas: acAbas, ler: acLer, erros: acErros, clicar: acClicar, preencher: acPreencher, rolar: acRolar, abrir: acAbrir, print: acPrint, tabelas: acTabelas, rede: acRede };
+const ACOES = { status: acStatus, abas: acAbas, ler: acLer, erros: acErros, clicar: acClicar, preencher: acPreencher, rolar: acRolar, abrir: acAbrir, print: acPrint, imagens: acImagens, tabelas: acTabelas, rede: acRede };
 /* ---------- depurador do Chrome: o mesmo jeito do Claude ----------
  * Ligar o depurador numa aba mostra a barra do Chrome "ZicoAI começou a depurar este navegador [Cancelar]" e deixa
  * a ZicoAI clicar com o MOUSE DE VERDADE (sites que ignoram clique de script, tipo WhatsApp, aceitam). Solta sozinho
@@ -276,6 +276,31 @@ async function acPrint(d) {
   }
   if (b64.length > LIMITE_PRINT) return { ok: false, erro: 'print grande demais mesmo reduzido' };
   return { ok: true, abaId: aba.id, titulo: aba.title, url: aba.url, mime: 'image/jpeg', largura: larg, altura: alt, base64: b64 };
+}
+
+// v2.8: "lê a imagem": pega a IMAGEM de verdade que está na página (foto da conversa do WhatsApp, QR, print que o cliente mandou),
+// em tamanho bom, em vez de pedir pro Thiago mandar print. As mais recentes (fim da página) e visíveis vêm primeiro.
+async function acImagens(d) {
+  const aba = await abaAlvo(d);
+  const max = Math.min(Math.max(Number(d.max) || 2, 1), 4);
+  const [r] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, args: [max, LIMITE_PRINT], func: async (max, lim) => {
+    const boas = [...document.images].filter(i => i.complete && i.naturalWidth >= 150 && i.naturalHeight >= 150 && i.getBoundingClientRect().width >= 60);
+    const vis = boas.filter(i => { const r = i.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth; });
+    const lista = (vis.length ? vis : boas).slice(-max).reverse();
+    const out = [];
+    for (const i of lista) {
+      try {
+        let w = i.naturalWidth, h = i.naturalHeight; const k = Math.min(1, 1600 / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+        const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(i, 0, 0, w, h);
+        let q = 0.82, u = c.toDataURL('image/jpeg', q);
+        while (u.length > lim && q > 0.35) { q -= 0.12; u = c.toDataURL('image/jpeg', q); }
+        out.push({ alt: String(i.alt || '').slice(0, 80), largura: w, altura: h, dataUrl: u });
+      } catch (e) { out.push({ erro: 'imagem protegida pelo site (' + String(e.message || e).slice(0, 60) + ')' }); }
+    }
+    return { total: boas.length, imagens: out };
+  } });
+  const v = (r && r.result) || { total: 0, imagens: [] };
+  return { ok: true, abaId: aba.id, titulo: aba.title, url: aba.url, total: v.total, imagens: v.imagens };
 }
 
 // v2.7: o painel pergunta o número deste Chrome
