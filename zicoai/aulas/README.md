@@ -86,6 +86,7 @@ Cada aula começa pela **Regra** (o que fazer, em 1–3 linhas) e pelas **Palavr
 | B33 | [Google Planilha + Apps Script como banco de dados grátis](B/B33-planilha-google-apps-script-banco-gratis.md) | Guarde os dados numa Planilha Google e exponha as funções via Apps Script (`doPost`). A regra de negócio e a s… |
 | B34 | [CLAUDE.md do projeto: regras escritas pra IA](B/B34-claude-md-regras-pra-ia.md) | Todo projeto leva um `CLAUDE.md` curto (carregado em toda sessão) com: o que é, regras de git, mapa de arquivo… |
 | B35 | [Página simples de loja](B/B35-pagina-simples-de-loja-whatsapp.md) | Página estática de um arquivo só (`index.html`) no GitHub Pages: lista de produtos em array JS, botão `wa.me` … |
+| B36 | [app do site virar app de celular e de computador](B/B36-app-do-site-virar-app-de.md) | App que já é site (PWA) vira app sem reescrever: Android = TWA (Bubblewrap: Chrome em tela cheia, prova de dono em /.well-known/assetlinks.json); computador … |
 
 Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, Android, TV box), B40–B42 (catálogo e Gestão: sync de estoque, IMEI/OCR pela câmera, sistema grande num arquivo) e B50–B55 (jogo no Unreal: AGENTS.md, sync do PC com o GitHub, mapa por script, testes, bugs de C++) saíram de repositórios **privados**, então ficam só na planilha.
 
@@ -122,6 +123,8 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D29 | [o método antes de responder](D/D29-metodo-antes-de-responder.md) | Entender, separar sabe × acha, não preencher o que falta, conferir; Gemini Flash só no difícil; revisor que não troca número da web |
 | D30 | [programar testando](D/D30-programar-testando.md) | Editar por trechos ANTES/DEPOIS, rodar no navegador do Mac, clicar nos botões, consertar a causa (2 voltas), selo do que foi testado |
 | D31 | [cérebro do Mac × nuvem](D/D31-cerebro-do-mac.md) | Ollama do Mac pela ponte: sem limite, mas 8B; estudo e resumo no Mac, nuvem corrige; Mac de reserva; "Load failed" recuperado |
+| D46 | [teste do app igual uma pessoa: fechar o tutorial e achar a causa na tela](D/D46-teste-do-app-igual-uma-pessoa.md) | Antes de clicar, o teste fecha a tela de boas-vindas como uma pessoa faria (botão Entendi/OK/Pular da camada de cima). Arquivo ao lado do app (fonte, ícone) … |
+| D45 | [um pedido por vez e nunca trocar o app por um menor](D/D45-um-pedido-por-vez-e-nunca.md) | Em cada conversa roda UM pedido por vez: se chegar outro com o anterior rodando, avise pra esperar. App que já existe só muda por trechos; arquivo inteiro qu… |
 | D44 | [orquestra: Mac 24h + PC quando liga](D/D44-orquestra-mac-24h-pc-quando-liga.md) | O Mac faz o trabalho de fundo 24h. O PC entra sozinho quando liga, mas só pega o trabalho do Mac depois de ganhar no placar (8+ provas e nota ≥ Mac). PC desl… |
 | D43 | [memória limpa: o que vira lembrança e o que não vira](D/D43-memoria-limpa-o-que-vira-lembranca.md) | Memória é só o que o THIAGO disse (com as palavras dele) ou mandou anotar. Preço, garantia, endereço e ficha moram na base/tabela conferida, não na memória. … |
 | D42 | [o limite de 6 minutos e o cérebro certo pro tamanho](D/D42-o-limite-de-6-minutos-e.md) | O Google corta todo pedido em 6 min. Arquivo grande vai só pra cérebro rápido que aguenta arquivo grande, com o sistema ENXUTO (sem memória, base, preços). P… |
