@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v76 + app v36 (01/11): Z.ai (GLM Flash, grátis) + propriedade vazia
+- Cérebros `zai` (texto: glm-4.7-flash, reserva glm-4.5-flash) e `zaiv` (foto: glm-4.6v-flash), chave `ZAI_KEY`, endpoint `https://api.z.ai/api/paas/v4/chat/completions`, fila de 1 por segundo (`rps`), `corpo: {thinking: disabled}` (campo novo `corpo` do cérebro entra no pedido). Entram depois da Mistral (texto, código, agente, placar) e na foto. App: botão "Z.ai GLM" no seletor. `testarZai()` e `testarMistral()` no editor (mostram o motivo exato, nunca a chave).
+- Propriedade vazia trava a tela de Propriedades do script (o Google não salva): `GEMINI_FORTE` e `MAC_PRIMARIO` vazios agora são APAGADOS (ler apagada = vazio). Harness ganhou `deleteProperty`. t57.
+
 ## v75 + app v35 + navegador-zico v2 (01/11): uma aba por conversa
 - Cada conversa tem as SUAS abas no navegador dela (sessão = id da conversa). Cérebro: `sessaoNav(id)`; `webNav(d, sessao)` manda `d.sessao`; `webNavAgente` usa `ctx.chatId`; `navegarManual` usa `req.chatId`; trava do Thiago por conversa (`nav_thiago_<sessão>`); print ao vivo por conversa (`tela_vivo_<sessão>`; `telaVivo`/`aoVivo` recebem `chatId`). Sem conversa = `geral` (testarNavegadorZico).
 - App v35 (cache `zicoai-v35`): `nvSessao()` = conversa aberta; manda `chatId` no navegar/telaVivo/aoVivo; trocar de conversa com o painel aberto solta a aba da anterior e mostra a da nova.

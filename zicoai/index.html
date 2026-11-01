@@ -609,6 +609,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
             <button data-c="groq"><b>Groq</b><span>Programação com raciocínio alto e pesquisa</span></button>
             <button data-c="nvidia"><b>NVIDIA</b><span>Nemotron 120B, reserva grátis com limite maior</span></button>
             <button data-c="mistral"><b>Mistral</b><span>Texto e foto, reserva do Gemini</span></button>
+            <button data-c="zai"><b>Z.ai GLM</b><span>Grátis da China, texto e foto (reserva)</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
             <div class="menu-sep"></div>
             <button id="bCapricho" class="capricho"><b>✨ Capricho: <i id="txtCapricho">automático</i></b><span id="descCapricho">Pergunta difícil: pensa mais e outro cérebro revisa antes de responder</span></button>
@@ -1835,7 +1836,7 @@ $('cImg').onclick = () => setModo('imagem');
 $('cAgente').onclick = () => setModo('agente');
 
 /* ---------- seletor de cérebro ---------- */
-const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', nvidia:'NVIDIA', mistral:'Mistral', pc:'PC de casa' };
+const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', nvidia:'NVIDIA', mistral:'Mistral', zai:'Z.ai', pc:'PC de casa' };
 function mostraModelo(){
   $('nomeModelo').textContent = (NOMES[cfg.cerebro] || 'Auto') + (cfg.capricho === 'sempre' ? ' ✨' : '');
   document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
@@ -2393,7 +2394,7 @@ function desenhaPainel(){
   mostraProgresso(progressoAtual, progressoAtivo, progressoDetalhes);
   const usos = $('usosPainel'); usos.replaceChildren();
   const grupos = [
-    ['🧠','Cérebros',/gemini|groq|mistral|nvidia|nemotron|gpt|claude|qwen|llama|c[eé]rebro|modelo/i],
+    ['🧠','Cérebros',/gemini|groq|mistral|z\.ai|glm|nvidia|nemotron|gpt|claude|qwen|llama|c[eé]rebro|modelo/i],
     ['🌐','Busca na web',/pesquis|\bweb\b|ler_pagina|leu a p[aá]gina|duckduckgo|bing/i],
     ['📚','Aulas lidas',/📚\s*Aula/i],
     ['🗂','Memória',/mem[oó]ria|perfil|aprendizad|lembran|base|exemplo/i],

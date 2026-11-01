@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 75 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 76 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -33,6 +33,10 @@ const CEREBROS = {
   // Mistral "Experiment" (grátis, sem cartão)
   // O plano grátis dá 429 ("capacity exceeded") no medium com frequência; o small (também lê foto) tem mais vaga. Lotado → tenta o reserva.
   mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-small-latest', reserva: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, rps: 1, opcional: true },   // grátis: 1 pedido por segundo (vários agentes juntos fazem fila)
+  // Z.ai (GLM, China): só os modelos "Flash" são grátis. Texto: glm-4.7-flash (reserva glm-4.5-flash). Foto: glm-4.6v-flash (zaiv).
+  // Grátis = poucos pedidos ao mesmo tempo: fila de 1 por segundo igual a Mistral. Sem "pensar" (thinking) pra responder direto.
+  zai:      { url: 'https://api.z.ai/api/paas/v4/chat/completions', chave: 'ZAI_KEY', modelo: 'glm-4.7-flash', reserva: 'glm-4.5-flash', nome: 'Z.ai GLM', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 20, rpd: 1500, rps: 1, opcional: true, corpo: { thinking: { type: 'disabled' } } },
+  zaiv:     { url: 'https://api.z.ai/api/paas/v4/chat/completions', chave: 'ZAI_KEY', modelo: 'glm-4.6v-flash', nome: 'Z.ai GLM Visão', limite: 60000, maxSaida: 4096, tpm: 100000, rpm: 10, rpd: 500, rps: 1, opcional: true, corpo: { thinking: { type: 'disabled' } } },
   // NVIDIA NIM (grátis, ~40 pedidos/min). O gpt-oss-120b saiu do ar lá em 03/09/2026 (erro 410).
   // Se o modelo principal sair do ar (404/410), tenta o "reserva" sozinho.
   nvidia:   { url: 'https://integrate.api.nvidia.com/v1/chat/completions', chave: 'NVIDIA_KEY', modelo: 'nvidia/nemotron-3.5-super-vl-120b-a12b', reserva: 'google/gemma-4-31b-it', nome: 'NVIDIA Nemotron 120B', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 30, rpd: 3000, opcional: true },
@@ -72,7 +76,7 @@ function testarModelos() {
   res.forte = CANDIDATOS_GEMINI.forte.find(testa) || '';
   res.leve = CANDIDATOS_GEMINI.leve.find(testa) || '';
   if (res.leve) props.setProperty('GEMINI_MODELO', res.leve);
-  props.setProperty('GEMINI_FORTE', res.forte);
+  if (res.forte) props.setProperty('GEMINI_FORTE', res.forte); else props.deleteProperty('GEMINI_FORTE');   // vazio trava a tela de Propriedades
   _modelosOk = false; aplicarModelos();
   return { ok: true, leve: res.leve || '(nenhum respondeu: ficou o de antes)', forte: res.forte || '(desligado)' };
 }
@@ -91,6 +95,26 @@ function testarMistral() {
       const c = r.getResponseCode(), h = r.getHeaders(), txt = r.getContentText();
       let resp = ''; try { resp = JSON.parse(txt).choices[0].message.content; } catch (e) { resp = txt.slice(0, 200); }
       res[m] = c + ' · ' + (Date.now() - t0) + ' ms · ' + String(resp).slice(0, 120) + (h['x-ratelimit-remaining-req-minute'] || h['x-ratelimitbysize-remaining-minute'] ? ' · sobra no minuto: ' + (h['x-ratelimit-remaining-req-minute'] || h['x-ratelimitbysize-remaining-minute']) : '');
+    } catch (e) { res[m] = 'ERRO ' + String(e.message || e).slice(0, 150); }
+  });
+  res.ok = Object.keys(res).some(k => /^200 /.test(String(res[k])));
+  Logger.log(JSON.stringify(res, null, 1));
+  return res;
+}
+/** Pelo editor: testa a ZAI_KEY nos modelos grátis (texto e foto). Nunca mostra a chave. */
+function testarZai() {
+  const chave = String(prop('ZAI_KEY') || '').trim();
+  if (!chave) { Logger.log('sem ZAI_KEY nas Propriedades do script'); return { ok: false, erro: 'sem ZAI_KEY' }; }
+  const res = { chave: chave.length + ' letras, termina em ' + chave.slice(-3) };
+  [CEREBROS.zai.modelo, CEREBROS.zai.reserva, CEREBROS.zaiv.modelo].forEach((m, i) => {
+    if (i) Utilities.sleep(1500);
+    const t0 = Date.now();
+    try {
+      const r = UrlFetchApp.fetch(CEREBROS.zai.url, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + chave }, muteHttpExceptions: true,
+        payload: JSON.stringify({ model: m, messages: [{ role: 'user', content: 'Responda só: ok' }], max_tokens: 20, thinking: { type: 'disabled' } }) });
+      const c = r.getResponseCode(), txt = r.getContentText();
+      let resp = ''; try { resp = JSON.parse(txt).choices[0].message.content; } catch (e) { resp = txt.slice(0, 200); }
+      res[m] = c + ' · ' + (Date.now() - t0) + ' ms · ' + String(resp).slice(0, 120);
     } catch (e) { res[m] = 'ERRO ' + String(e.message || e).slice(0, 150); }
   });
   res.ok = Object.keys(res).some(k => /^200 /.test(String(res[k])));
@@ -852,10 +876,10 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   const pc = (codigo || forte) ? cerebroPCcodigo() : cerebroPC();
   let ordem;
   // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
-  if (imagem) ordem = ['gemini', 'mistral', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
-  else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'pc', 'cloudflare', 'groq2', 'mac']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
-  else ordem = ['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'pc', 'cloudflare', 'groq2', 'mac'];
-  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare', 'mac'].indexOf(preferido) >= 0 && !(imagem && ordem.indexOf(preferido) < 0)) {
+  if (imagem) ordem = ['gemini', 'mistral', 'zaiv', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
+  else if (codigo) { ordem = ['groq', 'cerebras', 'nvidia', 'gemini', 'mistral', 'zai', 'pc', 'cloudflare', 'groq2', 'mac']; passo('Assunto de programação: chamou o cérebro de código com raciocínio alto'); }
+  else ordem = ['gemini', 'groq', 'mistral', 'zai', 'cerebras', 'nvidia', 'pc', 'cloudflare', 'groq2', 'mac'];
+  if (['groq', 'gemini', 'pc', 'cerebras', 'github', 'mistral', 'zai', 'nvidia', 'cloudflare', 'mac'].indexOf(preferido) >= 0 && !(imagem && ordem.indexOf(preferido) < 0)) {
     ordem = [preferido].concat(ordem.filter(c => c !== preferido));
     passo('Seletor de cérebro em ' + (preferido === 'pc' ? 'PC' : (CEREBROS[preferido] || {}).nome || preferido) + ': ele vai primeiro' + (forte ? ' (no capricho o melhor é deixar em Auto)' : ''));
   }
@@ -936,7 +960,7 @@ function chamarCompatSemDetalhe(c, msgs, maxSaida, extras) {
   if (!chave) throw new Error('Falta a chave ' + c.chave + ' nas Propriedades do script');
   let url = c.url;
   if (c.nome === 'Cloudflare Llama 70B') { const acc = prop('CF_ACCOUNT_ID'); if (!acc) throw new Error('Falta CF_ACCOUNT_ID'); url = 'https://api.cloudflare.com/client/v4/accounts/' + acc + '/ai/v1/chat/completions'; }
-  const corpo = Object.assign({ model: c.modelo, messages: msgs, temperature: 0.6, max_tokens: maxSaida }, extras || {});
+  const corpo = Object.assign({ model: c.modelo, messages: msgs, temperature: 0.6, max_tokens: maxSaida }, c.corpo || {}, extras || {});
   if (extras && extras.reasoning_effort && !/gpt-oss/.test(c.modelo)) delete corpo.reasoning_effort;
   const cab = { Authorization: 'Bearer ' + chave, Accept: 'application/json' };
   if (/models\.github\.ai/.test(url)) { cab['X-GitHub-Api-Version'] = '2026-03-10'; }
@@ -3896,7 +3920,7 @@ function revisarExemplo(pergunta, aprovado) {
 }
 
 /* ---------- placar dos cérebros ---------- */
-const PLACAR_RODIZIO = ['gemini', 'groq', 'mistral', 'nvidia', 'groq2', 'pc'];
+const PLACAR_RODIZIO = ['gemini', 'groq', 'mistral', 'zai', 'nvidia', 'groq2', 'pc'];
 function placarDiario(forcar) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return null;
@@ -4222,7 +4246,7 @@ function placarMacRodada(tipoForcado) {
   let decisao = 'segue a nuvem';
   if (n >= 8 && (acc.g + acc.e) / n >= 0.6 && acc.p / n <= 0.3) { if (primarios.indexOf(tipo) < 0) primarios.push(tipo); decisao = 'MAC PRIMEIRO'; }
   else if (primarios.indexOf(tipo) >= 0 && acc.p / n > 0.4) { primarios.splice(primarios.indexOf(tipo), 1); decisao = 'voltou pra nuvem'; }
-  props.setProperty('MAC_PRIMARIO', primarios.join(','));
+  if (primarios.length) props.setProperty('MAC_PRIMARIO', primarios.join(',')); else props.deleteProperty('MAC_PRIMARIO');   // vazio trava a tela de Propriedades
   aba('placar_mac').appendRow(["'" + agora(), tipo, n, acc.g, acc.e, acc.p, decisao]);
   return { ok: true, tipo: tipo, rodada: res, acumulado: acc, decisao: decisao };
 }
@@ -4795,7 +4819,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   const chamar = (msgs, maxSaida, temp, semPrazo, forte) => {
     for (let rodada = 0; rodada < 3; rodada++) {
       let soMinuto = true, tentou = false;
-      for (const nome of (forte && rodada === 0 ? ['geminiForte'] : []).concat(['gemini', 'groq', 'mistral', 'cerebras', 'nvidia', 'groq2'])) {
+      for (const nome of (forte && rodada === 0 ? ['geminiForte'] : []).concat(['gemini', 'groq', 'mistral', 'zai', 'cerebras', 'nvidia', 'groq2'])) {
         if (!temCerebro(nome)) continue;
         const tk = estimarTokens(JSON.stringify(msgs));
         if (tk + maxSaida > CEREBROS[nome].limite) continue;
@@ -5326,7 +5350,7 @@ function instalar() {
   Object.keys(ABAS).forEach(aba);
   const log = [];
   log.push('PIN: ' + (prop('PIN') ? 'ok' : 'FALTANDO'));
-  ['gemini', 'groq', 'cerebras', 'github', 'mistral', 'nvidia', 'cloudflare'].forEach(nome => {
+  ['gemini', 'groq', 'cerebras', 'github', 'mistral', 'zai', 'zaiv', 'nvidia', 'cloudflare'].forEach(nome => {
     if (!temCerebro(nome)) { if (CEREBROS[nome].opcional) log.push(CEREBROS[nome].nome + ': sem chave (opcional)'); return; }
     try {
       const r = chamarCompat(CEREBROS[nome], [{ role: 'user', content: 'Responda só: ok' }], 50);
