@@ -4,7 +4,6 @@ const { TwaManifest, TwaGenerator, ConsoleLog } = require("@bubblewrap/core");
   const m = await TwaManifest.fromWebManifest("https://thiagogaldinozicao-source.github.io/zicoai/manifest.json");
   m.packageId = "io.github.thiagogaldinozicao_source.zicoai";
   m.name = "ZicoAI"; m.launcherName = "ZicoAI";
-  m.themeColor = m.navigationColor = m.backgroundColor = "#0a0a0a";
   m.signingKey = { path: "k.jks", alias: "zicoai" };
   m.appVersionCode = Number(process.env.VC); m.appVersionName = "1." + String(process.env.VC);
   m.fallbackType = "webview";
