@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v80 (01/11): comparativo com a ficha de CADA aparelho
+- Pedido real "Realme 14 5G vs Realme C85 NFC vs Note 15 Pro 5G" saiu sem nenhum número (uma pesquisa só com a frase inteira). Agora `fichasConferidas`: `modelosDoPedido_` (cérebro rápido lista os modelos exatos, até 4) → `fichaDeUm_` por modelo: `buscarLinks` (prefere `SITES_FICHA`: gsmarena, tudocelular, kimovil, fabricantes…) + `lerPaginas` (2 páginas) + extração JSON dos `CAMPOS_FICHA` com fonte; página de OUTRO modelo (`mesmo_modelo:false`) não vale; campo sem dado = "não confirmado". Entra no sistema como `### FICHAS CONFERIDAS NA WEB`; se achou todos, pula a pesquisa genérica (`fichasOk` evita o aviso "a pesquisa falhou"). t60; t1 acha a chamada principal pela ferramenta de busca.
+
 ## App v38 (01/11): ajustes de usabilidade (revisão do GPT filtrada)
 - Textos secundários mais claros (`--cinza #b3b3b3`, `--cinza2 #8c8c8c`); botão do cérebro "🧠 Auto"; atalho do capricho mostra o estado (✨ auto/sempre/off, montado em `mostraModelo`); descrições do menu pelo uso; dica do navegador "Toque num campo da página e escreva aqui". Pulados: avisos de "sem PIN" (só aparecem sem configurar).
 

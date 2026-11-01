@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 79 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 80 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -730,9 +730,18 @@ function chat(req, aparelho) {
 
   try { extraSistema += contextoMeusCerebros(pergunta); } catch (e) { /* ok */ }
   if (!colado && modo !== 'imagem') try { extraSistema += contextoAulas(pergunta, 2); } catch (e) { /* sem aulas */ }
+  let fichasOk = false;
+  if (ficha) {   // v80: pesquisa a ficha de CADA aparelho antes de montar o comparativo
+    let fc = null; try { fc = fichasConferidas(pergunta); } catch (e) { passo('Ficha por aparelho falhou: ' + String(e.message || e).slice(0, 60)); }
+    if (fc && fc.achou) {
+      fichasOk = true;
+      extraSistema += '\n\n### FICHAS CONFERIDAS NA WEB (use ESTES números; cada categoria do comparativo mostra o número: mAh, Hz, polegadas, chip, MP, W, IP)\n' + fc.texto + '\nCampo "não confirmado": escreva "não confirmado" (nunca chute). No fim, uma linha "Fontes:" com os links.';
+      if (fc.achou === fc.total) { querPesquisa = false; passo('Achou a ficha de todos: monta o comparativo em cima delas'); }
+    }
+  }
   if (querPesquisa && !colado && querPesquisaProfunda(pergunta)) resultado = pesquisaProfunda(historico, pergunta, extraSistema);
   if (querPesquisa && !resultado) resultado = pesquisar(historico, pergunta, extraSistema);
-  if (ficha && !resultado) { extraSistema += '\n\n### A PESQUISA FALHOU AGORA\nNão monte ficha nem comparativo com números de cabeça. Diga curto que a pesquisa na web falhou agora e peça pra tentar de novo em 1 minuto.'; passo('Pesquisa da ficha falhou: não vai chutar número'); }
+  if (ficha && !resultado && !fichasOk) { extraSistema += '\n\n### A PESQUISA FALHOU AGORA\nNão monte ficha nem comparativo com números de cabeça. Diga curto que a pesquisa na web falhou agora e peça pra tentar de novo em 1 minuto.'; passo('Pesquisa da ficha falhou: não vai chutar número'); }
   // MODO CAPRICHO: pedido difícil (ou o Thiago ligou): cérebro forte, pensando no máximo, e outro cérebro revisa antes de entregar
   const capricho = modo !== 'imagem' && (req.capricho === true || (req.capricho !== false && (ficha || ehDificil(pergunta, colado))));
   if (capricho) passo('Modo capricho: pergunta difícil, vai pensar mais e revisar antes de responder');
@@ -5582,4 +5591,48 @@ function revisoraRodada() {
   props.setProperty('REVISORA_ATE', s.msg[1]);   // não olha a mesma de novo (mesmo se o professor disser que tava certo)
   if (r && r.aprendeu) props.setProperty('REVISORA_' + dia, String(feitas + 1));
   return Object.assign({ ok: true, revisou: true, sinal: s.sinal.id }, r || {});
+}
+
+/* ---------- v80: FICHA POR MODELO (comparativo com número de verdade) ----------
+ * Antes: uma pesquisa só com a pergunta inteira ("realme 14 vs c85 vs note 15 pro") → material raso → comparativo sem número.
+ * Agora: acha os modelos citados, pesquisa a ficha de CADA UM (prefere site de ficha técnica), lê 2 páginas e extrai os campos
+ * com fonte; campo que a página não traz = null ("não confirmado"). O comparativo é montado em cima dessas fichas. */
+const SITES_FICHA = /gsmarena\.com|tudocelular\.com|kimovil\.com|phonearena\.com|nanoreview\.net|techtudo|tecmundo|zoom\.com\.br|apple\.com|samsung\.com|mi\.com|xiaomi\.com|realme\.com|motorola\.com/i;
+const CAMPOS_FICHA = ['tela', 'chip', 'ram_armazenamento', 'camera_traseira', 'camera_frontal', 'bateria', 'carregamento', 'resistencia', 'nfc', 'peso'];
+function chamarRapido_(msgs, max) {
+  for (const nome of ['groq', 'gemini', 'mistral', 'zai', 'nvidia']) {
+    if (!temCerebro(nome)) continue;
+    const tk = estimarTokens(JSON.stringify(msgs)) + (max || 800);
+    if (tk > CEREBROS[nome].limite || motivoNaoCabe(nome, CEREBROS[nome], tk)) continue;
+    try { const j = lerJSON(chamarCompat(CEREBROS[nome], msgs, max || 800, { temperature: 0 })); registrarUso(nome, tk); if (j) return j; } catch (e) { /* próximo */ }
+  }
+  return null;
+}
+function modelosDoPedido_(pergunta) {
+  const j = chamarRapido_([{ role: 'system', content: 'Liste os modelos EXATOS de celular/tablet/relógio citados no pedido, como foram escritos, com a variante (5G, NFC, Pro, Max, Plus). Responda SÓ JSON {"modelos":["..."]} (no máximo 4; nenhum = []).' }, { role: 'user', content: String(pergunta).slice(0, 800) }], 200);
+  return (j && Array.isArray(j.modelos) ? j.modelos : []).map(m => String(m).trim()).filter(m => m.length > 2).slice(0, 4);
+}
+function fichaDeUm_(modelo) {
+  let links = [];
+  try { links = buscarLinks(modelo + ' especificações ficha técnica', 8) || []; } catch (e) { /* sem busca */ }
+  links.sort((a, b) => (SITES_FICHA.test(b.url) ? 1 : 0) - (SITES_FICHA.test(a.url) ? 1 : 0));
+  const urls = links.slice(0, 2).map(l => l.url);
+  if (!urls.length) return { modelo: modelo, achou: false };
+  let textos = [];
+  try { textos = lerPaginas(urls); } catch (e) { /* sem páginas */ }
+  const material = urls.map((u, i) => textos[i] ? '[FONTE ' + u + ']\n' + String(textos[i]).slice(0, 9000) : '').filter(Boolean).join('\n\n');
+  if (material.length < 300) return { modelo: modelo, achou: false };
+  const j = chamarRapido_([{ role: 'system', content: 'Extraia do MATERIAL a ficha técnica do modelo EXATO "' + modelo + '" (página de outro modelo, mesmo parecido, NÃO vale). Copie os números como estão na fonte; NUNCA chute. Campo que o material não traz = null. Responda SÓ JSON {"modelo_da_pagina":"...","mesmo_modelo":true|false,"tela":"tipo, tamanho, Hz","chip":"","ram_armazenamento":"","camera_traseira":"","camera_frontal":"","bateria":"mAh","carregamento":"W","resistencia":"IP…","nfc":"sim/não","peso":"g","fonte":"url de onde tirou"}' }, { role: 'user', content: material }], 900);
+  if (!j || j.mesmo_modelo === false) return { modelo: modelo, achou: false, pagina: j && j.modelo_da_pagina };
+  const ficha = {}; CAMPOS_FICHA.forEach(c => { if (j[c] != null && String(j[c]).trim() && !/^(null|n\/a|-)$/i.test(String(j[c]).trim())) ficha[c] = String(j[c]).slice(0, 120); });
+  return { modelo: modelo, achou: Object.keys(ficha).length >= 3, ficha: ficha, fonte: String(j.fonte || urls[0]) };
+}
+function fichasConferidas(pergunta) {
+  const modelos = modelosDoPedido_(pergunta);
+  if (!modelos.length) return null;
+  const fichas = modelos.map(fichaDeUm_);
+  const ok = fichas.filter(f => f.achou);
+  passo('Ficha de cada aparelho: ' + fichas.map(f => f.modelo + (f.achou ? ' ✓' : ' ✗')).join(' · '));
+  const texto = fichas.map(f => '**' + f.modelo + '**' + (f.achou ? ' (fonte: ' + f.fonte + ')\n' + CAMPOS_FICHA.map(c => '- ' + c.replace('_', '/') + ': ' + (f.ficha[c] || 'não confirmado')).join('\n') : '\n- NÃO ACHEI a ficha desse modelo na pesquisa (não invente nada dele)')).join('\n\n');
+  return { modelos: modelos, achou: ok.length, total: modelos.length, texto: texto };
 }

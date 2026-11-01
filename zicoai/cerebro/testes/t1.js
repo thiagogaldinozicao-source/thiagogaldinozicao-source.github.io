@@ -7,9 +7,10 @@ r = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', mensagens: [{ role: 
 ok(r.ok && r.chatId && r.titulo, 'chat cria conversa');
 ok(!/MEMORIA/.test(r.resposta) && r.salvou.includes('memória'), 'tag de memória processada: ' + r.resposta);
 ok(H.sheets.memoria.rows.some(x => x[1] === 'Thiago gosta de café'), 'memória gravada');
-const sys = H.fetchLog[0].body.messages[0].content;
+const principal = H.fetchLog.find(f => f.body && f.body.tools) || H.fetchLog[0];   // v80: antes vem a busca dos modelos (ficha por aparelho)
+const sys = principal.body.messages[0].content;
 ok(/17 Pro Max/.test(sys), 'base relevante incluiu 17 Pro Max');
-ok(JSON.stringify(H.fetchLog[0].body.tools || '').includes('browser_search'), 'ficha técnica (bateria do 17 Pro Max) vai pra pesquisa na web primeiro (v51)');
+ok(JSON.stringify(principal.body.tools || '').includes('browser_search'), 'ficha técnica (bateria do 17 Pro Max) vai pra pesquisa na web primeiro (v51)');
 console.log('passos:', r.passos);
 console.log('tokens sys aprox', Math.round(sys.length/3.2));
 // programação → groq primeiro; groq dá 429 e cai pro gemini

@@ -22,4 +22,4 @@ ok(r.ok && r.perguntas === 150 && r.comVetor === 150, 'limite por minuto no meio
 ok(r.nas2 === 100, 'placar calculado: ' + r.nas2);
 ok(H.sheets.placar_aulas && H.sheets.placar_aulas.rows.length >= 1, 'grava na aba placar_aulas');
 ok(run('typeof placarSemanal') === 'function' && /placarSemanal'\)\.timeBased\(\)\.onWeekDay\(ScriptApp\.WeekDay\.SUNDAY\)/.test(require('fs').readFileSync(__dirname + '/../Codigo.gs', 'utf8')), 'gatilho de domingo roda o placar sozinho');
-ok(/versão (7\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 70 ou mais nova');
+ok(/versão ([7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 70 ou mais nova');
