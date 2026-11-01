@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 87 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 88 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -628,6 +628,7 @@ function doPost(e) {
       case 'aprenderTexto': return saida(aprenderTexto(req.texto, req.nome, aparelho));
       case 'tarefa':        return saida(criarTarefa(String(req.pedido || ''), req.chatId, aparelho));
       case 'apps':          return saida({ ok: true, apps: listarApps() });
+      case 'rascunho':      { const r = lerRascunho_(String(req.chatId || '')); return saida(r ? { ok: true, slug: r.slug, html: r.html, tam: r.html.length } : { ok: false, erro: 'Essa conversa não tem rascunho' }); }
       case 'appCodigo':     { const c = codigoDoApp(String(req.slug || '')); return saida(c ? { ok: true, html: c } : { ok: false, erro: 'App não encontrado' }); }
       case 'appVersoes':    return saida({ ok: true, versoes: versoesDoApp(String(req.slug || '')) });
       case 'appRestaurar':  return saida(restaurarApp(String(req.slug || ''), String(req.sha || '')));
@@ -749,13 +750,25 @@ function chat(req, aparelho) {
   const resumo = resumoDaConversa(chatId);
   if (resumo) { extraSistema += '\n\n### RESUMO DO COMEÇO DESTA CONVERSA (compactado)\n' + resumo; passo('Leu o resumo da conversa'); }
   let codigoApp = null;
-  if (req.appSlug && ehDono()) {
+  let rascunho = null;
+  if (ehDono()) { try { rascunho = lerRascunho_(chatId); } catch (e) { rascunho = null; } }
+  if (req.appSlug && ehDono() && rascunho && rascunho.slug === String(req.appSlug)) {
+    codigoApp = rascunho.html;
+    extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(req.appSlug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa: já tem as mudanças anteriores; o Thiago quer mudar mais)\n```html\n' + codigoApp.slice(0, 150000) + '\n```';
+    passo('Continuou do rascunho desta conversa (' + codigoApp.length + ' letras, com as mudanças de antes)');
+  } else if (req.appSlug && ehDono()) {
     codigoApp = codigoDoApp(String(req.appSlug));
     // edição igual o Claude faz: só os trechos que mudam (arquivo inteiro de volta = arquivo cortado e coisa sumindo)
     if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
   }
   const pedeAppNovo0 = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta));
   let appAuto = null;
+  // pedido de mudança numa conversa que já tem rascunho ("corrige um bug que vi nela"): continua dele
+  if (!codigoApp && ehDono() && rascunho && !pedeAppNovo0 && /(corrig|arruma|consert|bug|erro|nao funciona|quebrou|muda|mude|melhora|ajusta|adiciona|acrescenta|coloca|tira|troca|nela|nele|escur|clar|cor |botao|tela|tabela|entrega|pronto)/.test(normalizar(pergunta))) {
+    codigoApp = rascunho.html; appAuto = rascunho.slug;
+    extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(rascunho.slug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa, completo; o Thiago quer mudar mais)\n```html\n' + codigoApp.slice(0, 150000) + '\n```';
+    passo('Continuou do rascunho desta conversa (' + codigoApp.length + ' letras)');
+  }
   if (!codigoApp && ehDono() && !pedeAppNovo0 && pergunta.length < 4000) {
     try {
       const sl = appDoPedido_(pergunta);
@@ -843,7 +856,7 @@ function chat(req, aparelho) {
     return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
   }
   // programadora: aplica a edição, TESTA o app (sintaxe + navegador do Mac) e corrige o que quebrou antes de entregar
-  if ((codigoApp || ehProgramacao(pergunta) || /```html|^\s*<!doctype html/i.test(String(resultado.texto || '')))) { try { resultado = programadora(resultado, codigoApp, pergunta); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
+  if ((codigoApp || ehProgramacao(pergunta) || /```html|^\s*<!doctype html/i.test(String(resultado.texto || '')))) { try { resultado = programadora(resultado, codigoApp, pergunta, req.appSlug || appAuto || null); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
 
   // TESTA ANTES DE ENTREGAR (igual o Claude): refaz as contas e abre os links da resposta
   try { resultado.texto = conferirAntesDeEntregar(resultado.texto); } catch (e) { /* conferência nunca derruba a resposta */ }
@@ -1652,7 +1665,7 @@ function testarNavegadorMac() {
   return r;
 }
 /** Depois da resposta de código: aplica a edição (se for app existente), testa, e se quebrou manda consertar (até 2 vezes). */
-function programadora(resultado, codigoApp, pergunta) {
+function programadora(resultado, codigoApp, pergunta, slugApp) {
   // "✅ Testado" escrito pelo próprio cérebro não vale: quem diz se testou é o selo do teste
   let texto = String(resultado.texto || '').replace(/^[^\n]*✅\s*Testad[^\n]*\n?/gmi, '');
   // resposta cortada no limite de saída (```html aberto e nunca fechado): pede a continuação e cola
@@ -1700,6 +1713,16 @@ function programadora(resultado, codigoApp, pergunta) {
     : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
   html = String(html).replace(/\s+$/, '');
   const veioPorTrechos = codigoApp && explicacao !== texto;
+  // app que já existe (repo ou site): a versão completa vira RASCUNHO; o chat mostra só o que mudou
+  if (slugApp && codigoApp && ehDono() && /<\/html>\s*$/i.test(html)) {
+    try {
+      guardarRascunho_(CHAT_ATUAL, slugApp, html);
+      passo('Guardou a versão completa como rascunho (' + html.length + ' letras): Testar/Publicar no app');
+      const trechos = veioPorTrechos ? trechosLegiveis_(texto) : '';
+      const corpoR = (explicacao || 'Pronto, mudei o app.') + (trechos ? '\n\n**O que mudou:**\n\n' + trechos : '') + '\n\n[[RASCUNHO:' + slugApp + ']]';
+      return Object.assign({}, resultado, { texto: corpoR + selo, testado: !teste.erros.length, rascunho: slugApp });
+    } catch (e) { passo('Rascunho não salvou (' + String(e.message || e).slice(0, 60) + '): mandou o arquivo no chat'); }
+  }
   const corpo = veioPorTrechos ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
     : (voltas ? texto.replace(/```html[^\n]*\n[\s\S]*?```/i, () => '```html\n' + html + '\n```') : texto);
   return Object.assign({}, resultado, { texto: corpo + selo, testado: !teste.erros.length });
@@ -2985,7 +3008,7 @@ function listarApps() {
   const c = cache.get('apps_lista');
   if (c) return JSON.parse(c).concat(reposApps());
   const r = UrlFetchApp.fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/apps', { headers: cabGitHub(), muteHttpExceptions: true });
-  if (r.getResponseCode() !== 200) return [];
+  if (r.getResponseCode() !== 200) return reposApps();   // sem a pasta /apps do site: ainda tem os apps dos repositórios
   const dono = GITHUB_REPO.split('/')[0];
   const apps = JSON.parse(r.getContentText()).filter(x => x.type === 'dir').map(x => ({ slug: x.name, url: 'https://' + dono + '.github.io/apps/' + x.name + '/' }));
   cache.put('apps_lista', JSON.stringify(apps), 300);
@@ -4680,6 +4703,39 @@ function cancelarTarefa(id) {
   linhas('tarefas').filter(l => l[9] === id && ['pendente', 'rodando', 'esperando'].indexOf(l[4]) >= 0).forEach(l => atualizarTarefa(l[0], { status: 'cancelada', passos: 'Cancelada junto com a tarefa principal' }));
   estadoApagar(id);
   return true;
+}
+
+/* ---------- v88: RASCUNHO do app que ela está mudando (igual artefato do Claude) ----------
+ * App grande (a calculadora tem 116 mil letras) não cabe na resposta dos cérebros grátis (~30 mil) nem na planilha (50 mil):
+ * voltava cortado. Agora a versão completa fica no Drive ("ZicoAI Rascunhos/<conversa>.html"), o chat mostra só os trechos
+ * que mudaram + [[RASCUNHO:slug]] (o app vira botões Testar/Publicar/Baixar) e o próximo pedido continua do rascunho. */
+function pastaRascunhos() {
+  const it = DriveApp.getFoldersByName('ZicoAI Rascunhos');
+  return it.hasNext() ? it.next() : DriveApp.createFolder('ZicoAI Rascunhos');
+}
+function guardarRascunho_(chatId, slug, html) {
+  const nome = String(chatId || 'sem-conversa').replace(/[^a-z0-9_-]/gi, '') + '.html';
+  const pasta = pastaRascunhos(), it = pasta.getFilesByName(nome);
+  if (it.hasNext()) it.next().setContent(html); else pasta.createFile(nome, html, 'text/html');
+  PropertiesService.getScriptProperties().setProperty('RASC_' + String(chatId).replace(/[^a-z0-9_-]/gi, ''), JSON.stringify({ slug: slug, t: Date.now(), tam: html.length }));
+}
+function lerRascunho_(chatId) {
+  if (!chatId) return null;
+  let meta = null; try { meta = JSON.parse(prop('RASC_' + String(chatId).replace(/[^a-z0-9_-]/gi, '')) || 'null'); } catch (e) { meta = null; }
+  if (!meta) return null;
+  try {
+    const it = pastaRascunhos().getFilesByName(String(chatId).replace(/[^a-z0-9_-]/gi, '') + '.html');
+    return it.hasNext() ? { slug: meta.slug, html: it.next().getBlob().getDataAsString(), t: meta.t } : null;
+  } catch (e) { return null; }
+}
+/** Blocos ANTES/DEPOIS viram um "diff" de leitura (não é app: não ganha Testar/Publicar no chat). */
+function trechosLegiveis_(texto) {
+  const out = [];
+  String(texto || '').replace(/\r\n/g, '\n').replace(RX_BLOCO_EDICAO, (m, antes, depois) => {
+    out.push('```diff\n' + String(antes).split('\n').map(l => '- ' + l).join('\n') + '\n' + String(depois).split('\n').map(l => '+ ' + l).join('\n') + '\n```');
+    return m;
+  });
+  return out.slice(0, 6).join('\n\n');
 }
 
 /* ---------- progresso salvo (tarefa longa continua na próxima rodada) ---------- */

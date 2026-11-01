@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v88 + app v44 (01/11): RASCUNHO do app (igual artefato do Claude)
+- Caso real: calculadora = 116 mil letras; os cérebros grátis escrevem ~30 mil por resposta e a planilha guarda 50 mil → o arquivo voltava cortado (tela escura) e "me entrega pronto" caiu.
+- `programadora(…, slugApp)`: app que já existe (repo ou site) com a edição aplicada e `</html>` → `guardarRascunho_` (Drive "ZicoAI Rascunhos/<conversa>.html" + propriedade `RASC_<conversa>`); o chat leva só a explicação, os trechos em ```diff (`trechosLegiveis_`) e `[[RASCUNHO:slug]]`. Próximo pedido na mesma conversa (com appSlug do mesmo app, ou pedido de mudança tipo "corrige… nela") continua do rascunho (`lerRascunho_`): as mudanças somam. Ação `rascunho` {chatId} (só o dono). `listarApps` sem /apps do site ainda devolve os repos. App novo continua vindo no chat.
+- App v44: `cartaoRascunho` (depois do markdown) vira cartão "📄 <app> · versão nova (rascunho)" com ▶ Testar (abre a prévia), ⬆ Publicar (pro slug certo, pergunta se teve erro) e ⬇ Baixar; também nas Saídas. `publicarApp(html, botao, nomeFixo, jaConferiu)`; prévia lembra `previaNome`. t66 + Playwright.
+
 ## v87 (01/11): PC com 2 cérebros de novo (igual zicoai × zicoai-dev)
 - `cerebroPC()` = LEVE (`PC_MODELOS_LEVE` = qwen3.5:9b, cabe inteiro na placa) pra conversa; `cerebroPCcodigo()` = PESADO (qwen3.6:35b) pra código, capricho e onde o PC ganhou no placar (`pcPrimario`); prova e trabalho de fundo seguem no pesado. Dispositivos mostra os dois.
 

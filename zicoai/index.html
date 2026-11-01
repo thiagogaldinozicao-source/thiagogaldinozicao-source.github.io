@@ -544,6 +544,11 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 .uso summary small{display:block;font-size:11px;color:var(--cinza);margin-top:3px}
 .uso .rz li{font-size:12px}.uso .rz .ic{background:var(--lado)}
 .saida-card{border:1px solid var(--borda2);border-radius:12px;padding:12px;margin-top:8px;min-width:0;overflow-wrap:anywhere}
+.rasc-card{border:1px solid var(--ouro);border-radius:12px;padding:12px;margin:10px 0;background:rgba(235,181,51,.06)}
+.rasc-card b{display:block;margin-bottom:8px}
+.rasc-card .acts{display:flex;gap:8px;flex-wrap:wrap}
+.rasc-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--borda2);font-weight:700}
+.rasc-card button.ouro{background:var(--ouro);color:#111;border-color:transparent}
 .saida-card strong{font-size:13px;display:block;margin-bottom:8px}.saida-card .acts{display:flex;gap:6px;flex-wrap:wrap}
 .saida-card pre{display:none}.saida-card img{max-width:100%;border-radius:8px;margin-bottom:8px}
 .saida-card a{font-size:12px;word-break:break-word}
@@ -992,14 +997,35 @@ document.addEventListener('click', e => {
   if(t) testarApp(t.closest('.bloco').querySelector('pre').textContent);
 });
 
+/* ---------- rascunho do app (v44): a versão completa fica guardada na nuvem; aqui só os botões ---------- */
+function cartaoRascunho(t){
+  return String(t || '').replace(/\[\[RASCUNHO:([A-Za-z0-9._:-]{1,120})\]\]/g, (_, slug) => '<div class="rasc-card" data-slug="' + esc(slug) + '"><b>📄 ' + esc(slug.replace(/^repo:/, '')) + ' · versão nova (rascunho)</b><div class="acts"><button class="rasc-testar" type="button">▶ Testar</button><button class="rasc-publicar ouro" type="button">⬆ Publicar</button><button class="rasc-baixar" type="button">⬇ Baixar</button></div></div>');
+}
+async function pegaRascunho(botao){
+  const o = botao.textContent; botao.textContent = 'Abrindo…'; botao.disabled = true;
+  try{ const j = await api({ acao:'rascunho', chatId: atual }); return j.html ? j : null; }
+  catch(e){ alert(e.message); return null; }
+  finally{ botao.textContent = o; botao.disabled = false; }
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('.rasc-testar, .rasc-publicar, .rasc-baixar'); if(!b) return;
+  const card = b.closest('.rasc-card'), slug = card && card.dataset.slug;
+  const j = await pegaRascunho(b); if(!j) return;
+  if(b.classList.contains('rasc-testar')){ previaNome = j.slug || slug; testarApp(j.html); return; }
+  if(b.classList.contains('rasc-baixar')){ const blob = new Blob([j.html], { type:'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = String(j.slug || slug).replace(/^repo:/, '') + '.html'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); return; }
+  const msg = b.closest('.msg-ia'); const comErro = msg && RX_APP_COM_ERRO.test(msg.textContent || '');
+  if(comErro && !confirm('O teste achou erro nesse rascunho. Publicar mesmo assim?')) return;
+  publicarApp(j.html, b, j.slug || slug, true);
+});
+
 /* ---------- publicar app no GitHub Pages (vira link na hora) ---------- */
 const RX_APP_COM_ERRO = /Não ficou pronto|⚠️ Testei e ainda tem|Não testei de verdade/;
-async function publicarApp(html, botao){
+async function publicarApp(html, botao, nomeFixo, jaConferiu){
   const m = html.match(/<title>([^<]{1,60})<\/title>/i);
-  const msgDona = mensagens.find(x => x.role === 'assistant' && String(x.content || '').includes(html));
+  const msgDona = jaConferiu ? null : mensagens.find(x => x.role === 'assistant' && String(x.content || '').includes(html));
   if(!/<\/html>\s*$/i.test(html.trim())){ alert('Esse arquivo está cortado (sem </html> no fim). Não dá pra publicar: pede pra ela "continua" ou "refaz".'); return; }
   if(msgDona && RX_APP_COM_ERRO.test(msgDona.content) && !confirm('O teste achou erro nesse app (ou ele não foi testado). Publicar mesmo assim?')) return;
-  const nome = appAtual || prompt('Nome do app (vira o endereço):', m ? m[1].trim() : 'meu-app');
+  const nome = nomeFixo || appAtual || prompt('Nome do app (vira o endereço):', m ? m[1].trim() : 'meu-app');
   if(!nome) return;
   const o = botao.textContent; botao.textContent = 'Publicando...'; botao.disabled = true;
   try{
@@ -1055,7 +1081,7 @@ function autoTesta(bloco){
 }
 
 /* ---------- testar app (abre o HTML que ela escreveu numa janela, sem salvar arquivo) ---------- */
-let previaHtml = '';
+let previaHtml = '', previaNome = '';
 // dentro da prévia o localStorage é de mentira (só na memória), pra o app testado não mexer nos dados da ZicoAI
 const SHIM = '<script>(function(){function faz(){var m={};return{getItem:function(k){return k in m?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}}try{Object.defineProperty(window,"localStorage",{value:faz(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:faz(),configurable:true})}catch(e){}})();<\/script>';
 /* ---------- console da prévia ----------
@@ -1184,8 +1210,8 @@ function testarApp(html){
   pcRoda(html);
   $('mPrevia').classList.add('aberto');
 }
-$('pFechar').onclick = () => { $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; pcToken = ''; };
-$('pPublicar').onclick = () => publicarApp(previaHtml, $('pPublicar'));
+$('pFechar').onclick = () => { $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; pcToken = ''; previaNome = ''; };
+$('pPublicar').onclick = () => publicarApp(previaHtml, $('pPublicar'), previaNome || undefined, !!previaNome);
 $('pBaixar').onclick = () => {
   const m = previaHtml.match(/<title>([^<]{1,60})<\/title>/i);
   const nome = (m ? m[1].trim().replace(/[^\w\u00C0-\u017F -]+/g, '').replace(/\s+/g, '-').toLowerCase() : 'app') + '.html';
@@ -1422,7 +1448,7 @@ function balao(m, ultima){
   }
   const md = document.createElement('div');
   md.className = 'md';
-  md.innerHTML = renderMd(m.content);
+  md.innerHTML = cartaoRascunho(renderMd(m.content));   // depois do markdown: funciona com e sem as bibliotecas
   corpo.appendChild(md);
   trataImagens(corpo);
   const cartao = cartaoOpcoes(m); if(cartao) corpo.appendChild(cartao);
@@ -2800,6 +2826,7 @@ function desenhaPainel(){
       acts.innerHTML = '<button class="testar">▶ Testar</button><button class="testar publicar">⬆ Publicar</button>';
       card.appendChild(acts); const pre = document.createElement('pre'); pre.textContent = bloco[1]; card.appendChild(pre); saidas.appendChild(card);
     }
+    for(const rc of texto.matchAll(/\[\[RASCUNHO:([A-Za-z0-9._:-]{1,120})\]\]/g)){ const w = document.createElement('div'); w.innerHTML = cartaoRascunho(rc[0]); if(w.firstChild) saidas.appendChild(w.firstChild); }
     const semCodigo = texto.replace(/\x60{3}[\s\S]*?\x60{3}/g,'');
     for(const foto of semCodigo.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g)){
       const url = urlSegura(foto[2]); if(!url) continue;
@@ -2864,7 +2891,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v43';
+const VERSAO_APP = 'zicoai-v44';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;
