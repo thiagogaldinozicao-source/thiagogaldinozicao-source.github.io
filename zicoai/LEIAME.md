@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## App v38 (01/11): ajustes de usabilidade (revisão do GPT filtrada)
+- Textos secundários mais claros (`--cinza #b3b3b3`, `--cinza2 #8c8c8c`); botão do cérebro "🧠 Auto"; atalho do capricho mostra o estado (✨ auto/sempre/off, montado em `mostraModelo`); descrições do menu pelo uso; dica do navegador "Toque num campo da página e escreva aqui". Pulados: avisos de "sem PIN" (só aparecem sem configurar).
+
 ## v79 (01/11): revisora do dia
 - `revisoraRodada()` (dentro do `estudar`, depois do `aprenderComErros`): relê `mensagens` depois de `REVISORA_ATE` e acha erro SEM reclamação do Thiago, por sinais (`SINAIS_REVISORA`): pedido pra melhorar ELA virou app genérico; JSON/[[etapa]] vazou; agente terminou perguntando; pediu pro Thiago algo que podia buscar. Resposta seguida de reclamação fica pro `aprenderComErros`.
 - O professor (`licaoDoErro_`, extraído do `aprenderComErros`) confirma se foi erro mesmo (`{"erro":false}` = agiu certo, não grava), escreve causa/regra/aula/resposta certa na `estudo_erros` (Fontes começa com "revisora", Status revisar) e passa pelo `aulaSozinha` (outro cérebro, nota ≥ 8, até 3/dia). Máx. 6 lições da revisora por dia (`REVISORA_<dia>`). t59.

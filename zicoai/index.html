@@ -21,7 +21,7 @@
 <style>
 :root{
   --bg:#0a0a0a; --lado:#0f0f0f; --card:#151515; --card2:#1d1d1d; --borda:#262626; --borda2:#333;
-  --ouro:#EBB533; --ouro2:#F4CB63; --ouro-fundo:#1c1706; --txt:#f2f2f2; --cinza:#9a9a9a; --cinza2:#6f6f6f;
+  --ouro:#EBB533; --ouro2:#F4CB63; --ouro-fundo:#1c1706; --txt:#f2f2f2; --cinza:#b3b3b3; --cinza2:#8c8c8c;
   --verde:#5fd068; --erro:#ff6b6b; --lado-w:290px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -457,6 +457,8 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 #bModelo{min-height:44px;max-width:140px}
 #capAtalho{min-width:44px;min-height:44px;font-size:19px;border-radius:12px}
 #capAtalho.on{color:var(--ouro);background:var(--ouro-fundo)}
+#capAtalho small{font-size:11px;margin-left:2px;color:var(--cinza);font-weight:600}
+#capAtalho.on small{color:var(--ouro)}
 #bMic{width:44px;height:44px;border:0}
 .enviar{width:44px;height:44px;flex-shrink:0}
 .dica{margin-top:10px;font-size:10px}
@@ -604,13 +606,13 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
         <div class="sel-wrap">
           <button class="sel" id="bModelo"><b id="nomeModelo">Auto</b> ▾</button>
           <div class="menu" id="menuModelo">
-            <button data-c="auto"><b>Auto</b><span>Nuvem primeiro (Gemini, Groq); PC de casa só como reserva</span></button>
-            <button data-c="gemini"><b>Gemini</b><span>Textos grandes, fotos e conversa</span></button>
-            <button data-c="groq"><b>Groq</b><span>Programação com raciocínio alto e pesquisa</span></button>
-            <button data-c="nvidia"><b>NVIDIA</b><span>Nemotron 120B, reserva grátis com limite maior</span></button>
-            <button data-c="mistral"><b>Mistral</b><span>Texto e foto, reserva do Gemini</span></button>
-            <button data-c="zai"><b>Z.ai GLM</b><span>Grátis da China, texto e foto (reserva)</span></button>
-            <button data-c="pc"><b>PC de casa</b><span>Modelo do seu PC (se tiver desligado, usa a nuvem)</span></button>
+            <button data-c="auto"><b>Auto</b><span>Escolhe sozinho o melhor pra cada pedido</span></button>
+            <button data-c="gemini"><b>Gemini</b><span>Conversa, fotos e textos longos</span></button>
+            <button data-c="groq"><b>Groq</b><span>Programação e contas</span></button>
+            <button data-c="nvidia"><b>NVIDIA</b><span>Reserva forte quando os outros lotam</span></button>
+            <button data-c="mistral"><b>Mistral</b><span>Reserva rápida</span></button>
+            <button data-c="zai"><b>Z.ai GLM</b><span>Reserva que também lê foto</span></button>
+            <button data-c="pc"><b>PC de casa</b><span>Seu PC (desligado: usa a nuvem)</span></button>
             <div class="menu-sep"></div>
             <button id="bCapricho" class="capricho"><b>✨ Capricho: <i id="txtCapricho">automático</i></b><span id="descCapricho">Pergunta difícil: pensa mais e outro cérebro revisa antes de responder</span></button>
           </div>
@@ -683,7 +685,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   <div class="nv-baixo">
     <button class="nv-b" id="nvCima" aria-label="Rolar pra cima" title="Rolar pra cima">▲</button>
     <button class="nv-b" id="nvBaixo" aria-label="Rolar pra baixo" title="Rolar pra baixo">▼</button>
-    <form id="nvDigitar" class="nv-dig"><input id="nvTexto" type="text" enterkeyhint="go" autocomplete="off" placeholder="Toque num campo e digite aqui"></form>
+    <form id="nvDigitar" class="nv-dig"><input id="nvTexto" type="text" enterkeyhint="go" autocomplete="off" placeholder="Toque num campo da página e escreva aqui"></form>
     <button class="nv-b" id="nvSoDigitar" aria-label="Digitar sem Enter" title="Digitar sem Enter">✎</button>
     <button class="nv-b" id="nvApagar" aria-label="Apagar (Backspace)" title="Apagar">⌫</button>
     <button class="nv-b" id="nvEnter" aria-label="Enter" title="Enter">⏎</button>
@@ -1135,7 +1137,7 @@ function aplicaIcones(){
   com('bProj','projeto','Projetos'); com('bApps','apps','Meus apps'); com('bMem','memoria','Memória'); com('bTreino','treino','Treino'); com('bDisp','computador','Dispositivos'); com('bArquivos','arquivos','Arquivos'); com('bCfg','config','Configurar');
   const t2 = $('bTarefas2'); if(t2){ const badge = t2.querySelector('.status'); t2.innerHTML = ico('tarefas') + '<span>Tarefas</span>'; if(badge) t2.appendChild(badge); }
   com('bAnexar','plus'); com('bFoto','clipe','Foto ou arquivo'); com('cWeb','web','Pesquisar'); com('cImg','imagem','Imagem'); com('cAgente','agente','Agente');
-  com('capAtalho','brilho'); com('bMic','mic'); com('bEnviar','enviar');
+  mostraModelo(); com('bMic','mic'); com('bEnviar','enviar');
   com('mcNova','novo','Nova conversa'); com('mcCompartilhar','compartilhar','Compartilhar'); com('mcRenomear','lapis','Renomear'); com('mcProjeto','projeto','Mudar projeto'); com('mcExcluir','lixo','Excluir');
   const f = $('mcFixar'); if(f){ const sp = f.querySelector('span'); f.innerHTML = ico('fixar'); f.appendChild(sp || Object.assign(document.createElement('span'), { textContent: 'Fixar' })); }
 }
@@ -1838,11 +1840,13 @@ $('cAgente').onclick = () => setModo('agente');
 /* ---------- seletor de cérebro ---------- */
 const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', nvidia:'NVIDIA', mistral:'Mistral', zai:'Z.ai', pc:'PC de casa' };
 function mostraModelo(){
-  $('nomeModelo').textContent = (NOMES[cfg.cerebro] || 'Auto') + (cfg.capricho === 'sempre' ? ' ✨' : '');
+  $('nomeModelo').textContent = '🧠 ' + (NOMES[cfg.cerebro] || 'Auto');
+  $('bModelo').setAttribute('aria-label', 'Cérebro: ' + (NOMES[cfg.cerebro] || 'Auto'));
   document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
   const cap = CAPRICHO[cfg.capricho] || CAPRICHO.auto;
   $('txtCapricho').textContent = cap[0]; $('descCapricho').textContent = cap[1];
   $('capAtalho').classList.toggle('on', cfg.capricho === 'sempre');
+  $('capAtalho').innerHTML = ico('brilho') + '<small>' + ({ auto: 'auto', sempre: 'sempre', nunca: 'off' }[cfg.capricho] || 'auto') + '</small>';
   $('capAtalho').title = 'Capricho: ' + cap[0];
   $('capAtalho').setAttribute('aria-label', 'Capricho: ' + cap[0]);
 }
