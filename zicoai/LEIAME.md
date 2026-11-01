@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v92 (01/11): calculadora — o que ainda acontecia
+- 12:26–12:36, conversa velha: "Pede de novo que eu tento faz dnv" não batia no filtro de mudança → virou pedido de app NOVO → ela escreveu outra calculadora inteira. Agora, numa conversa com rascunho, mensagem curta tipo "faz dnv / tenta de novo / e agora / tá pegando / calculadora" continua do rascunho.
+- Ela tentou TIRAR o tutorial pra passar no teste → regra: nunca tirar/desligar tutorial, som, animação, aviso ou botão pra passar no teste (o teste já fecha a boas-vindas).
+- Marcador com letra trocada ("ANTS", "DEpoIs") vale (`RX_BLOCO_EDICAO` com /i e letras opcionais). t70.
+
 ## App v46 + APK Android + app do computador (01/11)
 - App v46 (celular, até 599 px): topo só com ☰, título, aparelhos e ⋯ (🌐 Navegador e ◫ Progresso e saídas foram pro ⋯, que abre mesmo sem conversa); sem a faixa grudada "… · N passos" em cima; botões das mensagens com 40 px; erro vira 1 frase + o que fazer (`erroAmigo`) com "Ver detalhe".
 - **Android**: `zicoai/android/gera.js` + `.github/workflows/zicoai-apk.yml` (Bubblewrap/TWA = Chrome em tela cheia, mesmo app do site, atualiza sozinho). Gera `zicoai/ZicoAI.apk` e põe a digital em `/.well-known/assetlinks.json` (pacote io.github.thiagogaldinozicao_source.zicoai). Chave nova a cada build: atualizar = desinstalar e instalar (o login fica no Chrome). Novo build: aumentar `zicoai/android/build.txt`.

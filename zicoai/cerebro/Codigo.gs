@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 91 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 92 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -802,7 +802,7 @@ function chatSemTrava(req, aparelho) {
   const pedeAppNovo0 = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta));
   let appAuto = null;
   // pedido de mudança numa conversa que já tem rascunho ("corrige um bug que vi nela"): continua dele
-  if (!codigoApp && ehDono() && rascunho && !pedeAppNovo0 && /(corrig|arruma|consert|bug|erro|nao funciona|quebrou|muda|mude|melhora|ajusta|adiciona|acrescenta|coloca|tira|troca|nela|nele|escur|clar|cor |botao|tela|tabela|entrega|pronto)/.test(normalizar(pergunta))) {
+  if (!codigoApp && ehDono() && rascunho && !pedeAppNovo0 && (/(corrig|arruma|consert|bug|erro|nao funciona|quebrou|muda|mude|melhora|ajusta|adiciona|acrescenta|coloca|tira|troca|nela|nele|escur|clar|cor |botao|tela|tabela|entrega|pronto)/.test(normalizar(pergunta)) || (pergunta.length < 160 && /(dnv|de novo|denovo|novamente|refaz|tenta|continua|segue|e agora|ta pegando|nao deu|deu certo|funcionou|calculadora|app\b)/.test(normalizar(pergunta))))) {   // v92: "faz dnv" virava app NOVO inteiro
     codigoApp = rascunho.html; appAuto = rascunho.slug;
     extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(rascunho.slug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa, completo; o Thiago quer mudar mais)\n```html\n' + codigoApp.slice(0, 150000) + '\n```';
     passo('Continuou do rascunho desta conversa (' + codigoApp.length + ' letras)');
@@ -1658,7 +1658,7 @@ function geminiComGoogleSemDetalhe(sistema, historico) {
 }
 
 /* ---------- programadora: editar por trechos, testar e corrigir antes de entregar (o jeito do Claude) ---------- */
-const REGRA_EDICAO_BASE = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.\nANTES DE MUDAR, ACHE A CAUSA: se o defeito é algo que aparece errado na TELA (ex.: um valor numa tabela), procure no arquivo o código que MONTA aquele pedaço da tela (o id/classe do elemento, o innerHTML/textContent que escreve nele) e mude ALI. Se uma parte da tela já mostra certo (ex.: o resumo), a conta está certa: o defeito está em quem mostra a outra parte. Diga em 1 linha qual função/linha é a causa.';
+const REGRA_EDICAO_BASE = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.\nANTES DE MUDAR, ACHE A CAUSA: se o defeito é algo que aparece errado na TELA (ex.: um valor numa tabela), procure no arquivo o código que MONTA aquele pedaço da tela (o id/classe do elemento, o innerHTML/textContent que escreve nele) e mude ALI. Se uma parte da tela já mostra certo (ex.: o resumo), a conta está certa: o defeito está em quem mostra a outra parte. Diga em 1 linha qual função/linha é a causa.\nNUNCA tire ou desligue algo do app (tutorial, som, animação, aviso, botão) pra fazer o teste passar: o teste de quem mexe em app já fecha a tela de boas-vindas sozinho. Mude só o que o Thiago pediu.';
 /* v89: PROVAS do app (igual os testes que o Claude roda): ela escreve, o Mac roda a cada mudança, ficam guardadas por app. */
 const REGRA_PROVAS = '\n\n### PROVAS DO APP (obrigatório)\nDepois dos trechos, escreva provas do que o Thiago pediu num bloco ```provas com JSON (lista). Cada prova: {"nome":"o que confere","passos":[{"clicar":"seletor"},{"preencher":"seletor","valor":"1000"},{"escolher":"seletor","valor":"12"},{"teclas":"Enter"},{"esperar":300},{"js":"código que roda na página"}],"conferir":[{"texto":"seletor","contem":"83,37"},{"js":"código que devolve true se está certo ou um texto dizendo o que está errado"}]}.\n- Use SÓ seletores (id/classe) que existem no código do app.\n- O app abre do zero (nada salvo): tutorial/aviso na frente → feche no primeiro passo.\n- Conta: o js lê os números da tela e calcula (ex.: somar as parcelas e comparar com o total no centavo). Nunca escreva o resultado esperado de cabeça.\n- A prova tem que FALHAR no defeito que o Thiago contou e passar quando estiver certo. 1 a 4 provas, curtas.';
 const REGRA_EDICAO = REGRA_EDICAO_BASE + REGRA_PROVAS;
@@ -1682,7 +1682,7 @@ function guardarProvas_(slug, provas, origem) {
   provas.forEach(p => { if (ja.indexOf(normalizar(p.nome)) < 0) { aba('provas_apps').appendRow([slug, seguro(p.nome), JSON.stringify(p), "'" + agora(), origem || 'zicoai', 'sim']); n++; } });
   return n;
 }
-const RX_BLOCO_EDICAO = /<<<<<<< ?ANTES[^\n]*\n([\s\S]*?)\n?=======[^\n]*\n([\s\S]*?)\n?>>>>>>> ?DEPOIS/g;
+const RX_BLOCO_EDICAO = /<<<<<<< ?AN?TE?S[^\n]*\n([\s\S]*?)\n?=======[^\n]*\n([\s\S]*?)\n?>>>>>>> ?DE?PO?IS/gi;   // v92: aceita "ANTS"/"DEpoIs" (cérebro grátis erra a letra)
 /** Aplica os blocos ANTES/DEPOIS no código. Cada ANTES tem que aparecer exatamente 1 vez (igual o Edit do Claude). */
 function aplicarTrechos(codigo, texto) {
   const blocos = [...String(texto || '').replace(/\r\n/g, '\n').matchAll(RX_BLOCO_EDICAO)];

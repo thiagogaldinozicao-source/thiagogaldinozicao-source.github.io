@@ -37,4 +37,10 @@ r = H.post({ pin: '1234', acao: 'chat', aparelho: 'PC', chatId: cid, mensagens: 
 ok(/⛔ Não mexi no app/.test(r.resposta) && !/✅ Testei/.test(r.resposta), 'outro app no lugar: recusado, sem "✅ testei"');
 ok(run(`_rasc[${JSON.stringify(cid)}].html`) === antes, 'rascunho continua o mesmo');
 ok(/ACHE A CAUSA/.test(run('REGRA_EDICAO')), 'regra: achar onde a tela é montada antes de mudar');
-ok(/versão (9[1-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 91 ou mais nova');
+// v92: "faz dnv" numa conversa com rascunho continua do rascunho (antes virava app NOVO inteiro); marcador com letra trocada vale
+resposta = 'Ajustei.\n<<<<<<< ANTS\n<td>1ª R$ 83,37</td>\n=======\n<td>1ª R$ 83,37 + 11× R$ 83,33</td>\n>>>>>>> DEpoIs';
+r = H.post({ pin: '1234', acao: 'chat', aparelho: 'PC', chatId: cid, mensagens: [{ role: 'user', content: 'faz dnv' }] });
+ok(r.passos.some(p => /Continuou do rascunho/.test(p)), '"faz dnv" continua do rascunho');
+ok(/11× R\$ 83,33/.test(run(`_rasc[${JSON.stringify(cid)}].html`)), 'bloco com "ANTS"/"DEpoIs" (letra trocada) foi aplicado');
+ok(/NUNCA tire ou desligue algo do app/.test(run('REGRA_EDICAO')), 'regra: não tirar tutorial/som pra passar no teste');
+ok(/versão (9[2-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 92 ou mais nova');
