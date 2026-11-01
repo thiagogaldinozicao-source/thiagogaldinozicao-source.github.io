@@ -161,7 +161,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 ## v99 (01/11): pares BOA × RUIM pro treino DPO
 - Aba `preferencias` (Data, Origem, Pedido, Resposta boa, Resposta ruim, Cérebro bom, Cérebro ruim, Status). Pro treino 2 o nosso cérebro aprende também o "isso NÃO" (DPO), não só o jeito certo.
 - De onde vem: (1) erro corrigido (`licaoDoErro_`, reclamação do Thiago ou revisora): ruim = o que ela disse, boa = `resposta_certa` do professor; `aprovada` só se virou aula (nota ≥ 8 de outro cérebro), senão `revisar`. (2) academia (`parDaAcademia_`): ruim = conserto do Mac/PC que falhou nas provas escondidas, boa = conserto de um grande que PASSOU no mesmo exercício (`sem par` até algum passar; aprovado pela prova).
-- GPT/Groq/Claude: nunca como boa (`fora (GPT)`) e o export tira também a ruim deles. Telefone/CPF/senha mascarados. Par repetido não entra. Nada apagado: o Thiago pode mudar o Status pra `aprovada` ou `não`.
+- Claude (termos da Anthropic) e GPT fechado: nunca como boa (`fora (GPT)`) e o export tira também a ruim deles. GPT-OSS (Groq) é modelo aberto Apache 2.0 e pode. Telefone/CPF/senha mascarados. Par repetido não entra. Nada apagado: o Thiago pode mudar o Status pra `aprovada` ou `não`.
 - `paresAntigos_()` roda 1× sozinha (`PARES_V99`): erros já guardados na `estudo_erros` viram par (autor tirado da aula X). Export: `pontePreferencias` (só o Mac) → JSONL `prompt/chosen/rejected`. Ação `preferencias` mostra o placar. t76.
 
 ## v98 (01/11): busca sem ruído (aulas, base, exemplos, memória)
@@ -172,7 +172,7 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 
 ## v97 (01/11): academia focada no NOSSO cérebro
 - Metade das rodadas é do Mac (qwen, 24h) e do PC (quando liga): `ACADEMIA_CEREBROS = ['mac','gemini','pc','mistral','mac','nvidia','pc','zai']`. É o nosso que a gente treina; os grandes servem de professor.
-- Conserto de cérebro grande (Gemini/Mistral/NVIDIA/Z.ai; nunca GPT/Groq/Claude) que PASSOU nas provas escondidas vai pra `destilacao` (tipo `codigo`, status `aprovada`, pergunta com `[academia:<id>]`): treino do nosso aprovado pela prova, não por juiz. O placar do Mac/PC na aba `academia` mostra se o nosso está melhorando. t74.
+- Conserto de cérebro grande (Gemini/Mistral/NVIDIA/Z.ai/GPT-OSS; nunca Claude) que PASSOU nas provas escondidas vai pra `destilacao` (tipo `codigo`, status `aprovada`, pergunta com `[academia:<id>]`): treino do nosso aprovado pela prova, não por juiz. O placar do Mac/PC na aba `academia` mostra se o nosso está melhorando. t74.
 
 ## v96 (01/11): ACADEMIA DE CÓDIGO (treina sozinha de madrugada)
 - `zicoai/academia/exercicios.json` (gerado por `gera.py`): 6 apps com UM defeito de verdade + provas ESCONDIDAS + o conserto de referência (só pra conferir que a prova pega o defeito): gorjeta por pessoa, lista apaga o item errado, dólar com vírgula (parseInt), estoque negativo, desconto em %, e a calculadora real (repo Calculadora-do-zicao no commit b4c7bf6, tabela 12x). Conferido com o testar-html v3: com defeito reprova, consertado passa.

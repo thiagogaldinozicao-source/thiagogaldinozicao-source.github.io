@@ -14,8 +14,8 @@ run("parDaAcademia_(_E, 'Gemini Flash', 'sim', 'Faltava dividir.\\n<<<<<<< ANTES
 ok(P()[0][7] === 'aprovada' && /total \/ n/.test(P()[0][3]) && P()[0][5] === 'Gemini Flash', 'grande passou nas provas: par completo e aprovado');
 // GPT passou: não serve de boa
 run("parDaAcademia_({ id: 'dolar-virgula', pedido: 'dólar com vírgula' }, 'PC (qwen3.6:35b)', 'não', 'tentei x')");
-run("parDaAcademia_({ id: 'dolar-virgula', pedido: 'dólar com vírgula' }, 'Groq GPT-OSS', 'sim', 'conserto do gpt')");
-ok(P().find(l => /dolar-virgula/.test(l[2]))[7] === 'sem par', 'conserto de GPT/Groq não vira resposta boa');
+run("parDaAcademia_({ id: 'dolar-virgula', pedido: 'dólar com vírgula' }, 'Claude', 'sim', 'conserto do claude')");
+ok(P().find(l => /dolar-virgula/.test(l[2]))[7] === 'sem par', 'conserto do Claude não vira resposta boa');
 // destilação aprovada já existente → par na hora
 H.sheets.destilacao.rows.push(['2026-11-01', 'estoque\n[academia:estoque-negativo]', '', 'conserto bom do mistral', 'Mistral (academia)', 'codigo', 'aprovada']);
 run("parDaAcademia_({ id: 'estoque-negativo', pedido: 'estoque fica negativo' }, 'PC (qwen3.6:35b)', 'não', 'conserto ruim do pc')");
@@ -50,7 +50,7 @@ ok(!P().some(l => /arruma a calculadora/.test(l[2])), 'lição descartada não v
 const j = run('preferenciasJsonl()');
 const linhasJ = j.jsonl.split('\n').map(x => JSON.parse(x));
 ok(j.total === P().filter(l => l[7] === 'aprovada').length && linhasJ.every(x => x.prompt[0].role === 'user' && x.chosen[0].content && x.rejected[0].content), 'jsonl com prompt/chosen/rejected (' + j.total + ')');
-ok(!/gpt/i.test(j.jsonl), 'nada de GPT no treino');
+ok(!/claude/i.test(j.jsonl), 'nada do Claude no treino');
 let x = H.post({ pin: '1234', acao: 'pontePreferencias', disp: 'nav' });
 ok(x && x.ok === false, 'só o Mac puxa os pares');
 x = H.post({ pin: '1234', acao: 'preferencias' });

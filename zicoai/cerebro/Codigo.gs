@@ -1908,7 +1908,7 @@ function treinoCodigo(evento, forcar) {
     const quem = (res && res.cerebro) || (CEREBROS[cer] || {}).nome || cer;
     aba('academia').appendRow(["'" + agora(), e.id, quem, passou, "'" + provasTxt, Math.round((Date.now() - t0) / 1000), seguro(detalhe || 'ok')]);
     // v97: conserto de cérebro grande que PASSOU nas provas escondidas vira aula de treino pro NOSSO (destilação aprovada pela prova, não por juiz)
-    if (passou === 'sim' && res && res.texto && !/Mac|PC|GPT|Groq|Cerebras|Claude/i.test(quem)) {
+    if (passou === 'sim' && res && res.texto && !/Mac|PC/i.test(quem) && !RX_AUTOR_FORA.test(quem)) {
       try { aba('destilacao').appendRow(["'" + agora(), seguro((e.pedido + '\n[academia:' + e.id + ']').slice(0, 4000)), '', seguro(String(res.texto).slice(0, 6000)), quem + ' (academia)', 'codigo', 'aprovada']); } catch (err) { /* ok */ }
     }
     try { parDaAcademia_(e, quem, passou, res && res.texto); } catch (err) { /* ok */ }
@@ -5021,9 +5021,9 @@ function aulaSozinha(j, aulaTexto, pedido, quando, autor) {
  * Pro treino 2: além de "o jeito certo" (destilação), o nosso cérebro aprende "isso NÃO" vendo a resposta ruim ao lado da boa.
  * Vem de 2 lugares: (1) erro corrigido (reclamação do Thiago ou revisora): ruim = o que ela respondeu, boa = resposta certa do professor;
  * (2) academia: ruim = conserto do NOSSO cérebro (Mac/PC) que falhou nas provas escondidas, boa = conserto de um grande que PASSOU no mesmo exercício.
- * Só vira 'aprovada' com prova (passou no teste) ou com nota ≥ 8 de outro cérebro (virou aula). Resposta de GPT/Groq/Claude nunca entra no treino.
+ * Só vira 'aprovada' com prova (passou no teste) ou com nota ≥ 8 de outro cérebro (virou aula). Resposta do Claude nunca entra no treino (termos da Anthropic); GPT-OSS (aberto) pode.
  * Nada é apagado: Status 'revisar' / 'sem par' / 'fora (GPT)' ficam na aba e o Thiago pode mudar pra 'aprovada' ou 'não'. */
-const RX_AUTOR_FORA = /GPT|Groq|Cerebras|Claude|OpenAI/i;
+const RX_AUTOR_FORA = /Claude|Anthropic|ChatGPT|GPT-[45]/i;   // v99: só Claude (termos da Anthropic) e GPT fechado; GPT-OSS é aberto (Apache 2.0) e pode
 function guardarPar_(origem, pedido, boa, ruim, cerebroBom, cerebroRuim, status) {
   pedido = String(pedido || '').trim(); boa = String(boa || '').trim(); ruim = String(ruim || '').trim();
   if (pedido.length < 4 || !ruim) return null;
