@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 71 (31/10/2026)';
+const VERSAO_CEREBRO = 'versão 72 (31/10/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -3704,16 +3704,17 @@ function webNav(d) {
 }
 /** O THIAGO usando o navegador dela pelo app (painel Navegador): abrir, tocar na tela, digitar, rolar, voltar.
  *  Só por aqui (com PIN) existem tocar/escrever/roda: o agente continua só com as web_* (que passam pelas travas). */
-const OPS_MANUAIS = ['abrir', 'pesquisar', 'tocar', 'escrever', 'teclas', 'roda', 'voltar', 'avancar', 'recarregar', 'tela', 'tamanho'];
+const OPS_MANUAIS = ['abrir', 'pesquisar', 'tocar', 'escrever', 'teclas', 'roda', 'voltar', 'avancar', 'recarregar', 'tela', 'tamanho', 'novaAba', 'trocarAba', 'fecharAba'];
 function navegarManual(req) {
   const op = String(req.op || 'tela');
   if (OPS_MANUAIS.indexOf(op) < 0) return { ok: false, erro: 'ação do navegador desconhecida: ' + op };
   const d = { op: op };
-  ['url', 'texto', 'tecla', 'x', 'y', 'dy', 'w', 'h'].forEach(k => { if (req[k] !== undefined) d[k] = req[k]; });
+  ['url', 'texto', 'tecla', 'x', 'y', 'dy', 'w', 'h', 'i'].forEach(k => { if (req[k] !== undefined) d[k] = req[k]; });
+  if (req.enter === true) d.enter = true;   // digitar e já apertar Enter (botão Ir do teclado do celular)
   let r;
   try { r = ponteSemDetalhe('navegador', d, 60000, 'mac'); } catch (e) { return { ok: false, erro: String(e.message || e) }; }
   if (r.tela) guardarTela(r, 'Thiago: ' + op);
-  return { ok: r.ok !== false, erro: r.erro || '', tela: r.tela ? { img: r.tela, titulo: String(r.titulo || ''), url: String(r.url || ''), acao: op, quando: Date.now() } : null };
+  return { ok: r.ok !== false, erro: r.erro || '', abas: Array.isArray(r.abas) ? r.abas.slice(0, 12) : null, foco: !!r.foco, tela: r.tela ? { img: r.tela, titulo: String(r.titulo || ''), url: String(r.url || ''), acao: op, quando: Date.now() } : null };
 }
 /** Quem está ligado agora, sem chamar ninguém (pro chip do topo do chat). */
 function aparelhosRapido() {

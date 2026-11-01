@@ -306,6 +306,17 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 .nv-tela img{width:100%;height:auto;display:block;cursor:pointer}
 .nv-tela img:not([src]){display:none}
 .nv-tela.carregando img{opacity:.6}
+.nv-abas{display:flex;gap:6px;padding:6px 10px 0;overflow-x:auto;scrollbar-width:none}
+.nv-abas::-webkit-scrollbar{display:none}
+.nv-aba{display:inline-flex;align-items:center;gap:4px;max-width:180px;flex-shrink:0;border:1px solid var(--borda);border-radius:10px;padding:0 4px 0 10px;height:32px;font-size:12px;color:var(--cinza2)}
+.nv-aba.ativa{border-color:var(--ouro);color:inherit}
+.nv-aba span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.nv-aba button{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;flex-shrink:0;font-size:12px}
+.nv-aba-nova{width:32px;height:32px;border:1px dashed var(--borda);border-radius:10px;flex-shrink:0;font-size:18px}
+.nv-tela img{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.nv-toque{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:2px solid var(--ouro);background:rgba(244,203,99,.25);pointer-events:none;animation:nvToque .7s ease-out forwards}
+@keyframes nvToque{from{transform:scale(.4);opacity:1}to{transform:scale(1.6);opacity:0}}
+.nv-baixo .nv-b{width:38px}
 .nv-vazio{color:var(--cinza2);padding:24px;text-align:center;font-size:14px}
 @media (min-width:1200px){ .nav-painel{left:auto;width:min(56vw,900px);border-left:1px solid var(--borda)} }
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}
@@ -658,12 +669,15 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     <form id="nvForm" class="nv-url"><input id="nvUrl" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Endereço ou pesquisa"></form>
     <button class="nv-b" id="nvFechar" aria-label="Fechar navegador" title="Fechar">✕</button>
   </div>
+  <div class="nv-abas" id="nvAbas"></div>
   <div class="nv-status" id="nvStatus">Navegador da ZicoAI (Chrome dela no Mac). Toque na tela pra clicar.</div>
   <div class="nv-tela" id="nvTela"><img id="nvImg" alt="tela do navegador da ZicoAI"><p class="nv-vazio" id="nvVazio">Digite um endereço lá em cima ou peça no chat: "pesquisa no seu navegador…"</p></div>
   <div class="nv-baixo">
     <button class="nv-b" id="nvCima" aria-label="Rolar pra cima" title="Rolar pra cima">▲</button>
     <button class="nv-b" id="nvBaixo" aria-label="Rolar pra baixo" title="Rolar pra baixo">▼</button>
-    <form id="nvDigitar" class="nv-dig"><input id="nvTexto" type="text" autocomplete="off" placeholder="Digitar no campo que vc tocou"></form>
+    <form id="nvDigitar" class="nv-dig"><input id="nvTexto" type="text" enterkeyhint="go" autocomplete="off" placeholder="Toque num campo e digite aqui"></form>
+    <button class="nv-b" id="nvSoDigitar" aria-label="Digitar sem Enter" title="Digitar sem Enter">✎</button>
+    <button class="nv-b" id="nvApagar" aria-label="Apagar (Backspace)" title="Apagar">⌫</button>
     <button class="nv-b" id="nvEnter" aria-label="Enter" title="Enter">⏎</button>
   </div>
 </div>
@@ -1090,13 +1104,14 @@ const ICO = {
   voltar:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
   avancar:'<path d="M5 12h14M13 6l6 6-6 6"/>',
   cima:'<path d="M6 15l6-6 6 6"/>', baixo:'<path d="M6 9l6 6 6-6"/>',
-  enter:'<path d="M20 5v7a3 3 0 0 1-3 3H5M9 11l-4 4 4 4"/>'
+  enter:'<path d="M20 5v7a3 3 0 0 1-3 3H5M9 11l-4 4 4 4"/>',
+  apagar:'<path d="M9 5h11v14H9l-6-7Z"/><path d="m12.5 9.5 5 5M17.5 9.5l-5 5"/>'
 };
 function ico(nome, tam){ return '<svg class="ico" width="' + (tam || 20) + '" height="' + (tam || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICO[nome] || '') + '</svg>'; }
 /** Troca os ícones de texto/emoji da tela pelos SVG (o texto do botão fica). */
 function aplicaIcones(){
   const com = (id, nome, texto) => { const b = $(id); if(b) b.innerHTML = ico(nome) + (texto ? '<span>' + texto + '</span>' : ''); };
-  com('bNav','web'); com('nvVoltar','voltar'); com('nvAvancar','avancar'); com('nvRecarregar','refazer'); com('nvFechar','fechar'); com('nvCima','cima'); com('nvBaixo','baixo'); com('nvEnter','enter');
+  com('bNav','web'); com('nvVoltar','voltar'); com('nvAvancar','avancar'); com('nvRecarregar','refazer'); com('nvFechar','fechar'); com('nvCima','cima'); com('nvBaixo','baixo'); com('nvEnter','enter'); com('nvSoDigitar','lapis'); com('nvApagar','apagar');
   { const c = document.querySelector('#bDispTopo .cd-ic'); if(c) c.innerHTML = ico('computador', 18); }
   com('bMenu','menu'); com('bConv','mais'); com('bTarefas','tarefas'); com('bNovo2','novo'); com('bPainel','painel');
   com('bNovo','novo','Nova conversa'); com('bProcurar','buscar','Procurar');
@@ -2101,13 +2116,32 @@ function nvMostra(t){
 }
 function nvStatus(txt, erro){ const s = $('nvStatus'); s.textContent = txt; s.classList.toggle('erro', !!erro); }
 async function nvFaz(dados, aviso){
-  if(nvOcupado) return; nvOcupado = true; $('nvTela').classList.add('carregando'); nvStatus(aviso || 'Carregando…');
+  if(nvOcupado){ nvStatus('Espera terminar a ação anterior…'); return null; }
+  nvOcupado = true; $('nvTela').classList.add('carregando'); nvStatus(aviso || 'Carregando…');
+  let j = null;
   try{
-    const j = await api(Object.assign({ acao:'navegar' }, dados));
+    j = await api(Object.assign({ acao:'navegar' }, dados));
     if(j.tela) nvMostra(j.tela);
+    if(Array.isArray(j.abas)) nvAbas(j.abas);
     if(!j.ok) nvStatus('⚠️ ' + (j.erro || 'não deu'), true);
+    // tocou num campo de digitar: já abre o teclado do celular
+    else if(j.foco && dados.op === 'tocar'){ $('nvTexto').focus(); nvStatus('Campo selecionado: digite aqui embaixo e toque em Ir (ou ✎ pra só escrever).'); }
   }catch(e){ nvStatus('⚠️ ' + e.message, true); }
   nvOcupado = false; $('nvTela').classList.remove('carregando');
+  return j;
+}
+// abas do Chrome dela (igual um navegador de verdade)
+function nvAbas(abas){
+  const box = $('nvAbas'); box.replaceChildren();
+  abas.forEach((a, i) => {
+    const d = document.createElement('div'); d.className = 'nv-aba' + (a.ativa ? ' ativa' : '');
+    const t = document.createElement('span'); t.textContent = a.titulo || a.url || 'Aba nova'; t.title = a.url || ''; t.onclick = () => { if(!a.ativa) nvFaz({ op:'trocarAba', i }, 'Trocando de aba…'); };
+    const x = document.createElement('button'); x.innerHTML = ico('fechar', 12); x.setAttribute('aria-label', 'Fechar aba ' + (a.titulo || '')); x.onclick = () => nvFaz({ op:'fecharAba', i }, 'Fechando aba…');
+    d.append(t, x); box.appendChild(d);
+  });
+  const n = document.createElement('button'); n.className = 'nv-aba-nova'; n.textContent = '+'; n.setAttribute('aria-label', 'Nova aba'); n.onclick = () => { nvFaz({ op:'novaAba' }, 'Abrindo aba nova…').then(() => { $('nvUrl').value = ''; $('nvUrl').focus(); }); };
+  box.appendChild(n);
+  const ativa = box.querySelector('.ativa'); if(ativa) ativa.scrollIntoView({ inline:'nearest', block:'nearest' });
 }
 // enquanto aberto: o que o agente fizer aparece aqui também
 async function nvVivo(){
@@ -2138,10 +2172,17 @@ $('nvForm').onsubmit = e => {
   if(/^https?:\/\//i.test(v) || /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v)) nvFaz({ op:'abrir', url: v }, 'Abrindo ' + v + '…');
   else nvFaz({ op:'pesquisar', texto: v }, 'Pesquisando "' + v + '"…');
 };
-$('nvDigitar').onsubmit = e => { e.preventDefault(); const v = $('nvTexto').value; if(!v) return; $('nvTexto').value = ''; nvFaz({ op:'escrever', texto: v }, 'Digitando…'); };
+// "Ir" do teclado = escreve e aperta Enter (pesquisa, login, chat); ✎ = só escreve
+$('nvDigitar').onsubmit = e => { e.preventDefault(); const v = $('nvTexto').value; $('nvTexto').value = ''; if(v) nvFaz({ op:'escrever', texto: v, enter: true }, 'Digitando e apertando Enter…'); else nvFaz({ op:'teclas', tecla:'Enter' }, 'Enter…'); };
+$('nvSoDigitar').onclick = () => { const v = $('nvTexto').value; if(!v){ $('nvTexto').focus(); return; } $('nvTexto').value = ''; nvFaz({ op:'escrever', texto: v }, 'Digitando…'); };
+$('nvApagar').onclick = () => nvFaz({ op:'teclas', tecla:'Backspace' }, 'Apagando…');
 // toque na tela = clique no mesmo ponto do Chrome dela
 $('nvImg').onclick = e => {
   const r = e.target.getBoundingClientRect();
+  // marca onde vc tocou (resposta na hora, mesmo antes do Mac clicar)
+  const m = document.createElement('i'); m.className = 'nv-toque'; const tr = $('nvTela').getBoundingClientRect();
+  m.style.left = (e.clientX - tr.left + $('nvTela').scrollLeft) + 'px'; m.style.top = (e.clientY - tr.top + $('nvTela').scrollTop) + 'px';
+  $('nvTela').appendChild(m); setTimeout(() => m.remove(), 800);
   const img = e.target, W = img.naturalWidth || 1280, H = img.naturalHeight || 800;   // o print tem o tamanho da tela dela
   const x = Math.round((e.clientX - r.left) / r.width * W), y = Math.round((e.clientY - r.top) / r.height * H);
   nvFaz({ op:'tocar', x, y }, 'Clicando…');

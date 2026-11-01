@@ -155,6 +155,11 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v72 + app v32 + ponte mac-1.9 (31/10): navegador com abas, toque marcado e teclado
+- Abas: novaAba/trocarAba/fecharAba; link que abre aba nova vira a ativa; toda resposta traz a lista de abas e se o toque caiu num campo (`foco` → o app abre o teclado).
+- Digitar: "Ir" do teclado = escreve + Enter; ✎ só escreve; ⌫ apaga. Toque deixa uma marca dourada na hora. Clique espera menos (0,7 s).
+- Por que banco fica bloqueado mesmo pro Thiago: o print de cada ação passa pelo cache do Google e o perfil é o mesmo do agente; banco é no navegador dele. Playwright: `cerebro/testes/navegador.playwright.cjs` (args: pasta, saída, imagem).
+
 ## v71 + app v31 + ponte mac-1.8 (31/10): navegador pro Thiago + chip de aparelhos
 - App: botão 🌐 abre o painel Navegador (tela cheia no celular, do lado do chat em tela ≥1200 px): endereço/pesquisa, ←, →, ↻, toque = clique, ▲▼, digitar, ⏎. Chip no topo com uma bolinha por aparelho (verde = ligado). Cache `zicoai-v31`.
 - Cérebro: ação `navegar` (PIN; ops abrir, pesquisar, tocar, escrever, teclas, roda, voltar, avancar, recarregar, tela, tamanho) e `aparelhosRapido` (só olha quando cada ponte foi vista). `testarNavegadorZico` também testa tamanho/rolar/tocar.

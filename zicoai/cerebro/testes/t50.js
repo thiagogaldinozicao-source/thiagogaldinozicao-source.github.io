@@ -26,3 +26,13 @@ r = H.post({ pin: '1234', acao: 'aparelhosRapido' });
 ok(r.ok && r.aparelhos.length === 3 && r.aparelhos[0].ok === true && r.aparelhos[1].ok === false, 'chip do topo: Mac ligado, PC e Chrome desligados (sem chamar ninguém)');
 ok(H.post({ acao: 'aparelhosRapido' }).ok === false, 'chip exige PIN');
 ok((+run('VERSAO_CEREBRO').match(/versão (\d+)/)[1]) >= 71, 'cérebro na versão 71 ou mais nova');
+// v72: abas, foco no campo e digitar com Enter
+run(`ponteSemDetalhe = function(acao, d, espera, disp){ globalThis.__p = { acao: acao, d: d, disp: disp };
+  return { ok: true, titulo: 'Google', url: 'https://google.com/', tela: 'SU1H', foco: d.op === 'tocar', abas: [{ titulo: 'Google', url: 'https://google.com/', ativa: true }, { titulo: 'Loja', url: 'https://loja/', ativa: false }] }; };`);
+r = H.post({ pin: '1234', acao: 'navegar', op: 'trocarAba', i: 1 });
+ok(r.ok && run('__p.d.op') === 'trocarAba' && run('__p.d.i') === 1 && r.abas.length === 2 && r.abas[0].ativa, 'trocar de aba e voltar a lista de abas');
+ok(H.post({ pin: '1234', acao: 'navegar', op: 'novaAba' }).ok && H.post({ pin: '1234', acao: 'navegar', op: 'fecharAba', i: 0 }).ok, 'aba nova e fechar aba');
+r = H.post({ pin: '1234', acao: 'navegar', op: 'tocar', x: 10, y: 20 });
+ok(r.foco === true, 'tocou num campo: o app fica sabendo (abre o teclado)');
+r = H.post({ pin: '1234', acao: 'navegar', op: 'escrever', texto: 'iphone', enter: true });
+ok(run('__p.d.enter') === true && run('__p.d.texto') === 'iphone', '"Ir" do teclado: digita e aperta Enter');
