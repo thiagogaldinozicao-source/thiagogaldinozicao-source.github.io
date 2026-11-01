@@ -155,6 +155,9 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v77 (01/11): Mistral no grátis = Ministral
+- `testarMistral` mostrou (cabeçalhos `limit-req-minute`): no plano grátis o mistral-small e o medium ficaram com **0 pedidos por minuto**; o `ministral-8b-2512` tem 188/min e 625 mil tokens/min. Cérebro `mistral` agora usa `ministral-8b-2512` (reserva `ministral-14b-2512`). A chave tem que ser de **Chaves de API** (Studio, admin.mistral.ai/organization/api-keys), não a do Vibe. t13/t21/t56 ajustados.
+
 ## v76 + app v36 (01/11): Z.ai (GLM Flash, grátis) + propriedade vazia
 - Cérebros `zai` (texto: glm-4.7-flash, reserva glm-4.5-flash) e `zaiv` (foto: glm-4.6v-flash), chave `ZAI_KEY`, endpoint `https://api.z.ai/api/paas/v4/chat/completions`, fila de 1 por segundo (`rps`), `corpo: {thinking: disabled}` (campo novo `corpo` do cérebro entra no pedido). Entram depois da Mistral (texto, código, agente, placar) e na foto. App: botão "Z.ai GLM" no seletor. `testarZai()` e `testarMistral()` no editor (mostram o motivo exato, nunca a chave).
 - Propriedade vazia trava a tela de Propriedades do script (o Google não salva): `GEMINI_FORTE` e `MAC_PRIMARIO` vazios agora são APAGADOS (ler apagada = vazio). Harness ganhou `deleteProperty`. t57.

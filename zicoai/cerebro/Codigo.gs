@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 76 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 77 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -31,8 +31,8 @@ const CEREBROS = {
   // GitHub Models foi APOSENTADO pelo GitHub em 30/07/2026 (o servidor só responde "OK"). Fica registrado e desligado.
   github:   { url: 'https://models.github.ai/inference/chat/completions', chave: 'GITHUB_TOKEN', modelo: 'openai/gpt-4.1', nome: 'GitHub GPT-4.1', limite: 7500, maxSaida: 4000, tpm: 7500, rpm: 12, rpd: 140, opcional: true, aposentado: true },
   // Mistral "Experiment" (grátis, sem cartão)
-  // O plano grátis dá 429 ("capacity exceeded") no medium com frequência; o small (também lê foto) tem mais vaga. Lotado → tenta o reserva.
-  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'mistral-small-latest', reserva: 'mistral-medium-latest', nome: 'Mistral', limite: 120000, maxSaida: 8192, tpm: 400000, rpm: 50, rpd: 5000, rps: 1, opcional: true },   // grátis: 1 pedido por segundo (vários agentes juntos fazem fila)
+  // Grátis: só os Ministral (8B, 14B) têm limite; small/medium ficaram com 0 pedidos por minuto (testarMistral, 01/11). Lotado → tenta o reserva.
+  mistral:  { url: 'https://api.mistral.ai/v1/chat/completions', chave: 'MISTRAL_KEY', modelo: 'ministral-8b-2512', reserva: 'ministral-14b-2512', nome: 'Mistral', limite: 100000, maxSaida: 8192, tpm: 600000, rpm: 150, rpd: 5000, rps: 1, opcional: true },   // 01/11: no grátis o small/medium ficaram com 0 pedidos/min; o Ministral 8B tem 188/min e 625 mil tokens/min
   // Z.ai (GLM, China): só os modelos "Flash" são grátis. Texto: glm-4.7-flash (reserva glm-4.5-flash). Foto: glm-4.6v-flash (zaiv).
   // Grátis = poucos pedidos ao mesmo tempo: fila de 1 por segundo igual a Mistral. Sem "pensar" (thinking) pra responder direto.
   zai:      { url: 'https://api.z.ai/api/paas/v4/chat/completions', chave: 'ZAI_KEY', modelo: 'glm-4.7-flash', reserva: 'glm-4.5-flash', nome: 'Z.ai GLM', limite: 100000, maxSaida: 8192, tpm: 200000, rpm: 20, rpd: 1500, rps: 1, opcional: true, corpo: { thinking: { type: 'disabled' } } },
@@ -86,7 +86,7 @@ function testarMistral() {
   const chave = String(prop('MISTRAL_KEY') || '').trim();
   if (!chave) { Logger.log('sem MISTRAL_KEY nas Propriedades do script'); return { ok: false, erro: 'sem MISTRAL_KEY' }; }
   const res = { chave: chave.length + ' letras, termina em ' + chave.slice(-3) };
-  [CEREBROS.mistral.modelo, 'mistral-small-2603', 'ministral-8b-2512', CEREBROS.mistral.reserva].forEach((m, i) => {
+  [CEREBROS.mistral.modelo, CEREBROS.mistral.reserva, 'mistral-small-latest'].forEach((m, i) => {
     if (i) Utilities.sleep(2500);   // grátis: 1 pedido por segundo
     const t0 = Date.now();
     try {

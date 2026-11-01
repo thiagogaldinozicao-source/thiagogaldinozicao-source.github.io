@@ -128,8 +128,8 @@ ok(tentouGemini === 1 && r.passos.some(p => /Gemini pulado: de castigo/.test(p))
 
 // 8) Mistral: small lotado (429 capacity) → tenta o medium
 H.PROPS.MISTRAL_KEY = 'mk'; const mods = [];
-H.setFetch((u, o) => { const b = JSON.parse(o.payload); mods.push(b.model); if (b.model === 'mistral-small-latest') return { getResponseCode: () => 429, getContentText: () => '{"message":"Service tier capacity exceeded for this model.","type":"service_tier_capacity_exceeded"}' }; return resp('oi do medium'); });
-ok(require('vm').runInContext('chamarCompat(CEREBROS.mistral, [{ role: "user", content: "oi" }], 50)', H.ctx) === 'oi do medium' && mods.join() === 'mistral-small-latest,mistral-medium-latest', 'Mistral lotado → reserva: ' + mods.join(' → '));
+H.setFetch((u, o) => { const b = JSON.parse(o.payload); mods.push(b.model); if (b.model === 'ministral-8b-2512') return { getResponseCode: () => 429, getContentText: () => '{"message":"Service tier capacity exceeded for this model.","type":"service_tier_capacity_exceeded"}' }; return resp('oi do medium'); });
+ok(require('vm').runInContext('chamarCompat(CEREBROS.mistral, [{ role: "user", content: "oi" }], 50)', H.ctx) === 'oi do medium' && mods.join() === 'ministral-8b-2512,ministral-14b-2512', 'Mistral lotado → reserva: ' + mods.join(' → '));
 delete H.PROPS.MISTRAL_KEY;
 
 // 9) texto longo colado vira documento: sem pesquisa, sem e-mail, sem abrir link de dentro
