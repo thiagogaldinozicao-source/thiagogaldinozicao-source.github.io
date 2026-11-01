@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { path: arq, merge-multiple: true }
-      - name: Publica (link fixo: releases/latest/download/…)
+      - name: "Publica (link fixo em releases/latest/download)"
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           ls -la arq
