@@ -1897,7 +1897,7 @@ function treinoCodigo(evento, forcar, escolha) {
       try { const pr = programadora(res, html, e.pedido, null); fim = extrairHtml(pr.texto); if (!fim) detalhe = String(pr.texto || '').split('\n').find(l => /⚠️|⛔|❌/.test(l)) || 'não saiu o app consertado'; }
       catch (err) { detalhe = 'programadora: ' + String(err.message || err).slice(0, 150); }
     }
-    let passou = 'não', provasTxt = '0/' + e.provas.length;
+    let passou = (!res || !res.ok) ? 'sem cérebro' : 'não', provasTxt = '0/' + e.provas.length;   // v100: cota acabou / fora do ar não conta como erro
     if (fim) {
       if (fim.length < html.length * 0.85) detalhe = 'o app encolheu (' + fim.length + ' de ' + html.length + ' letras)';
       else {
