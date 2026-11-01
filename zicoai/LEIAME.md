@@ -155,6 +155,10 @@ Datas com `'` na frente pra não virarem número. Texto começando com `= + - @`
 - `contextoMeusCerebros()`: pergunta sobre IA/modelos/cérebros recebe `### MEUS CÉREBROS` (modelo, limites, uso de hoje, castigo, PC ligado ou não, placar).
 - Trajetória "Qual é o melhor cérebro de IA grátis…" gravada na aba `trajetorias`.
 
+## v93 (01/11): FOCO NO CÓDIGO (igual o Claude: procura, lê só ali, muda ali)
+- App grande (> 40 mil letras) não vai mais inteiro pro cérebro: `blocoCodigoApp_` manda o MAPA (`mapaDoCodigo_`: seções, funções com linha, ids) + os TRECHOS ligados ao pedido (`trechosDoCodigo_`: palavras do pedido + sinônimos de código, ex. tabela→tab/<tr, parcela→parc/pkeys, 1ª→first; janela que sobe até o começo da função; ~26 mil letras). O que ele mandou "não mexer" não vira alvo. O ANTES copiado do trecho é aplicado no arquivo inteiro.
+- Calculadora real: de ~125 mil letras pro cérebro → ~45 mil, com a linha da tabela e a `parcCalc` dentro. Vale no pedido e no conserto (`consertarCodigo` usa pedido + erros do teste pra achar os trechos). t71 (com o arquivo real `testes/calc_real.html`).
+
 ## v92 (01/11): calculadora — o que ainda acontecia
 - 12:26–12:36, conversa velha: "Pede de novo que eu tento faz dnv" não batia no filtro de mudança → virou pedido de app NOVO → ela escreveu outra calculadora inteira. Agora, numa conversa com rascunho, mensagem curta tipo "faz dnv / tenta de novo / e agora / tá pegando / calculadora" continua do rascunho.
 - Ela tentou TIRAR o tutorial pra passar no teste → regra: nunca tirar/desligar tutorial, som, animação, aviso ou botão pra passar no teste (o teste já fecha a boas-vindas).

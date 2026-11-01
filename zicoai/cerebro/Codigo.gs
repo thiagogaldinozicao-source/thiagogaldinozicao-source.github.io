@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 92 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 93 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -792,19 +792,19 @@ function chatSemTrava(req, aparelho) {
   }
   if (req.appSlug && ehDono() && rascunho && rascunho.slug === String(req.appSlug)) {
     codigoApp = rascunho.html;
-    extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(req.appSlug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa: já tem as mudanças anteriores; o Thiago quer mudar mais)\n```html\n' + codigoApp.slice(0, 150000) + '\n```';
+    extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(req.appSlug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa: já tem as mudanças anteriores; o Thiago quer mudar mais)\n' + blocoCodigoApp_(codigoApp, pergunta);
     passo('Continuou do rascunho desta conversa (' + codigoApp.length + ' letras, com as mudanças de antes)');
   } else if (req.appSlug && ehDono()) {
     codigoApp = codigoDoApp(String(req.appSlug));
     // edição igual o Claude faz: só os trechos que mudam (arquivo inteiro de volta = arquivo cortado e coisa sumindo)
-    if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n```html\n' + codigoApp.slice(0, 150000) + '\n```'; passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
+    if (codigoApp) { extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + req.appSlug + '" (o Thiago quer mudar este app)\n' + blocoCodigoApp_(codigoApp, pergunta); passo('Abriu o código do app ' + req.appSlug + ' (' + codigoApp.length + ' letras)'); }
   }
   const pedeAppNovo0 = /^(me )?(faz|faca|faça|cria|crie|gera|gere|monta|monte|desenvolve|preciso de|quero) (um|uma|outro|outra)\b/.test(normalizar(pergunta));
   let appAuto = null;
   // pedido de mudança numa conversa que já tem rascunho ("corrige um bug que vi nela"): continua dele
   if (!codigoApp && ehDono() && rascunho && !pedeAppNovo0 && (/(corrig|arruma|consert|bug|erro|nao funciona|quebrou|muda|mude|melhora|ajusta|adiciona|acrescenta|coloca|tira|troca|nela|nele|escur|clar|cor |botao|tela|tabela|entrega|pronto)/.test(normalizar(pergunta)) || (pergunta.length < 160 && /(dnv|de novo|denovo|novamente|refaz|tenta|continua|segue|e agora|ta pegando|nao deu|deu certo|funcionou|calculadora|app\b)/.test(normalizar(pergunta))))) {   // v92: "faz dnv" virava app NOVO inteiro
     codigoApp = rascunho.html; appAuto = rascunho.slug;
-    extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(rascunho.slug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa, completo; o Thiago quer mudar mais)\n```html\n' + codigoApp.slice(0, 150000) + '\n```';
+    extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + String(rascunho.slug).replace(/^repo:/, '') + '" (o RASCUNHO desta conversa, completo; o Thiago quer mudar mais)\n' + blocoCodigoApp_(codigoApp, pergunta);
     passo('Continuou do rascunho desta conversa (' + codigoApp.length + ' letras)');
   }
   if (!codigoApp && ehDono() && !pedeAppNovo0 && pergunta.length < 4000) {
@@ -813,7 +813,7 @@ function chatSemTrava(req, aparelho) {
       const cod = sl ? codigoDoApp(sl) : null;
       if (cod) {
         codigoApp = cod; appAuto = sl;
-        extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + sl.replace(/^repo:/, '') + '" (arquivo DE VERDADE, baixado agora do GitHub; o Thiago quer mudar este app)\n```html\n' + cod.slice(0, 150000) + '\n```';
+        extraSistema += REGRA_EDICAO + '\n\n### CÓDIGO ATUAL DO APP "' + sl.replace(/^repo:/, '') + '" (arquivo DE VERDADE, baixado agora do GitHub; o Thiago quer mudar este app)\n' + blocoCodigoApp_(cod, pergunta);
         passo('Abriu o código de verdade do app ' + sl.replace(/^repo:/, '') + ' (' + cod.length + ' letras, do GitHub)');
       }
     } catch (e) { /* sem GitHub: segue */ }
@@ -1659,6 +1659,69 @@ function geminiComGoogleSemDetalhe(sistema, historico) {
 
 /* ---------- programadora: editar por trechos, testar e corrigir antes de entregar (o jeito do Claude) ---------- */
 const REGRA_EDICAO_BASE = '\n\n### COMO EDITAR UM ARQUIVO QUE JÁ EXISTE (obrigatório)\nNÃO devolva o arquivo inteiro (ele vem cortado e some coisa). Devolva 1 a 3 linhas dizendo o que mudou e depois SÓ os trechos que mudam, cada um assim:\n<<<<<<< ANTES\n(trecho copiado EXATAMENTE do arquivo atual, com os mesmos espaços, grande o bastante pra aparecer UMA vez só)\n=======\n(trecho novo)\n>>>>>>> DEPOIS\nPra acrescentar, use como ANTES uma linha vizinha e devolva ela + o novo. Pra apagar, deixe o DEPOIS vazio. Não mude nada que não foi pedido.\nANTES DE MUDAR, ACHE A CAUSA: se o defeito é algo que aparece errado na TELA (ex.: um valor numa tabela), procure no arquivo o código que MONTA aquele pedaço da tela (o id/classe do elemento, o innerHTML/textContent que escreve nele) e mude ALI. Se uma parte da tela já mostra certo (ex.: o resumo), a conta está certa: o defeito está em quem mostra a outra parte. Diga em 1 linha qual função/linha é a causa.\nNUNCA tire ou desligue algo do app (tutorial, som, animação, aviso, botão) pra fazer o teste passar: o teste de quem mexe em app já fecha a tela de boas-vindas sozinho. Mude só o que o Thiago pediu.';
+// v93: FOCO NO CÓDIGO — app grande (calculadora = 116 mil letras) não vai inteiro pro cérebro grátis: vai o MAPA (funções, ids, seções)
+// + os TRECHOS que têm a ver com o pedido (igual o Claude faz: procura, lê só ali, muda ali).
+const SINONIMOS_CODIGO = {
+  tabela: ['tab', 'table', '<tr', '<td', 'rows'], parcela: ['parc', 'pcount', 'pkeys', 'par', 'installment'], parcelas: ['parc', 'pkeys', 'pcount'],
+  resumo: ['pres', 'resumo', 'summary', 'res'], primeira: ['first'], centavo: ['round', 'cent', 'tofixed', 'money'], centavos: ['round', 'cent', 'money'],
+  botao: ['btn', 'button'], botoes: ['btn', 'button'], cor: ['color', 'theme', '--'], cores: ['color', 'theme'], tema: ['theme', 'tema', 'light', 'dark'],
+  escuro: ['dark', 'bg'], claro: ['light'], historico: ['hist'], copiar: ['copy', 'cpy', 'clipboard'], apagar: ['del', 'back', 'swipe', 'erase'],
+  deslizar: ['swipe', 'touchstart', 'touchend'], som: ['snd', 'sound', 'audio'], vibrar: ['hap', 'vibrate'], tutorial: ['tut'], visor: ['disp', 'screen'],
+  taxa: ['rate', 'rates', 'tax'], juros: ['rate', 'juros'], entrada: ['entr', 'down'], porcentagem: ['pct', 'percent', '%'], orcamento: ['orc'],
+  imagem: ['img', 'canvas'], compartilhar: ['share'], configuracao: ['cfg', 'config', 'settings'], titulo: ['title', 'h1'], fonte: ['font']
+};
+function palavrasDoPedido_(pedido) {
+  const n = normalizar(String(pedido || '').replace(/n[ãa]o mexe[\s\S]*$/i, ''));   // o que ele mandou NÃO mexer não é alvo
+  const base = n.split(/[^a-z0-9]+/).filter(p => p.length >= 4 && PARADAS.indexOf(p) < 0);
+  const out = [];
+  base.forEach(p => { out.push(p); (SINONIMOS_CODIGO[p] || SINONIMOS_CODIGO[p.replace(/s$/, '')] || []).forEach(s => out.push(s)); });
+  (String(pedido || '').match(/[A-Za-z_$][\w$]{3,}/g) || []).forEach(id => { if (/[A-Z_]|\d/.test(id.slice(1))) out.push(id.toLowerCase()); });   // nome de função/id que ele citou
+  if (/1ª|1a parcela|primeira/i.test(String(pedido || ''))) out.push('first');
+  return [...new Set(out)].slice(0, 40);
+}
+function mapaDoCodigo_(codigo) {
+  const ls = String(codigo).split('\n'), fns = [], secoes = [];
+  ls.forEach((l, i) => {
+    const f = l.match(/function\s+([\w$]+)\s*\(|(?:const|let|var)\s+([\w$]+)\s*=\s*(?:function|\([^)]*\)\s*=>)/);
+    if (f) fns.push((f[1] || f[2]) + ':' + (i + 1));
+    const s = l.match(/\/[*\/]\s*[─=\-]{2,}\s*([^─=\-*]{3,40})/); if (s) secoes.push(s[1].trim() + ':' + (i + 1));
+  });
+  const ids = [...new Set((String(codigo).match(/\bid="([\w-]+)"/g) || []).map(x => x.slice(4, -1)))];
+  return 'Linhas: ' + ls.length + '\nSeções: ' + secoes.slice(0, 60).join(' · ') + '\nFunções (nome:linha): ' + fns.slice(0, 300).join(' ') + '\nIds no HTML: ' + ids.slice(0, 200).join(' ');
+}
+function trechosDoCodigo_(codigo, pedido, limite) {
+  limite = limite || 26000;
+  const ls = String(codigo).split('\n'), pal = palavrasDoPedido_(pedido);
+  if (!pal.length) return '';
+  const nota = ls.map(l => { const b = l.toLowerCase(); let p = 0; pal.forEach(w => { if (b.indexOf(w) >= 0) p += w.length >= 5 ? 2 : 1; }); return p; });
+  // janelas em volta das linhas que mais batem; cresce até a função de cima (pra pegar o começo da função inteira)
+  const ordem = nota.map((p, i) => [p, i]).filter(x => x[0] >= 2).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  const marcadas = new Array(ls.length).fill(false);
+  let tam = 0;
+  for (const [, i] of ordem) {
+    if (tam >= limite) break;
+    let ini = Math.max(0, i - 12), fim = Math.min(ls.length - 1, i + 18);
+    for (let k = i; k >= Math.max(0, i - 60); k--) if (/function\s+[\w$]+\s*\(|^\s*\/\/\s*──/.test(ls[k])) { ini = Math.min(ini, k); break; }
+    for (let k = ini; k <= fim; k++) if (!marcadas[k]) { marcadas[k] = true; tam += ls[k].length + 1; }
+  }
+  const out = []; let dentro = false;
+  for (let k = 0; k < ls.length; k++) {
+    if (marcadas[k]) { if (!dentro) out.push('/* … linha ' + (k + 1) + ' … */'); out.push(ls[k]); dentro = true; }
+    else dentro = false;
+  }
+  return out.join('\n').slice(0, limite + 4000);
+}
+/** O código do app que vai pro cérebro: inteiro se for pequeno; grande = mapa + trechos ligados ao pedido (o resto do arquivo fica igual). */
+function blocoCodigoApp_(codigo, pedido) {
+  codigo = String(codigo || '');
+  if (codigo.length <= 40000) return '```html\n' + codigo + '\n```';
+  const tr = trechosDoCodigo_(codigo, pedido, 26000);
+  if (!tr || tr.length < 1500) return '```html\n' + codigo.slice(0, 150000) + '\n```';
+  passo('Arquivo grande (' + codigo.length + ' letras): mandou o mapa + só os trechos ligados ao pedido (' + tr.length + ' letras), igual o Claude faz');
+  return 'O arquivo tem ' + codigo.length + ' letras. Abaixo vão o MAPA (todas as funções, seções e ids, com a linha) e SÓ OS TRECHOS ligados ao pedido, copiados do arquivo de verdade. O resto do arquivo existe e fica igual.\n' +
+    'Regras: o ANTES de cada bloco tem que ser copiado EXATAMENTE de um destes trechos (nunca copie as marcas "/* … linha N … */"). Se a causa estiver numa parte que não veio, diga em 1 linha qual função/linha precisa ver (pelo MAPA) em vez de chutar.\n\n' +
+    '#### MAPA\n' + mapaDoCodigo_(codigo) + '\n\n#### TRECHOS LIGADOS AO PEDIDO\n```html\n' + tr + '\n```';
+}
 /* v89: PROVAS do app (igual os testes que o Claude roda): ela escreve, o Mac roda a cada mudança, ficam guardadas por app. */
 const REGRA_PROVAS = '\n\n### PROVAS DO APP (obrigatório)\nDepois dos trechos, escreva provas do que o Thiago pediu num bloco ```provas com JSON (lista). Cada prova: {"nome":"o que confere","passos":[{"clicar":"seletor"},{"preencher":"seletor","valor":"1000"},{"escolher":"seletor","valor":"12"},{"teclas":"Enter"},{"esperar":300},{"js":"código que roda na página"}],"conferir":[{"texto":"seletor","contem":"83,37"},{"js":"código que devolve true se está certo ou um texto dizendo o que está errado"}]}.\n- Use SÓ seletores (id/classe) que existem no código do app.\n- O app abre do zero (nada salvo): tutorial/aviso na frente → feche no primeiro passo.\n- Conta: o js lê os números da tela e calcula (ex.: somar as parcelas e comparar com o total no centavo). Nunca escreva o resultado esperado de cabeça.\n- A prova tem que FALHAR no defeito que o Thiago contou e passar quando estiver certo. 1 a 4 provas, curtas.';
 const REGRA_EDICAO = REGRA_EDICAO_BASE + REGRA_PROVAS;
@@ -1844,7 +1907,7 @@ function continuarCortado(parcial, pergunta) {
 }
 /** Pede o conserto com o código + os erros, em blocos de edição. Cérebro forte primeiro. */
 function consertarCodigo(codigo, problemas, pergunta, respostaAnterior) {
-  const msg = 'PEDIDO ORIGINAL DO THIAGO:\n' + String(pergunta).slice(0, 3000) + '\n\nCÓDIGO ATUAL:\n```html\n' + String(codigo).slice(0, 150000) + '\n```\n\n' + problemas.join('\n') +
+  const msg = 'PEDIDO ORIGINAL DO THIAGO:\n' + String(pergunta).slice(0, 3000) + '\n\nCÓDIGO ATUAL:\n' + blocoCodigoApp_(codigo, String(pergunta) + '\n' + problemas.join('\n')) + '\n\n' + problemas.join('\n') +
     (respostaAnterior ? '\n\nSUA RESPOSTA ANTERIOR:\n' + String(respostaAnterior).slice(0, 8000) : '') + '\n\nConserte com BLOCOS DE EDIÇÃO (ANTES/DEPOIS). Ache a causa de verdade (leia o código), não esconda o erro com try/catch.';
   const r = conversar([{ role: 'user', content: msg }], 'consertar código: ' + String(pergunta).slice(0, 200), null, 'auto', REGRA_EDICAO_BASE, true);
   return r && r.ok ? r : null;
