@@ -711,7 +711,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   <div class="lado-pe">
     <div class="perfil"><span class="perfil-avatar">T</span><b>Thiago</b><span class="status" id="status"><i></i><span>—</span></span></div>
     <button id="bCfg">⚙️ Configurar</button>
-    <button id="bVersoes" type="button" title="Versões carregadas e atualizações">Interface v51 · Atualizações</button>
+    <button id="bVersoes" type="button" title="Versões carregadas e atualizações">Interface · Atualizações</button>
   </div>
 </aside>
 <div id="veu"></div>
@@ -779,7 +779,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     </div>
     <div id="linhaTarefas"><span class="pontos"><i></i><i></i><i></i></span><span id="txtTarefas">1 tarefa em execução</span><span style="margin-left:auto">ver ›</span></div>
     <div class="dica">A ZicoAI aprende com vc. Não mande CPF nem telefone de cliente aqui.</div>
-    <button id="versaoAcesso" type="button" aria-label="Ver versões e verificar atualizações">Interface v51 · Ver atualizações</button>
+    <button id="versaoAcesso" type="button" aria-label="Ver versões e verificar atualizações">Interface · Ver atualizações</button>
   </footer>
 </div>
 
@@ -897,7 +897,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     <p class="aviso">Cada parte tem sua própria versão. Atualizar o site não instala o cérebro nem a extensão.</p>
     <div id="versoesLista">
       <section class="versao-bloco">
-        <div class="versao-linha"><strong id="vSiteNumero">Interface v51</strong><span id="vSiteEstado" class="versao-estado">Carregada nesta tela</span></div>
+        <div class="versao-linha"><strong id="vSiteNumero">Interface · carregando</strong><span id="vSiteEstado" class="versao-estado">Carregada nesta tela</span></div>
         <p>Visual, botões e conversa. A atualização do site vem pelo GitHub Pages e pelo cache do aplicativo.</p>
         <button id="bAtualizarSite" type="button">↻ Verificar e atualizar site</button>
       </section>
@@ -3205,12 +3205,18 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
 const VERSAO_APP = 'zicoai-v52';
 function versaoTexto(){return 'Interface ' + VERSAO_APP.replace(/^zicoai-/,'');}
-function abrirVersoes(){
+// Uma fonte de verdade: os textos visíveis recebem a mesma versão ANTES do usuário tocar.
+// Evita a interface dizer "v51" ao abrir e "v52" ao entrar no menu.
+function mostraVersaoCarregada(){
   const versao=versaoTexto();
   $('vSiteNumero').textContent=versao;
-  $('vSiteEstado').textContent='Carregada nesta tela';
   $('bVersoes').textContent=versao+' · Atualizações';
   $('versaoAcesso').textContent=versao+' · Ver atualizações';
+}
+mostraVersaoCarregada();
+function abrirVersoes(){
+  mostraVersaoCarregada();
+  $('vSiteEstado').textContent='Carregada nesta tela';
   $('vCerebroEstado').textContent=cfg.url?'Consultar a implantação':'Sem conexão configurada';
   const params = new URLSearchParams(location.search);
   const extVersao = NA_EXTENSAO && /^\d+(?:\.\d+){0,3}$/.test(params.get('extver') || '') ? params.get('extver') : '';
