@@ -4,6 +4,14 @@ Assistente pessoal do Thiago (Zicão Store). O Thiago **não programa**: expliqu
 
 > Este repositório é PÚBLICO (GitHub Pages). Nunca coloque aqui chave de API, PIN, link do PC (Tailscale), link do script, perfil pessoal do Thiago ou dados de cliente. Esses dados ficam nas Propriedades do script e na planilha.
 
+## Revisão local pendente: destilados na ponte (01/11/2026)
+
+- `mac/ponte-mac.js` mac-2.1: aceita `hf.co/autor/modelo:quantizacao`. A validação anterior recusava `/` antes de chamar o Ollama, impedindo o duelo da 9B destilada. Mantém somente localhost e recusa nomes malformados. `t80.js` verifica encaminhamento exato, rejeições e preservação do 8B padrão com Ollama simulado; não comprova o Mac físico.
+- Listas do PC conciliadas com a configuração informada por Thiago: pesado = 35B destilada → 9B destilada; leve = 9B destilada → `qwen3.5:9b`. Testes de orquestra usam os modelos atuais, conservando seleção estrita no duelo. Não li nem alterei o editor do Apps Script.
+- Aula D51 documenta a distinção entre integração indisponível e falha da solução. O modelo só troca depois de duelo válido, com respostas e provas registradas. Academia não é confirmação de que LoRA esteja rodando.
+- Esta seção descreve preparação local. Nenhum push, implantação, troca de cérebro ou instalação no Mac foi realizado; implantação exige OK escrito.
+- Validação desta revisão: t1–t80, **1.194 PASS / 0 FAIL**, 80 arquivos no Node/simulador; snapshot normalizado para LF. `node --check mac/ponte-mac.js` também passou. Esses resultados não são um duelo dos modelos nem teste da implantação.
+
 ## Como funciona (3 partes)
 
 ```

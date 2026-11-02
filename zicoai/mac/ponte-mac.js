@@ -10,7 +10,7 @@ const { execFile } = require('child_process');
 const DIR = process.env.ZPONTE_DIR || __dirname;
 const CFG = path.join(DIR, 'config.json');
 const LOG = path.join(DIR, 'ponte-log.txt');
-const VERSAO = 'mac-2.0';
+const VERSAO = 'mac-2.1';
 const HOME = os.homedir();
 process.env.PATH = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.PATH || '');
 
@@ -200,7 +200,9 @@ async function comando(d) {
 // Cérebro do Mac: conversa com o Ollama local (só localhost; modelo da lista instalada).
 async function ollamaChat(d) {
   const modelo = String(d.modelo || 'qwen3:8b');
-  if (!/^[a-z0-9._:-]+$/i.test(modelo)) throw new Error('nome de modelo inválido');
+  // Ollama aceita namespace/modelo e hf.co/autor/modelo:quantizacao.
+  // O nome vai no JSON para localhost; não é URL nem comando de terminal.
+  if (modelo.length > 256 || !/^[a-z0-9][a-z0-9._-]*(?:\/[a-z0-9][a-z0-9._-]*){0,2}(?::[a-z0-9][a-z0-9._-]*)?$/i.test(modelo)) throw new Error('nome de modelo inválido');
   const msgs = (Array.isArray(d.mensagens) ? d.mensagens : []).slice(-40).map(m => ({ role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user', content: String(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).slice(0, 60000) }));
   if (!msgs.length) throw new Error('sem mensagens');
   const t0 = Date.now();

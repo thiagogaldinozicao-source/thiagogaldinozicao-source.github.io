@@ -6,7 +6,7 @@ function fixture() {
   const run = s => vm.runInContext(s, H.ctx);
   H.PROPS.PONTE_SEGREDO = 'pc-ficticio';
   H.CACHE.ponte_visto = String(run('Date.now()')); H.CACHE.ponte_versao = '2.4';
-  H.CACHE.ponte_modelos = JSON.stringify(['qwen3.6:35b','qwen3.5:9b']);
+  H.CACHE.ponte_modelos = JSON.stringify(["hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M","hf.co/Jackrong/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF:Q4_K_M"]);
   return { H, run };
 }
 {
@@ -16,7 +16,7 @@ function fixture() {
   const r=run(`conversar([{role:'user',content:'conserta o código'}],'conserta o código',null,'pc','',false)`);
   ok(!r.ok && run('__chamadas')===0, 'duelo estrito não chama outro cérebro quando o participante sumiu');
   run(`PC_MODELO_FORCADO=null;SO_ESTE_CEREBRO=null;`);
-  ok(run(`cerebroPCPonte().modelo`)==='qwen3.6:35b', 'sem modelo forçado a seleção normal continua funcionando');
+  ok(run(`cerebroPCPonte().modelo`)==="hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M", 'sem modelo forçado a seleção normal continua funcionando');
 }
 {
   const {H,run}=fixture();

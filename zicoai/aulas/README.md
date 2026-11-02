@@ -1,5 +1,7 @@
 # Aulas da ZicoAI
 
+Revisão local pendente: [D51 — modelo destilado na ponte](D/D51-modelo-destilado-na-ponte.md). Instalação no Mac e duelo real ainda precisam de verificação; o teste local usa Ollama simulado.
+
 Cada trabalho que o Claude faz na ZicoAI vira uma **aula** aqui: o pedido do Thiago, como pensou, os comandos de verdade, os erros e como corrigiu, e as lições. A ideia é a ZicoAI (e qualquer cérebro que entrar no lugar) aprender **fazendo igual**, não só ler o resultado.
 
 A versão curta de cada aula também vai pra aba `trajetorias` da planilha "ZicoAI Memória". É dali que o agente puxa as 2 tarefas mais parecidas antes de começar uma nova.

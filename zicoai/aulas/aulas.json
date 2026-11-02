@@ -738,4 +738,14 @@
 "## Por quê\nUma reserva muda quem está sendo avaliado. Se a memória segura o ScriptLock e espera resposta do Mac, a ponte pode precisar da mesma trava para entregar o pedido. O trabalho deve começar em execução separada, depois de soltar a trava.\n\n## Como funciona por baixo\n- `cerebroPCPonte` retorna null quando `PC_MODELO_FORCADO` não está na lista instalada. O modo estrito do duelo não tenta outro cérebro.\n- `dueloAcademia` mantém a tentativa na fila enquanto o modelo exato estiver indisponível. Um gatilho atrasado sem fila não inicia nova avaliação.\n- `aprenderSozinha` marca a necessidade de início; após liberar a trava, agenda `dueloMacAgendado`. Essa função preserva qualquer fila que já exista.\n- Se criar o gatilho falhar, libera a marca para tentar de novo na próxima rodada.\n\n## Exemplo\nO modelo participante some: fila pausa, nenhuma nota é registrada e outro modelo não ocupa seu lugar.\n\n## Erro comum\nTratar “o PC respondeu” como “o modelo escolhido respondeu”; iniciar o duelo dentro da trava da memória; reiniciar um duelo já concluído por um gatilho atrasado.\n\n## Como conferir\n`node cerebro/testes/t79.js` prova seleção estrita, fila preservada, agendamento após liberar trava e ausência de reinício por gatilho atrasado. `t77.js` conserva os testes da v100. Simulador não comprova o duelo real nem autoriza promover um modelo sem placar.",
 "GitHub zicoai/aulas/D/D50-duelo-modelo-exato-sem-travar-ponte.md"
 ]
+,
+[
+"D51",
+"D",
+"modelo destilado: integração antes do placar",
+"ollama, modelo destilado, ponte mac, nome de modelo inválido, hf.co, duelo",
+"Modelo indisponível não perdeu a prova: confira o nome instalado e o encaminhamento até o Ollama antes do duelo. Só troque o cérebro por resultado em tarefas iguais, nunca pelo nome.",
+"# D51 — Modelo instalado precisa chegar ao Ollama\n\nNome com `hf.co/autor/modelo:quantizacao` é válido no Ollama. A ponte antiga do Mac barrava as barras antes de chamar o Ollama: isso é falha de integração, não derrota do modelo.\n\nConfira o nome instalado, teste o encaminhamento exato e só depois compare as respostas nos mesmos exercícios. Registre separadamente erro de conexão, falta de teste e erro da solução. Não troque o cérebro por nome, tamanho ou promessa de destilação.\n\nA validação local com Ollama simulado não comprova funcionamento no Mac físico. Instalação e troca do cérebro continuam pendentes de prova real; publicação exige OK escrito.\n",
+"GitHub: zicoai/aulas/D/D51-modelo-destilado-na-ponte.md"
+]
 ]
