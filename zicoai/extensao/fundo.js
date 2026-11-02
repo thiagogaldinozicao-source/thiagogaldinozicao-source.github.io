@@ -9,7 +9,7 @@
  */
 importScripts('seguranca.js');
 const S = self.ZicoSeguranca;
-const VERSAO = 'nav-2.8';
+const VERSAO = 'nav-2.9';
 const URL_PADRAO = 'https://script.google.com/macros/s/AKfycbzQXrIM8oV2Gygqm_4DA-_4li3mdicbmfnThdieLvNEvsNYoj6jyVPKWo-6CBSyP-aOow/exec';
 const ALARME = 'zicoai-ponte';
 const LIMITE_PRINT = 300000;   // ~300 KB de base64 no máximo
