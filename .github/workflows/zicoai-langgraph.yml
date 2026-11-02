@@ -1,0 +1,29 @@
+name: ZicoAI LangGraph agente duravel (somente leitura)
+on:
+  pull_request:
+    paths:
+      - 'zicoai/mac/agente-duravel/**'
+      - 'zicoai/mac/ponte-mac.js'
+      - '.github/workflows/zicoai-langgraph.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verificar sintaxe do adaptador e da ponte
+        run: |
+          node --check zicoai/mac/ponte-mac.js
+          node --check zicoai/mac/agente-duravel/agente.cjs
+          node --check zicoai/mac/agente-duravel/integracao.cjs
+          node --check zicoai/mac/agente-duravel/teste-real.cjs
+      - name: Instalar somente dependencias do agente
+        run: npm install --prefix zicoai/mac/agente-duravel --no-audit --no-fund
+      - name: Testar LangGraph real e SQLite com falhas simuladas
+        run: npm test --prefix zicoai/mac/agente-duravel
