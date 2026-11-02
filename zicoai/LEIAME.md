@@ -23,6 +23,7 @@ Assistente pessoal do Thiago (Zicão Store). O Thiago **não programa**: expliqu
 - Máscara de CPF/telefone em todo o histórico de texto antes da nuvem. Não é certificação de privacidade de fotos/anexos ou todas as ferramentas.
 - Validação: t1–t81, **1.220 PASS / 0 FAIL**, mais **22 verificações de UI** com API simulada (390/1440 px), sem erro JavaScript fora do aviso conhecido de SW do contexto de teste. Arquivo do editor foi copiado e comparado à base; listas dos destilados do Thiago preservadas. Aulas D49–D52 acompanham esta revisão.
 - Aplicação da ponte mac-2.1 no Mac físico, novo duelo 8B × 9B, curadoria das aulas e LoRA continuam pendentes. LoRA não foi iniciado nem cérebro substituído automaticamente por esta revisão. Aprovação escrita do Thiago recebida para implantar v102; confirmar versão na implantação antes de declarar concluída.
+- Implantação confirmada em 02/11: descrição v102 no Google (revisão interna 99, que é um contador diferente); endpoint real retornou versão 102. Código relido do editor igual ao testado, SHA256 LF `3ca9a41f91846d2c9f4e1c095295fb41d19b68dc8b30b29efc63bd75cbc2edf2`. PWA v50 e SW v50 conferidos no site. Um cumprimento real no Auto respondeu pelo Groq GPT-OSS 120B em 16,7 s; isso confirma o caminho simples, não todos os cérebros/tarefas. Reduzir latência de conversa simples permanece necessário.
 
 ```
  App (PWA)  ──POST JSON──▶  Cérebro (Google Apps Script)  ──▶  PC de casa (Ollama via Tailscale Funnel)
