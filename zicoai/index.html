@@ -553,6 +553,18 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 #capAtalho.on{color:var(--ouro);background:var(--ouro-fundo)}
 #capAtalho small{font-size:11px;margin-left:2px;color:var(--cinza);font-weight:600}
 #capAtalho.on small{color:var(--ouro)}
+/* Modos reais: usam `capricho` no cérebro e `agente` no executor já existente */
+#modoWrap{position:relative;display:flex;align-items:center;flex-shrink:0}
+#capAtalho{gap:5px;padding:0 10px;white-space:nowrap;border:1px solid transparent}
+#capAtalho[aria-expanded="true"]{border-color:var(--ouro)}
+#capAtalho small{font-size:12px;margin:0}
+#capAtalho .modo-seta{font-size:12px;opacity:.75}
+#menuModos{right:0;left:auto;bottom:52px;width:min(290px,calc(100vw - 22px))}
+#menuModos button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:56px}
+#menuModos button span{font-size:12px;line-height:1.4;white-space:normal}
+#menuModos button.on{background:var(--ouro-fundo);border:1px solid #6b5420}
+#menuModos button.on b{color:var(--ouro2)}
+@media(max-width:420px){#capAtalho{padding:0 5px}#capAtalho small{font-size:11px}#bModelo{max-width:100px}}
 #bMic{width:44px;height:44px;border:0}
 .enviar{width:44px;height:44px;flex-shrink:0}
 .dica{margin-top:10px;font-size:10px}
@@ -660,7 +672,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 }
 </style>
 </head>
-<body>
+<body class="painel-fechado">
 
 <aside id="lado" aria-label="Navegação e conversas">
   <div class="lado-top">
@@ -729,11 +741,15 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
             <button data-c="zai"><b>Z.ai GLM</b><span>Texto; seleção manual sem troca de modelo</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do PC fixo; se falhar, avisa sem trocar</span></button>
             <button data-c="mac"><b>Mac Mini</b><span>Modelo do Mac fixo; se falhar, avisa sem trocar</span></button>
-            <div class="menu-sep"></div>
-            <button id="bCapricho" class="capricho"><b>✨ Capricho: <i id="txtCapricho">automático</i></b><span id="descCapricho">Pergunta difícil: pensa mais e outro cérebro revisa antes de responder</span></button>
+            
           </div>
         </div>
-        <button id="capAtalho" title="Capricho" aria-label="Alternar modo capricho">✨</button>
+        <div id="modoWrap"><button type="button" id="capAtalho" aria-label="Selecionar modo" aria-expanded="false" aria-controls="menuModos" title="Escolher como a Zica trabalha">✨ <small>Pensar</small><span class="modo-seta" aria-hidden="true">▾</span></button>
+          <div class="menu" id="menuModos" role="group" aria-label="Modo de trabalho">
+            <button type="button" data-zmodo="rapido"><b>⚡ Rápido</b><span>Responde sem revisão extra. Não dispensa ferramentas e fontes necessárias.</span></button>
+            <button type="button" data-zmodo="pensar"><b>🧠 Pensar</b><span>Ativa Capricho: análise e revisão, quando o cérebro conseguir.</span></button>
+            <button type="button" data-zmodo="executar"><b>🛠 Executar</b><span>Usa o agente no Auto; cria tarefa e mostra o andamento.</span></button>
+          </div></div>
         <button class="chip-ic" id="bMic" title="Falar" aria-label="Falar" style="display:none">🎤</button>
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
       </div>
@@ -917,7 +933,7 @@ const LS = {
 
 let cfg = Object.assign({ url:'', pin:'', convite:'', pessoa:null, aparelho:'', cerebro:'auto', pcUrl:'http://localhost:11434', pcModelo:'zicoai' }, LS.get('cfg', {}));
 // Nova abertura/reload inicia em Auto + Capricho; escolha manual vale até recarregar.
-cfg.cerebro = 'auto'; cfg.capricho = 'sempre'; LS.set('cfg', cfg);
+cfg.cerebro = 'auto'; if(!['sempre','nunca','auto'].includes(cfg.capricho)) cfg.capricho = 'sempre'; LS.set('cfg', cfg);
 /* ---------- login por convite (v41) ----------
  * Link: …/zicoai/#convite=<link do cérebro>~<chave>. O # não vai pro servidor do GitHub. A chave fica só neste aparelho. */
 function lerConvite(texto){
@@ -2185,6 +2201,7 @@ function setModo(m){
   $('cImg').classList.toggle('on', modo === 'imagem');
   $('cAgente').classList.toggle('on', modo === 'agente');
   $('txt').placeholder = modo === 'web' ? 'O que vc quer pesquisar?' : modo === 'imagem' ? 'Descreve a imagem que vc quer' : modo === 'agente' ? 'Descreve a tarefa grande (ela faz em segundo plano)' : 'Pergunta qualquer coisa pra ZicoAI';
+  mostraModelo();
   $('txt').focus();
 }
 $('cWeb').onclick = () => setModo('web');
@@ -2199,12 +2216,14 @@ function mostraModelo(){
   document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
   $('cAgente').disabled = cfg.cerebro !== 'auto';
   $('cAgente').title = cfg.cerebro === 'auto' ? 'Executar tarefa em segundo plano' : 'Agente disponível somente com cérebro em Auto';
-  const cap = CAPRICHO[cfg.capricho] || CAPRICHO.auto;
-  $('txtCapricho').textContent = cap[0]; $('descCapricho').textContent = cap[1];
-  $('capAtalho').classList.toggle('on', cfg.capricho === 'sempre');
-  $('capAtalho').innerHTML = ico('brilho') + '<small>' + ({ auto: 'auto', sempre: 'sempre', nunca: 'off' }[cfg.capricho] || 'auto') + '</small>';
-  $('capAtalho').title = 'Capricho: ' + cap[0];
-  $('capAtalho').setAttribute('aria-label', 'Capricho: ' + cap[0]);
+  const modoEscolhido = modo === 'agente' ? 'executar' : cfg.capricho === 'nunca' ? 'rapido' : 'pensar';
+  const nomes = {rapido:'Rápido',pensar:'Pensar',executar:'Executar'};
+  const simbolos = {rapido:'⚡',pensar:'🧠',executar:'🛠'};
+  $('capAtalho').classList.toggle('on', modoEscolhido !== 'rapido');
+  $('capAtalho').innerHTML = '<span aria-hidden="true">' + simbolos[modoEscolhido] + '</span><small>' + nomes[modoEscolhido] + '</small><span class="modo-seta" aria-hidden="true">▾</span>';
+  $('capAtalho').title = modoEscolhido === 'executar' ? 'Executar tarefa em segundo plano usando o agente' : modoEscolhido === 'pensar' ? 'Capricho: revisão adicional quando disponível' : 'Responder sem revisão adicional';
+  $('capAtalho').setAttribute('aria-label','Modo: '+nomes[modoEscolhido]+'. Clique para mudar.');
+  document.querySelectorAll('#menuModos button[data-zmodo]').forEach(b => { const ativo=b.dataset.zmodo===modoEscolhido; b.classList.toggle('on',ativo); b.setAttribute('aria-pressed',String(ativo)); });
 }
 /* modo capricho: automático (só pergunta difícil) → sempre → nunca */
 const CAPRICHO = {
@@ -2222,11 +2241,33 @@ function cabeNaTela(m){
   if(r.left < 8) m.style.right = (r.left - 8) + 'px';
   else if(r.right > innerWidth - 8) m.style.right = (r.right - innerWidth + 8) + 'px';
 }
-$('bCapricho').onclick = e => {
+function fecharMenuModos(){
+  $('menuModos').classList.remove('aberto');
+  $('capAtalho').setAttribute('aria-expanded','false');
+}
+$('capAtalho').onclick = e => {
   e.stopPropagation();
-  cfg.capricho = cfg.capricho === 'sempre' ? 'nunca' : 'sempre';
-  LS.set('cfg', cfg); mostraModelo();
+  const aberto = $('menuModos').classList.toggle('aberto');
+  $('capAtalho').setAttribute('aria-expanded',String(aberto));
+  if(aberto) cabeNaTela($('menuModos'));
 };
+document.querySelectorAll('#menuModos button[data-zmodo]').forEach(b=>b.onclick=()=>{
+  const escolha=b.dataset.zmodo;
+  if(escolha==='executar'){
+    // O agente só pode funcionar em Auto, como o cérebro já exige.
+    cfg.cerebro='auto';
+    cfg.capricho='sempre';
+    if(modo!=='agente') setModo('agente');
+  }else{
+    if(modo==='agente') setModo('agente');
+    cfg.capricho=escolha==='rapido'?'nunca':'sempre';
+  }
+  LS.set('cfg',cfg);
+  fecharMenuModos();
+  mostraModelo();
+  $('txt').focus();
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('#modoWrap')) fecharMenuModos(); });
 document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.onclick = () => {
   cfg.cerebro = b.dataset.c;
   if(cfg.cerebro !== 'auto' && modo === 'agente') setModo('agente');
@@ -2954,8 +2995,8 @@ function fechaAnexar(){ $('menuAnexar').classList.remove('aberto'); $('bAnexar')
 $('bAnexar').onclick = () => { const aberto = $('menuAnexar').classList.toggle('aberto'); $('bAnexar').setAttribute('aria-expanded',String(aberto)); };
 $('menuAnexar').addEventListener('click',e => { if(e.target.closest('button')) fechaAnexar(); });
 document.addEventListener('click', e => { if(!e.target.closest('.anexar-wrap')) fechaAnexar(); });
-document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fechaAnexar(); fechaMenuConv(); $('menuModelo').classList.remove('aberto'); if(document.body.classList.contains('painel-aberto')) fechaPainel(); fechaLado(); } });
-$('capAtalho').onclick = e => $('bCapricho').onclick(e);
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fechaAnexar(); fechaMenuConv(); $('menuModelo').classList.remove('aberto'); fecharMenuModos(); if(document.body.classList.contains('painel-aberto')) fechaPainel(); fechaLado(); } });
+// Botões de modo são vinculados no menuModos; nenhum botão decorativo.
 sincronizaPainel();
 
 /* ---------- início ---------- */
@@ -2981,7 +3022,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v50';
+const VERSAO_APP = 'zicoai-v51';
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;
