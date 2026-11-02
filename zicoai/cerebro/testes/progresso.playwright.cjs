@@ -105,6 +105,12 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       await page.locator('#capAtalho').click();
       await page.locator('#menuModos button[data-zmodo="rapido"]').click();
       assert.equal(await page.evaluate(()=>modo),'auto','Voltar a Rápido sai do agente');
+      // Regressão: antes o HTML dizia v51 até abrir a janela. Conferir sem clicar e após F5.
+      assert((await page.locator('#versaoAcesso').innerText()).includes('v52'),'rodapé mostra v52 sem clicar');
+      assert((await page.locator('#bVersoes').innerText()).includes('v52'),'lateral mostra v52 sem clicar');
+      await page.reload({waitUntil:'domcontentloaded'});
+      assert((await page.locator('#versaoAcesso').innerText()).includes('v52'),'após atualizar a tela continua em v52');
+      assert((await page.locator('#bVersoes').innerText()).includes('v52'),'após atualizar a lateral continua em v52');
       // A tela deve informar a versão realmente carregada e verificar o service worker real.
       await page.locator('#versaoAcesso').click();
       assert(await page.locator('#mVersoes').evaluate(e=>e.classList.contains('aberto')),'janela de versões abre');
