@@ -337,7 +337,7 @@ const PERSONA = [
   '9c. O Thiago digita rápido, com erro de digitação, letra trocada e sem acento ("celuakr" = celular, "noa" = não, "oq" = o que, "pq" = por que, "tbm" = também, "msm" = mesmo, "ta" = tá, "vc" = você, "q" = que, "mt" = muito, "blz" = beleza). Entenda pelo contexto SEMPRE. Nunca corrija a escrita dele, nunca peça pra repetir por causa de erro de digitação, nunca comente o erro. Se a dúvida for real (duas leituras possíveis), pergunte em uma linha.',
   '10. Não ofereça extras que não foram pedidos. Se algo for difícil demais pra vc, diga que é melhor pedir pro Claude.',
   '11. CARD DE COPIAR: tudo que o Thiago vai copiar e colar (mensagem pra cliente ou família, lista de preço, MAC e key, comparativo, código) vai SEMPRE dentro de um bloco de código markdown (três crases). Explicação fica fora do bloco.',
-  '12. Programação: o Thiago NÃO sabe programar. App NOVO: entregue o arquivo COMPLETO e funcionando, num bloco ```html só, e explique como leigo (nome do arquivo, onde salvar, como abrir). App que JÁ EXISTE (veio o código atual): só os trechos que mudam, no formato ANTES/DEPOIS (o sistema aplica e testa). Modo escuro, mobile-first. O sistema abre o app num navegador (no Mac) e te devolve os erros, e o app tem o botão ▶ Testar: NUNCA diga que não dá pra testar. Só diga "testado" se a resposta tiver o selo ✅ do teste. Escreva código que funciona de primeira (variável declarada antes de usar, elemento existe antes do getElementById, sem biblioteca que não carregou).',
+  '12. Programação: o Thiago NÃO sabe programar. App NOVO: entregue o arquivo COMPLETO, num bloco ```html só, e explique como leigo (nome do arquivo, onde salvar, como abrir). App que JÁ EXISTE (veio o código atual): só os trechos que mudam, no formato ANTES/DEPOIS (o sistema aplica e testa). Modo escuro, mobile-first. O sistema abre o app num navegador (no Mac) e te devolve os erros. Só o sistema emite o estado de validação: sintaxe, executado, aprovado ou falhou. NÃO escreva selo de teste nem diga pronto/funcionando antes de passar nas provas do pedido. Sem execução ou prova válida, entregue como rascunho. Escreva código que funciona de primeira (variável declarada antes de usar, elemento existe antes do getElementById, sem biblioteca que não carregou).',
   '13. Dados de cliente (CPF, telefone, endereço): se o Thiago mandar, avise em uma linha que isso é melhor fazer na ZicoAI do PC (offline) e não salve na memória.',
   '',
   '### MÉTODO (como o Claude trabalha; faça isso por dentro, antes de escrever, sem mostrar os passos)',
@@ -395,6 +395,8 @@ const PERSONA = [
 /** Lista do que a ZicoAI fez em cada resposta (aparece no app em "Como respondi"). */
 let PASSOS = [];
 let TESTOU_AGORA = 0;
+// Só o sistema emite estes resumos, após conferir o arquivo e os resultados desta requisição.
+let SELOS_VALIDACAO = [];
 let EDITANDO_APP = false;   // v89: mexendo num app que já existe → sistema enxuto (sem memória/preços/base que nada têm a ver)
 let INICIO_REQ = Date.now();   // v84: quantos testes DE VERDADE rodaram nesta resposta (app aberto no navegador do Mac, testes do Mac)
 let DETALHES = [];
@@ -565,7 +567,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; EDITANDO_APP = false; INICIO_REQ = Date.now(); DETALHES = []; ABA_ATUAL = 0; NAV_ATUAL = ''; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
+  PESSOA = DONO; PASSOS = []; TESTOU_AGORA = 0; SELOS_VALIDACAO = []; EDITANDO_APP = false; INICIO_REQ = Date.now(); DETALHES = []; ABA_ATUAL = 0; NAV_ATUAL = ''; TAREFA_DETALHE = ""; REQ_VIVO = ""; SEGREDOS_MASCARA = null; GRAVOU_DETALHE_EM = 0; DETALHES_POR_ID = null;
   const t0 = Date.now();
   try {
     // Telegram chama este mesmo link com ?tg=SEGREDO (propriedade TELEGRAM_SEGREDO)
@@ -919,7 +921,14 @@ function chatSemTrava(req, aparelho) {
     return Object.assign(resultado, { chatId: chatId, titulo: titulo, passos: PASSOS, detalhes: detalhesSeguros(DETALHES) });
   }
   // programadora: aplica a edição, TESTA o app (sintaxe + navegador do Mac) e corrige o que quebrou antes de entregar
-  if ((codigoApp || ehProgramacao(pergunta) || /```html|^\s*<!doctype html/i.test(String(resultado.texto || '')))) { try { resultado = programadora(resultado, codigoApp, pergunta, req.appSlug || appAuto || null); } catch (e) { passo('Teste do código falhou (' + String(e.message || e).slice(0, 80) + '), entregou sem testar'); } }
+  if ((codigoApp || ehProgramacao(pergunta) || /```html|^\s*<!doctype html/i.test(String(resultado.texto || '')))) {
+    try { resultado = programadora(resultado, codigoApp, pergunta, req.appSlug || appAuto || null); }
+    catch (e) {
+      passo('Validação do código falhou (' + String(e.message || e).slice(0, 80) + ')');
+      const v = validacaoCodigo_('', null, { erro: 'Não consegui concluir a validação do código.' });
+      resultado = Object.assign({}, resultado, { texto: textoRascunho_(resultado.texto) + seloValidacao_(v), testado: false, validacao: v });
+    }
+  }
 
   // TESTA ANTES DE ENTREGAR (igual o Claude): refaz as contas e abre os links da resposta
   try { resultado.texto = conferirAntesDeEntregar(resultado.texto); } catch (e) { /* conferência nunca derruba a resposta */ }
@@ -939,7 +948,7 @@ function chatSemTrava(req, aparelho) {
   tocarChat(chatId);
   try { compactarSePrecisar(chatId); } catch (e) { /* compactação nunca derruba a resposta */ }
 
-  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, detalhes: detalhesSeguros(DETALHES), opcoes: proc.opcoes || undefined, appAuto: appAuto || undefined, testado: resultado.testado };
+  return { ok: true, chatId: chatId, titulo: titulo, resposta: textoFinal, cerebro: resultado.cerebro, salvou: proc.salvou, passos: PASSOS, detalhes: detalhesSeguros(DETALHES), opcoes: proc.opcoes || undefined, appAuto: appAuto || undefined, testado: resultado.testado, validacao: resultado.validacao };
 }
 
 /* ---------- feedback (👍 / 👎 + reclamação) ---------- */
@@ -1789,6 +1798,7 @@ function aplicarTrechos(codigo, texto) {
     if (n !== 1) { falhas.push('bloco ' + (i + 1) + ': o trecho ANTES aparece ' + n + ' vez(es) no arquivo (tem que ser copiado exatamente e aparecer 1 vez): ' + antes.slice(0, 80)); return; }
     novo = novo.replace(antes, () => depois);
   });
+  if (!falhas.length && novo === String(codigo).replace(/\r\n/g, '\n')) return { ok: false, codigo: novo, qtd: blocos.length, semMudanca: true, falhas: ['Os blocos não mudam o arquivo (ANTES e DEPOIS iguais ou alterações que se anulam).'] };
   return { ok: !falhas.length, codigo: novo, falhas: falhas, qtd: blocos.length };
 }
 function extrairHtml(texto) {
@@ -1811,19 +1821,66 @@ function checarHtmlEstatico(html) {
 }
 /** Testa o app: sintaxe aqui; se o Mac estiver ligado, abre no Chromium dele (celular, clica nos botões) e pega os erros reais. */
 function testarApp(html, provas) {
+  html = String(html).trimEnd();
   const erros = checarHtmlEstatico(html);
   let rodou = false, avisos = [], resProvas = [];
   provas = Array.isArray(provas) ? provas : [];
   if (!erros.length) {
     try {
       const r = ponte('testar_html', { html: html, largura: 390, provas: provas }, provas.length ? 120000 : 60000, 'mac');
-      rodou = true; TESTOU_AGORA++; (r.erros || []).forEach(e => erros.push('No navegador: ' + e)); avisos = r.avisos || [];
+      if (!r || r.ok === false || !Array.isArray(r.erros)) throw new Error('O Mac não devolveu um resultado de teste válido');
+      rodou = true; TESTOU_AGORA++; r.erros.forEach(e => erros.push('No navegador: ' + e)); avisos = r.avisos || [];
       resProvas = Array.isArray(r.provas) ? r.provas : [];
       if (provas.length && !resProvas.length) erros.push('As provas não rodaram (o teste do Mac está desatualizado: precisa do testar-html v2)');
+      provas.forEach(p => {
+        const encontrados = resProvas.filter(x => x.nome === p.nome);
+        if (encontrados.length !== 1 || encontrados[0].ok !== true) erros.push('Prova falhou ou não foi confirmada: ' + p.nome + (encontrados[0] && encontrados[0].detalhe ? ' — ' + String(encontrados[0].detalhe).slice(0, 200) : ''));
+      });
       passo('Abriu o app no navegador do Mac (celular), clicou em ' + (r.botoesTestados || 0) + ' botão(ões)' + (resProvas.length ? ', rodou ' + resProvas.length + ' prova(s): ' + resProvas.filter(x => x.ok).length + ' passaram' : '') + ': ' + (erros.length ? erros.length + ' erro(s)' : 'sem erro'));
     } catch (e) { passo('Navegador do Mac indisponível (' + String(e.message).slice(0, 60) + '): conferiu só a sintaxe'); if (provas.length) erros.push('As provas não rodaram: Mac fora do ar'); }
   }
-  return { erros: erros, avisos: avisos, rodou: rodou, provas: resProvas };
+  return { erros: erros, avisos: avisos, rodou: rodou, provas: resProvas, hash: hashEntrega_(html) };
+}
+/** Estado da entrega, separado de sucesso de transporte (ok) e de ter aberto o navegador (rodou). */
+function hashEntrega_(codigo) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(codigo), Utilities.Charset.UTF_8).map(b => ('0' + (b & 255).toString(16)).slice(-2)).join('');
+}
+function validacaoCodigo_(codigo, teste, dados) {
+  dados = dados || {};
+  const hash = codigo ? hashEntrega_(codigo) : '';
+  const erros = (teste && teste.erros || []).slice();
+  if (dados.erro) erros.push(dados.erro);
+  if (teste && teste.hash && teste.hash !== hash) erros.push('O teste pertence a outra versão do arquivo.');
+  const novas = dados.novas || [], antes = dados.antes, fracas = [], semAntes = [];
+  novas.forEach(p => {
+    const r = antes && antes.rodou && antes.hash === hashEntrega_(String(dados.original || '').trimEnd()) && (antes.provas || []).filter(x => x.nome === p.nome);
+    if (!r || r.length !== 1 || typeof r[0].ok !== 'boolean') semAntes.push(p.nome);
+    else if (r[0].ok) fracas.push(p.nome);
+  });
+  const provas = dados.provas || [];
+  const todasPassaram = provas.length > 0 && provas.every(p => {
+    const r = (teste && teste.provas || []).filter(x => x.nome === p.nome);
+    return r.length === 1 && r[0].ok === true;
+  });
+  const provaPedido = novas.length > 0 && (!dados.editando || (!fracas.length && !semAntes.length));
+  const aprovado = !erros.length && !!(teste && teste.rodou && teste.hash === hash) && todasPassaram && provaPedido;
+  const estado = erros.length ? 'falhou' : aprovado ? 'aprovado' : teste && teste.rodou ? 'executado' : dados.sintaxe || teste ? 'sintaxe' : 'nao_testado';
+  return { estado: estado, hash: hash, rodou: !!(teste && teste.rodou), mudou: dados.mudou, erros: erros, provas: (teste && teste.provas || []).map(p => ({ nome: p.nome, ok: p.ok === true })), provasFracas: fracas, provasSemAntes: semAntes };
+}
+function seloValidacao_(v) {
+  let s;
+  if (v.estado === 'aprovado') s = '✅ Pedido aprovado: passou nas ' + v.provas.length + ' prova(s): ' + v.provas.map(p => p.nome).join(' · ') + '. Pronto para revisão; não publicado.';
+  else if (v.estado === 'falhou') s = '❌ **Não ficou pronto**: ' + v.erros.slice(0, 3).join(' · ') + '. O resultado fica como rascunho; falta corrigir e validar.';
+  else if (v.estado === 'executado') s = '⚠️ Abriu no navegador sem erro detectado, mas o pedido ainda não foi comprovado.' + (v.provasFracas.length ? ' A prova "' + v.provasFracas[0] + '" já passava antes do conserto.' : '') + (v.provasSemAntes.length ? ' Não consegui confirmar a falha da prova no arquivo original.' : '') + ' Falta uma prova válida do comportamento solicitado.';
+  else if (v.estado === 'sintaxe') s = '⚠️ Só a sintaxe foi conferida. O código não foi executado e o funcionamento ainda não foi validado.';
+  else s = '⚠️ Não testado. O funcionamento ainda não foi validado.';
+  SELOS_VALIDACAO.push(s);
+  return '\n\n' + s;
+}
+/** Descarta a narrativa de sucesso do modelo, preservando exatamente os blocos de código/edição. */
+function textoRascunho_(texto) {
+  const blocos = String(texto || '').match(/```[^]*?```|<<<<<<< ?AN?TE?S[^]*?>>>>>>> ?DE?PO?IS/gi) || [];
+  return 'Rascunho para revisão.' + (blocos.length ? '\n\n' + blocos.join('\n\n') : ' Não há uma alteração validada para entregar.');
 }
 const MAX_CONSERTOS = 2;
 
@@ -1871,7 +1928,7 @@ function treinoCodigo(evento, forcar) {
   if (c.get('academia_rodando')) return { ok: false, erro: 'já tem uma rodada da academia rodando' };
   c.put('academia_rodando', '1', 360);
   try {
-    PASSOS = []; INICIO_REQ = Date.now(); EDITANDO_APP = true; TESTOU_AGORA = 0; CHAT_ATUAL = null;
+    PASSOS = []; INICIO_REQ = Date.now(); EDITANDO_APP = true; TESTOU_AGORA = 0; SELOS_VALIDACAO = []; CHAT_ATUAL = null;
     const ex = exerciciosAcademia_();
     const cands = ACADEMIA_CEREBROS.filter(n => n === 'pc' ? !!cerebroPCPonte() : n === 'mac' ? temCerebro('mac') : temCerebro(n));
     if (!ex.length || !cands.length) return { ok: false, erro: 'sem exercício ou sem cérebro' };
@@ -1945,13 +2002,21 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
   if (codigoApp) {
     let ed = aplicarTrechos(codigoApp, texto);
     if (ed.qtd) {
+      if (ed.semMudanca) {
+        const v = validacaoCodigo_(codigoApp.trimEnd(), null, { erro: 'A edição não mudou o arquivo. O rascunho anterior foi preservado.', mudou: false });
+        return Object.assign({}, resultado, { texto: '⛔ Não apliquei mudança.' + seloValidacao_(v), testado: false, validacao: v });
+      }
       explicacao = texto.replace(RX_BLOCO_EDICAO, '').replace(/```[a-z]*\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
       if (!ed.ok) {   // 1 chance: mostra o que não bateu e pede os blocos de novo
         passo('Edição: ' + ed.falhas.length + ' trecho(s) não bateram com o arquivo, pediu de novo');
         const r2 = consertarCodigo(codigoApp, ['Estes blocos de edição não puderam ser aplicados:'].concat(ed.falhas).concat(['Refaça TODOS os blocos copiando o ANTES exatamente do arquivo atual.']), pergunta, texto);
         if (r2) { const ed2 = aplicarTrechos(codigoApp, r2.texto); if (ed2.ok) ed = ed2; }
       }
-      if (!ed.ok) { passo('Edição não aplicou; entregou o pedido de mudança sem mexer no app'); return Object.assign({}, resultado, { texto: texto + '\n\n⚠️ Não consegui aplicar a mudança no arquivo (os trechos não bateram). Pede de novo que eu tento.' }); }
+      if (!ed.ok) {
+        passo('Edição não aplicou; preservou o rascunho anterior');
+        const v = validacaoCodigo_(codigoApp.trimEnd(), null, { erro: 'Não consegui aplicar os trechos no arquivo; o rascunho anterior foi preservado.', mudou: false });
+        return Object.assign({}, resultado, { texto: '⛔ Não apliquei mudança.' + seloValidacao_(v), testado: false, validacao: v });
+      }
       html = ed.codigo; passo('Aplicou ' + ed.qtd + ' trecho(s) de edição no app (o resto do arquivo ficou igual)');
     } else {
       html = extrairHtml(texto);
@@ -1963,7 +2028,10 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
         const r2 = consertarCodigo(codigoApp, ['Você devolveu o arquivo INTEIRO reescrito e ele perdeu ' + Math.round(100 - html.length * 100 / codigoApp.length) + '% do app. Isso é proibido: devolva SÓ os blocos <<<<<<< ANTES / ======= / >>>>>>> DEPOIS com a mudança pedida.'], pergunta, '');
         const ed2 = r2 ? aplicarTrechos(codigoApp, r2.texto) : { ok: false, qtd: 0 };
         if (ed2.ok && ed2.qtd) { html = ed2.codigo; explicacao = String(r2.texto).replace(RX_BLOCO_EDICAO, '').replace(RX_BLOCO_PROVAS, '').replace(/\n{3,}/g, '\n\n').trim(); texto = r2.texto; passo('Aplicou ' + ed2.qtd + ' trecho(s) de edição no app (o resto do arquivo ficou igual)'); }
-        else return Object.assign({}, resultado, { texto: '⛔ Não mexi no app: em vez de mudar só o trecho, saiu um arquivo inteiro diferente e menor (' + html.length + ' letras; o app tem ' + codigoApp.length + '). Ia apagar parte da calculadora. O rascunho e o app continuam como estavam. Pede de novo numa conversa nova.', testado: false });
+        else {
+          const v = validacaoCodigo_(codigoApp.trimEnd(), null, { erro: 'O arquivo devolvido encolheu; o rascunho anterior foi preservado.', mudou: false });
+          return Object.assign({}, resultado, { texto: '⛔ Não mexi no app: saiu um arquivo inteiro diferente e menor (' + html.length + ' letras; o app tem ' + codigoApp.length + ').' + seloValidacao_(v), testado: false, validacao: v });
+        }
       } else if (html) passo('⚠️ Devolveu o arquivo inteiro (do mesmo tamanho): conferindo pelo teste');
     }
   } else html = extrairHtml(texto);
@@ -1971,12 +2039,24 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
     // código solto (js): pelo menos a sintaxe
     const erroJs = conferirCodigo_(texto);
     if (erroJs) passo('Conferiu o código: ' + erroJs);
+    const blocosJs = [...texto.matchAll(/```(?:js|javascript|gs)\n([\s\S]*?)```/gi)].map(m => m[1]);
+    const temCodigo = /```(?:js|javascript|gs|python|py|sql|css|html)\b/i.test(texto);
+    const prometeuEntrega = ehProgramacao(pergunta) && /^(?:me )?(faz|faca|cria|crie|corrig|consert|arruma)/.test(normalizar(pergunta)) && /\b(pronto|corrigi|consertei|funcionando|resolvido)\b/i.test(texto);
+    if (codigoApp || temCodigo || prometeuEntrega) {
+      const v = validacaoCodigo_(blocosJs.join('\n'), null, { erro: erroJs || (codigoApp ? 'Não recebi uma alteração aplicável; o rascunho anterior foi preservado.' : ''), sintaxe: blocosJs.length > 0, mudou: codigoApp ? false : undefined });
+      return Object.assign({}, resultado, { texto: textoRascunho_(texto) + seloValidacao_(v), testado: false, validacao: v });
+    }
     return resultado;
   }
+  html = String(html).trimEnd();
+  if (codigoApp && html.replace(/\r\n/g, '\n') === codigoApp.trimEnd().replace(/\r\n/g, '\n')) {
+    const v = validacaoCodigo_(html, null, { erro: 'A resposta não mudou o arquivo. O rascunho anterior foi preservado.', mudou: false });
+    return Object.assign({}, resultado, { texto: '⛔ Não apliquei mudança.' + seloValidacao_(v), testado: false, validacao: v });
+  }
   // a prova nova pega o defeito? (tem que FALHAR no código antigo; se passa nele, não serve pra conferir o conserto)
-  let provaFraca = [];
+  let provaFraca = [], testeAntes = null;
   if (codigoApp && provasNovas.length && Date.now() - INICIO_REQ < 150000) {
-    try { const antes = testarApp(codigoApp, provasNovas); provaFraca = (antes.provas || []).filter(x => x.ok).map(x => x.nome); if (provaFraca.length) passo('⚠️ Prova que já passava no código antigo (não pega o defeito): ' + provaFraca.join(', ')); else if ((antes.provas || []).length) passo('As provas novas falharam no código antigo (pegam o defeito) ✅'); } catch (e) { /* segue */ }
+    try { testeAntes = testarApp(codigoApp, provasNovas); provaFraca = (testeAntes.provas || []).filter(x => x.ok).map(x => x.nome); if (provaFraca.length) passo('⚠️ Prova que já passava no código antigo (não pega o defeito): ' + provaFraca.join(', ')); else if ((testeAntes.provas || []).length) passo('As provas novas falharam no código antigo (pegam o defeito) ✅'); } catch (e) { /* fica sem prova do original */ }
   }
   let teste = testarApp(html, provas), voltas = 0;
   while (teste.erros.length && voltas < MAX_CONSERTOS && Date.now() - INICIO_REQ < 170000) {   // 6 min do Google: conserto (cérebro + teste) leva até 2 min, então não começa depois de ~3 min
@@ -1988,14 +2068,11 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
     const ed = aplicarTrechos(html, r.texto);
     if (ed.ok) novo = ed.codigo; else { const inteiro = extrairHtml(r.texto); if (inteiro && inteiro.length >= html.length * 0.85) novo = inteiro; }   // v91: conserto não pode encolher o app
     if (!novo) { passo('Conserto não aplicou'); break; }
-    html = novo; teste = testarApp(html, provas);
+    html = String(novo).trimEnd(); teste = testarApp(html, provas);
   }
-  const provasOk = (teste.provas || []).filter(x => x.ok);
-  if (!teste.erros.length && slugApp && provasNovas.length) { const g = guardarProvas_(slugApp, provasNovas.filter(p => provaFraca.indexOf(p.nome) < 0), 'zicoai'); if (g) passo('Guardou ' + g + ' prova(s) nova(s) do app: rodam em toda mudança daqui pra frente'); }
-  const cortado = teste.erros.some(e => /cortad|terminou no meio/i.test(e));
-  const selo = teste.erros.length
-    ? '\n\n⚠️ Testei e ainda tem: ' + teste.erros.slice(0, 3).join(' · ') + (cortado ? '\n\n❌ **Não ficou pronto**: o arquivo veio cortado. Não publica; pede "continua" ou "refaz" que eu tento de novo.' : '\n\n❌ **Não ficou pronto**: ainda tem erro. Não publica; me manda "corrige" que eu tento de novo.')
-    : '\n\n✅ Testei ' + (teste.rodou ? 'no navegador (tela de celular, cliquei nos botões)' : 'a sintaxe') + (voltas ? ' e consertei ' + voltas + 'x antes de te mandar' : '') + ': sem erro.' + (provasOk.length ? ' Passou nas ' + provasOk.length + ' prova(s): ' + provasOk.map(x => x.nome).join(' · ') + '.' : '') + (codigoApp && !provas.length ? ' ⚠️ Sem prova de conta/comportamento: confere o que vc pediu no Testar.' : '') + (provaFraca.length ? ' ⚠️ A prova "' + provaFraca[0] + '" já passava antes do conserto: ela não prova que o defeito sumiu.' : '') + (teste.avisos.length ? ' Obs.: ' + teste.avisos.slice(0, 2).join(' · ') : '');
+  const v = validacaoCodigo_(html, teste, { editando: !!codigoApp, novas: provasNovas, provas: provas, antes: testeAntes, original: codigoApp, mudou: codigoApp ? html !== codigoApp.trimEnd() : undefined });
+  if (v.estado === 'aprovado' && slugApp && provasNovas.length) { const g = guardarProvas_(slugApp, provasNovas, 'zicoai'); if (g) passo('Guardou ' + g + ' prova(s) nova(s) do app: rodam em toda mudança daqui pra frente'); }
+  const selo = seloValidacao_(v);
   html = String(html).replace(/\s+$/, '');
   const veioPorTrechos = codigoApp && explicacao !== texto;
   // app que já existe (repo ou site): a versão completa vira RASCUNHO; o chat mostra só o que mudou
@@ -2004,13 +2081,13 @@ function programadora(resultado, codigoApp, pergunta, slugApp) {
       guardarRascunho_(CHAT_ATUAL, slugApp, html);
       passo('Guardou a versão completa como rascunho (' + html.length + ' letras): Testar/Publicar no app');
       const trechos = veioPorTrechos ? trechosLegiveis_(texto) : '';
-      const corpoR = (explicacao || 'Pronto, mudei o app.') + (trechos ? '\n\n**O que mudou:**\n\n' + trechos : '') + '\n\n[[RASCUNHO:' + slugApp + ']]';
-      return Object.assign({}, resultado, { texto: corpoR + selo, testado: !teste.erros.length, rascunho: slugApp });
+      const corpoR = (v.estado === 'aprovado' ? 'Alteração preparada e validada.' : 'Rascunho salvo para revisão.') + (trechos ? '\n\n**O que mudou:**\n\n' + trechos : '') + '\n\n[[RASCUNHO:' + slugApp + ']]';
+      return Object.assign({}, resultado, { texto: corpoR + selo, testado: v.estado === 'aprovado', validacao: v, rascunho: slugApp });
     } catch (e) { passo('Rascunho não salvou (' + String(e.message || e).slice(0, 60) + '): mandou o arquivo no chat'); }
   }
-  const corpo = veioPorTrechos ? (explicacao || 'Pronto, mudei o app.') + '\n\n```html\n' + html + '\n```'
-    : (voltas ? texto.replace(/```html[^\n]*\n[\s\S]*?```/i, () => '```html\n' + html + '\n```') : texto);
-  return Object.assign({}, resultado, { texto: corpo + selo, testado: !teste.erros.length });
+  // A entrega usa sempre o MESMO HTML que acabou de ser testado, inclusive após um conserto.
+  const corpo = (v.estado === 'aprovado' ? 'Código preparado e validado.' : 'Rascunho para revisão.') + '\n\n```html\n' + html + '\n```';
+  return Object.assign({}, resultado, { texto: corpo + selo, testado: v.estado === 'aprovado', validacao: v });
 }
 /** O arquivo veio cortado no meio (limite de saída do cérebro): pede só o resto, até 2 vezes, e cola. */
 function continuarCortado(parcial, pergunta) {
@@ -4309,7 +4386,7 @@ function conferirLinks(texto) {
 function conferirAntesDeEntregar(texto, testouAntes) {
   let t = conferirContas(texto);
   try { t = conferirLinks(t); } catch (e) { /* sem rede: segue */ }
-  t = conferirAlegacaoTeste_(t, testouAntes || TESTOU_AGORA > 0);
+  t = conferirAlegacaoTeste_(t);
   return t;
 }
 /* v84: ela NÃO pode dizer que testou sem ter testado (caso real 01/11: "Testes confirmados no Mac" com somas erradas e arquivo cortado).
@@ -4318,20 +4395,20 @@ function conferirAntesDeEntregar(texto, testouAntes) {
 const RX_DIZ_QUE_TESTOU = /\b(testei\b|testad[oa]s?\b|testes? (confirmad|feit|rodad|aprovad|passa|ok)|rodei (no|o|os|a|as|ele|tudo)\b|conferi no (mac|navegador|pc)\b|verifiquei no (mac|navegador|pc)\b|funcion(a|ou) certinho no (mac|navegador))/;
 const RX_SELO_TESTE = /^\s*(⚠️|✅) Testei (e ainda tem|no navegador|a sintaxe)/;
 function conferirAlegacaoTeste_(texto, testou) {
-  if (testou) return texto;
+  // Contador, nome de ferramenta, booleano e prefixo de selo não comprovam um resultado.
   const partes = String(texto || '').split(/(```[\s\S]*?```)/);
   let achou = 0;
   for (let k = 0; k < partes.length; k += 2) {
     partes[k] = partes[k].split('\n').map(l => {
       const n = normalizar(l);
-      if (RX_SELO_TESTE.test(l) || !RX_DIZ_QUE_TESTOU.test(n) || /\bnao (test|rodei|conferi)/.test(n)) return l;
+      if (SELOS_VALIDACAO.indexOf(l.trim()) >= 0 || !RX_DIZ_QUE_TESTOU.test(n) || /\bnao (test|rodei|conferi)/.test(n)) return l;
       achou++;
       return l.replace(/✅\s*/g, '') + ' _(⚠️ não foi testado de verdade)_';
     }).join('\n');
   }
   if (!achou) return texto;
-  passo('Ela disse que testou, mas nenhum teste rodou nesta resposta: marcou como NÃO testado');
-  return '⚠️ **Não testei de verdade**: nenhum teste rodou nesta resposta. Onde diz que testou, não vale; confere antes de usar.\n\n' + partes.join('');
+  passo('Alegação de teste sem comprovante da entrega: marcou como NÃO comprovada');
+  return '⚠️ **Não testei de verdade**: a alegação abaixo não tem um comprovante da entrega. O funcionamento ainda não foi validado.\n\n' + partes.join('');
 }
 
 /* ---------- o código da própria ZicoAI (pra ela se avaliar e melhorar) ---------- */
@@ -5507,12 +5584,15 @@ const FERRAMENTAS = {
   emails_recentes: { desc: 'Lê os e-mails recentes da caixa de entrada. args: {quantos}', run: a => listarEmails(Math.min(20, parseInt(a.quantos, 10) || 10)).join('\n') || '(nenhum)' },
   listar_apps: { desc: 'Lista os apps: os publicados no site e os que moram em repositório próprio (slug "repo:Nome", ex.: repo:Calculadora-do-zicao). args: {}', run: () => listarApps().map(x => x.slug + ' → ' + x.url).join('\n') || '(nenhum)' },
   ler_app: { desc: 'Código atual (de verdade) de um app. Pra mudar um app EXISTENTE leia ele aqui ANTES; nunca invente o arquivo. args: {slug} (ex.: "repo:Calculadora-do-zicao")', run: a => codigoDoApp(a.slug) || '(não achei)' },
-  publicar_app: { desc: 'Publica/atualiza um app HTML no site. ANTES de publicar o código é testado (sintaxe + navegador do Mac clicando nos botões); com erro NÃO publica e devolve os erros pra vc consertar. args: {nome, html}', run: a => {
+  publicar_app: { desc: 'Publica/atualiza um app HTML no site somente após execução e provas de comportamento aprovadas para esse HTML. Sem Mac, provas ou com erro, não publica. args: {nome, html, provas: [provas do comportamento pedido]}', run: a => {
     if (/^repo:/.test(String(a.nome || ''))) return 'NÃO publiquei: app de repositório próprio (' + a.nome + ') só sobe com o botão Publicar do Thiago. Entregue o código pronto (testado) na resposta final.';
-    const t = testarApp(String(a.html || ''));
-    if (t.erros.length) return 'ERRO: testei antes de publicar e NÃO publiquei. Conserte e publique de novo:\n- ' + t.erros.slice(0, 8).join('\n- ');
-    const r = publicarApp(a.nome, a.html);
-    return r.ok ? 'publicado em ' + r.url + (t.rodou ? ' (testado antes no navegador do Mac: sem erro)' : ' (só a sintaxe foi conferida: Mac fora)') : 'ERRO: ' + r.erro;
+    const html = String(a.html || '').trimEnd();
+    const provas = extrairProvas_('```provas\n' + JSON.stringify(a.provas || []) + '\n```');
+    const t = testarApp(html, provas);
+    const v = validacaoCodigo_(html, t, { novas: provas, provas: provas });
+    if (v.estado !== 'aprovado') return 'ERRO: NÃO publiquei. ' + seloValidacao_(v).trim();
+    const r = publicarApp(a.nome, html);
+    return r.ok ? 'publicado em ' + r.url + ' (provas do comportamento aprovadas para este arquivo)' : 'ERRO: ' + r.erro;
   } },
   telegram: { desc: 'Manda mensagem pro Thiago no Telegram. args: {texto}', run: a => tgEnviar(null, String(a.texto)) ? 'enviado' : '(Telegram não configurado)' },
   gerar_imagem: { desc: 'Gera uma imagem (prompt em inglês). args: {prompt}', run: a => processarTags('[[IMAGEM: ' + String(a.prompt) + ']]', 'agente').texto.trim() },
@@ -5663,7 +5743,11 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   const msgs = est.msgs;
   const finalizar = (texto) => {
     texto = limparRespostaAgente_(texto);   // v92: nada de {"resposta":…} nem [[etapa…]] cru pro Thiago (revisora achou 2x em 01/11)
-    try { texto = conferirAntesDeEntregar(texto, est.log.some(x => /🔧 (testar_app|mac_testar)\b|Abriu o app no navegador do Mac/.test(String(x)))); est.log = est.log.concat(PASSOS.filter(x => /^Conferiu|^Link/.test(x) && est.log.indexOf(x) < 0)); } catch (e) { /* ok */ }
+    if (/```(?:html|js|javascript|gs|python|py|sql|css)\b|^\s*<!doctype html/i.test(texto)) {
+      try { const p = programadora({ ok: true, texto: texto, cerebro: est.cerebro }, null, pedido, null); texto = p.texto; }
+      catch (e) { texto = textoRascunho_(texto) + seloValidacao_(validacaoCodigo_('', null, { erro: 'A validação do código do agente não foi concluída.' })); }
+    }
+    try { texto = conferirAntesDeEntregar(texto); est.log = est.log.concat(PASSOS.filter(x => /^Conferiu|^Link/.test(x) && est.log.indexOf(x) < 0)); } catch (e) { /* ok */ }
     const final = processarTags(texto, aparelho || 'agente').texto + conferenciaFinal(est.plano);
     atualizarTarefa(id, { status: 'concluída', resultado: final, passos: compacto(est.log.concat(['Concluída com ' + est.cerebro + ' (' + est.usadas + ' ferramenta' + (est.usadas === 1 ? '' : 's') + (est.rodadas > 1 ? ', ' + est.rodadas + ' rodadas' : '') + ')'])) });
     if (est.salvou) estadoApagar(id);
