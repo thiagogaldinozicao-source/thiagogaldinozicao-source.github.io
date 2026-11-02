@@ -3551,6 +3551,7 @@ function aprenderSozinha() {
   if (!lock.tryLock(1000)) return;
   try {
     const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('DUELO_MAC_V100') && !props.getProperty('DUELO_FILA')) { props.setProperty('DUELO_MAC_V100', hoje()); try { Logger.log('Duelo do Mac (v100): ' + JSON.stringify(dueloMac().feitos)); } catch (e) { Logger.log('dueloMac: ' + e.message); } }   // começa sozinho 1×; depois o gatilho de 5 min continua
     if (!props.getProperty('PARES_V99')) { try { Logger.log('Pares antigos (v99): ' + paresAntigos_()); } catch (e) { Logger.log('paresAntigos_: ' + e.message); } props.setProperty('PARES_V99', hoje()); }
     if (!props.getProperty('MEM_REVISADA_V90')) { try { const rv = revisarMemoria(); Logger.log('Memória revisada (v90): ' + rv.marcadas.length + ' marcadas'); } catch (e) { Logger.log('revisarMemoria: ' + e.message); } props.setProperty('MEM_REVISADA_V90', hoje()); }
     const ultima = props.getProperty('APRENDIDO_ATE') || '';
