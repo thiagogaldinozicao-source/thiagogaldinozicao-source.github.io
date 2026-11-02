@@ -154,7 +154,7 @@ const PC_PONTE_ESPERA = 200000;
  * LEVE (rápido, cabe inteiro na placa) pra conversa do dia a dia; PESADO (35B) pra código, capricho, prova e trabalho de fundo. */
 const PC_MODELOS_LEVE = ['qwen3.5:9b'];
 let PC_MODELO_FORCADO = null;   // v100: duelo da academia escolhe QUAL modelo do PC responde
-function apelidoModelo_(m) { return String(m).replace(/^hf\.co\/[^/]+\//i, '').replace(/-GGUF(:.*)?$/i, '').replace(/^Qwen3\.6-35B-A3B-Claude-4\.6-Opus-Reasoning-Distilled$/i, 'Qwen3.6 35B Opus destilada'); }
+function apelidoModelo_(m) { return String(m).replace(/^hf\.co\/[^/]+\//i, '').replace(/-GGUF(:.*)?$/i, '').replace(/^Qwen3\.6-35B-A3B-Claude-4\.6-Opus-Reasoning-Distilled$/i, 'Qwen3.6 35B Opus destilada').replace(/^Qwen3\.5-9B-Claude-4\.6-Opus-Reasoning-Distilled-v2$/i, 'Qwen3.5 9B Opus destilado'); }
 function modelosDoPC_() { try { return JSON.parse(CacheService.getScriptCache().get('ponte_modelos') || '[]').map(m => String(m).replace(/:latest$/, '')); } catch (e) { return []; } }
 function cerebroPCPonte(tipo) {
   if (!prop('PONTE_SEGREDO') || !ponteViva('pc')) return null;
@@ -1871,6 +1871,7 @@ function ordemPelaAcademia_(lista) {
 /** Uma rodada: 1 exercício × 1 cérebro (cabe nos 6 min). Trigger de hora em hora; só roda das 23h às 7h (ou forcar). */
 let SO_ESTE_CEREBRO = null;
 function treinoCodigo(evento, forcar, escolha) {
+  let macAntes = null;
   const h = Number(Utilities.formatDate(new Date(), FUSO, 'H'));
   if (!forcar && !(h >= 23 || h < 7)) return { ok: true, pulou: 'fora do horário (a academia roda das 23h às 7h)' };
   const c = CacheService.getScriptCache();
@@ -1886,6 +1887,7 @@ function treinoCodigo(evento, forcar, escolha) {
     props.setProperty('ACADEMIA_N', String(n + 1));
     let cer = cands[n % cands.length], e = ex[Math.floor(n / cands.length) % ex.length];
     if (escolha) { cer = escolha.cer; e = ex.find(x => x.id === escolha.ex) || e; PC_MODELO_FORCADO = escolha.pcModelo || null; SO_ESTE_CEREBRO = cer; }
+    if (escolha && escolha.macModelo) { macAntes = [CEREBROS.mac.modelo, CEREBROS.mac.nome]; CEREBROS.mac.modelo = escolha.macModelo; CEREBROS.mac.nome = 'Mac (' + apelidoModelo_(escolha.macModelo) + ')'; }
     let html = e.html;
     if (!html && e.url) { const r = UrlFetchApp.fetch(e.url, { muteHttpExceptions: true }); html = r.getResponseCode() === 200 ? r.getContentText() : ''; }
     if (!html) return { ok: false, erro: 'exercício sem arquivo: ' + e.id };
@@ -1920,7 +1922,7 @@ function treinoCodigo(evento, forcar, escolha) {
     }
     try { parDaAcademia_(e, quem, passou, res && res.texto); } catch (err) { /* ok */ }
     return { ok: true, exercicio: e.id, cerebro: quem, passou: passou, provas: provasTxt, detalhe: detalhe, passos: PASSOS.slice(-12) };
-  } finally { c.remove('academia_rodando'); PC_MODELO_FORCADO = null; SO_ESTE_CEREBRO = null; }
+  } finally { c.remove('academia_rodando'); PC_MODELO_FORCADO = null; SO_ESTE_CEREBRO = null; if (macAntes) { CEREBROS.mac.modelo = macAntes[0]; CEREBROS.mac.nome = macAntes[1]; } }
 }
 /* ---------- v100: DUELO NA ACADEMIA ----------
  * Cérebro novo no PC (ex.: a Opus destilada) contra o 3.6 oficial e os grandes da nuvem, nos MESMOS exercícios com prova escondida.
@@ -1942,10 +1944,11 @@ function dueloAcademia(recomecar) {
   const feitos = [];
   while (fila.length && Date.now() - t0 < 150000) {
     const it = fila[0];
+    if (it.cer === 'mac' && !temCerebro('mac')) { feitos.push('Mac fora do ar: pausei'); break; }
     if (it.cer === 'pc' && !pcLigado) { feitos.push('PC desligado: pausei (liga o PC e roda de novo)'); break; }
     let r; try { r = treinoCodigo(null, true, it); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
     fila.shift(); props.setProperty('DUELO_FILA', JSON.stringify(fila));
-    feitos.push(it.ex + ' · ' + (r.cerebro || it.cer + (it.pcModelo ? ' ' + apelidoModelo_(it.pcModelo) : '')) + ' → ' + (r.passou || 'erro') + ' ' + (r.provas || '') + (r.detalhe ? ' (' + String(r.detalhe).slice(0, 80) + ')' : r.erro ? ' (' + String(r.erro).slice(0, 80) + ')' : ''));
+    feitos.push(it.ex + ' · ' + (r.cerebro || it.cer + (it.pcModelo || it.macModelo ? ' ' + apelidoModelo_(it.pcModelo || it.macModelo) : '')) + ' → ' + (r.passou || 'erro') + ' ' + (r.provas || '') + (r.detalhe ? ' (' + String(r.detalhe).slice(0, 80) + ')' : r.erro ? ' (' + String(r.erro).slice(0, 80) + ')' : ''));
   }
   if (!fila.length) props.deleteProperty('DUELO_FILA');
   // sozinho até acabar: gatilho de 5 em 5 min enquanto tiver fila; acabou → apaga o gatilho
@@ -1959,6 +1962,14 @@ function dueloAcademia(recomecar) {
   return out;
 }
 /** Placar só do duelo (desde DUELO_INICIO): cérebro → acertos/tentativas. */
+/** v100: duelo só do Mac — o 9B destilado (Qwen3.5) contra o qwen3:8b atual, nos mesmos exercícios. Rodar pelo editor; continua sozinho (gatilho do dueloAcademia). */
+const DUELO_MAC = ['qwen3:8b', 'hf.co/Jackrong/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF:Q4_K_M'];
+function dueloMac() {
+  const props = PropertiesService.getScriptProperties(), fila = [];
+  exerciciosAcademia_().forEach(e => DUELO_MAC.forEach(m => fila.push({ cer: 'mac', macModelo: m, ex: e.id })));
+  props.setProperty('DUELO_FILA', JSON.stringify(fila)); props.setProperty('DUELO_INICIO', agora());
+  return dueloAcademia();
+}
 function placarDuelo_() {
   const ini = String(PropertiesService.getScriptProperties().getProperty('DUELO_INICIO') || '');
   const out = {};

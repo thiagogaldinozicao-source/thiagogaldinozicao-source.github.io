@@ -50,3 +50,13 @@ run(`ponteSemDetalhe = function(acao, dados){ if (acao === 'ollama_chat') return
 try { run(`agente(${JSON.stringify(tf[0])}, ${JSON.stringify(tf[3])}, ${JSON.stringify(tf[2])}, 'IPHONE', Date.now() + 200000, '')`); } catch (e) { console.log('agente: ' + e.message); }
 const tf2 = H.sheets.tarefas.rows.find(l => l[0] === tf[0]);
 ok(/PC \(Qwen3\.6 35B Opus destilada\)/.test(String(tf2[5]) + String(tf2[6])), 'agente com seletor em PC: trabalhou com o PC (' + String(tf2[5]).slice(-120) + ')');
+
+// duelo do Mac: 9B destilado × qwen3:8b; o Mac volta pro modelo de antes
+H.PROPS.PONTE_SEGREDO_MAC = 'segmac'; C.ponte_visto_mac = String(run('Date.now()')); delete C.mac_off;
+const vistos = [];
+run(`ponteSemDetalhe = function(acao, dados, espera, disp){ if (acao === 'ollama_chat') { _vm.push((dados && (dados.modelo || dados.model)) || JSON.stringify(dados).slice(0, 300)); return { ok: true, texto: 'Conserto.\\n<<<<<<< ANTES\\nx\\n=======\\ny\\n>>>>>>> DEPOIS' }; } return { ok: true }; }; var _vm = [];`);
+let dm = run('dueloMac()');
+for (let i = 0; i < 20 && dm.faltam; i++) dm = run('dueloAcademia()');
+const quemMac = H.sheets.academia.rows.slice(-EX.length * 2).map(l => l[2]);
+ok(quemMac.filter(q => q === 'Mac (Qwen3.5 9B Opus destilado)').length === EX.length && quemMac.filter(q => q === 'Mac (qwen3:8b)').length === EX.length, 'duelo do Mac: destilado e 8B nos mesmos exercícios (' + [...new Set(quemMac)].join(', ') + ')');
+ok(run('CEREBROS.mac.modelo') === 'qwen3:8b', 'depois do duelo o Mac volta pro modelo de sempre');
