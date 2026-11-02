@@ -218,6 +218,11 @@ async function executar(p) {
   log('pedido: ' + p.acao + ' ' + (d.pasta || '') + (d.arquivo || '') + (d.alvo || '') + (d.nome || '') + (d.html ? (String(d.html).length + ' letras de html') : ''));
   try {
     switch (p.acao) {
+      case 'agente_duravel':
+        // Recurso da comunidade (LangGraph + SQLite), desligado por padrão.
+        // Ações permitidas: status/listar/ler; escritas e cliques são bloqueados.
+        if (process.env.ZPONTE_LANGGRAPH !== '1') return {ok:false,erro:'Agente LangGraph não ativado neste Mac. Configure ZPONTE_LANGGRAPH=1 e instale o módulo.'};
+        return await require('./agente-duravel/integracao.cjs').executarPedido(d, executar);
       case 'status': return await status();
       case 'listar': return listar(d);
       case 'ler': return ler(d);
