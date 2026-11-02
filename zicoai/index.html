@@ -359,6 +359,10 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 .enviar.parar{background:#fff}
 .enviar.parar span{width:12px;height:12px;background:#111;border-radius:2px;display:block}
 .dica{max-width:820px;margin:6px auto 0;text-align:center;font-size:11px;color:var(--cinza2)}
+.recuperacao-envio{margin:6px 12px 0;padding:11px 12px;border:1px solid var(--borda2);border-radius:12px;background:var(--card);color:var(--txt);font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;line-height:1.45}
+.recuperacao-envio[hidden],.recuperacao-envio button[hidden]{display:none!important}
+.recuperacao-envio span{flex:1;min-width:150px}
+.recuperacao-envio button{background:var(--card2);border:1px solid var(--borda2);border-radius:9px;min-height:38px;padding:7px 11px;font-size:12px;font-weight:600}
 #versaoAcesso{background:transparent;border:1px solid var(--borda2);color:var(--cinza2);border-radius:999px;padding:4px 10px;min-height:26px;cursor:pointer;font-size:11px;margin:4px auto 0;display:block}
 #versaoAcesso:hover,#bVersoes:hover{color:var(--ouro);border-color:var(--ouro)}
 #bVersoes{font-size:12px;color:var(--cinza2);text-align:left;padding:8px 10px;min-height:38px;border-radius:9px}
@@ -724,6 +728,11 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     <button class="btn-ic" id="bPainel" aria-label="Abrir painel da conversa" aria-controls="painelDireito" aria-expanded="false" title="Progresso, saídas e recursos">◫</button>
   </header>
 
+  <div id="recuperacaoEnvio" class="recuperacao-envio" hidden role="status" aria-live="polite">
+    <span id="recuperacaoTexto">Conferindo a resposta anterior…</span>
+    <button id="recuperacaoConferir" type="button">Conferir</button>
+    <button id="recuperacaoRestaurar" type="button" hidden>Restaurar texto</button>
+  </div>
   <div class="chat-area"><main id="chat"><button class="resumo-topo" id="resumoTopo" hidden></button><div class="trilho" id="trilho"></div></main><button id="irFim" aria-label="Ir pro fim da conversa" title="Ir pro fim">↓</button></div>
 
   <footer>
@@ -2025,9 +2034,127 @@ $('tiraDoc').onclick = tiraDoc;
 $('chat').addEventListener('scroll', () => { const c = $('chat'); $('irFim').classList.toggle('on', c.scrollHeight - c.scrollTop - c.clientHeight > 320); });
 $('irFim').onclick = () => { const c = $('chat'); c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); };
 
+/* Recuperação de chat após recarregar:
+ * salva o ID do pedido ANTES da rede e consulta estadoChat da v103.6.
+ * Nunca envia outra solicitação automaticamente; o Apps Script pode continuar.
+ * É um controle de UI e não promete que o servidor executou após queda da conexão. */
+const PENDENTE_CHAVE = 'pedido_pendente_' + (ABA_EXT ? 'ext_' + ABA_EXT : 'app');
+let recuperacaoOcupada = false, recuperacaoTimer = null;
+function pedidoPendente(){
+  const p = LS.get(PENDENTE_CHAVE, null);
+  return p && /^r[a-z0-9]{5,40}$/.test(String(p.reqId || '')) && Number(p.criado) > 0 ? p : null;
+}
+function gravaPedidoPendente(p){ LS.set(PENDENTE_CHAVE,p); }
+function limpaPedidoPendente(reqId){
+  const p = pedidoPendente();
+  if(!p || p.reqId !== reqId) return;
+  LS.set(PENDENTE_CHAVE,null);
+  clearTimeout(recuperacaoTimer);
+  $('recuperacaoEnvio').hidden = true;
+}
+function mostraRecuperacao(texto, podeRestaurar){
+  $('recuperacaoEnvio').hidden = false;
+  $('recuperacaoTexto').textContent = texto;
+  $('recuperacaoRestaurar').hidden = !podeRestaurar;
+}
+function agendarRecuperacao(ms){
+  clearTimeout(recuperacaoTimer);
+  if(pedidoPendente()) recuperacaoTimer = setTimeout(()=>conferirPedidoPendente(),ms || 8000);
+}
+function perguntaNoHistorico(msg, pergunta){
+  const a = String(msg || '').trim(), b = String(pergunta || '').trim();
+  return !!b && (a === b || (b.length >= 25 && a.includes(b.slice(0,25))));
+}
+function conversaTemResposta(mens, p){
+  if(!Array.isArray(mens)) return false;
+  const i = mens.map((m,k)=> m.role === 'user' && perguntaNoHistorico(m.content,p.pergunta) ? k : -1).filter(k=>k>=0).pop();
+  return i !== undefined && mens.slice(i+1).some(m=>m.role==='assistant' && !m.erro);
+}
+function restauraPerguntaLocal(p){
+  if(p.chatId && atual && atual !== p.chatId) return;
+  if(!mensagens.some(m=>m.role==='user' && m.content === p.pergunta)){
+    mensagens.push({role:'user',content:p.pergunta});
+    if(atual) guarda();
+    desenha();
+  }
+}
+function associaPedidoConversa(p,j){
+  const id = String(j.chatId || p.chatId || '');
+  if(!/^[a-z0-9]{4,40}$/i.test(id)) return p;
+  if(!p.chatId) {p.chatId=id;gravaPedidoPendente(p);}
+  if(!chats.some(c=>c.id===id)){
+    chats.unshift({id,titulo:'Conversa recuperada',atualizada:'',projeto:''});
+    LS.set('chats',chats);
+    desenhaLista();
+  }
+  if(p.novo && !atual){atual=id;guardaAtual();}
+  return p;
+}
+async function conferirPedidoPendente(){
+  const p = pedidoPendente();
+  if(!p || recuperacaoOcupada || controle) return;
+  recuperacaoOcupada = true;
+  const tempo = Date.now() - Number(p.criado);
+  mostraRecuperacao('Conferindo o pedido anterior no cérebro…',false);
+  try {
+    const j = await api({acao:'estadoChat',reqId:p.reqId,chatId:p.chatId || undefined});
+    associaPedidoConversa(p,j);
+    if(j.estado === 'concluido'){
+      const id = String(p.chatId || j.chatId || '');
+      if(id){
+        const conv = await api({acao:'abrir',chatId:id});
+        if(conversaTemResposta(conv.mensagens,p)){
+          limpaPedidoPendente(p.reqId);
+          if(!atual || atual===id){
+            atual=id;guardaAtual();
+            const anteriores = mensagens;
+            mensagens = conv.mensagens.map((m,i)=>Object.assign({},anteriores[i] && anteriores[i].content===m.content?anteriores[i]:{},m));
+            guarda();desenha();desenhaLista();status(true);
+          }
+          return;
+        }
+      }
+      mostraRecuperacao('O cérebro terminou o pedido, mas não encontrei uma resposta confirmada na conversa. Não vou afirmar que concluiu.',true);
+      return;
+    }
+    if(j.estado==='rodando'){
+      mostraRecuperacao('O cérebro ainda está processando seu pedido. Recarregar não envia outra solicitação.',false);
+      agendarRecuperacao(8000);
+      return;
+    }
+    if(tempo < 60000){
+      mostraRecuperacao('Reconectando: ainda não consegui confirmar se o cérebro recebeu seu pedido.',false);
+      agendarRecuperacao(9000);
+    }else{
+      mostraRecuperacao('Não consegui confirmar se esse pedido chegou ao cérebro. Evitei reenviar para não duplicar ações.',true);
+    }
+  }catch(e){
+    mostraRecuperacao('Não consegui consultar o pedido: '+String(e.message||e).slice(0,140)+'. O texto continua salvo.',tempo >= 60000);
+    if(tempo < 360000) agendarRecuperacao(12000);
+  }finally{recuperacaoOcupada=false;}
+}
+$('recuperacaoConferir').onclick=()=>conferirPedidoPendente();
+$('recuperacaoRestaurar').onclick=()=>{
+  const p=pedidoPendente();if(!p)return;
+  if(!confirm('Não foi possível comprovar a conclusão. Restaurar o texto? Se a tarefa ainda estiver rodando, não reenvie sem conferir.'))return;
+  $('txt').value=p.pergunta;
+  ajusta();
+  limpaPedidoPendente(p.reqId);
+  $('txt').focus();
+};
+function iniciarRecuperacao(){
+  const p=pedidoPendente();if(!p)return;
+  // Pedido recente persistido mesmo quando a conversa ainda não possuía ID.
+  if(p.novo && !atual){mensagens=[{role:'user',content:p.pergunta}];desenha();}
+  mostraRecuperacao('Recuperando a solicitação que estava aberta antes de recarregar…',false);
+  agendarRecuperacao(1100);
+}
+
 /* ---------- enviar ---------- */
 async function envia(refazendo){
   if(controle) return;
+  const antigo=pedidoPendente();
+  if(antigo){mostraRecuperacao('Existe um pedido anterior sem confirmação. Confira antes de enviar outro para evitar duplicar a tarefa.',false);conferirPedidoPendente();return;}
   const texto = $('txt').value.trim();
   if(!refazendo && !texto && !foto && !docAnexo) return;
 
@@ -2051,7 +2178,11 @@ async function envia(refazendo){
   const para = mostraTrabalhando(etapasPara(ultimaPerg.content, !!fotoEnvio), reqId);
   modoEnviando(true);
 
+  let respostaConfirmadaNestaTela = false;
   const novo = !atual;
+  // Crítico: registra o ID ANTES de enviar. Não armazena PIN, foto ou chaves.
+  gravaPedidoPendente({reqId,chatId:atual || '',novo,pergunta:String(ultimaPerg.content || '').slice(0,20000),criado:Date.now()});
+  if(atual) guarda();
   try{
     const hist = mensagens.filter(m => !m.erro).slice(-12).map(m => ({ role: m.role, content: m.content }));
     if(pagina && !refazendo && hist.length){
@@ -2075,6 +2206,7 @@ async function envia(refazendo){
     }
     LS.set('chats', chats);
     if(j.appAuto && typeof j.appAuto === 'string' && j.appAuto !== appAtual){ appAtual = j.appAuto; LS.set('appAtual', appAtual); mostraEdicao(); }
+    respostaConfirmadaNestaTela = true;
     mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, detalhes: Array.isArray(j.detalhes) ? j.detalhes.slice(0,60).map(d => ({tipo: mascaraDetalheUI(d.tipo), titulo: mascaraDetalheUI(d.titulo), pedido: mascaraDetalheUI(d.pedido, 6000), resposta: mascaraDetalheUI(d.resposta, 6000), ms: d.ms})) : [], ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
     status(true);
   }catch(e){
@@ -2088,6 +2220,10 @@ async function envia(refazendo){
     if(caiu) setTimeout(() => recuperarResposta(atual, mensagens.length), 8000);
   }
   modoEnviando(false);
+  // Resposta recebida e gravada na UI: podemos limpar o pedido pendente.
+  // Em erro de rede/aborto, primeiro consultamos estadoChat, sem repetir a chamada.
+  if(respostaConfirmadaNestaTela) limpaPedidoPendente(reqId);
+  else if(pedidoPendente()) { mostraRecuperacao('A resposta pode ter continuado no cérebro. Conferindo o pedido sem reenviar…',false); agendarRecuperacao(6000); }
   if(modo === 'imagem' || modo === 'agente') setModo('auto');
   guarda(); desenha(); desenhaLista();
   setTimeout(atualizaTarefas, 1500);
@@ -3061,13 +3197,13 @@ status();
 mostraModelo();
 desenhaLista();
 desenha();
-if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); setTimeout(() => carregaProjetos().then(desenhaLista), 1200); }
+if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); setTimeout(() => carregaProjetos().then(desenhaLista), 1200); setTimeout(iniciarRecuperacao,1800); }
 else setTimeout(() => $('bCfg').onclick(), 300);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v51';
+const VERSAO_APP = 'zicoai-v52';
 function versaoTexto(){return 'Interface ' + VERSAO_APP.replace(/^zicoai-/,'');}
 function abrirVersoes(){
   const versao=versaoTexto();

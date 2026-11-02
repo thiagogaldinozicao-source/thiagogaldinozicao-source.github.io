@@ -108,9 +108,9 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       // A tela deve informar a versão realmente carregada e verificar o service worker real.
       await page.locator('#versaoAcesso').click();
       assert(await page.locator('#mVersoes').evaluate(e=>e.classList.contains('aberto')),'janela de versões abre');
-      assert((await page.locator('#vSiteNumero').innerText()).includes('v51'),'exibe versão carregada v51');
+      assert((await page.locator('#vSiteNumero').innerText()).includes('v52'),'exibe versão carregada v52');
       await page.locator('#bAtualizarSite').click();
-      await page.getByText('Tudo certo: esta tela já carregou Interface v51.',{exact:true}).waitFor();
+      await page.getByText('Tudo certo: esta tela já carregou Interface v52.',{exact:true}).waitFor();
       await page.locator('#bAjudaExt').click();
       assert((await page.locator('#vResultado').innerText()).includes('chrome://extensions'),'botão dá caminho real para a extensão');
       await page.locator('#vFechar').click();

@@ -23,4 +23,6 @@ jobs:
       - name: Playwright 390 e 1440 com API falsa
         env:
           ZICO_PLAYWRIGHT: /tmp/zicoai-playwright/node_modules/playwright
-        run: node zicoai/cerebro/testes/progresso.playwright.cjs
+        run: |
+          node zicoai/cerebro/testes/progresso.playwright.cjs
+          node zicoai/cerebro/testes/recarga.playwright.cjs
