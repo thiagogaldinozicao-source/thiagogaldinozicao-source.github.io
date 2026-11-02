@@ -359,6 +359,19 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 .enviar.parar{background:#fff}
 .enviar.parar span{width:12px;height:12px;background:#111;border-radius:2px;display:block}
 .dica{max-width:820px;margin:6px auto 0;text-align:center;font-size:11px;color:var(--cinza2)}
+#versaoAcesso{background:transparent;border:1px solid var(--borda2);color:var(--cinza2);border-radius:999px;padding:4px 10px;min-height:26px;cursor:pointer;font-size:11px;margin:4px auto 0;display:block}
+#versaoAcesso:hover,#bVersoes:hover{color:var(--ouro);border-color:var(--ouro)}
+#bVersoes{font-size:12px;color:var(--cinza2);text-align:left;padding:8px 10px;min-height:38px;border-radius:9px}
+#versoesLista{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.versao-bloco{padding:13px;border:1px solid var(--borda2);border-radius:12px;background:var(--bg)}
+.versao-linha{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.versao-linha strong{font-size:14px}
+.versao-bloco p{font-size:12px;color:var(--cinza);line-height:1.5;margin:8px 0}
+.versao-bloco button{border:1px solid var(--borda2);padding:9px 12px;min-height:40px;border-radius:9px;font-size:13px;font-weight:600}
+.versao-bloco button:hover{border-color:var(--ouro)}
+.versao-estado{font-size:12px;color:var(--cinza2);padding:6px 0;line-height:1.4}
+.versao-estado.alerta{color:var(--ouro)}
+.versao-estado.erro{color:var(--erro)}
 
 /* ---------- janelas ---------- */
 /* chip de aparelhos no topo (igual o Claude mostra o computador ligado) */
@@ -694,6 +707,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   <div class="lado-pe">
     <div class="perfil"><span class="perfil-avatar">T</span><b>Thiago</b><span class="status" id="status"><i></i><span>—</span></span></div>
     <button id="bCfg">⚙️ Configurar</button>
+    <button id="bVersoes" type="button" title="Versões carregadas e atualizações">Interface v51 · Atualizações</button>
   </div>
 </aside>
 <div id="veu"></div>
@@ -756,6 +770,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
     </div>
     <div id="linhaTarefas"><span class="pontos"><i></i><i></i><i></i></span><span id="txtTarefas">1 tarefa em execução</span><span style="margin-left:auto">ver ›</span></div>
     <div class="dica">A ZicoAI aprende com vc. Não mande CPF nem telefone de cliente aqui.</div>
+    <button id="versaoAcesso" type="button" aria-label="Ver versões e verificar atualizações">Interface v51 · Ver atualizações</button>
   </footer>
 </div>
 
@@ -867,6 +882,36 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   </div>
 </div>
 
+<div class="modal" id="mVersoes">
+  <div class="painel">
+    <h3>Versões e atualizações</h3>
+    <p class="aviso">Cada parte tem sua própria versão. Atualizar o site não instala o cérebro nem a extensão.</p>
+    <div id="versoesLista">
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong id="vSiteNumero">Interface v51</strong><span id="vSiteEstado" class="versao-estado">Carregada nesta tela</span></div>
+        <p>Visual, botões e conversa. A atualização do site vem pelo GitHub Pages e pelo cache do aplicativo.</p>
+        <button id="bAtualizarSite" type="button">↻ Verificar e atualizar site</button>
+      </section>
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong>Cérebro (Apps Script)</strong><span id="vCerebroEstado" class="versao-estado">Não verificado</span></div>
+        <p>A versão real aparece na página do próprio Apps Script. Para instalar código novo é preciso publicar uma implantação.</p>
+        <button id="bVerCerebro" type="button">Ver versão do cérebro</button>
+      </section>
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong>Extensão do Chrome</strong><span id="vExtEstado" class="versao-estado">Verificando contexto...</span></div>
+        <p>Se foi instalada como extensão descompactada, atualizar só o site NÃO atualiza seus arquivos. Confira a versão no painel da extensão e use o gerenciador do Chrome.</p>
+        <button id="bAjudaExt" type="button">Como atualizar a extensão</button>
+      </section>
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong>Pontes Mac e PC</strong><span class="versao-estado">Versões independentes</span></div>
+        <p>As pontes precisam receber os arquivos novos no computador. Consulte o estado real dos dispositivos.</p>
+        <button id="bVerPontes" type="button">Ver dispositivos</button>
+      </section>
+    </div>
+    <div class="versao-estado" id="vResultado" role="status" aria-live="polite"></div>
+    <div class="linha-btn"><button class="btn cinza" id="vFechar" type="button">Fechar</button></div>
+  </div>
+</div>
 <div class="modal" id="mApps">
   <div class="painel">
     <h3>Meus apps</h3>
@@ -3023,6 +3068,57 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
 const VERSAO_APP = 'zicoai-v51';
+function versaoTexto(){return 'Interface ' + VERSAO_APP.replace(/^zicoai-/,'');}
+function abrirVersoes(){
+  const versao=versaoTexto();
+  $('vSiteNumero').textContent=versao;
+  $('vSiteEstado').textContent='Carregada nesta tela';
+  $('bVersoes').textContent=versao+' · Atualizações';
+  $('versaoAcesso').textContent=versao+' · Ver atualizações';
+  $('vCerebroEstado').textContent=cfg.url?'Consultar a implantação':'Sem conexão configurada';
+  const params = new URLSearchParams(location.search);
+  const extVersao = NA_EXTENSAO && /^\d+(?:\.\d+){0,3}$/.test(params.get('extver') || '') ? params.get('extver') : '';
+  $('vExtEstado').textContent=extVersao?'v'+extVersao+' carregada no Chrome':NA_EXTENSAO?'Versão não informada pela extensão':'Não disponível neste navegador';
+  $('vResultado').textContent='';
+  $('mVersoes').classList.add('aberto');
+}
+$('bVersoes').onclick=abrirVersoes;
+$('versaoAcesso').onclick=abrirVersoes;
+$('vFechar').onclick=()=>$('mVersoes').classList.remove('aberto');
+$('bVerCerebro').onclick=()=>{
+  if(!cfg.url){$('vResultado').textContent='Configure o link do cérebro antes de consultar a versão.';return;}
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(cfg.url)){$('vResultado').textContent='O link do cérebro não é um Web App válido.';return;}
+  window.open(cfg.url,'_blank','noopener');
+  $('vResultado').textContent='A nova aba mostra a versão que está realmente publicada no Apps Script.';
+};
+$('bAjudaExt').onclick=()=>{
+  $('vResultado').textContent='No Chrome, abra chrome://extensions, ative Modo do desenvolvedor e clique em Atualizar para recarregar extensões descompactadas. Isso recarrega os arquivos instalados; não baixa automaticamente os novos arquivos do GitHub.';
+};
+$('bVerPontes').onclick=()=>{
+  $('mVersoes').classList.remove('aberto');
+  abreDispositivos();
+};
+$('bAtualizarSite').onclick=async()=>{
+  const b=$('bAtualizarSite'),estado=$('vResultado');
+  b.disabled=true;b.textContent='Conferindo...';estado.className='versao-estado';estado.textContent='Consultando a versão publicada no GitHub Pages...';
+  try{
+    const r=await fetch('sw.js?check='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const t=await r.text(),versao=(t.match(/const CACHE = '([^']+)'/)||[])[1];
+    if(!versao)throw new Error('O arquivo de versão não respondeu corretamente');
+    if(versao===VERSAO_APP){
+      estado.textContent='Tudo certo: esta tela já carregou '+versaoTexto()+'.';
+    }else{
+      estado.className='versao-estado alerta';
+      estado.textContent='Versão nova detectada ('+versao+'). Atualizando o aplicativo...';
+      if('serviceWorker' in navigator){const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}
+      location.reload();
+      return;
+    }
+  }catch(e){estado.className='versao-estado erro';estado.textContent='Não consegui verificar atualização: '+e.message+'. Esta tela segue na '+versaoTexto()+'.';}
+  finally{b.disabled=false;b.textContent='↻ Verificar e atualizar site';}
+};
+
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;
