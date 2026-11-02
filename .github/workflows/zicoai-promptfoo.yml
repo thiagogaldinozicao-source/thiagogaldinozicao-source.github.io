@@ -1,0 +1,20 @@
+name: ZicoAI Promptfoo — validar configuração
+on:
+  pull_request:
+    paths:
+      - 'zicoai/avaliacao/**'
+      - '.github/workflows/zicoai-promptfoo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Validar Promptfoo com ferramenta oficial (sem chamar modelos)
+        run: npx --yes promptfoo@latest validate config -c zicoai/avaliacao/promptfooconfig.yaml
