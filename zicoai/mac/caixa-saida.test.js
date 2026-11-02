@@ -1,0 +1,20 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { criarCaixa, resultadoIncerteza, respostaConfirmada } = require('./caixa-saida');
+function caixa(fn) { const d=fs.mkdtempSync(path.join(os.tmpdir(),'zicoai-outbox-'));try{return fn(criarCaixa(d),d);}finally{fs.rmSync(d,{recursive:true,force:true});} }
+test('registra intenção antes de executar',()=>caixa(c=>{assert.equal(c.iniciar('pabc1','escrever').estado,'iniciada');}));
+test('mesmo ID não duplica início',()=>caixa(c=>{c.iniciar('pabc2','escrever');c.iniciar('pabc2','apagar');assert.equal(c.ler('pabc2').acao,'escrever');}));
+test('guarda resposta até ack',()=>caixa(c=>{c.iniciar('pabc3','ler');c.concluir('pabc3',{ok:true,texto:'abc'});assert.equal(c.ler('pabc3').resultado.texto,'abc');}));
+test('recupera respostas após reiniciar',()=>caixa((c,d)=>{c.iniciar('pabc4','ler');c.concluir('pabc4',{ok:true});assert.equal(criarCaixa(d).pendentes().length,1);}));
+test('não confirma operação incerta',()=>caixa(c=>{c.iniciar('pabc5','escrever');c.confirmar('pabc5');assert.equal(c.pendentes().length,1);}));
+test('remove resposta pronta confirmada',()=>caixa(c=>{c.iniciar('pabc6','ler');c.concluir('pabc6',{ok:true});c.confirmar('pabc6');assert.equal(c.pendentes().length,0);}));
+test('não sobrescreve resposta já concluída',()=>caixa(c=>{c.iniciar('pabc7','ler');c.concluir('pabc7',{ok:true,n:1});c.concluir('pabc7',{ok:true,n:2});assert.equal(c.ler('pabc7').resultado.n,1);}));
+test('nega ids com traversal',()=>caixa(c=>assert.throws(()=>c.iniciar('../foo','ler'),/inválido/)));
+test('reporta estado incerto e não sucesso',()=>{const x=resultadoIncerteza('escrever');assert.equal(x.ok,false);assert.equal(x.codigo,'EXECUCAO_INCERTA');});
+test('exige confirmação explícita',()=>{assert.equal(respostaConfirmada(null),false);assert.equal(respostaConfirmada({ok:false}),false);assert.equal(respostaConfirmada({ok:true}),true);});
+test('mantém pasta e arquivos privados',()=>caixa((c,d)=>{c.iniciar('pabc8','ler');if(process.platform!=='win32'){assert.equal(fs.statSync(d).mode & 0o077,0);assert.equal(fs.statSync(path.join(d,'pabc8.json')).mode & 0o077,0);}}));
+test('preserva múltiplas respostas',()=>caixa(c=>{for(let i=0;i<8;i++){let id='p'+i+'abc';c.iniciar(id,'ler');c.concluir(id,{ok:true});}assert.equal(c.pendentes().length,8);}));
