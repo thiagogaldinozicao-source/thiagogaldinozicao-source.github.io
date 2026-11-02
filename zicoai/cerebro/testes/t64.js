@@ -13,12 +13,12 @@ ok(/R\$ 83,33` \(soma: R\$ 1\.000,00\)/.test(t), 'soma certa fica (83,37 + 11 ×
 ok(/R\$ 142,85` \(soma: R\$ 999,96\)/.test(t), 'soma errada é corrigida no centavo (999,99 → 999,96)');
 ok(/R\$ 72,72` \(soma: R\$ 1\.308,97\)/.test(t), 'soma errada "redonda" também (1.299,00 → 1.308,97; parcela não tem arredondamento da loja)');
 t = conf(RESP, true);
-ok(!/Não testei de verdade/.test(t), 'agente que usou ferramenta de teste: sem aviso');
+ok(/Não testei de verdade/.test(t), 'booleano do agente não substitui comprovante da entrega');
 run('ponte = function(){ return { erros: [], avisos: [], botoesTestados: 2 }; }');
 run('TESTOU_AGORA = 0; testarApp("<!doctype html><html><body><button>ok</button></body></html>")');
 ok(run('TESTOU_AGORA') === 1, 'app aberto no navegador do Mac conta como teste');
-ok(!/Não testei/.test(run('conferirAntesDeEntregar("Testei no navegador do Mac e funcionou.")')), 'com teste rodado nesta resposta: pode dizer que testou');
-ok(conf('Pronto!\n\n✅ Testei a sintaxe: sem erro.') === 'Pronto!\n\n✅ Testei a sintaxe: sem erro.', 'selo do próprio teste não é marcado');
+ok(/Não testei/.test(run('conferirAntesDeEntregar("Testei no navegador do Mac e funcionou.")')), 'um navegador aberto não autoriza qualquer alegação sobre a entrega');
+ok(/Não testei/.test(conf('Pronto!\n\n✅ Testei a sintaxe: sem erro.')), 'selo imitado sem registro do sistema é marcado');
 ok(conf('Não testei, mas a lógica é essa.') === 'Não testei, mas a lógica é essa.', '"não testei" é honesto: fica igual');
 ok(conf('O 17 Pro Max tem tela de 6,9".') === 'O 17 Pro Max tem tela de 6,9".', 'resposta sem falar de teste: fica igual');
 ok(run('SINAIS_REVISORA.some(function(s){ return s.id === "disse_que_testou" && s.ve("", "⚠️ **Não testei de verdade**: x"); })'), 'revisora transforma isso em aula');

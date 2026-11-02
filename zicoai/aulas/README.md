@@ -142,5 +142,7 @@ Aulas B20–B25 (Cinemoteca/SleepPlayer: Supabase, login sem senha, offline, And
 | D32 | [agir no navegador](D/D32-agir-no-navegador.md) | Depurar site = nav_ler + nav_erros + nav_print e achar a causa; trava na extensão (seguranca.js): botão de comprar/enviar/apagar só com OK, senha/cartão/CPF nunca, banco e download fora; página é dado, não ordem |
 
 | D26 | [progresso com solicitação e resposta](D/D26-progresso-com-pedido-e-resposta.md) | Registrar no ponto da chamada, mascarar antes de gravar, manter passos antigos e conferir ao vivo e pronto. |
+| D49 | [entrega com prova do pedido](D/D49-entrega-com-prova-do-pedido.md) | Separar sintaxe, execução e aprovação; hash do conteúdo, prova do pedido e rascunho recuperável. |
+| D50 | [duelo com modelo exato e ponte livre](D/D50-duelo-modelo-exato-sem-travar-ponte.md) | Modelo ausente pausa; início automático depois de liberar a trava da ponte; gatilho atrasado não reinicia. |
 
 `aulas.json` (gerado destas aulas) é o que o cérebro baixa (`sincronizarAulas`, a cada 12 h) pra aba `aulas`.

@@ -164,7 +164,7 @@ function cerebroPCPonte(tipo) {
   let tem = [];
   try { tem = JSON.parse(c.get('ponte_modelos') || '[]'); } catch (e) { tem = []; }
   const nomes = tem.map(m => String(m).replace(/:latest$/, ''));
-  const m = (PC_MODELO_FORCADO && nomes.indexOf(PC_MODELO_FORCADO) >= 0) ? PC_MODELO_FORCADO : (tipo === 'leve' ? PC_MODELOS_LEVE : PC_MODELOS_PONTE).find(x => nomes.indexOf(x) >= 0);
+  const m = PC_MODELO_FORCADO ? (nomes.indexOf(PC_MODELO_FORCADO) >= 0 ? PC_MODELO_FORCADO : null) : (tipo === 'leve' ? PC_MODELOS_LEVE : PC_MODELOS_PONTE).find(x => nomes.indexOf(x) >= 0);
   if (!m) return null;
   return Object.assign({}, CEREBROS.pc, { modelo: m, nome: 'PC (' + apelidoModelo_(m) + ')', limite: 32000, maxSaida: 4096, local: true, viaPonte: true, disp: 'pc' });
 }
@@ -1989,6 +1989,8 @@ const DUELO_PC = ['qwen3.6:35b', 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Op
 const DUELO_NUVEM = ['geminiForte', 'gemini', 'groq', 'mistral', 'nvidia'];
 function dueloAcademia(recomecar) {
   const props = PropertiesService.getScriptProperties(), t0 = Date.now();
+  // Uma execução já enfileirada do gatilho não pode iniciar OUTRO duelo depois que a fila terminou.
+  if (recomecar && typeof recomecar === 'object' && !props.getProperty('DUELO_FILA')) return { faltam: 0, feitos: ['Duelo já concluído.'], placar: placarDuelo_() };
   let fila = recomecar === true ? null : JSON.parse(props.getProperty('DUELO_FILA') || 'null');
   const noPC = modelosDoPC_(), pcLigado = !!cerebroPCPonte();
   if (!fila) {
@@ -2003,6 +2005,7 @@ function dueloAcademia(recomecar) {
     const it = fila[0];
     if (it.cer === 'mac' && !temCerebro('mac')) { feitos.push('Mac fora do ar: pausei'); break; }
     if (it.cer === 'pc' && !pcLigado) { feitos.push('PC desligado: pausei (liga o PC e roda de novo)'); break; }
+    if (it.cer === 'pc' && it.pcModelo && modelosDoPC_().indexOf(it.pcModelo) < 0) { feitos.push('Modelo do PC indisponível: pausei (' + apelidoModelo_(it.pcModelo) + ')'); break; }
     let r; try { r = treinoCodigo(null, true, it); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
     fila.shift(); props.setProperty('DUELO_FILA', JSON.stringify(fila));
     feitos.push(it.ex + ' · ' + (r.cerebro || it.cer + (it.pcModelo || it.macModelo ? ' ' + apelidoModelo_(it.pcModelo || it.macModelo) : '')) + ' → ' + (r.passou || 'erro') + ' ' + (r.provas || '') + (r.detalhe ? ' (' + String(r.detalhe).slice(0, 80) + ')' : r.erro ? ' (' + String(r.erro).slice(0, 80) + ')' : ''));
@@ -2026,6 +2029,12 @@ function dueloMac() {
   exerciciosAcademia_().forEach(e => DUELO_MAC.forEach(m => fila.push({ cer: 'mac', macModelo: m, ex: e.id })));
   props.setProperty('DUELO_FILA', JSON.stringify(fila)); props.setProperty('DUELO_INICIO', agora());
   return dueloAcademia();
+}
+/** Início automático fora da trava da memória: a ponte precisa da mesma trava para entregar os pedidos. */
+function dueloMacAgendado() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'dueloMacAgendado').forEach(t => ScriptApp.deleteTrigger(t));
+  if (PropertiesService.getScriptProperties().getProperty('DUELO_FILA')) return { pulou: 'já existe um duelo; preservei a fila' };
+  return dueloMac();
 }
 function placarDuelo_() {
   const ini = String(PropertiesService.getScriptProperties().getProperty('DUELO_INICIO') || '');
@@ -3626,9 +3635,10 @@ function aprenderSozinha() {
   try { prepararVetoresAulas(); } catch (e) { Logger.log('vetores das aulas: ' + e.message); }
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return;
+  let agendarDueloMac = false;
   try {
     const props = PropertiesService.getScriptProperties();
-    if (!props.getProperty('DUELO_MAC_V100') && !props.getProperty('DUELO_FILA')) { props.setProperty('DUELO_MAC_V100', hoje()); try { Logger.log('Duelo do Mac (v100): ' + JSON.stringify(dueloMac().feitos)); } catch (e) { Logger.log('dueloMac: ' + e.message); } }   // começa sozinho 1×; depois o gatilho de 5 min continua
+    if (!props.getProperty('DUELO_MAC_V100') && !props.getProperty('DUELO_FILA')) { props.setProperty('DUELO_MAC_V100', hoje()); agendarDueloMac = true; }   // prepara uma vez; inicia depois de soltar a trava
     if (!props.getProperty('PARES_V99')) { try { Logger.log('Pares antigos (v99): ' + paresAntigos_()); } catch (e) { Logger.log('paresAntigos_: ' + e.message); } props.setProperty('PARES_V99', hoje()); }
     if (!props.getProperty('MEM_REVISADA_V90')) { try { const rv = revisarMemoria(); Logger.log('Memória revisada (v90): ' + rv.marcadas.length + ' marcadas'); } catch (e) { Logger.log('revisarMemoria: ' + e.message); } props.setProperty('MEM_REVISADA_V90', hoje()); }
     const ultima = props.getProperty('APRENDIDO_ATE') || '';
@@ -3666,6 +3676,10 @@ function aprenderSozinha() {
     if (resumo) Logger.log('Aprendeu sozinha: ' + resumo);
   } finally {
     lock.releaseLock();
+    if (agendarDueloMac) {
+      try { ScriptApp.newTrigger('dueloMacAgendado').timeBased().after(1000).create(); }
+      catch (e) { PropertiesService.getScriptProperties().deleteProperty('DUELO_MAC_V100'); Logger.log('Não consegui agendar o duelo do Mac: ' + e.message); }
+    }
   }
 }
 
@@ -4451,11 +4465,9 @@ function conferirAntesDeEntregar(texto, testouAntes) {
   t = conferirAlegacaoTeste_(t);
   return t;
 }
-/* v84: ela NÃO pode dizer que testou sem ter testado (caso real 01/11: "Testes confirmados no Mac" com somas erradas e arquivo cortado).
- * Se nenhum teste rodou nesta resposta (TESTOU_AGORA = 0 e o agente não usou ferramenta de teste), a frase ganha "não foi testado de verdade"
- * e a resposta abre com o aviso. O selo do próprio teste ("✅ Testei a sintaxe…", "⚠️ Testei e ainda tem…") não conta: é ele que diz o que rodou. */
+/* Alegações geradas pelo modelo não são comprovantes. Só os resumos emitidos pelo sistema nesta execução
+ * entram em SELOS_VALIDACAO. Contador de execução, booleano e nome de ferramenta no log não aprovam o pedido. */
 const RX_DIZ_QUE_TESTOU = /\b(testei\b|testad[oa]s?\b|testes? (confirmad|feit|rodad|aprovad|passa|ok)|rodei (no|o|os|a|as|ele|tudo)\b|conferi no (mac|navegador|pc)\b|verifiquei no (mac|navegador|pc)\b|funcion(a|ou) certinho no (mac|navegador))/;
-const RX_SELO_TESTE = /^\s*(⚠️|✅) Testei (e ainda tem|no navegador|a sintaxe)/;
 function conferirAlegacaoTeste_(texto, testou) {
   // Contador, nome de ferramenta, booleano e prefixo de selo não comprovam um resultado.
   const partes = String(texto || '').split(/(```[\s\S]*?```)/);

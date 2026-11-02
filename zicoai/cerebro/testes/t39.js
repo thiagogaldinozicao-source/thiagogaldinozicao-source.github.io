@@ -27,13 +27,13 @@ H.setFetch((u, o) => {
 });
 let r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um app html de calculadora' }] });
 ok(r.ok && /alert\(1 \+ 1\)/.test(r.resposta) && !/alert\(1 \+ \)/.test(r.resposta), 'erro de sintaxe consertado antes de entregar');
-ok(/✅ Testei a sintaxe e consertei 1x/.test(r.resposta), 'avisa que testou e consertou');
+ok(/Só a sintaxe foi conferida/.test(r.resposta) && r.testado === false && r.validacao.estado === 'sintaxe', 'conserto sem Mac fica como sintaxe conferida, sem aprovação de funcionamento');
 ok(r.passos.some(p => /Teste achou 1 erro/.test(p)) && r.passos.some(p => /Navegador do Mac indisponível/.test(p)), 'passos mostram o teste e que o Mac tava fora');
 // 4) editar app existente: só trechos, resposta traz o arquivo inteiro aplicado
 run('codigoDoApp = function(){ return __app; }');
 H.setFetch((u, o) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Mudei o nome do botão.\n<<<<<<< ANTES\n<button id="b">Somar</button>\n=======\n<button id="b">Calcular</button>\n>>>>>>> DEPOIS' } }] }) }));
 r = H.post({ pin: '1234', acao: 'chat', appSlug: 'calc', mensagens: [{ role: 'user', content: 'no app calc muda o botão pra Calcular' }] });
-ok(r.ok && /Mudei o nome do botão/.test(r.resposta) && /```html\n<!doctype html>[\s\S]*Calcular[\s\S]*getElementById[\s\S]*<\/html>\n```/.test(r.resposta), 'edição devolve o arquivo COMPLETO com a mudança aplicada');
+ok(r.ok && /Rascunho para revisão/.test(r.resposta) && /```html\n<!doctype html>[\s\S]*Calcular[\s\S]*getElementById[\s\S]*<\/html>\n```/.test(r.resposta), 'edição devolve o arquivo COMPLETO como rascunho com a mudança aplicada');
 ok(!/<<<<<<< ANTES/.test(r.resposta), 'os blocos ANTES/DEPOIS não aparecem pro Thiago');
 ok(r.passos.some(p => /Aplicou 1 trecho/.test(p)), 'passo: aplicou 1 trecho, resto igual');
 // 5) Mac ligado: html grande vai em pedaços e volta inteiro

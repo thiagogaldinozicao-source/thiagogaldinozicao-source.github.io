@@ -14,10 +14,10 @@ H.setFetch((u, o) => {
 });
 let r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'faz uma calculadora html 3d' }] });
 ok(r.ok && /<button>1<\/button>\s*<button>2<\/button>\s*<\/body>\s*<\/html>\n```/.test(r.resposta), 'arquivo cortado no limite: pediu a continuação e colou até </html>');
-ok(r.passos.some(p => /veio cortado no meio/.test(p)) && /✅ Testei/.test(r.resposta), 'passo avisa e o app inteiro passou no teste');
+ok(r.passos.some(p => /veio cortado no meio/.test(p)) && /Só a sintaxe foi conferida/.test(r.resposta) && !r.testado, 'passo avisa e a continuação completa fica com sintaxe conferida');
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Pronto:\n```html\n<!doctype html>\n<html><body><button>1</button></body></html>\n```\n✅ Testado: Todos os botões clicáveis e responsivos.' } }] }) }));
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'faz um app html simples' }] });
-ok(!/Todos os botões clicáveis/.test(r.resposta) && /✅ Testei a sintaxe/.test(r.resposta), '"✅ Testado" inventado pelo cérebro some; fica só o selo do teste de verdade');
+ok(!/Todos os botões clicáveis/.test(r.resposta) && /Só a sintaxe foi conferida/.test(r.resposta), '"✅ Testado" inventado some; fica o estado real de sintaxe');
 // Dispositivos: um cartão por aparelho
 H.PROPS.PONTE_SEGREDO_MAC = 'sm';
 run('CacheService.getScriptCache().put("ponte_visto_mac", String(Date.now())); CacheService.getScriptCache().put("ponte_nome_mac", "Mac-mini-de-Thiago"); CacheService.getScriptCache().put("ponte_versao_mac", "mac-1.4");');

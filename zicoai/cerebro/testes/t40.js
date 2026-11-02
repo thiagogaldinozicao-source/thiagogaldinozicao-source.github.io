@@ -28,8 +28,8 @@ const appAnt = '<!doctype html>\n<html><body>\n<input id="display" value="0">\n<
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Coloquei o botão Copiar.\n<<<<<<< ANTES\n<button>1</button>\n=======\n<button>1</button>\n<button id="copiar">Copiar</button>\n>>>>>>> DEPOIS' } }] }) }));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz uma calculadora' }, { role: 'assistant', content: 'Aqui:\n```html\n' + appAnt + '\n```' }, { role: 'user', content: 'coloca um botão de copiar nela' }] });
 ok(r.ok && r.passos.some(p => /mudar o app que mandou antes/.test(p)) && /id="copiar"[\s\S]*<\/html>\n```/.test(r.resposta) && /id="display"/.test(r.resposta), 'muda o app da conversa por trechos e devolve inteiro');
-ok(/✅ Testei/.test(r.resposta), 'e testou antes de mandar');
-ok(/NUNCA diga que não dá pra testar/.test(run('PERSONA')), 'não diz mais "não dá pra testar"');
+ok(/Só a sintaxe foi conferida/.test(r.resposta) && !r.testado, 'sem Mac, não confunde sintaxe com funcionamento');
+ok(/Sem execução ou prova válida, entregue como rascunho/.test(run('PERSONA')), 'a persona explica o limite e o estado honesto de entrega');
 ok((+(run('VERSAO_CEREBRO')).match(/versão (1\d\d|\d+)/)[1] >= 54), 'cérebro na versão 54 ou mais nova');
 // v55: "faz uma calculadora... com botão" é app NOVO; resposta sem trechos não duplica o html
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'Aqui:\n```html\n<!doctype html>\n<html><body><button>2</button></body></html>\n```\nComo usar: salva e abre.' } }] }) }));

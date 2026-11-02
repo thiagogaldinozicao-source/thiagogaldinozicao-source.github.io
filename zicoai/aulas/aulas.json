@@ -719,4 +719,23 @@
 "## Por quê\n- Medido com 160 perguntas reais: \"bom dia chefe\" puxava aula de agentes; \"era pra arrumar a calculadora, amigo\" puxava \"mandar app pro amigo\". Aula errada no prompt faz o cérebro seguir regra que não tem nada a ver.\n\n## Como funciona por baixo\n- `PARADAS_AULAS` com palavras de conversa (dia, hoje, bom, chefe, amigo, bora…). `aulasPara`: ≥ 2 termos ou nota ≥ 4× o corte; no máximo 1 \"talvez\".\n- `relevantes(..., minimo 4)` pra base, memória antiga e exemplos; `semelhantes` com corte 0,72 (Gemini dá 0,6–0,7 até pra coisa sem relação).\n\n## Exemplo\n- \"temas pastéis\" → B211/B305; \"git pull\" → B205/B09; \"bom dia chefe\" → nenhuma.\n\n## Erro comum\n- Achar que mais contexto é sempre melhor. Contexto errado é pior que nenhum.\n\n## Como conferir\n- Placar das aulas (aba `placar_aulas`) e o passo \"Aulas usadas\" na conversa.",
 "GitHub zicoai/aulas/D/D48-busca-de-aula-e-memória-sem.md"
 ]
+,
+[
+"D49",
+"D",
+"entrega de código com prova do pedido",
+"manutenção da ZicoAI, contrato de entrega, validação do pedido, hash do rascunho",
+"Ao manter a ZicoAI, separe sintaxe, execução e aprovação do pedido. Só o sistema pode aprovar o conteúdo exato que passou nas provas; o texto do modelo não comprova um teste.",
+"## Por quê\nCódigo pode ter sintaxe correta e falhar no clique. Uma edição ANTES/DEPOIS idêntica pode anunciar um conserto sem mudar o arquivo. Um teste de outra versão também não valida a entrega atual.\n\n## Como funciona por baixo\n- `validacao.estado`: `nao_testado`, `sintaxe`, `executado`, `aprovado`, `falhou`. O antigo `testado` só vale no último estado de sucesso: `aprovado`.\n- Aprovação exige navegador, provas previstas passando e prova nova do pedido. Em edição, a prova nova precisa falhar no original; passar nos dois não demonstra o conserto.\n- SHA-256 identifica o conteúdo sem espaços finais do bloco Markdown. O teste e o rascunho se referem a esse conteúdo.\n- Sem mudança, preserva o rascunho anterior. Com alteração ainda não validada, conserva o resultado como rascunho e informa o que falta.\n- Um erro de JS não pode ficar escondido só nos passos. Uma alegação de teste não pode ser autorizada por um contador ou pelo nome de ferramenta no log.\n\n## Exemplo\nMac indisponível: “Só a sintaxe foi conferida”. Navegador abriu sem prova do pedido: “Executado, ainda não comprovado”. Prova falha no velho e passa no novo: pedido aprovado para revisão.\n\n## Erro comum\nConfundir `ok` da resposta HTTP com funcionamento do app; aceitar um ✅ escrito pelo modelo; entregar o código anterior ao conserto que passou.\n\n## Como conferir\n`node cerebro/testes/t78.js`: casos com Mac offline, prova fraca/ausente/falhando, edição sem efeito, erro JS, hash de outra versão, rascunho recuperável e publicação automática. São testes em simulador; não comprovam a implantação no ar.",
+"GitHub zicoai/aulas/D/D49-entrega-com-prova-do-pedido.md"
+],
+[
+"D50",
+"D",
+"duelo com modelo exato e ponte livre",
+"manutenção da academia ZicoAI, modelo forçado ausente, ScriptLock, dueloMacAgendado",
+"Na manutenção da academia, modelo forçado ausente significa pausa, nunca substituição. Não execute o duelo segurando a trava necessária à ponte.",
+"## Por quê\nUma reserva muda quem está sendo avaliado. Se a memória segura o ScriptLock e espera resposta do Mac, a ponte pode precisar da mesma trava para entregar o pedido. O trabalho deve começar em execução separada, depois de soltar a trava.\n\n## Como funciona por baixo\n- `cerebroPCPonte` retorna null quando `PC_MODELO_FORCADO` não está na lista instalada. O modo estrito do duelo não tenta outro cérebro.\n- `dueloAcademia` mantém a tentativa na fila enquanto o modelo exato estiver indisponível. Um gatilho atrasado sem fila não inicia nova avaliação.\n- `aprenderSozinha` marca a necessidade de início; após liberar a trava, agenda `dueloMacAgendado`. Essa função preserva qualquer fila que já exista.\n- Se criar o gatilho falhar, libera a marca para tentar de novo na próxima rodada.\n\n## Exemplo\nO modelo participante some: fila pausa, nenhuma nota é registrada e outro modelo não ocupa seu lugar.\n\n## Erro comum\nTratar “o PC respondeu” como “o modelo escolhido respondeu”; iniciar o duelo dentro da trava da memória; reiniciar um duelo já concluído por um gatilho atrasado.\n\n## Como conferir\n`node cerebro/testes/t79.js` prova seleção estrita, fila preservada, agendamento após liberar trava e ausência de reinício por gatilho atrasado. `t77.js` conserva os testes da v100. Simulador não comprova o duelo real nem autoriza promover um modelo sem placar.",
+"GitHub zicoai/aulas/D/D50-duelo-modelo-exato-sem-travar-ponte.md"
+]
 ]

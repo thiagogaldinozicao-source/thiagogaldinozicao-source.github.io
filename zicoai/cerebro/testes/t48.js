@@ -28,11 +28,11 @@ const r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ rol
 ok(r.ok && /R\$ 1\.800,00/.test(r.resposta) && r.passos.some(p => /Conferiu as contas/.test(p)), 'chat entrega a conta já conferida');
 // publicar_app testa antes
 let publicou = false;
-run('publicarApp = function(){ globalThis.__pub = true; return {ok:true, url:"https://x/apps/calc/"}; }; testarApp = function(h){ return /quebra/.test(h) ? {erros:["No navegador: naoExiste is not defined"], rodou:true} : {erros:[], rodou:true}; };');
+run('publicarApp = function(){ globalThis.__pub = true; return {ok:true, url:"https://x/apps/calc/"}; }; testarApp = function(h,p){ return /quebra/.test(h) ? {erros:["No navegador: naoExiste is not defined"], rodou:true} : {erros:[], rodou:true, hash:hashEntrega_(h), provas:(p||[]).map(function(x){return {nome:x.nome,ok:true};})}; };');
 let o = run('FERRAMENTAS.publicar_app.run({nome:"calc", html:"<!doctype html><button onclick=quebra()>x</button>"})');
 ok(/NÃO publiquei[\s\S]*naoExiste/.test(o) && !run('globalThis.__pub'), 'app com erro não é publicado');
-o = run('FERRAMENTAS.publicar_app.run({nome:"calc", html:"<!doctype html><button>ok</button>"})');
-ok(/publicado em https:\/\/x\/apps\/calc\/ \(testado antes no navegador do Mac: sem erro\)/.test(o), 'app bom: testa e publica');
+o = run('FERRAMENTAS.publicar_app.run({nome:"calc", html:"<!doctype html><button>ok</button>", provas:[{nome:"botão pedido",conferir:[{js:"return true"}]}]})');
+ok(/publicado em https:\/\/x\/apps\/calc\/ \(provas do comportamento aprovadas para este arquivo\)/.test(o), 'app com provas aprovadas: publica após validar este conteúdo');
 ok(/versão (1\d\d|69|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 69 ou mais nova');
 ok(cc('1.990 + 100 = 2.089') === '1.990 + 100 = 2.089' && cc('3.999 x 1,08 = 4.319') === '3.999 x 1,08 = 4.319' && cc('1.000 x 1,2 = 1.199') === '1.000 x 1,2 = 1.199', 'arredondamento da loja (tira 1 real, final 9) não é "corrigido"');
 ok(/= 1\.550/.test(cc('1.200 + 350 = 1.500')), 'mas erro de verdade em valor redondo é corrigido');

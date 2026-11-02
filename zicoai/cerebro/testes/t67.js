@@ -30,7 +30,7 @@ ok(r.passos.some(p => /Mexendo num app: vai no cérebro que aguenta arquivo gran
 ok(!/```provas/.test(r.resposta), 'bloco de provas não aparece pro Thiago');
 ok(run('_chamadas.length') === 2 && run('_chamadas[0].provas.length') === 1 && !/1ª R\$ 83,37/.test(run('_chamadas[0].html')), '1º roda a prova no código VELHO (tem que falhar)');
 ok(r.passos.some(p => /falharam no código antigo \(pegam o defeito\)/.test(p)), 'passo: a prova pega o defeito');
-ok(/Passou nas 1 prova\(s\): 12x fecha no centavo/.test(r.resposta), 'selo diz quais provas passaram');
+ok(/passou nas 1 prova\(s\): 12x fecha no centavo/i.test(r.resposta) && r.testado && r.validacao.estado === 'aprovado', 'selo diz quais provas passaram e aprova o pedido');
 ok(H.sheets.provas_apps && H.sheets.provas_apps.rows.some(l => l[0] === 'repo:Calculadora-do-zicao' && l[1] === '12x fecha no centavo'), 'prova guardada pro app');
 // próximo pedido: a prova antiga roda junto
 run('_chamadas = []');
