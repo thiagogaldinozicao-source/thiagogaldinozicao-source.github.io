@@ -1,4 +1,6 @@
 // API local falsa: nunca chama Apps Script, ponte nem modelos reais.
+// Contrato da extensão: painel lê número de versão do manifest, não inventa 'atualizada'.
+
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('assert');
 const { chromium } = require(process.env.ZICO_PLAYWRIGHT || 'playwright');
 const root = path.resolve(__dirname, '../..');
@@ -10,6 +12,10 @@ const server = http.createServer((req,res) => {
 const details = [{tipo:'ferramenta',titulo:'Ferramenta fictícia',pedido:{api_key:'fake-api-only',pin:'fake-pin-only',args:{consulta:'teste'}},resposta:'token=fake-token-only CPF 000.000.000-00 telefone +55 (00) 90000-0000 https://example.invalid/?key=fake-query-only '+ 'x'.repeat(2300),ms:20},{tipo:'aulas',titulo:'Base usada',pedido:'',resposta:{aulas:[{id:'A101',nota:0.71,texto:'Primeira linha\nSegunda linha '+'palavra'.repeat(60)},{id:'B502',nota:0.63,passos:['ler','responder']}],ok:true},ms:5}];
 const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','Respondeu com cérebro de teste'],cerebro:'teste'};
 (async()=>{
+  const manifest = JSON.parse(fs.readFileSync(path.join(root,'extensao','manifest.json'),'utf8'));
+  const painelJs = fs.readFileSync(path.join(root,'extensao','painel.js'),'utf8');
+  assert.equal(manifest.version,'2.9','versão do pacote Chrome deve acompanhar mudanças da extensão');
+  assert(painelJs.includes('chrome.runtime.getManifest().version'),'versão da extensão deve vir do próprio Chrome');
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const browser=await chromium.launch({headless:true});
   try {
@@ -99,7 +105,17 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       await page.locator('#capAtalho').click();
       await page.locator('#menuModos button[data-zmodo="rapido"]').click();
       assert.equal(await page.evaluate(()=>modo),'auto','Voltar a Rápido sai do agente');
-      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, prova, botões Rápido/Pensar/Executar, máscaras e largura');
+      // A tela deve informar a versão realmente carregada e verificar o service worker real.
+      await page.locator('#versaoAcesso').click();
+      assert(await page.locator('#mVersoes').evaluate(e=>e.classList.contains('aberto')),'janela de versões abre');
+      assert((await page.locator('#vSiteNumero').innerText()).includes('v51'),'exibe versão carregada v51');
+      await page.locator('#bAtualizarSite').click();
+      await page.getByText('Tudo certo: esta tela já carregou Interface v51.',{exact:true}).waitFor();
+      await page.locator('#bAjudaExt').click();
+      assert((await page.locator('#vResultado').innerText()).includes('chrome://extensions'),'botão dá caminho real para a extensão');
+      await page.locator('#vFechar').click();
+      assert(!(await page.locator('#mVersoes').evaluate(e=>e.classList.contains('aberto'))),'janela de versões fecha');
+      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': modos reais, versões, atualização, máscaras e largura');
       await context.close();
     }
   }finally{await browser.close();server.close();}
