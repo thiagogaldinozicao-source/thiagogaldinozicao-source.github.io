@@ -247,6 +247,20 @@ body:not(.conta-pessoa) .so-pessoa{display:none!important}
 .pc-item.aviso{background:#241d07} .pc-item.aviso pre,.pc-item.aviso .ic{color:#f4cb63}
 .pc-item.cmd pre{color:var(--ouro2)} .pc-item.resultado pre{color:#9fd8ff} .pc-item.sistema pre{color:var(--cinza2)}
 .pc-vazio{padding:14px 12px;color:var(--cinza2);font-family:'Barlow',sans-serif;font-size:13px}
+.pc-resumo{display:flex;align-items:center;gap:10px;padding:13px 14px;border-bottom:1px solid var(--borda);background:#121212;font-family:'Barlow',sans-serif}
+.pc-indicador{width:10px;height:10px;flex-shrink:0;border-radius:50%;background:var(--verde);box-shadow:0 0 0 4px rgba(95,208,104,.11)}
+.pc-resumo.erro .pc-indicador{background:var(--erro);box-shadow:0 0 0 4px rgba(255,107,107,.1)}
+.pc-resumo.aviso .pc-indicador{background:var(--ouro);box-shadow:0 0 0 4px rgba(235,181,51,.1)}
+.pc-resumo-txt{display:flex;flex-direction:column;min-width:0;gap:3px}
+.pc-resumo-txt strong{font-size:14px;font-weight:700;color:var(--txt)}
+.pc-resumo-txt span{font-size:12px;color:var(--cinza);line-height:1.35}
+.pc-avancado{border-top:1px solid var(--borda);font-family:'Barlow',sans-serif}
+.pc-avancado summary{padding:11px 13px;min-height:42px;cursor:pointer;font-size:12px;font-weight:600;color:var(--cinza);list-style:none;display:flex;align-items:center;justify-content:space-between}
+.pc-avancado summary::after{content:'▾';font-size:15px}
+.pc-avancado[open] summary::after{transform:rotate(180deg)}
+.pc-avancado summary::-webkit-details-marker{display:none}
+.pc-avancado .pc-cmd{margin-top:0}
+.pc.fechado .pc-resumo,.pc.fechado .pc-avancado{display:none}
 .pc-cmd{display:flex;align-items:center;gap:6px;border-top:1px solid var(--borda);padding:4px 10px;min-height:44px}
 .pc-cmd span{color:var(--ouro);font-family:ui-monospace,Menlo,monospace}
 #pcCmd{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;border-radius:0;color:var(--txt);font:13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:8px 0}
@@ -861,17 +875,18 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
       <iframe id="pFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups" title="prévia"></iframe>
       <section id="pConsole" class="pc fechado" aria-label="Console do app">
         <div class="pc-top">
-          <button type="button" class="pc-tit" id="pcAbre" aria-expanded="false" aria-controls="pcLista"><span class="pc-seta">▸</span><span class="rot">Console</span><span class="pc-conta" id="pcConta">sem mensagens</span></button>
+          <button type="button" class="pc-tit" id="pcAbre" aria-expanded="false" aria-controls="pcLista"><span class="pc-seta">▸</span><span class="rot">Diagnóstico</span><span class="pc-conta" id="pcConta">sem mensagens</span></button>
           <button type="button" class="pc-b" id="pcRodar" title="Rodar o app de novo" aria-label="Rodar o app de novo">↻</button>
           <button type="button" class="pc-b" id="pcCopiar" title="Copiar tudo">Copiar</button>
           <button type="button" class="pc-b" id="pcLimpar" title="Limpar o console">Limpar</button>
         </div>
+        <div id="pcResumo" class="pc-resumo" role="status" aria-live="polite"><span class="pc-indicador" aria-hidden="true"></span><div class="pc-resumo-txt"><strong id="pcResumoTitulo">Sem erros detectados</strong><span id="pcResumoDesc">Abra e use o app para acompanhar o funcionamento.</span></div></div>
         <div class="pc-filtros" role="group" aria-label="Filtrar">
           <button type="button" data-f="tudo" class="on">Tudo</button><button type="button" data-f="erro">Erros</button><button type="button" data-f="aviso">Avisos</button><button type="button" data-f="log">Logs</button>
         </div>
         <div class="pc-lista" id="pcLista" role="log" aria-live="polite"></div>
         <button type="button" class="pc-corrigir" id="pcCorrigir" hidden>Pedir correção pra ZicoAI</button>
-        <form class="pc-cmd" id="pcForm"><span aria-hidden="true">›</span><input id="pcCmd" type="text" placeholder="rodar JavaScript no app (ex.: document.title)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Rodar JavaScript no app"></form>
+        <details class="pc-avancado" id="pcAvancado"><summary>Ferramentas avançadas · executar JavaScript</summary><form class="pc-cmd" id="pcForm"><span aria-hidden="true">›</span><input id="pcCmd" type="text" placeholder="Ex.: document.title" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Executar JavaScript no app"></form></details>
       </section>
     </div>
   </div>
@@ -1201,6 +1216,12 @@ function pcConta(){
   c.textContent = e ? e + (e > 1 ? ' erros' : ' erro') + (a ? ' · ' + a + (a > 1 ? ' avisos' : ' aviso') : '') : a ? a + (a > 1 ? ' avisos' : ' aviso') : n ? n + (n > 1 ? ' mensagens' : ' mensagem') : 'sem erros';
   c.className = 'pc-conta' + (e ? ' erro' : a ? ' aviso' : '');
   $('pcCorrigir').hidden = !e;
+  const resumo = $('pcResumo');
+  if(resumo){
+    resumo.className = 'pc-resumo' + (e ? ' erro' : a ? ' aviso' : '');
+    $('pcResumoTitulo').textContent = e ? (e === 1 ? '1 erro encontrado' : e + ' erros encontrados') : a ? (a === 1 ? '1 aviso para conferir' : a + ' avisos para conferir') : 'Nenhum erro detectado';
+    $('pcResumoDesc').textContent = e ? 'Confira o erro abaixo ou use Pedir correção pra ZicoAI.' : a ? 'O app abriu, mas há avisos que merecem atenção.' : n ? 'Os registros estão disponíveis abaixo. Isso não substitui testes de funcionamento.' : 'Abra e use o app para acompanhar o funcionamento.';
+  }
 }
 function pcAdd(tipo, texto, onde){
   const it = { tipo: tipo, texto: String(texto || ''), onde: onde || '', hora: new Date().toLocaleTimeString('pt-BR') };
@@ -1220,7 +1241,7 @@ function pcAbre(abrir){
 }
 function pcRoda(html){
   pcToken = 'zt' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-  pcItens = []; pcAbriuSozinho = false; pcDesenha();
+  pcItens = []; pcAbriuSozinho = false; $('pcAvancado').open = false; pcDesenha();
   const cab = '<script>(' + consoleNoApp.toString().replace(/\n\s*/g, ' ') + ')(' + JSON.stringify(pcToken) + ');<\/script>' + SHIM;   // numa linha só: não muda o número da linha dos erros do app
   $('pFrame').srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + cab) : cab + html;
 }
@@ -1248,7 +1269,7 @@ $('pcForm').onsubmit = e => {
 $('pcCorrigir').onclick = () => {
   const erros = pcItens.filter(i => i.tipo === 'erro').slice(0, 4).map(i => i.texto + (i.onde ? ' (' + i.onde + ')' : ''));
   $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; pcToken = '';
-  $('txt').value = 'Testei o app e o console mostrou ' + (erros.length > 1 ? 'esses erros' : 'esse erro') + ': ' + erros.join(' | ') + '. Corrige e me devolve só os trechos que mudam.';
+  $('txt').value = 'Testei o app e o diagnóstico mostrou ' + (erros.length > 1 ? 'esses erros' : 'esse erro') + ': ' + erros.join(' | ') + '. Corrige e me devolve só os trechos que mudam.';
   envia();
 };
 function testarApp(html){
