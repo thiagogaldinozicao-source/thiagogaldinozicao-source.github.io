@@ -80,4 +80,4 @@ ok(m2.some(t => /esposa do Thiago se chama Karina/.test(t)), 'fato que ele disse
 ok(!m2.some(t => /^O preço do iPhone 15 é R\$ 3\.999$/.test(t)) && !m2.some(t => /^O nome Átila significa paizinho$/.test(t)), 'preço e "significa" (mesmo colado por ele) não viram memória');
 ok(H.PROPS.MEM_REVISADA_V90, 'revisão da memória velha roda sozinha uma vez');
 
-ok(/versão (9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 90 ou mais nova');
+ok(/versão (1\d\d|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 90 ou mais nova');

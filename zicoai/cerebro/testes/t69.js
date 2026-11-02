@@ -9,4 +9,4 @@ let chamou = 0;
 H.setFetch((u, o) => { chamou++; return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'É um iPhone 15 Pro.' } }] }), getHeaders: () => ({}) }; });
 const r = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', imagem: foto, mensagens: [{ role: 'user', content: 'que celular é esse?' }] });
 ok(r.ok && /iPhone 15 Pro/.test(r.resposta) && !r.passos.some(p => /grande demais/.test(p)), 'chat com foto grande responde (' + (r.cerebro || r.erro) + ')');
-ok(/versão (9[1-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 91 ou mais nova');
+ok(/versão (1\d\d|9[1-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 91 ou mais nova');

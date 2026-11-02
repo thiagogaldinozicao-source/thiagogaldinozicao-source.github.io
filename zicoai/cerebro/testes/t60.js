@@ -25,4 +25,4 @@ const resp = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', mensagens: 
 const sis = run('_sistema');
 ok(/FICHAS CONFERIDAS/.test(sis) && /6000 mAh/.test(sis), 'o comparativo é montado em cima das fichas');
 ok(!/A PESQUISA FALHOU/.test(sis), 'com as fichas na mão não fala que a pesquisa falhou');
-ok(/versão (8\d|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 80 ou mais nova');
+ok(/versão (1\d\d|8\d|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 80 ou mais nova');

@@ -45,4 +45,4 @@ ok(/já revisou 6/.test(run('revisoraRodada()').motivo), 'no máximo 6 lições 
 run('chamarCompat = function(){ return JSON.stringify({ causa: "c", regra: "regra da reclamação com mais de quinze letras", porque: "p", resposta_certa: "r", tipo: "geral" }); }; resultadosBusca = function(){ return null; };');
 r = run('aprenderComErros()');
 ok(r.aprendeu && r.conversa === 'c4', 'aprender com reclamação continua funcionando');
-ok(/versão (79|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 79 ou mais nova');
+ok(/versão (1\d\d|79|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 79 ou mais nova');

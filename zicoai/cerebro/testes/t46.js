@@ -46,7 +46,7 @@ ok(!S.botaoPerigoso({ texto: 'Ver fotos' }), 'botão comum continua livre');
 // regras
 ok(/NAVEGADOR PRÓPRIO \(web_\*\)[\s\S]*Chrome do Thiago \(nav_\*\)/.test(run('PROMPT_AGENTE')), 'agente sabe quando usar o navegador dela e quando o Chrome do Thiago');
 ok(/SEU navegador[\s\S]{0,400}web_\*/.test(run('PERSONA')), 'chat manda "pesquisa no seu navegador" pro agente com web_*');
-ok(/versão (6[7-9]|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 67 ou mais nova');
+ok(/versão (1\d\d|6[7-9]|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 67 ou mais nova');
 // extensão 2.6: cada aba do Chrome tem a sua ZicoAI: o chat lê a aba DO PAINEL, não a que estiver na frente
 run('CacheService.getScriptCache().put("ponte_visto_nav", String(Date.now()))');
 run('ponteSemDetalhe = function(acao, d, espera, disp){ if (disp === "nav" && acao === "ler") { globalThis.__lido = d; return {ok:true, abaId: d.abaId, titulo:"Loja", url:"https://loja.exemplo/", texto:"produto"}; } throw new Error("x"); };');

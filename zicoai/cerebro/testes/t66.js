@@ -39,4 +39,4 @@ ok(/não está liberado/.test(H.post({ convite: k.chave, acao: 'rascunho', chatI
 resposta = '```html\n<!doctype html><html><head><title>Gorjeta</title></head><body>oi</body></html>\n```';
 r = H.post({ pin: '1234', acao: 'chat', aparelho: 'PC', mensagens: [{ role: 'user', content: 'faz um app de gorjeta em html' }] });
 ok(/```html/.test(r.resposta) && !/RASCUNHO/.test(r.resposta), 'app novo continua vindo no chat (sem rascunho)');
-ok(/versão (8[8-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 88 ou mais nova');
+ok(/versão (1\d\d|8[8-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 88 ou mais nova');

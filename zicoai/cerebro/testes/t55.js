@@ -20,4 +20,4 @@ ok(H.post({ pin: '1234', acao: 'telaVivo', desde: 0, chatId: 'convC' }).tela ===
 H.post({ pin: '1234', acao: 'navegar', op: 'soltar', chatId: 'convB' });
 ok(!/Thiago está usando/.test(run('FERRAMENTAS.web_ler.run({}, { chatId: "convB", pedido: "lê o site aberto" })')), 'fechou o painel da B: ela pode usar a B de novo');
 ok(run('sessaoNav("a b/../c")') === 'abc' && run('sessaoNav("")') === 'geral', 'nome da sessão limpo; sem conversa = geral');
-ok(/versão (7[5-9]|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 75 ou mais nova');
+ok(/versão (1\d\d|7[5-9]|[89]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 75 ou mais nova');

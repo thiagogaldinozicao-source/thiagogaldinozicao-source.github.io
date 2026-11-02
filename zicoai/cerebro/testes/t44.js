@@ -39,7 +39,7 @@ H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.strin
 for (let i = 0; i < 6; i++) { limpa(); p = run('placarMacRodada("preço")'); }
 ok(H.sheets.placar_mac.rows.some(l => l[6] === 'voltou pra nuvem') && !H.PROPS.MAC_PRIMARIO, 'Mac piorou no placar: preço volta pra nuvem sozinho');
 ok(/diagnostico/.test(run('FERRAMENTAS.mac_comando.desc')) && /diagnostico/.test(run('FERRAMENTAS.pc_comando.desc')), 'ferramentas de diagnóstico do Mac e do PC');
-ok((+(run('VERSAO_CEREBRO')).match(/versão (\d+)/)[1] >= 58), 'cérebro na versão 58 ou mais nova');
+ok((+(run('VERSAO_CEREBRO')).match(/versão (1\d\d|\d+)/)[1] >= 58), 'cérebro na versão 58 ou mais nova');
 // v60: lição do erro vira aula sozinha quando outro cérebro aprova (nota ≥ 8)
 {
   const m = H.sheets.mensagens;

@@ -53,4 +53,4 @@ H.PROPS.ERROS_ATE = '2026-11-01 12:00:00';
 const ae = run('aprenderComErros()');
 ok(ae.aprendeu === false && /nenhuma reclamação nova/.test(ae.motivo), '"corrige" pedido pelo próprio selo não vira reclamação');
 ok(/AMBIENTE do teste não é erro dela/.test(run('licaoDoErro_.toString()')), 'professor sabe que tutorial/fonte/serviceWorker do teste não é erro dela');
-ok(/versão (9[2-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 92 ou mais nova');
+ok(/versão (1\d\d|9[2-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 92 ou mais nova');

@@ -27,4 +27,4 @@ const rasc = run('Object.keys(_rasc).map(function(k){ return _rasc[k].html; })[0
 ok(rasc.length >= CALC.length && /x\.first\?'1ª '\+money\(x\.first\)/.test(rasc) && rasc.replace(/\(c>1\?\(x\.first\?'1ª '\+money\(x\.first\):money\(x\.par\)\):''\)/, "(c>1?money(x.par):'')") === CALC.replace(/\s+$/, ''), 'conserto aplicado no arquivo INTEIRO; o resto ficou igual letra por letra');
 // 3) pedido sem nada a ver com o código: manda inteiro? não — app grande sem palavra útil cai no arquivo (cortado em 150 mil)
 ok(run(`blocoCodigoApp_("<html>pequeno</html>", "muda a cor")`) === '```html\n<html>pequeno</html>\n```', 'app pequeno continua indo inteiro');
-ok(/versão (9[3-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 93 ou mais nova');
+ok(/versão (1\d\d|9[3-9])/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 93 ou mais nova');

@@ -43,4 +43,4 @@ ok(/PERFIL DO THIAGO/.test(sis) && /gosta de café/.test(sis) && !/Karina cuida 
 // cancelar
 H.post({ pin: '1234', acao: 'cancelarConvite', id: k.id });
 ok(/inválido ou cancelado/.test(H.post({ convite: k.chave, acao: 'quemSou' }).erro), 'convite cancelado para de funcionar na hora');
-ok(/versão (8[1-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 81 ou mais nova');
+ok(/versão (1\d\d|8[1-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 81 ou mais nova');

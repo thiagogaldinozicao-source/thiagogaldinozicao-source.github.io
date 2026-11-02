@@ -33,6 +33,6 @@ let o = run('FERRAMENTAS.publicar_app.run({nome:"calc", html:"<!doctype html><bu
 ok(/NÃO publiquei[\s\S]*naoExiste/.test(o) && !run('globalThis.__pub'), 'app com erro não é publicado');
 o = run('FERRAMENTAS.publicar_app.run({nome:"calc", html:"<!doctype html><button>ok</button>"})');
 ok(/publicado em https:\/\/x\/apps\/calc\/ \(testado antes no navegador do Mac: sem erro\)/.test(o), 'app bom: testa e publica');
-ok(/versão (69|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 69 ou mais nova');
+ok(/versão (1\d\d|69|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 69 ou mais nova');
 ok(cc('1.990 + 100 = 2.089') === '1.990 + 100 = 2.089' && cc('3.999 x 1,08 = 4.319') === '3.999 x 1,08 = 4.319' && cc('1.000 x 1,2 = 1.199') === '1.000 x 1,2 = 1.199', 'arredondamento da loja (tira 1 real, final 9) não é "corrigido"');
 ok(/= 1\.550/.test(cc('1.200 + 350 = 1.500')), 'mas erro de verdade em valor redondo é corrigido');

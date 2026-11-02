@@ -25,7 +25,7 @@ run('CacheService.getScriptCache().put("ponte_visto_mac", String(Date.now()))');
 r = H.post({ pin: '1234', acao: 'aparelhosRapido' });
 ok(r.ok && r.aparelhos.length === 3 && r.aparelhos[0].ok === true && r.aparelhos[1].ok === false, 'chip do topo: Mac ligado, PC e Chrome desligados (sem chamar ninguém)');
 ok(H.post({ acao: 'aparelhosRapido' }).ok === false, 'chip exige PIN');
-ok((+run('VERSAO_CEREBRO').match(/versão (\d+)/)[1]) >= 71, 'cérebro na versão 71 ou mais nova');
+ok((+run('VERSAO_CEREBRO').match(/versão (1\d\d|\d+)/)[1]) >= 71, 'cérebro na versão 71 ou mais nova');
 // v72: abas, foco no campo e digitar com Enter
 run(`ponteSemDetalhe = function(acao, d, espera, disp){ globalThis.__p = { acao: acao, d: d, disp: disp };
   return { ok: true, titulo: 'Google', url: 'https://google.com/', tela: 'SU1H', foco: d.op === 'tocar', abas: [{ titulo: 'Google', url: 'https://google.com/', ativa: true }, { titulo: 'Loja', url: 'https://loja/', ativa: false }] }; };`);

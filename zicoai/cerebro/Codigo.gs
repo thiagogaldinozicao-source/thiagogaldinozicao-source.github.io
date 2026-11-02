@@ -15,7 +15,7 @@
 
 const PLANILHA_ID = '1UOQHUjGdscAi6lfKZZbH4ipaa9lDaXrPeoHjNRxix0U';
 const FUSO = 'America/Sao_Paulo';
-const VERSAO_CEREBRO = 'versão 99 (01/11/2026)';
+const VERSAO_CEREBRO = 'versão 100 (01/11/2026)';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_COMPAT_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -147,11 +147,15 @@ function cerebroPCcodigo() {
  * Quem decide é o cérebro: com o PC ligado, a prova (placar contra a nuvem) roda nele; quando ele ganhar do Mac
  * (8+ provas e taxa >= a do Mac), o trabalho de fundo do Mac (estudo, resumo) vai pro PC sozinho. Desligou → volta pro Mac.
  */
-const PC_MODELOS_PONTE = ['qwen3.6:35b', 'qwen3.5:35b-a3b', 'qwen3.5:9b'];   // v86: o PC já tinha o qwen3.6:35b (35B-A3B, mais novo): vai primeiro
+const PC_MODELO_OPUS = 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M';
+const PC_MODELOS_PONTE = [PC_MODELO_OPUS, 'qwen3.6:35b', 'qwen3.5:35b-a3b', 'qwen3.5:9b'];   // v100: a destilada (mesmo 3.6 + LoRA do Opus) vai primeiro a pedido do Thiago; o duelo decide se fica   // v86: o PC já tinha o qwen3.6:35b (35B-A3B, mais novo): vai primeiro
 const PC_PONTE_ESPERA = 200000;
 /* v87: igual era antes (zicoai pra conversa, zicoai-dev pra código), agora com os modelos novos:
  * LEVE (rápido, cabe inteiro na placa) pra conversa do dia a dia; PESADO (35B) pra código, capricho, prova e trabalho de fundo. */
 const PC_MODELOS_LEVE = ['qwen3.5:9b'];
+let PC_MODELO_FORCADO = null;   // v100: duelo da academia escolhe QUAL modelo do PC responde
+function apelidoModelo_(m) { return String(m).replace(/^hf\.co\/[^/]+\//i, '').replace(/-GGUF(:.*)?$/i, '').replace(/^Qwen3\.6-35B-A3B-Claude-4\.6-Opus-Reasoning-Distilled$/i, 'Qwen3.6 35B Opus destilada').replace(/^Qwen3\.5-9B-Claude-4\.6-Opus-Reasoning-Distilled-v2$/i, 'Qwen3.5 9B Opus destilado'); }
+function modelosDoPC_() { try { return JSON.parse(CacheService.getScriptCache().get('ponte_modelos') || '[]').map(m => String(m).replace(/:latest$/, '')); } catch (e) { return []; } }
 function cerebroPCPonte(tipo) {
   if (!prop('PONTE_SEGREDO') || !ponteViva('pc')) return null;
   const c = CacheService.getScriptCache();
@@ -160,9 +164,9 @@ function cerebroPCPonte(tipo) {
   let tem = [];
   try { tem = JSON.parse(c.get('ponte_modelos') || '[]'); } catch (e) { tem = []; }
   const nomes = tem.map(m => String(m).replace(/:latest$/, ''));
-  const m = (tipo === 'leve' ? PC_MODELOS_LEVE : PC_MODELOS_PONTE).find(x => nomes.indexOf(x) >= 0);
+  const m = (PC_MODELO_FORCADO && nomes.indexOf(PC_MODELO_FORCADO) >= 0) ? PC_MODELO_FORCADO : (tipo === 'leve' ? PC_MODELOS_LEVE : PC_MODELOS_PONTE).find(x => nomes.indexOf(x) >= 0);
   if (!m) return null;
-  return Object.assign({}, CEREBROS.pc, { modelo: m, nome: 'PC (' + m + ')', limite: 32000, maxSaida: 4096, local: true, viaPonte: true, disp: 'pc' });
+  return Object.assign({}, CEREBROS.pc, { modelo: m, nome: 'PC (' + apelidoModelo_(m) + ')', limite: 32000, maxSaida: 4096, local: true, viaPonte: true, disp: 'pc' });
 }
 /** Placar acumulado (todas as categorias) do PC ou do Mac contra a nuvem. taxa = (ganhou + meio empate) / provas. */
 function placarTotal(Q) {
@@ -750,7 +754,7 @@ function chatSemTrava(req, aparelho) {
   // modo agente: o Thiago pediu explicitamente segundo plano; ou o pedido é CLARAMENTE grande/multi-etapa (rota automática, v57)
   const autoAgente = ehDono() && modo === 'auto' && !temFoto && !req.refazer && ehPedidoGrande(pergunta);
   if (ehDono() && (modo === 'agente' || autoAgente)) {
-    const t = criarTarefa(pergunta, chatId, aparelho);
+    const t = criarTarefa(pergunta + (preferido === 'pc' ? ' [cerebro:pc]' : ''), chatId, aparelho);   // v100: seletor em PC vale pro agente também
     const txt = t.ok ? '🧠 Agente trabalhando nisso em segundo plano (tarefa ' + t.id + '), em etapas e conferindo cada uma. O resultado aparece aqui quando terminar.' : '⚠️ ' + t.erro;
     passo(autoAgente ? 'Pedido grande com várias etapas: mandou direto pro agente (planeja, faz uma por vez e confere)' : 'Criou uma tarefa em segundo plano');
     gravarMensagem(chatId, 'zicoai', txt, 'agente', aparelho);
@@ -1062,7 +1066,7 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
   // Nuvem primeiro (modelos grandes respondem melhor). O PC de casa (modelo 8B)
   // é reserva: entra quando a nuvem falha ou estoura o limite, ou se o Thiago escolher "PC".
   const codigo = !imagem && ehProgramacao(pergunta);
-  const pc = (codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
+  const pc = PC_MODELO_FORCADO ? cerebroPCPonte() : ((preferido === 'pc' && !!cerebroPCPonte()) || codigo || forte || pcPrimario(pergunta)) ? cerebroPCcodigo() : cerebroPC();   // v100: seletor em PC = o cérebro grande do PC (a destilada), não o 9B   // o placar do PC é do 35B: onde ele ganhou, vai o 35B
   let ordem;
   // foto: só cérebro que enxerga (Nemotron VL e o reserva Gemma 4 leem imagem; o PC só se PC_VISAO = sim)
   if (imagem) ordem = ['gemini', 'mistral', 'zaiv', 'nvidia'].concat(/^(1|sim|true)$/i.test(String(prop('PC_VISAO') || '')) ? ['pc'] : []);
@@ -1073,20 +1077,21 @@ function conversar(historico, pergunta, imagem, preferido, extraSistema, forte) 
     passo('Seletor de cérebro em ' + (preferido === 'pc' ? 'PC' : (CEREBROS[preferido] || {}).nome || preferido) + ': ele vai primeiro' + (forte ? ' (no capricho o melhor é deixar em Auto)' : ''));
   }
   if (preferido === 'pc' && prop('PC_URL') && !pc) passo('PC desligado, usou a nuvem');
+  if (SO_ESTE_CEREBRO) ordem = [SO_ESTE_CEREBRO];   // v100: duelo — só esse cérebro, sem reserva (senão a nota vai pra outro)
   ordem = ordem.filter(n => (n === 'pc' ? !!pc : temCerebro(n)));
-  if (preferido === 'auto' || !preferido) { try { ordem = reordenarPorNota(ordem, pc); } catch (e) { /* segue a ordem padrão */ } }
+  if (!SO_ESTE_CEREBRO && (preferido === 'auto' || !preferido)) { try { ordem = reordenarPorNota(ordem, pc); } catch (e) { /* segue a ordem padrão */ } }
   // nosso cérebro primeiro onde ele já provou no placar (a nuvem vira reserva)
-  if (!imagem && !forte && (preferido === 'auto' || !preferido) && pc && pc.viaPonte && pcPrimario(pergunta)) { ordem = ['pc'].concat(ordem.filter(n => n !== 'pc')); passo('Assunto em que o cérebro do PC já ganhou da nuvem no placar: ele responde primeiro'); }
-  else if (!imagem && !forte && (preferido === 'auto' || !preferido) && temCerebro('mac') && macPrimario(pergunta)) { ordem = ['mac'].concat(ordem.filter(n => n !== 'mac')); passo('Assunto em que o cérebro do Mac já ganhou da nuvem no placar: ele responde primeiro'); }
+  if (!SO_ESTE_CEREBRO && !imagem && !forte && (preferido === 'auto' || !preferido) && pc && pc.viaPonte && pcPrimario(pergunta)) { ordem = ['pc'].concat(ordem.filter(n => n !== 'pc')); passo('Assunto em que o cérebro do PC já ganhou da nuvem no placar: ele responde primeiro'); }
+  else if (!SO_ESTE_CEREBRO && !imagem && !forte && (preferido === 'auto' || !preferido) && temCerebro('mac') && macPrimario(pergunta)) { ordem = ['mac'].concat(ordem.filter(n => n !== 'mac')); passo('Assunto em que o cérebro do Mac já ganhou da nuvem no placar: ele responde primeiro'); }
   // v89: mexendo num app grande (calculadora = 116 mil letras): só cérebro que aguenta arquivo grande e é rápido.
   // Groq/Cerebras não cabem (pulam sem custo), mas Nemotron/PC com 40 mil tokens demoram minutos e estouram os 6 min do Google.
-  if (EDITANDO_APP && !imagem && (preferido === 'auto' || !preferido)) {
+  if (EDITANDO_APP && !SO_ESTE_CEREBRO && !imagem && (preferido === 'auto' || !preferido)) {
     let grandes = ['geminiForte', 'gemini', 'mistral', 'nvidia', 'zai'].filter(n => temCerebro(n));
     try { grandes = ordemPelaAcademia_(grandes); } catch (e) { /* sem placar ainda: ordem padrão */ }
     if (grandes.length) { ordem = grandes; passo('Mexendo num app: vai no cérebro que aguenta arquivo grande (' + grandes.map(n => CEREBROS[n].nome).join(' → ') + ')'); }
   }
   // pedido difícil: o Gemini Flash (melhor, ~20/dia) vai na frente; acabou a cota do dia → segue a ordem normal
-  if (forte && (preferido === 'auto' || !preferido) && temCerebro('geminiForte')) { ordem = ['geminiForte'].concat(ordem); passo('Pedido difícil: chamou o Gemini Flash (o melhor do grátis) primeiro'); }
+  if (forte && !SO_ESTE_CEREBRO && (preferido === 'auto' || !preferido) && temCerebro('geminiForte')) { ordem = ['geminiForte'].concat(ordem); passo('Pedido difícil: chamou o Gemini Flash (o melhor do grátis) primeiro'); }
 
   const tokensCheio = estimarTokens(JSON.stringify(msgs)) + (imagem ? 1500 : 0);
   let enxutas = null;
@@ -1921,7 +1926,9 @@ function ordemPelaAcademia_(lista) {
   return ordem;
 }
 /** Uma rodada: 1 exercício × 1 cérebro (cabe nos 6 min). Trigger de hora em hora; só roda das 23h às 7h (ou forcar). */
-function treinoCodigo(evento, forcar) {
+let SO_ESTE_CEREBRO = null;
+function treinoCodigo(evento, forcar, escolha) {
+  let macAntes = null;
   const h = Number(Utilities.formatDate(new Date(), FUSO, 'H'));
   if (!forcar && !(h >= 23 || h < 7)) return { ok: true, pulou: 'fora do horário (a academia roda das 23h às 7h)' };
   const c = CacheService.getScriptCache();
@@ -1935,7 +1942,9 @@ function treinoCodigo(evento, forcar) {
     const props = PropertiesService.getScriptProperties();
     const n = Number(props.getProperty('ACADEMIA_N') || 0);
     props.setProperty('ACADEMIA_N', String(n + 1));
-    const cer = cands[n % cands.length], e = ex[Math.floor(n / cands.length) % ex.length];
+    let cer = cands[n % cands.length], e = ex[Math.floor(n / cands.length) % ex.length];
+    if (escolha) { cer = escolha.cer; e = ex.find(x => x.id === escolha.ex) || e; PC_MODELO_FORCADO = escolha.pcModelo || null; SO_ESTE_CEREBRO = cer; }
+    if (escolha && escolha.macModelo) { macAntes = [CEREBROS.mac.modelo, CEREBROS.mac.nome]; CEREBROS.mac.modelo = escolha.macModelo; CEREBROS.mac.nome = 'Mac (' + apelidoModelo_(escolha.macModelo) + ')'; }
     let html = e.html;
     if (!html && e.url) { const r = UrlFetchApp.fetch(e.url, { muteHttpExceptions: true }); html = r.getResponseCode() === 200 ? r.getContentText() : ''; }
     if (!html) return { ok: false, erro: 'exercício sem arquivo: ' + e.id };
@@ -1948,7 +1957,7 @@ function treinoCodigo(evento, forcar) {
       try { const pr = programadora(res, html, e.pedido, null); fim = extrairHtml(pr.texto); if (!fim) detalhe = String(pr.texto || '').split('\n').find(l => /⚠️|⛔|❌/.test(l)) || 'não saiu o app consertado'; }
       catch (err) { detalhe = 'programadora: ' + String(err.message || err).slice(0, 150); }
     }
-    let passou = 'não', provasTxt = '0/' + e.provas.length;
+    let passou = (!res || !res.ok) ? 'sem cérebro' : 'não', provasTxt = '0/' + e.provas.length;   // v100: cota acabou / fora do ar não conta como erro
     if (fim) {
       if (fim.length < html.length * 0.85) detalhe = 'o app encolheu (' + fim.length + ' de ' + html.length + ' letras)';
       else {
@@ -1970,7 +1979,59 @@ function treinoCodigo(evento, forcar) {
     }
     try { parDaAcademia_(e, quem, passou, res && res.texto); } catch (err) { /* ok */ }
     return { ok: true, exercicio: e.id, cerebro: quem, passou: passou, provas: provasTxt, detalhe: detalhe, passos: PASSOS.slice(-12) };
-  } finally { c.remove('academia_rodando'); }
+  } finally { c.remove('academia_rodando'); PC_MODELO_FORCADO = null; SO_ESTE_CEREBRO = null; if (macAntes) { CEREBROS.mac.modelo = macAntes[0]; CEREBROS.mac.nome = macAntes[1]; } }
+}
+/* ---------- v100: DUELO NA ACADEMIA ----------
+ * Cérebro novo no PC (ex.: a Opus destilada) contra o 3.6 oficial e os grandes da nuvem, nos MESMOS exercícios com prova escondida.
+ * Cada participante responde SOZINHO (sem reserva), e cada rodada grava na aba academia. Roda pelo editor (Executar dueloAcademia)
+ * quantas vezes precisar: faz o que cabe em ~4 min e continua de onde parou (DUELO_FILA). dueloAcademia(true) recomeça. */
+const DUELO_PC = ['qwen3.6:35b', 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M', 'qwen3-coder:30b'];
+const DUELO_NUVEM = ['geminiForte', 'gemini', 'groq', 'mistral', 'nvidia'];
+function dueloAcademia(recomecar) {
+  const props = PropertiesService.getScriptProperties(), t0 = Date.now();
+  let fila = recomecar === true ? null : JSON.parse(props.getProperty('DUELO_FILA') || 'null');
+  const noPC = modelosDoPC_(), pcLigado = !!cerebroPCPonte();
+  if (!fila) {
+    const ex = exerciciosAcademia_(), quem = [];
+    DUELO_PC.concat(noPC.filter(m => /hf\.co\/|coder|opus|distill/i.test(m) && DUELO_PC.indexOf(m) < 0)).forEach(m => { if (noPC.indexOf(m) >= 0) quem.push(['pc', m]); });   // nome exato pode variar: pega o que baixou
+    DUELO_NUVEM.forEach(n => { if (temCerebro(n)) quem.push([n, '']); });
+    fila = []; ex.forEach(e => quem.forEach(q => fila.push({ cer: q[0], pcModelo: q[1], ex: e.id })));
+    props.setProperty('DUELO_INICIO', agora());
+  }
+  const feitos = [];
+  while (fila.length && Date.now() - t0 < 150000) {
+    const it = fila[0];
+    if (it.cer === 'mac' && !temCerebro('mac')) { feitos.push('Mac fora do ar: pausei'); break; }
+    if (it.cer === 'pc' && !pcLigado) { feitos.push('PC desligado: pausei (liga o PC e roda de novo)'); break; }
+    let r; try { r = treinoCodigo(null, true, it); } catch (e) { r = { ok: false, erro: String(e.message || e) }; }
+    fila.shift(); props.setProperty('DUELO_FILA', JSON.stringify(fila));
+    feitos.push(it.ex + ' · ' + (r.cerebro || it.cer + (it.pcModelo || it.macModelo ? ' ' + apelidoModelo_(it.pcModelo || it.macModelo) : '')) + ' → ' + (r.passou || 'erro') + ' ' + (r.provas || '') + (r.detalhe ? ' (' + String(r.detalhe).slice(0, 80) + ')' : r.erro ? ' (' + String(r.erro).slice(0, 80) + ')' : ''));
+  }
+  if (!fila.length) props.deleteProperty('DUELO_FILA');
+  // sozinho até acabar: gatilho de 5 em 5 min enquanto tiver fila; acabou → apaga o gatilho
+  try {
+    const gs = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'dueloAcademia');
+    if (fila.length && !gs.length) ScriptApp.newTrigger('dueloAcademia').timeBased().everyMinutes(5).create();
+    if (!fila.length) gs.forEach(t => ScriptApp.deleteTrigger(t));
+  } catch (e) { Logger.log('gatilho do duelo: ' + e.message); }
+  const out = { faltam: fila.length, modelosNoPC: noPC, pcLigado: pcLigado, feitos: feitos, placar: placarDuelo_() };
+  Logger.log(JSON.stringify(out, null, 1));
+  return out;
+}
+/** Placar só do duelo (desde DUELO_INICIO): cérebro → acertos/tentativas. */
+/** v100: duelo só do Mac — o 9B destilado (Qwen3.5) contra o qwen3:8b atual, nos mesmos exercícios. Rodar pelo editor; continua sozinho (gatilho do dueloAcademia). */
+const DUELO_MAC = ['qwen3:8b', 'hf.co/Jackrong/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF:Q4_K_M'];
+function dueloMac() {
+  const props = PropertiesService.getScriptProperties(), fila = [];
+  exerciciosAcademia_().forEach(e => DUELO_MAC.forEach(m => fila.push({ cer: 'mac', macModelo: m, ex: e.id })));
+  props.setProperty('DUELO_FILA', JSON.stringify(fila)); props.setProperty('DUELO_INICIO', agora());
+  return dueloAcademia();
+}
+function placarDuelo_() {
+  const ini = String(PropertiesService.getScriptProperties().getProperty('DUELO_INICIO') || '');
+  const out = {};
+  linhas('academia').forEach(l => { if (String(l[0]).replace(/^'/, '') < ini || !/^(sim|não)$/.test(String(l[3]))) return; const k = String(l[2]); out[k] = out[k] || { ok: 0, n: 0 }; out[k].n++; if (l[3] === 'sim') out[k].ok++; });
+  return out;
 }
 /** Pelo editor: confere se o Mac abre app no navegador (app bom e app com erro). */
 function testarNavegadorMac() {
@@ -3567,6 +3628,7 @@ function aprenderSozinha() {
   if (!lock.tryLock(1000)) return;
   try {
     const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('DUELO_MAC_V100') && !props.getProperty('DUELO_FILA')) { props.setProperty('DUELO_MAC_V100', hoje()); try { Logger.log('Duelo do Mac (v100): ' + JSON.stringify(dueloMac().feitos)); } catch (e) { Logger.log('dueloMac: ' + e.message); } }   // começa sozinho 1×; depois o gatilho de 5 min continua
     if (!props.getProperty('PARES_V99')) { try { Logger.log('Pares antigos (v99): ' + paresAntigos_()); } catch (e) { Logger.log('paresAntigos_: ' + e.message); } props.setProperty('PARES_V99', hoje()); }
     if (!props.getProperty('MEM_REVISADA_V90')) { try { const rv = revisarMemoria(); Logger.log('Memória revisada (v90): ' + rv.marcadas.length + ' marcadas'); } catch (e) { Logger.log('revisarMemoria: ' + e.message); } props.setProperty('MEM_REVISADA_V90', hoje()); }
     const ultima = props.getProperty('APRENDIDO_ATE') || '';
@@ -5678,7 +5740,8 @@ const PROMPT_AGENTE = [
 ].join('\n');
 
 function agente(id, pedido, chatId, aparelho, prazo, pai) {
-  { const mn = String(pedido || '').match(/\[nav:([a-z0-9]{4,16})\]/i); if (mn) NAV_ATUAL = mn[1]; }   // v94: a tarefa volta pro Chrome que pediu
+  { const mn = String(pedido || '').match(/\[nav:([a-z0-9]{4,16})\]/i); if (mn) NAV_ATUAL = mn[1]; }
+  const soPC = /\[cerebro:pc\]/i.test(String(pedido || ''));   // v100: o Thiago pediu o PC no seletor: o agente usa o PC primeiro   // v94: a tarefa volta pro Chrome que pediu
   prazo = prazo || (Date.now() + PRAZO_RODADA);
   const salvo = estadoLer(id);
   DETALHES = detalhesSeguros(salvo && salvo.detalhes || lerDetalhes(id)); TAREFA_DETALHE = id; REQ_VIVO = '';
@@ -5692,6 +5755,13 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
   // Nuvem toda fora (cota do dia/castigo)? Usa o PC de casa como reserva.
   // forte=true (plano e conferência final): tenta o Gemini Flash primeiro (~18 por dia); sem cota, segue com os normais
   const chamar = (msgs, maxSaida, temp, semPrazo, forte) => {
+    if (soPC) {
+      const pc = cerebroPCcodigo();
+      if (pc && estimarTokens(JSON.stringify(msgs)) + maxSaida <= pc.limite) {
+        try { return { texto: chamarCompat(pc, msgs, maxSaida, { temperature: temp }), cerebro: pc.nome }; }
+        catch (e) { anota('PC não respondeu (' + String(e.message || e).slice(0, 80) + '): usou a nuvem'); }
+      } else anota(pc ? 'Pedido grande demais pro PC: usou a nuvem' : 'PC desligado: usou a nuvem');
+    }
     for (let rodada = 0; rodada < 3; rodada++) {
       let soMinuto = true, tentou = false;
       for (const nome of (forte && rodada === 0 ? ['geminiForte'] : []).concat(['gemini', 'groq', 'mistral', 'zai', 'cerebras', 'nvidia', 'groq2'])) {
@@ -5756,7 +5826,7 @@ function agente(id, pedido, chatId, aparelho, prazo, pai) {
     if (pai) { avisarPai(pai); return; }   // parte de tarefa maior: quem avisa o Thiago é o chefe
     if (chatId) {
       PASSOS = ['Agente em segundo plano (' + est.usadas + ' ferramentas): ' + est.log.join(' → ')];
-      const pedTit = String(pedido).replace(/\n?\(Pedido feito pelo painel[\s\S]*$/, '').replace(/\s*\[nav:[a-z0-9]+\]/i, '').trim();   // v94: sem a marca interna no título
+      const pedTit = String(pedido).replace(/\n?\(Pedido feito pelo painel[\s\S]*$/, '').replace(/\s*\[nav:[a-z0-9]+\]/i, '').replace(/\s*\[cerebro:pc\]/i, '').trim();   // v94: sem a marca interna no título
       gravarMensagem(chatId, 'zicoai', '🧠 **Resultado da tarefa** (' + pedTit.slice(0, 80) + (pedTit.length > 80 ? '…' : '') + '):\n\n' + final, 'agente · ' + est.cerebro, aparelho || 'agente');
       tocarChat(chatId);
     }

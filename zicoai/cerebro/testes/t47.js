@@ -31,7 +31,7 @@ run('criarTarefa = function(){ return {ok:true, id:"t1"}; }');
 const r = H.post({ pin: '1234', acao: 'chat', capricho: false, naExtensao: true, mensagens: [{ role: 'user', content: 'mas e pra vc ver pela extensao aqui onde vc esta aberto' }] });
 ok(/aqui onde vc está aberta[\s\S]*VOCÊ \(o app da ZicoAI/.test(sist), 'pela extensão, "aqui onde vc está aberta" = ela mesma');
 ok(r.ok && /🧠 Agente trabalhando/.test(r.resposta) && !/```/.test(r.resposta), 'linha do agente sem bloco de código: ' + JSON.stringify(r.resposta));
-ok(/versão (6[89]|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 68 ou mais nova');
+ok(/versão (1\d\d|6[89]|[7-9]\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 68 ou mais nova');
 ok(typeof run('testarNavegadorZico') === 'function', 'tem testarNavegadorZico pra rodar pelo editor');
 // cérebro com termo: API do Apps Script desligada (era o "habilitar a API" inventado) → cai pro GitHub
 H.setFetch((u) => /script\.googleapis/.test(u) ? { getResponseCode: () => 403, getContentText: () => 'API desligada' } : /Codigo\.gs$/.test(u) ? { getResponseCode: () => 200, getContentText: () => 'const X = 1;\nfunction webNav(d) {\n  return 1;\n}' } : { getResponseCode: () => 404, getContentText: () => '' });
