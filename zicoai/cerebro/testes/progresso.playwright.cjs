@@ -57,7 +57,8 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       assert(await live.evaluate(e=>e.open));
       await page.waitForTimeout(1700);assert(await page.locator('.trab .passo-detalhe').first().evaluate(e=>e.open));
       await page.getByText('Resposta nova fictícia',{exact:true}).waitFor();
-      assert((await page.locator('#resumoTopo').isVisible()) && /›$/.test(await page.locator('#resumoTopo').innerText()),'linha de resumo no topo');
+      if (width >= 600) assert((await page.locator('#resumoTopo').isVisible()) && /›$/.test(await page.locator('#resumoTopo').innerText()),'linha de resumo no topo desktop');
+      else assert(!(await page.locator('#resumoTopo').isVisible()),'resumo compacto fica oculto no celular');
       const outer=page.locator('.msg-ia .passos').last();await outer.locator('summary').first().click();
       const step=outer.locator('.passo-detalhe').first();if(!await step.evaluate(e=>e.open))await step.locator('summary').click();
       assert((await step.innerText()).includes('Solicitação'));assert((await step.innerText()).includes('Resposta'));

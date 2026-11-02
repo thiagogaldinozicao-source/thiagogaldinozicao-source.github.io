@@ -6,11 +6,13 @@
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFile } = require('child_process');
+const { criarCaixa, resultadoIncerteza, respostaConfirmada } = require('./caixa-saida');
+const caixaSaida = criarCaixa();
 
 const DIR = process.env.ZPONTE_DIR || __dirname;
 const CFG = path.join(DIR, 'config.json');
 const LOG = path.join(DIR, 'ponte-log.txt');
-const VERSAO = 'mac-2.1';
+const VERSAO = 'mac-2.2';
 const HOME = os.homedir();
 process.env.PATH = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.PATH || '');
 
@@ -291,20 +293,43 @@ async function laco() {
   if (!cfg.exec || !cfg.segredo) { log('config.json sem exec ou segredo'); return; }
   log('ponte ' + VERSAO + ' ligada (busca pedidos na ZicoAI)');
   let falhas = 0, conectou = false;
+  // O Apps Script confirma o recebimento com {ok:true}; só aí a resposta sai do disco.
+  async function entregar(id, resultado) {
+    const ack = await chamar({ acao: 'ponteResposta', segredo: cfg.segredo, dispositivo: 'mac', id, resultado: JSON.stringify(resultado) });
+    if (!respostaConfirmada(ack)) throw new Error('Servidor não confirmou ponteResposta para ' + id);
+    caixaSaida.confirmar(id);
+  }
+  async function reenviarPendentes() {
+    for (const p of caixaSaida.pendentes()) {
+      if (p.estado !== 'pronta') continue;
+      try { await entregar(p.id, p.resultado); }
+      catch (e) { log('resposta pendente ' + p.id + ': ' + e.message); break; }
+    }
+  }
   for (;;) {
     try {
       const r = await chamar({ acao: 'ponteBuscar', segredo: cfg.segredo, dispositivo: 'mac', nome: os.hostname().replace(/\.local$/, ''), versao: VERSAO });
       if (!r.ok) { if (conectou || falhas === 0) log('a ZicoAI recusou: ' + r.erro); conectou = false; falhas = 1; await esperar(60000); continue; }
       if (!conectou) { log('conectado na ZicoAI'); conectou = true; }
       falhas = 0;
+      await reenviarPendentes();
       if (mudouArquivo()) { log('ponte atualizada no disco: reiniciando sozinha'); process.exit(1); }   // launchd liga de novo (KeepAlive)
       estudarSePrecisa();   // sem await: estuda em paralelo, não atrasa pedido
       trabalharSePrecisa();   // sem await: tarefas dos agentes rodam em paralelo
       for (const p of r.pedidos || []) {
         if (!p) continue;
-        const res = await executar(p);
-        try { await chamar({ acao: 'ponteResposta', segredo: cfg.segredo, dispositivo: 'mac', id: String(p.id), resultado: JSON.stringify(res) }); }
-        catch (e) { log('não consegui mandar a resposta: ' + e.message); }
+        const id = String(p.id);
+        let reg = caixaSaida.ler(id);
+        const nova = !reg;
+        if (nova) reg = caixaSaida.iniciar(id, p.acao);
+        if (reg.estado === 'iniciada') {
+          // Depois de uma interrupção a ação anterior pode ter produzido efeitos.
+          // Informamos incerteza; não repetimos escrita, clique ou operação externa.
+          const res = nova ? await executar(p) : resultadoIncerteza(p.acao);
+          reg = caixaSaida.concluir(id, res);
+        }
+        try { await entregar(id, reg.resultado); }
+        catch (e) { log('não consegui confirmar a resposta ' + id + ': ' + e.message); }
       }
     } catch (e) {
       falhas++; conectou = false;
