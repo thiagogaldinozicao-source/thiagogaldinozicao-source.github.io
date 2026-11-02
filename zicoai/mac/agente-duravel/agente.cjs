@@ -16,7 +16,7 @@ const Estado = Annotation.Root({
   resultado: Annotation(),
   erro: Annotation(),
   tentativas: Annotation(),
-  trilha: Annotation(),
+  trilha: Annotation({reducer:(anterior,novo)=>[...(anterior||[]),...(novo||[])],default:()=>[]}),
 });
 
 function criarAgente({ arquivo, executar, pausa = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
@@ -33,8 +33,9 @@ function criarAgente({ arquivo, executar, pausa = ms => new Promise(resolve => s
     })
     .addNode('executar', async s => {
       if (s.estado === 'bloqueado') return {};
-      let erro = '';
+      let erro = '', feitas=0;
       for (let n=1;n<=2;n++) {
+        feitas=n;
         try {
           const resposta = await executar({ acao:s.acao, dados:s.dados || {} });
           if (resposta && resposta.ok === true) {
@@ -49,7 +50,7 @@ function criarAgente({ arquivo, executar, pausa = ms => new Promise(resolve => s
         }
         if (n < 2) await pausa(150);
       }
-      return { estado:'falha', erro:erro.slice(0,500), tentativas:2, trilha:['falha ao executar: '+erro.slice(0,120)] };
+      return { estado:'falha', erro:erro.slice(0,500), tentativas:feitas, trilha:['falha ao executar: '+erro.slice(0,120)] };
     })
     .addNode('verificar', async s => {
       if (s.estado==='bloqueado' || s.estado==='falha') return {};
