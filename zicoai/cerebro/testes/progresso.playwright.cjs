@@ -57,7 +57,8 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       assert(await live.evaluate(e=>e.open));
       await page.waitForTimeout(1700);assert(await page.locator('.trab .passo-detalhe').first().evaluate(e=>e.open));
       await page.getByText('Resposta nova fictícia',{exact:true}).waitFor();
-      assert((await page.locator('#resumoTopo').isVisible()) && /›$/.test(await page.locator('#resumoTopo').innerText()),'linha de resumo no topo');
+      if (width >= 600) assert((await page.locator('#resumoTopo').isVisible()) && /›$/.test(await page.locator('#resumoTopo').innerText()),'linha de resumo no topo (desktop)');
+      else assert(!(await page.locator('#resumoTopo').isVisible()),'no celular o resumo sticky não deve ocupar espaço da conversa');
       const outer=page.locator('.msg-ia .passos').last();await outer.locator('summary').first().click();
       const step=outer.locator('.passo-detalhe').first();if(!await step.evaluate(e=>e.open))await step.locator('summary').click();
       assert((await step.innerText()).includes('Solicitação'));assert((await step.innerText()).includes('Resposta'));
@@ -85,7 +86,20 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       assert.equal(await page.locator('#vivoTarefa .passo-detalhe').count(),2);
       await page.locator('#vivoTarefa .tela-zico img').waitFor({timeout:4000});
       assert.equal(await page.locator('#progressoPainel .passo-detalhe').count(),2);
-      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, print do navegador, final, tarefa, painel, abrir/fechar, copiar, máscara e largura');
+      // Os três modos precisam operar no estado real enviado à API, não apenas mudar o texto do botão.
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="rapido"]').click();
+      assert.equal(await page.evaluate(()=>cfg.capricho),'nunca','Rápido desliga revisão extra');
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="pensar"]').click();
+      assert.equal(await page.evaluate(()=>cfg.capricho),'sempre','Pensar ativa Capricho');
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="executar"]').click();
+      assert.deepEqual(await page.evaluate(()=>({modo,cerebro:cfg.cerebro})),{modo:'agente',cerebro:'auto'},'Executar encaminha ao agente apenas em Auto');
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="rapido"]').click();
+      assert.equal(await page.evaluate(()=>modo),'auto','Voltar a Rápido sai do agente');
+      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, prova, botões Rápido/Pensar/Executar, máscaras e largura');
       await context.close();
     }
   }finally{await browser.close();server.close();}
