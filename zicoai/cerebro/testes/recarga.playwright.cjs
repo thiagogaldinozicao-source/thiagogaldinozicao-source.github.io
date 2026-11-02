@@ -47,10 +47,12 @@ async function preparar(page,servidor,simulador){
       const ctx=await browser.newContext({viewport:{width:novo?390:1440,height:850},serviceWorkers:'block'});
       const page=await ctx.newPage();
       await page.addInitScript(novo?()=>{
+        if(window.top !== window)return;
         localStorage.setItem('zicoai_cfg',JSON.stringify({url:'https://example.invalid/brain',pin:'fake-only',aparelho:'Teste',cerebro:'auto'}));
         localStorage.setItem('zicoai_atual',JSON.stringify(null));
         localStorage.setItem('zicoai_chats',JSON.stringify([]));
       }:()=>{
+        if(window.top !== window)return;
         localStorage.setItem('zicoai_cfg',JSON.stringify({url:'https://example.invalid/brain',pin:'fake-only',aparelho:'Teste',cerebro:'auto'}));
         // Simula conversa existente sem persistir o conteúdo da requisição no cérebro.
         if(!localStorage.getItem('zicoai_atual'))localStorage.setItem('zicoai_atual',JSON.stringify('fake-reload'));
@@ -75,6 +77,7 @@ async function preparar(page,servidor,simulador){
     const ctx=await browser.newContext({viewport:{width:390,height:850},serviceWorkers:'block'});
     const page=await ctx.newPage();
     await page.addInitScript(()=>{
+      if(window.top !== window)return;
       localStorage.setItem('zicoai_cfg',JSON.stringify({url:'https://example.invalid/brain',pin:'fake-only',aparelho:'Teste',cerebro:'auto'}));
       localStorage.setItem('zicoai_atual',JSON.stringify(null));
       localStorage.setItem('zicoai_pedido_pendente_app',JSON.stringify({reqId:'rpendente12345',chatId:'',novo:true,pergunta:'Solicitação não confirmada',criado:Date.now()-70000}));
