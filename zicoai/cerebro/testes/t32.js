@@ -55,7 +55,7 @@ ok(textosEmbed === 1, 'aulas já embutidas: só a mensagem vai pro Gemini (' + t
 const guardadas = H.sheets.vetores.rows.filter(r => r[0] === 'aulas').length;
 ok(guardadas === linhas.length, 'vetor de cada aula guardado na aba vetores (' + guardadas + ')');
 a.rows.find(r => r[0] === 'C09')[5] = 'Conteúdo novo da C09: devolve MAC e key em bloco de código.';
-vm.runInContext('CacheService.getScriptCache().remove("aulas_idx_n")', H.ctx);
+vm.runInContext('CacheService.getScriptCache().remove("aulas_v102_idx_n")', H.ctx);
 run('prepararVetoresAulas()', '');
 ok(H.sheets.vetores.rows.filter(r => r[0] === 'aulas' && /^C09#/.test(r[1])).length === 2, 'aula mudou → vetor refeito (chave com hash do texto)');
 chamadasEmbed = 0;

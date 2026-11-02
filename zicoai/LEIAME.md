@@ -14,6 +14,16 @@ Assistente pessoal do Thiago (Zicão Store). O Thiago **não programa**: expliqu
 
 ## Como funciona (3 partes)
 
+### v102 (02/11/2026): seleção manual, Auto e Capricho
+
+- Manual fixa modelo durante resposta, pesquisa, autorrevisão, continuação e reparo. Cota, erro, falta de visão ou contexto insuficiente não autorizam reserva; a resposta explica e recomenda Auto. A seleção é restaurada no `finally` para não vazar entre pedidos. Duelo continua sem reserva.
+- Auto preserva a sequência por tarefa, contexto, disponibilidade e placar. Agente só no Auto (incluindo modo explícito, tag TAREFA e endpoint de criação); edição comum com app selecionado permanece no chat. Tarefas antigas não foram apagadas.
+- PWA v50 abre/recarrega com Auto + Capricho ligado, preservando configuração de conexão. Manual mantém o mesmo modelo na revisão; cumprimento simples faz uma chamada. Menu explica a escolha fixa, inclui Mac Mini e bloqueia botão Agente no manual.
+- `indiceAulas` agora lê sete colunas e respeita IGNORAR na coluna G. Cache novo `aulas_v102_idx_` evita reaproveitar o índice antigo. Não reescreve as aulas privadas.
+- Máscara de CPF/telefone em todo o histórico de texto antes da nuvem. Não é certificação de privacidade de fotos/anexos ou todas as ferramentas.
+- Validação: t1–t81, **1.220 PASS / 0 FAIL**, mais **22 verificações de UI** com API simulada (390/1440 px), sem erro JavaScript fora do aviso conhecido de SW do contexto de teste. Arquivo do editor foi copiado e comparado à base; listas dos destilados do Thiago preservadas. Aulas D49–D52 acompanham esta revisão.
+- Aplicação da ponte mac-2.1 no Mac físico, novo duelo 8B × 9B, curadoria das aulas e LoRA continuam pendentes. LoRA não foi iniciado nem cérebro substituído automaticamente por esta revisão. Aprovação escrita do Thiago recebida para implantar v102; confirmar versão na implantação antes de declarar concluída.
+
 ```
  App (PWA)  ──POST JSON──▶  Cérebro (Google Apps Script)  ──▶  PC de casa (Ollama via Tailscale Funnel)
  zicoai/index.html          zicoai/cerebro/Codigo.gs       ──▶  Gemini 3.1 Flash-Lite (API grátis)

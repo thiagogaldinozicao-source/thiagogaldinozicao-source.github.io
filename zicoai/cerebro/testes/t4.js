@@ -80,7 +80,7 @@ r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user
 ok(H.fetchLog[0].body.model === 'zicoai-dev' && r.cerebro === 'PC (zicoai-dev)', 'código no PC usa zicoai-dev');
 H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user', content: 'oi' }] });
-ok(H.fetchLog[0].body.model === 'zicoai', 'texto no PC usa zicoai');
+ok(H.fetchLog[0].body.model === 'zicoai-dev', 'PC manual mantém o modelo selecionado também no texto');
 
 // 10) prova: responde, corrige, grava nota e aprendizado quando < 7,5
 H.sheets.prova = null;

@@ -1,5 +1,7 @@
 # Aulas da ZicoAI
 
+[D52 — seleção manual, Auto e Capricho](D/D52-selecao-manual-auto-e-capricho.md): modelo fixo no manual, agente somente no Auto, revisão e provas honestas.
+
 Revisão local pendente: [D51 — modelo destilado na ponte](D/D51-modelo-destilado-na-ponte.md). Instalação no Mac e duelo real ainda precisam de verificação; o teste local usa Ollama simulado.
 
 Cada trabalho que o Claude faz na ZicoAI vira uma **aula** aqui: o pedido do Thiago, como pensou, os comandos de verdade, os erros e como corrigiu, e as lições. A ideia é a ZicoAI (e qualquer cérebro que entrar no lugar) aprender **fazendo igual**, não só ler o resultado.

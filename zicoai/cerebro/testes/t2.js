@@ -33,10 +33,10 @@ ok(H.fetchLog[0].u.includes('ts.net') && r.cerebro === 'PC (zicoai)', 'seletor P
 H.fetchLog.length = 0;
 H.setFetch(u => u.includes('ts.net') ? cai(502, '<html>bad gateway</html>') : resp('nuvem'));
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user', content: 'oi de novo' }] });
-ok(r.cerebro === 'Gemini' && H.CACHE.pc_off, 'PC fora → gemini e marca: ' + r.passos.join(' | '));
+ok(!r.ok && r.selecaoMantida && !H.fetchLog.some(f => /googleapis|groq/.test(f.u)), 'PC manual fora: explica sem trocar pela nuvem');
 H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user', content: 'mais uma' }] });
-ok(!H.fetchLog.some(f => f.u.includes('ts.net')) && r.passos.some(p => /PC desligado/.test(p)), 'não tenta PC por 3 min: ' + r.passos.join(' | '));
+ok(!r.ok && r.selecaoMantida && !H.fetchLog.some(f => /googleapis|groq/.test(f.u)), 'nova tentativa manual também não muda de cérebro');
 // PC_MODELO
 delete H.CACHE.pc_off; H.PROPS.PC_MODELO = 'qwen3.5:9b'; H.fetchLog.length = 0; H.setFetch(() => resp('ok'));
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user', content: 'teste' }] });

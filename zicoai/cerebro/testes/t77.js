@@ -44,12 +44,10 @@ run(`ponteSemDetalhe = function(acao, dados){ if (acao === 'ollama_chat') return
 let rc = H.post({ pin: '1234', acao: 'chat', aparelho: 'IPHONE', cerebro: 'pc', mensagens: [{ role: 'user', content: 'me explica o que é uma função em javascript' }] });
 ok(rc.ok && /Opus destilada/.test(rc.cerebro), 'seletor em PC: responde a destilada (não o 9B): ' + rc.cerebro);
 rc = H.post({ pin: '1234', acao: 'chat', aparelho: 'IPHONE', cerebro: 'pc', modo: 'agente', mensagens: [{ role: 'user', content: 'cria uma calculadora moderna pra mim' }] });
+ok(!rc.ok && rc.selecaoMantida && !H.sheets.tarefas?.rows.slice(1).length, 'v102: agente não começa com seleção manual');
+rc = H.post({ pin: '1234', acao: 'chat', aparelho: 'IPHONE', cerebro: 'auto', modo: 'agente', mensagens: [{ role: 'user', content: 'cria uma calculadora moderna pra mim' }] });
 const tf = H.sheets.tarefas.rows[H.sheets.tarefas.rows.length - 1];
-ok(rc.ok && /\[cerebro:pc\]/.test(tf[3]), 'agente com o seletor em PC: a tarefa leva a marca do PC');
-run(`ponteSemDetalhe = function(acao, dados){ if (acao === 'ollama_chat') return { ok: true, texto: '{"final":"Pronto, calculadora feita pelo PC"}' }; return { ok: true }; };`);
-try { run(`agente(${JSON.stringify(tf[0])}, ${JSON.stringify(tf[3])}, ${JSON.stringify(tf[2])}, 'IPHONE', Date.now() + 200000, '')`); } catch (e) { console.log('agente: ' + e.message); }
-const tf2 = H.sheets.tarefas.rows.find(l => l[0] === tf[0]);
-ok(/PC \(Qwen3\.6 35B Opus destilada\)/.test(String(tf2[5]) + String(tf2[6])), 'agente com seletor em PC: trabalhou com o PC (' + String(tf2[5]).slice(-120) + ')');
+ok(rc.ok && tf && !/\[cerebro:pc\]/.test(tf[3]), 'v102: tarefa no Auto não fixa PC sem escolha');
 
 // duelo do Mac: 9B destilado × qwen3:8b; o Mac volta pro modelo de antes
 H.PROPS.PONTE_SEGREDO_MAC = 'segmac'; C.ponte_visto_mac = String(run('Date.now()')); delete C.mac_off;

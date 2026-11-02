@@ -748,4 +748,14 @@
 "# D51 — Modelo instalado precisa chegar ao Ollama\n\nNome com `hf.co/autor/modelo:quantizacao` é válido no Ollama. A ponte antiga do Mac barrava as barras antes de chamar o Ollama: isso é falha de integração, não derrota do modelo.\n\nConfira o nome instalado, teste o encaminhamento exato e só depois compare as respostas nos mesmos exercícios. Registre separadamente erro de conexão, falta de teste e erro da solução. Não troque o cérebro por nome, tamanho ou promessa de destilação.\n\nA validação local com Ollama simulado não comprova funcionamento no Mac físico. Instalação e troca do cérebro continuam pendentes de prova real; publicação exige OK escrito.\n",
 "GitHub: zicoai/aulas/D/D51-modelo-destilado-na-ponte.md"
 ]
+,
+[
+"D52",
+"D",
+"Auto decide; escolha manual permanece",
+"seletor ZicoAI, seleção manual, troca de cérebro, capricho, agente só Auto",
+"Auto pode escolher uma alternativa disponível. Na escolha manual, resposta, pesquisa, revisão e reparo mantêm o modelo exato. Se ele não responder ou não suportar o pedido, explique o motivo e recomende Auto; quem troca é o Thiago. Agente somente no Auto.",
+"# D52 — Auto decide; escolha manual permanece\n\n**Regra:** Auto pode escolher uma alternativa disponível. Na escolha manual, resposta, pesquisa, revisão e reparo mantêm o modelo exato. Se ele não responder ou não suportar o pedido, explique o motivo e recomende Auto; quem troca é o Thiago. Agente somente no Auto.\n\n## Por quê\n“Vai primeiro” não é “foi o escolhido”. Uma reserva silenciosa impede avaliar o modelo e faz o dono perder controle. Revisão pelo mesmo modelo é autorrevisão, não prova independente. Código continua precisando de teste executado e prova do comportamento.\n\n## Aplicação\n- Abertura/reload do app inicia Auto + Capricho ligado; a escolha manual dura até o próximo reload.\n- Capricho não força segundo pedido em cumprimento simples. No manual, não chama outro modelo para revisar.\n- Modelos sem visão não recebem uma foto como se fosse texto nem transferem a foto silenciosamente.\n- Erro de cota, indisponibilidade e falta de capacidade são explicados. Escolher Auto é uma recomendação, não uma mudança automática.\n- O histórico inteiro passa pela máscara de telefone/CPF. Isso não prova proteção de texto dentro de imagem: visão local e auditoria de anexos continuam uma etapa própria.\n- O índice lexical lê também a coluna Onde: IGNORAR nela deve valer igualmente na palavra e nos vetores.\n\n## Validação\n`t81.js` cobre seleção, reservas no Auto, reparo/continuação, agentes, pesquisa, histórico e IGNORAR. `seletor.playwright.cjs` cobre celular/computador, reload e agente desativado no manual. Simuladores não comprovam disponibilidade de todas as APIs reais ou funcionamento do Mac físico.\n",
+"GitHub zicoai/aulas/D/D52-selecao-manual-auto-e-capricho.md"
+]
 ]

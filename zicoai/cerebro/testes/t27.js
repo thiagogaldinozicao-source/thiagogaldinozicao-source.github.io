@@ -29,8 +29,8 @@ ok(r.resposta === 'Anotado.' && r.salvou.indexOf('memória') >= 0, 'tag de verda
 // seletor: quando o Thiago escolhe o cérebro, o Como respondi diz
 devolve = 'resposta';
 r = chat('explica uma coisa', { cerebro: 'gemini' });
-ok(r.passos.some(p => /Seletor de cérebro em Gemini/.test(p)), 'Como respondi mostra que o seletor escolheu o cérebro');
+ok(r.passos.some(p => /Seletor manual: Gemini/.test(p)), 'Como respondi mostra que o seletor escolheu o cérebro');
 r = chat('explica uma coisa difícil', { cerebro: 'gemini', capricho: true });
-ok(r.passos.some(p => /no capricho o melhor é deixar em Auto/.test(p)), 'no capricho avisa que o melhor é Auto');
+ok(r.passos.some(p => /mantendo o cérebro escolhido/.test(p)), 'no capricho explica que mantém a escolha manual');
 r = chat('oi de novo');
 ok(!r.passos.some(p => /Seletor de cérebro/.test(p)), 'no Auto não aparece o aviso do seletor');
