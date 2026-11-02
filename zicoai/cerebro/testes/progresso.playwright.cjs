@@ -1,4 +1,6 @@
 // API local falsa: nunca chama Apps Script, ponte nem modelos reais.
+// Contrato da extensão: painel lê número de versão do manifest, não inventa 'atualizada'.
+
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('assert');
 const { chromium } = require(process.env.ZICO_PLAYWRIGHT || 'playwright');
 const root = path.resolve(__dirname, '../..');
@@ -10,6 +12,10 @@ const server = http.createServer((req,res) => {
 const details = [{tipo:'ferramenta',titulo:'Ferramenta fictícia',pedido:{api_key:'fake-api-only',pin:'fake-pin-only',args:{consulta:'teste'}},resposta:'token=fake-token-only CPF 000.000.000-00 telefone +55 (00) 90000-0000 https://example.invalid/?key=fake-query-only '+ 'x'.repeat(2300),ms:20},{tipo:'aulas',titulo:'Base usada',pedido:'',resposta:{aulas:[{id:'A101',nota:0.71,texto:'Primeira linha\nSegunda linha '+'palavra'.repeat(60)},{id:'B502',nota:0.63,passos:['ler','responder']}],ok:true},ms:5}];
 const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','Respondeu com cérebro de teste'],cerebro:'teste'};
 (async()=>{
+  const manifest = JSON.parse(fs.readFileSync(path.join(root,'extensao','manifest.json'),'utf8'));
+  const painelJs = fs.readFileSync(path.join(root,'extensao','painel.js'),'utf8');
+  assert.equal(manifest.version,'2.9','versão do pacote Chrome deve acompanhar mudanças da extensão');
+  assert(painelJs.includes('chrome.runtime.getManifest().version'),'versão da extensão deve vir do próprio Chrome');
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const browser=await chromium.launch({headless:true});
   try {
@@ -57,7 +63,8 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       assert(await live.evaluate(e=>e.open));
       await page.waitForTimeout(1700);assert(await page.locator('.trab .passo-detalhe').first().evaluate(e=>e.open));
       await page.getByText('Resposta nova fictícia',{exact:true}).waitFor();
-      assert((await page.locator('#resumoTopo').isVisible()) && /›$/.test(await page.locator('#resumoTopo').innerText()),'linha de resumo no topo');
+      if (width >= 600) assert((await page.locator('#resumoTopo').isVisible()) && /›$/.test(await page.locator('#resumoTopo').innerText()),'linha de resumo no topo (desktop)');
+      else assert(!(await page.locator('#resumoTopo').isVisible()),'no celular o resumo sticky não deve ocupar espaço da conversa');
       const outer=page.locator('.msg-ia .passos').last();await outer.locator('summary').first().click();
       const step=outer.locator('.passo-detalhe').first();if(!await step.evaluate(e=>e.open))await step.locator('summary').click();
       assert((await step.innerText()).includes('Solicitação'));assert((await step.innerText()).includes('Resposta'));
@@ -85,7 +92,30 @@ const old={role:'assistant',content:'Resposta antiga',passos:['Leu a memória','
       assert.equal(await page.locator('#vivoTarefa .passo-detalhe').count(),2);
       await page.locator('#vivoTarefa .tela-zico img').waitFor({timeout:4000});
       assert.equal(await page.locator('#progressoPainel .passo-detalhe').count(),2);
-      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': antigo, ao vivo, print do navegador, final, tarefa, painel, abrir/fechar, copiar, máscara e largura');
+      // Os três modos precisam operar no estado real enviado à API, não apenas mudar o texto do botão.
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="rapido"]').click();
+      assert.equal(await page.evaluate(()=>cfg.capricho),'nunca','Rápido desliga revisão extra');
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="pensar"]').click();
+      assert.equal(await page.evaluate(()=>cfg.capricho),'sempre','Pensar ativa Capricho');
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="executar"]').click();
+      assert.deepEqual(await page.evaluate(()=>({modo,cerebro:cfg.cerebro})),{modo:'agente',cerebro:'auto'},'Executar encaminha ao agente apenas em Auto');
+      await page.locator('#capAtalho').click();
+      await page.locator('#menuModos button[data-zmodo="rapido"]').click();
+      assert.equal(await page.evaluate(()=>modo),'auto','Voltar a Rápido sai do agente');
+      // A tela deve informar a versão realmente carregada e verificar o service worker real.
+      await page.locator('#versaoAcesso').click();
+      assert(await page.locator('#mVersoes').evaluate(e=>e.classList.contains('aberto')),'janela de versões abre');
+      assert((await page.locator('#vSiteNumero').innerText()).includes('v51'),'exibe versão carregada v51');
+      await page.locator('#bAtualizarSite').click();
+      await page.getByText('Tudo certo: esta tela já carregou Interface v51.',{exact:true}).waitFor();
+      await page.locator('#bAjudaExt').click();
+      assert((await page.locator('#vResultado').innerText()).includes('chrome://extensions'),'botão dá caminho real para a extensão');
+      await page.locator('#vFechar').click();
+      assert(!(await page.locator('#mVersoes').evaluate(e=>e.classList.contains('aberto'))),'janela de versões fecha');
+      assert.deepEqual(errors,[]);console.log('PASS Playwright '+width+': modos reais, versões, atualização, máscaras e largura');
       await context.close();
     }
   }finally{await browser.close();server.close();}

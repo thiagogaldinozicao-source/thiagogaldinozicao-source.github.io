@@ -12,6 +12,8 @@
   .topo button:active { transform: scale(.97); }
   .topo .acao { color: #F4CB63; border-color: #4a3c12; background: #1c1706; }
   .topo .esp { flex: 1; }
+  .ext-versao{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #1f1f1f;padding:4px 10px;color:#969696;font-size:11px;min-height:23px}
+  .ext-versao button{border:0;background:transparent;color:#c5ac6d;font-size:11px;padding:4px;cursor:pointer;min-height:26px}
   @media (max-width: 340px) { .topo svg { display: none; } .topo button { padding: 7px 9px; } }
   .topo svg { width: 15px; height: 15px; }
   .bola { width: 8px; height: 8px; border-radius: 50%; background: #6b6b6b; display: inline-block; flex: none; }
@@ -36,6 +38,7 @@
     <button id="usar" class="acao" title="Cola na conversa o TEXTO desta página (não é print). Ela já lê sozinha quando vc pergunta; use se quiser ver o que vai."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>Ler página</button>
     <button id="trecho" class="acao" title="Selecione um texto no site com o mouse (igual pra copiar) e toque aqui: vai só aquele pedaço."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></svg>Seleção</button>
   </div>
+  <div class="ext-versao"><span id="extVersao">Extensão Chrome · carregando versão</span><button type="button" id="extGerenciar" title="Gerenciar e atualizar a extensão instalada no Chrome">Gerenciar atualização</button></div>
   <div class="con" id="con">
     <label for="segredo">Segredo do Chrome (o mesmo da propriedade PONTE_SEGREDO_NAV) · fica salvo, só cola 1 vez</label>
     <input id="segredo" type="password" autocomplete="off" placeholder="cole aqui">

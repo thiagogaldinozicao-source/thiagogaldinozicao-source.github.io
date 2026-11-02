@@ -247,6 +247,20 @@ body:not(.conta-pessoa) .so-pessoa{display:none!important}
 .pc-item.aviso{background:#241d07} .pc-item.aviso pre,.pc-item.aviso .ic{color:#f4cb63}
 .pc-item.cmd pre{color:var(--ouro2)} .pc-item.resultado pre{color:#9fd8ff} .pc-item.sistema pre{color:var(--cinza2)}
 .pc-vazio{padding:14px 12px;color:var(--cinza2);font-family:'Barlow',sans-serif;font-size:13px}
+.pc-resumo{display:flex;align-items:center;gap:10px;padding:13px 14px;border-bottom:1px solid var(--borda);background:#121212;font-family:'Barlow',sans-serif}
+.pc-indicador{width:10px;height:10px;flex-shrink:0;border-radius:50%;background:var(--verde);box-shadow:0 0 0 4px rgba(95,208,104,.11)}
+.pc-resumo.erro .pc-indicador{background:var(--erro);box-shadow:0 0 0 4px rgba(255,107,107,.1)}
+.pc-resumo.aviso .pc-indicador{background:var(--ouro);box-shadow:0 0 0 4px rgba(235,181,51,.1)}
+.pc-resumo-txt{display:flex;flex-direction:column;min-width:0;gap:3px}
+.pc-resumo-txt strong{font-size:14px;font-weight:700;color:var(--txt)}
+.pc-resumo-txt span{font-size:12px;color:var(--cinza);line-height:1.35}
+.pc-avancado{border-top:1px solid var(--borda);font-family:'Barlow',sans-serif}
+.pc-avancado summary{padding:11px 13px;min-height:42px;cursor:pointer;font-size:12px;font-weight:600;color:var(--cinza);list-style:none;display:flex;align-items:center;justify-content:space-between}
+.pc-avancado summary::after{content:'▾';font-size:15px}
+.pc-avancado[open] summary::after{transform:rotate(180deg)}
+.pc-avancado summary::-webkit-details-marker{display:none}
+.pc-avancado .pc-cmd{margin-top:0}
+.pc.fechado .pc-resumo,.pc.fechado .pc-avancado{display:none}
 .pc-cmd{display:flex;align-items:center;gap:6px;border-top:1px solid var(--borda);padding:4px 10px;min-height:44px}
 .pc-cmd span{color:var(--ouro);font-family:ui-monospace,Menlo,monospace}
 #pcCmd{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;border-radius:0;color:var(--txt);font:13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:8px 0}
@@ -345,6 +359,19 @@ textarea{width:100%;resize:none;max-height:200px;min-height:26px;background:tran
 .enviar.parar{background:#fff}
 .enviar.parar span{width:12px;height:12px;background:#111;border-radius:2px;display:block}
 .dica{max-width:820px;margin:6px auto 0;text-align:center;font-size:11px;color:var(--cinza2)}
+#versaoAcesso{background:transparent;border:1px solid var(--borda2);color:var(--cinza2);border-radius:999px;padding:4px 10px;min-height:26px;cursor:pointer;font-size:11px;margin:4px auto 0;display:block}
+#versaoAcesso:hover,#bVersoes:hover{color:var(--ouro);border-color:var(--ouro)}
+#bVersoes{font-size:12px;color:var(--cinza2);text-align:left;padding:8px 10px;min-height:38px;border-radius:9px}
+#versoesLista{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.versao-bloco{padding:13px;border:1px solid var(--borda2);border-radius:12px;background:var(--bg)}
+.versao-linha{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.versao-linha strong{font-size:14px}
+.versao-bloco p{font-size:12px;color:var(--cinza);line-height:1.5;margin:8px 0}
+.versao-bloco button{border:1px solid var(--borda2);padding:9px 12px;min-height:40px;border-radius:9px;font-size:13px;font-weight:600}
+.versao-bloco button:hover{border-color:var(--ouro)}
+.versao-estado{font-size:12px;color:var(--cinza2);padding:6px 0;line-height:1.4}
+.versao-estado.alerta{color:var(--ouro)}
+.versao-estado.erro{color:var(--erro)}
 
 /* ---------- janelas ---------- */
 /* chip de aparelhos no topo (igual o Claude mostra o computador ligado) */
@@ -539,6 +566,18 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 #capAtalho.on{color:var(--ouro);background:var(--ouro-fundo)}
 #capAtalho small{font-size:11px;margin-left:2px;color:var(--cinza);font-weight:600}
 #capAtalho.on small{color:var(--ouro)}
+/* Modos reais: usam `capricho` no cérebro e `agente` no executor já existente */
+#modoWrap{position:relative;display:flex;align-items:center;flex-shrink:0}
+#capAtalho{gap:5px;padding:0 10px;white-space:nowrap;border:1px solid transparent}
+#capAtalho[aria-expanded="true"]{border-color:var(--ouro)}
+#capAtalho small{font-size:12px;margin:0}
+#capAtalho .modo-seta{font-size:12px;opacity:.75}
+#menuModos{right:0;left:auto;bottom:52px;width:min(290px,calc(100vw - 22px))}
+#menuModos button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:56px}
+#menuModos button span{font-size:12px;line-height:1.4;white-space:normal}
+#menuModos button.on{background:var(--ouro-fundo);border:1px solid #6b5420}
+#menuModos button.on b{color:var(--ouro2)}
+@media(max-width:420px){#capAtalho{padding:0 5px}#capAtalho small{font-size:11px}#bModelo{max-width:100px}}
 #bMic{width:44px;height:44px;border:0}
 .enviar{width:44px;height:44px;flex-shrink:0}
 .dica{margin-top:10px;font-size:10px}
@@ -646,7 +685,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
 }
 </style>
 </head>
-<body>
+<body class="painel-fechado">
 
 <aside id="lado" aria-label="Navegação e conversas">
   <div class="lado-top">
@@ -668,6 +707,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   <div class="lado-pe">
     <div class="perfil"><span class="perfil-avatar">T</span><b>Thiago</b><span class="status" id="status"><i></i><span>—</span></span></div>
     <button id="bCfg">⚙️ Configurar</button>
+    <button id="bVersoes" type="button" title="Versões carregadas e atualizações">Interface v51 · Atualizações</button>
   </div>
 </aside>
 <div id="veu"></div>
@@ -715,17 +755,22 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
             <button data-c="zai"><b>Z.ai GLM</b><span>Texto; seleção manual sem troca de modelo</span></button>
             <button data-c="pc"><b>PC de casa</b><span>Modelo do PC fixo; se falhar, avisa sem trocar</span></button>
             <button data-c="mac"><b>Mac Mini</b><span>Modelo do Mac fixo; se falhar, avisa sem trocar</span></button>
-            <div class="menu-sep"></div>
-            <button id="bCapricho" class="capricho"><b>✨ Capricho: <i id="txtCapricho">automático</i></b><span id="descCapricho">Pergunta difícil: pensa mais e outro cérebro revisa antes de responder</span></button>
+            
           </div>
         </div>
-        <button id="capAtalho" title="Capricho" aria-label="Alternar modo capricho">✨</button>
+        <div id="modoWrap"><button type="button" id="capAtalho" aria-label="Selecionar modo" aria-expanded="false" aria-controls="menuModos" title="Escolher como a Zica trabalha">✨ <small>Pensar</small><span class="modo-seta" aria-hidden="true">▾</span></button>
+          <div class="menu" id="menuModos" role="group" aria-label="Modo de trabalho">
+            <button type="button" data-zmodo="rapido"><b>⚡ Rápido</b><span>Responde sem revisão extra. Não dispensa ferramentas e fontes necessárias.</span></button>
+            <button type="button" data-zmodo="pensar"><b>🧠 Pensar</b><span>Ativa Capricho: análise e revisão, quando o cérebro conseguir.</span></button>
+            <button type="button" data-zmodo="executar"><b>🛠 Executar</b><span>Usa o agente no Auto; cria tarefa e mostra o andamento.</span></button>
+          </div></div>
         <button class="chip-ic" id="bMic" title="Falar" aria-label="Falar" style="display:none">🎤</button>
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
       </div>
     </div>
     <div id="linhaTarefas"><span class="pontos"><i></i><i></i><i></i></span><span id="txtTarefas">1 tarefa em execução</span><span style="margin-left:auto">ver ›</span></div>
     <div class="dica">A ZicoAI aprende com vc. Não mande CPF nem telefone de cliente aqui.</div>
+    <button id="versaoAcesso" type="button" aria-label="Ver versões e verificar atualizações">Interface v51 · Ver atualizações</button>
   </footer>
 </div>
 
@@ -837,6 +882,36 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   </div>
 </div>
 
+<div class="modal" id="mVersoes">
+  <div class="painel">
+    <h3>Versões e atualizações</h3>
+    <p class="aviso">Cada parte tem sua própria versão. Atualizar o site não instala o cérebro nem a extensão.</p>
+    <div id="versoesLista">
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong id="vSiteNumero">Interface v51</strong><span id="vSiteEstado" class="versao-estado">Carregada nesta tela</span></div>
+        <p>Visual, botões e conversa. A atualização do site vem pelo GitHub Pages e pelo cache do aplicativo.</p>
+        <button id="bAtualizarSite" type="button">↻ Verificar e atualizar site</button>
+      </section>
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong>Cérebro (Apps Script)</strong><span id="vCerebroEstado" class="versao-estado">Não verificado</span></div>
+        <p>A versão real aparece na página do próprio Apps Script. Para instalar código novo é preciso publicar uma implantação.</p>
+        <button id="bVerCerebro" type="button">Ver versão do cérebro</button>
+      </section>
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong>Extensão do Chrome</strong><span id="vExtEstado" class="versao-estado">Verificando contexto...</span></div>
+        <p>Se foi instalada como extensão descompactada, atualizar só o site NÃO atualiza seus arquivos. Confira a versão no painel da extensão e use o gerenciador do Chrome.</p>
+        <button id="bAjudaExt" type="button">Como atualizar a extensão</button>
+      </section>
+      <section class="versao-bloco">
+        <div class="versao-linha"><strong>Pontes Mac e PC</strong><span class="versao-estado">Versões independentes</span></div>
+        <p>As pontes precisam receber os arquivos novos no computador. Consulte o estado real dos dispositivos.</p>
+        <button id="bVerPontes" type="button">Ver dispositivos</button>
+      </section>
+    </div>
+    <div class="versao-estado" id="vResultado" role="status" aria-live="polite"></div>
+    <div class="linha-btn"><button class="btn cinza" id="vFechar" type="button">Fechar</button></div>
+  </div>
+</div>
 <div class="modal" id="mApps">
   <div class="painel">
     <h3>Meus apps</h3>
@@ -861,17 +936,18 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
       <iframe id="pFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups" title="prévia"></iframe>
       <section id="pConsole" class="pc fechado" aria-label="Console do app">
         <div class="pc-top">
-          <button type="button" class="pc-tit" id="pcAbre" aria-expanded="false" aria-controls="pcLista"><span class="pc-seta">▸</span><span class="rot">Console</span><span class="pc-conta" id="pcConta">sem mensagens</span></button>
+          <button type="button" class="pc-tit" id="pcAbre" aria-expanded="false" aria-controls="pcLista"><span class="pc-seta">▸</span><span class="rot">Diagnóstico</span><span class="pc-conta" id="pcConta">sem mensagens</span></button>
           <button type="button" class="pc-b" id="pcRodar" title="Rodar o app de novo" aria-label="Rodar o app de novo">↻</button>
           <button type="button" class="pc-b" id="pcCopiar" title="Copiar tudo">Copiar</button>
           <button type="button" class="pc-b" id="pcLimpar" title="Limpar o console">Limpar</button>
         </div>
+        <div id="pcResumo" class="pc-resumo" role="status" aria-live="polite"><span class="pc-indicador" aria-hidden="true"></span><div class="pc-resumo-txt"><strong id="pcResumoTitulo">Sem erros detectados</strong><span id="pcResumoDesc">Abra e use o app para acompanhar o funcionamento.</span></div></div>
         <div class="pc-filtros" role="group" aria-label="Filtrar">
           <button type="button" data-f="tudo" class="on">Tudo</button><button type="button" data-f="erro">Erros</button><button type="button" data-f="aviso">Avisos</button><button type="button" data-f="log">Logs</button>
         </div>
         <div class="pc-lista" id="pcLista" role="log" aria-live="polite"></div>
         <button type="button" class="pc-corrigir" id="pcCorrigir" hidden>Pedir correção pra ZicoAI</button>
-        <form class="pc-cmd" id="pcForm"><span aria-hidden="true">›</span><input id="pcCmd" type="text" placeholder="rodar JavaScript no app (ex.: document.title)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Rodar JavaScript no app"></form>
+        <details class="pc-avancado" id="pcAvancado"><summary>Ferramentas avançadas · executar JavaScript</summary><form class="pc-cmd" id="pcForm"><span aria-hidden="true">›</span><input id="pcCmd" type="text" placeholder="Ex.: document.title" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Executar JavaScript no app"></form></details>
       </section>
     </div>
   </div>
@@ -902,7 +978,7 @@ const LS = {
 
 let cfg = Object.assign({ url:'', pin:'', convite:'', pessoa:null, aparelho:'', cerebro:'auto', pcUrl:'http://localhost:11434', pcModelo:'zicoai' }, LS.get('cfg', {}));
 // Nova abertura/reload inicia em Auto + Capricho; escolha manual vale até recarregar.
-cfg.cerebro = 'auto'; cfg.capricho = 'sempre'; LS.set('cfg', cfg);
+cfg.cerebro = 'auto'; if(!['sempre','nunca','auto'].includes(cfg.capricho)) cfg.capricho = 'sempre'; LS.set('cfg', cfg);
 /* ---------- login por convite (v41) ----------
  * Link: …/zicoai/#convite=<link do cérebro>~<chave>. O # não vai pro servidor do GitHub. A chave fica só neste aparelho. */
 function lerConvite(texto){
@@ -1201,6 +1277,12 @@ function pcConta(){
   c.textContent = e ? e + (e > 1 ? ' erros' : ' erro') + (a ? ' · ' + a + (a > 1 ? ' avisos' : ' aviso') : '') : a ? a + (a > 1 ? ' avisos' : ' aviso') : n ? n + (n > 1 ? ' mensagens' : ' mensagem') : 'sem erros';
   c.className = 'pc-conta' + (e ? ' erro' : a ? ' aviso' : '');
   $('pcCorrigir').hidden = !e;
+  const resumo = $('pcResumo');
+  if(resumo){
+    resumo.className = 'pc-resumo' + (e ? ' erro' : a ? ' aviso' : '');
+    $('pcResumoTitulo').textContent = e ? (e === 1 ? '1 erro encontrado' : e + ' erros encontrados') : a ? (a === 1 ? '1 aviso para conferir' : a + ' avisos para conferir') : 'Nenhum erro detectado';
+    $('pcResumoDesc').textContent = e ? 'Confira o erro abaixo ou use Pedir correção pra ZicoAI.' : a ? 'O app abriu, mas há avisos que merecem atenção.' : n ? 'Os registros estão disponíveis abaixo. Isso não substitui testes de funcionamento.' : 'Abra e use o app para acompanhar o funcionamento.';
+  }
 }
 function pcAdd(tipo, texto, onde){
   const it = { tipo: tipo, texto: String(texto || ''), onde: onde || '', hora: new Date().toLocaleTimeString('pt-BR') };
@@ -1220,7 +1302,7 @@ function pcAbre(abrir){
 }
 function pcRoda(html){
   pcToken = 'zt' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-  pcItens = []; pcAbriuSozinho = false; pcDesenha();
+  pcItens = []; pcAbriuSozinho = false; $('pcAvancado').open = false; pcDesenha();
   const cab = '<script>(' + consoleNoApp.toString().replace(/\n\s*/g, ' ') + ')(' + JSON.stringify(pcToken) + ');<\/script>' + SHIM;   // numa linha só: não muda o número da linha dos erros do app
   $('pFrame').srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + cab) : cab + html;
 }
@@ -1248,7 +1330,7 @@ $('pcForm').onsubmit = e => {
 $('pcCorrigir').onclick = () => {
   const erros = pcItens.filter(i => i.tipo === 'erro').slice(0, 4).map(i => i.texto + (i.onde ? ' (' + i.onde + ')' : ''));
   $('mPrevia').classList.remove('aberto'); $('pFrame').srcdoc = ''; pcToken = '';
-  $('txt').value = 'Testei o app e o console mostrou ' + (erros.length > 1 ? 'esses erros' : 'esse erro') + ': ' + erros.join(' | ') + '. Corrige e me devolve só os trechos que mudam.';
+  $('txt').value = 'Testei o app e o diagnóstico mostrou ' + (erros.length > 1 ? 'esses erros' : 'esse erro') + ': ' + erros.join(' | ') + '. Corrige e me devolve só os trechos que mudam.';
   envia();
 };
 function testarApp(html){
@@ -2164,6 +2246,7 @@ function setModo(m){
   $('cImg').classList.toggle('on', modo === 'imagem');
   $('cAgente').classList.toggle('on', modo === 'agente');
   $('txt').placeholder = modo === 'web' ? 'O que vc quer pesquisar?' : modo === 'imagem' ? 'Descreve a imagem que vc quer' : modo === 'agente' ? 'Descreve a tarefa grande (ela faz em segundo plano)' : 'Pergunta qualquer coisa pra ZicoAI';
+  mostraModelo();
   $('txt').focus();
 }
 $('cWeb').onclick = () => setModo('web');
@@ -2178,12 +2261,14 @@ function mostraModelo(){
   document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === cfg.cerebro));
   $('cAgente').disabled = cfg.cerebro !== 'auto';
   $('cAgente').title = cfg.cerebro === 'auto' ? 'Executar tarefa em segundo plano' : 'Agente disponível somente com cérebro em Auto';
-  const cap = CAPRICHO[cfg.capricho] || CAPRICHO.auto;
-  $('txtCapricho').textContent = cap[0]; $('descCapricho').textContent = cap[1];
-  $('capAtalho').classList.toggle('on', cfg.capricho === 'sempre');
-  $('capAtalho').innerHTML = ico('brilho') + '<small>' + ({ auto: 'auto', sempre: 'sempre', nunca: 'off' }[cfg.capricho] || 'auto') + '</small>';
-  $('capAtalho').title = 'Capricho: ' + cap[0];
-  $('capAtalho').setAttribute('aria-label', 'Capricho: ' + cap[0]);
+  const modoEscolhido = modo === 'agente' ? 'executar' : cfg.capricho === 'nunca' ? 'rapido' : 'pensar';
+  const nomes = {rapido:'Rápido',pensar:'Pensar',executar:'Executar'};
+  const simbolos = {rapido:'⚡',pensar:'🧠',executar:'🛠'};
+  $('capAtalho').classList.toggle('on', modoEscolhido !== 'rapido');
+  $('capAtalho').innerHTML = '<span aria-hidden="true">' + simbolos[modoEscolhido] + '</span><small>' + nomes[modoEscolhido] + '</small><span class="modo-seta" aria-hidden="true">▾</span>';
+  $('capAtalho').title = modoEscolhido === 'executar' ? 'Executar tarefa em segundo plano usando o agente' : modoEscolhido === 'pensar' ? 'Capricho: revisão adicional quando disponível' : 'Responder sem revisão adicional';
+  $('capAtalho').setAttribute('aria-label','Modo: '+nomes[modoEscolhido]+'. Clique para mudar.');
+  document.querySelectorAll('#menuModos button[data-zmodo]').forEach(b => { const ativo=b.dataset.zmodo===modoEscolhido; b.classList.toggle('on',ativo); b.setAttribute('aria-pressed',String(ativo)); });
 }
 /* modo capricho: automático (só pergunta difícil) → sempre → nunca */
 const CAPRICHO = {
@@ -2201,11 +2286,33 @@ function cabeNaTela(m){
   if(r.left < 8) m.style.right = (r.left - 8) + 'px';
   else if(r.right > innerWidth - 8) m.style.right = (r.right - innerWidth + 8) + 'px';
 }
-$('bCapricho').onclick = e => {
+function fecharMenuModos(){
+  $('menuModos').classList.remove('aberto');
+  $('capAtalho').setAttribute('aria-expanded','false');
+}
+$('capAtalho').onclick = e => {
   e.stopPropagation();
-  cfg.capricho = cfg.capricho === 'sempre' ? 'nunca' : 'sempre';
-  LS.set('cfg', cfg); mostraModelo();
+  const aberto = $('menuModos').classList.toggle('aberto');
+  $('capAtalho').setAttribute('aria-expanded',String(aberto));
+  if(aberto) cabeNaTela($('menuModos'));
 };
+document.querySelectorAll('#menuModos button[data-zmodo]').forEach(b=>b.onclick=()=>{
+  const escolha=b.dataset.zmodo;
+  if(escolha==='executar'){
+    // O agente só pode funcionar em Auto, como o cérebro já exige.
+    cfg.cerebro='auto';
+    cfg.capricho='sempre';
+    if(modo!=='agente') setModo('agente');
+  }else{
+    if(modo==='agente') setModo('agente');
+    cfg.capricho=escolha==='rapido'?'nunca':'sempre';
+  }
+  LS.set('cfg',cfg);
+  fecharMenuModos();
+  mostraModelo();
+  $('txt').focus();
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('#modoWrap')) fecharMenuModos(); });
 document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.onclick = () => {
   cfg.cerebro = b.dataset.c;
   if(cfg.cerebro !== 'auto' && modo === 'agente') setModo('agente');
@@ -2933,8 +3040,8 @@ function fechaAnexar(){ $('menuAnexar').classList.remove('aberto'); $('bAnexar')
 $('bAnexar').onclick = () => { const aberto = $('menuAnexar').classList.toggle('aberto'); $('bAnexar').setAttribute('aria-expanded',String(aberto)); };
 $('menuAnexar').addEventListener('click',e => { if(e.target.closest('button')) fechaAnexar(); });
 document.addEventListener('click', e => { if(!e.target.closest('.anexar-wrap')) fechaAnexar(); });
-document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fechaAnexar(); fechaMenuConv(); $('menuModelo').classList.remove('aberto'); if(document.body.classList.contains('painel-aberto')) fechaPainel(); fechaLado(); } });
-$('capAtalho').onclick = e => $('bCapricho').onclick(e);
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fechaAnexar(); fechaMenuConv(); $('menuModelo').classList.remove('aberto'); fecharMenuModos(); if(document.body.classList.contains('painel-aberto')) fechaPainel(); fechaLado(); } });
+// Botões de modo são vinculados no menuModos; nenhum botão decorativo.
 sincronizaPainel();
 
 /* ---------- início ---------- */
@@ -2960,7 +3067,58 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v50';
+const VERSAO_APP = 'zicoai-v51';
+function versaoTexto(){return 'Interface ' + VERSAO_APP.replace(/^zicoai-/,'');}
+function abrirVersoes(){
+  const versao=versaoTexto();
+  $('vSiteNumero').textContent=versao;
+  $('vSiteEstado').textContent='Carregada nesta tela';
+  $('bVersoes').textContent=versao+' · Atualizações';
+  $('versaoAcesso').textContent=versao+' · Ver atualizações';
+  $('vCerebroEstado').textContent=cfg.url?'Consultar a implantação':'Sem conexão configurada';
+  const params = new URLSearchParams(location.search);
+  const extVersao = NA_EXTENSAO && /^\d+(?:\.\d+){0,3}$/.test(params.get('extver') || '') ? params.get('extver') : '';
+  $('vExtEstado').textContent=extVersao?'v'+extVersao+' carregada no Chrome':NA_EXTENSAO?'Versão não informada pela extensão':'Não disponível neste navegador';
+  $('vResultado').textContent='';
+  $('mVersoes').classList.add('aberto');
+}
+$('bVersoes').onclick=abrirVersoes;
+$('versaoAcesso').onclick=abrirVersoes;
+$('vFechar').onclick=()=>$('mVersoes').classList.remove('aberto');
+$('bVerCerebro').onclick=()=>{
+  if(!cfg.url){$('vResultado').textContent='Configure o link do cérebro antes de consultar a versão.';return;}
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(cfg.url)){$('vResultado').textContent='O link do cérebro não é um Web App válido.';return;}
+  window.open(cfg.url,'_blank','noopener');
+  $('vResultado').textContent='A nova aba mostra a versão que está realmente publicada no Apps Script.';
+};
+$('bAjudaExt').onclick=()=>{
+  $('vResultado').textContent='No Chrome, abra chrome://extensions, ative Modo do desenvolvedor e clique em Atualizar para recarregar extensões descompactadas. Isso recarrega os arquivos instalados; não baixa automaticamente os novos arquivos do GitHub.';
+};
+$('bVerPontes').onclick=()=>{
+  $('mVersoes').classList.remove('aberto');
+  abreDispositivos();
+};
+$('bAtualizarSite').onclick=async()=>{
+  const b=$('bAtualizarSite'),estado=$('vResultado');
+  b.disabled=true;b.textContent='Conferindo...';estado.className='versao-estado';estado.textContent='Consultando a versão publicada no GitHub Pages...';
+  try{
+    const r=await fetch('sw.js?check='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const t=await r.text(),versao=(t.match(/const CACHE = '([^']+)'/)||[])[1];
+    if(!versao)throw new Error('O arquivo de versão não respondeu corretamente');
+    if(versao===VERSAO_APP){
+      estado.textContent='Tudo certo: esta tela já carregou '+versaoTexto()+'.';
+    }else{
+      estado.className='versao-estado alerta';
+      estado.textContent='Versão nova detectada ('+versao+'). Atualizando o aplicativo...';
+      if('serviceWorker' in navigator){const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}
+      location.reload();
+      return;
+    }
+  }catch(e){estado.className='versao-estado erro';estado.textContent='Não consegui verificar atualização: '+e.message+'. Esta tela segue na '+versaoTexto()+'.';}
+  finally{b.disabled=false;b.textContent='↻ Verificar e atualizar site';}
+};
+
 let avisouVersao = false;
 async function confereVersao(){
   if(avisouVersao || document.hidden || !navigator.onLine) return;

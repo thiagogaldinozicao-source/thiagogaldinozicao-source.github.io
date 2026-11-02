@@ -1,8 +1,18 @@
 const ORIGEM = 'https://thiagogaldinozicao-source.github.io';
 // v2.6: este painel é DESTA aba (cada aba tem a sua ZicoAI e a sua conversa)
 const ABA = Number(new URLSearchParams(location.search).get('aba')) || 0;
+const EXTENSAO_VERSAO = chrome.runtime.getManifest().version;
+document.getElementById('extVersao').textContent = 'Extensão Chrome v' + EXTENSAO_VERSAO;
+document.getElementById('extGerenciar').onclick = async () => {
+  try {
+    await chrome.tabs.create({ url: 'chrome://extensions/' });
+    aviso('Na extensão descompactada, substitua os arquivos instalados e clique em Atualizar. O site atualiza separadamente.');
+  } catch (e) {
+    aviso('Abra chrome://extensions na barra do Chrome. Para versão descompactada, atualize a pasta antes de recarregar.');
+  }
+};
 // v2.7: manda junto o número deste Chrome (navId), pro cérebro mandar os pedidos de volta pra ele
-chrome.runtime.sendMessage({ zicoNav: true }).catch(() => null).then(r => { document.getElementById('app').src = ORIGEM + '/zicoai/?ext=1' + (ABA ? '&aba=' + ABA : '') + (r && r.nav ? '&nav=' + encodeURIComponent(r.nav) : ''); });
+chrome.runtime.sendMessage({ zicoNav: true }).catch(() => null).then(r => { document.getElementById('app').src = ORIGEM + '/zicoai/?ext=1' + (ABA ? '&aba=' + ABA : '') + (r && r.nav ? '&nav=' + encodeURIComponent(r.nav) : '') + '&extver=' + encodeURIComponent(EXTENSAO_VERSAO); });
 async function minhaAba() {
   if (ABA) { const a = await chrome.tabs.get(ABA).catch(() => null); if (a) return a; }
   const [aba] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
