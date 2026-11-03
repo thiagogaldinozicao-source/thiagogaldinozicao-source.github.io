@@ -35,7 +35,7 @@ ok(run('cerebroPC().viaPonte') === true && run('cerebroPCcodigo().modelo') === '
 run('_peds = []');
 let t = run(`chamarCompat(cerebroPCPonte(), [{role:'system',content:'s'},{role:'user',content:[{type:'text',text:'oi'},{type:'image_url',image_url:{url:'data:x'}}]}], 4000, {temperature: 0.2})`);
 const p = JSON.parse(run('JSON.stringify(_peds[0])'));
-ok(/resposta do PC/.test(t) && p.acao === 'ollama_chat' && p.disp === 'pc' && p.espera === 200000 && p.dados.maxTokens === 2500 && p.dados.modelo === 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M', 'vai pela ponte do PC (200 s, até 2.500 tokens)');
+ok(/resposta do PC/.test(t) && p.acao === 'ollama_chat' && p.disp === 'pc' && p.espera === 200000 && p.dados.maxTokens === 2200 && p.dados.contexto === 8192 && p.dados.modelo === 'hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M', 'vai pela ponte do PC (200 s, até 2.500 tokens)');
 ok(p.dados.mensagens[1].content === 'oi', 'foto não vai pela ponte (só o texto)');
 
 // 5) ainda sem prova: o Mac continua com o trabalho de fundo
@@ -52,11 +52,11 @@ ok(r.placarPC && run('_quem[0]') === 'pc' && /placar PC/.test(r.tema.tema), 'PC 
 run('placarMacRodada = _placarOrig');
 for (let i = 0; i < 5; i++) run(`aba('destilacao').appendRow(["'30/10", 'pergunta geral ${i}', '', 'resposta aprovada ${i}', 'groq', 'geral', 'aprovada'])`);
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: '{"melhor":"empate","motivo":"iguais"}' } }] }), getHeaders: () => ({}) }));
-H.PROPS.PLACAR_MAC_GERAL = JSON.stringify({ g: 2, e: 2, p: 6 });
+H.PROPS.PLACAR_MAC_APROVADAS_GERAL = JSON.stringify({ g: 2, e: 2, p: 6 });
 run('_peds = []');
 let pr = run('placarMacRodada("geral", "pc")');
 ok(pr.ok && pr.quem === 'pc' && pr.acumulado.e === 2 && run('_peds.filter(function(x){ return x.disp === "pc"; }).length') === 2, 'prova do PC: 2 perguntas pela ponte do PC, juiz da nuvem');
-ok(JSON.parse(H.PROPS.PLACAR_PC_GERAL).e === 2 && JSON.parse(H.PROPS.PLACAR_MAC_GERAL).p === 6, 'placar do PC fica separado do Mac');
+ok(JSON.parse(H.PROPS.PLACAR_PC_APROVADAS_GERAL).e === 2 && JSON.parse(H.PROPS.PLACAR_MAC_APROVADAS_GERAL).p === 6, 'placar do PC fica separado do Mac');
 ok(H.sheets.placar_mac.rows.some(l => l[1] === 'PC hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M · geral'), 'linha na aba placar_mac diz que foi o PC e qual modelo');
 for (let i = 0; i < 3; i++) { pcLiga('2.4', ['hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M']); macLiga(); run('placarMacRodada("geral", "pc")'); }
 ok(run('placarTotal("PC").n') >= 8, 'PC chegou a 8 provas: ' + run('placarTotal("PC").n'));
@@ -100,10 +100,10 @@ C.ponte_modelos = JSON.stringify(['hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-O
 run('ponteSemDetalhe = function(acao, dados, espera, disp){ return { ok: true, texto: "resposta do PC no chat" }; }');
 pcLiga('2.4', ['hf.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M']);
 const tipo = run('tipoTarefa("me explica o que é uma garantia estendida")');
-H.PROPS.PC_PRIMARIO = tipo;
+H.PROPS.PC_PRIMARIO_APROVADAS = tipo;
 r = H.post({ pin: '1234', acao: 'chat', aparelho: 'iPhone', mensagens: [{ role: 'user', content: 'me explica o que é uma garantia estendida' }] });
-ok(r.ok && r.cerebro === 'PC (Qwen3.6 35B Opus destilada)' && r.passos.some(x => /cérebro do PC já ganhou/.test(x)), 'assunto que o PC ganhou: PC responde primeiro (' + r.cerebro + ')');
-delete H.PROPS.PC_PRIMARIO;
+ok(r.ok && /35B Opus/.test(r.cerebro) && r.passos.some(x => /cérebro do PC já ganhou/.test(x)), 'assunto que o PC ganhou: PC responde primeiro (' + r.cerebro + ')');
+delete H.PROPS.PC_PRIMARIO_APROVADAS;
 ok(/versão (1\d\d|8[3-9]|9\d)/.test(run('VERSAO_CEREBRO')), 'cérebro na versão 83 ou mais nova');
 
 // Os modelos removidos não são reserva pesada; o 9B oficial permanece opção leve.

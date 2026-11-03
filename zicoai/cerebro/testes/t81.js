@@ -70,5 +70,5 @@ for(const cod of [429,404,503]){
 {
  const {H,run}=fixture();const r=H.post({pin:'1234',acao:'tarefa',cerebro:'pc',pedido:'tarefa fictícia'});
  ok(!r.ok&&!H.sheets.tarefas?.rows.slice(1).length,'API de tarefa também respeita o modo manual');
- ok(/versão 102/.test(run('doGet().t')),'endpoint de saúde identifica a versão implantada sem chave');
+ ok(run('doGet().t').includes(run('VERSAO_CEREBRO')),'endpoint de saúde identifica a versão implantada sem chave');
 }

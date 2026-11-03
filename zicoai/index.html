@@ -687,6 +687,11 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
   #lado .chat-item{min-height:40px}
   #lado .chat-item .t{padding:8px 4px;min-height:40px}
 }
+#filaMensagens{padding:8px 12px;max-height:180px;overflow:auto;border-bottom:1px solid #66521a;font-size:12px}
+#filaMensagens .fila-item{display:flex;align-items:center;gap:6px;margin:6px 0}
+#filaMensagens .fila-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#filaMensagens button{color:var(--ouro,#efbf35);background:transparent;border:1px solid #66521a;border-radius:6px;padding:4px 6px}
+#bParar[hidden],#filaMensagens[hidden]{display:none}
 </style>
 </head>
 <body class="painel-fechado">
@@ -741,6 +746,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
       <div id="previa"><img id="previaImg" alt=""><button id="tiraFoto">✕ remover foto</button></div>
       <div id="pagina">📄 <span id="paginaNome"></span><button id="tiraPagina" title="Tirar">✕</button></div>
       <div id="docAnexo" class="anexo-doc" style="display:none">📄 <span id="docNome"></span><button id="tiraDoc" title="Tirar">✕</button></div>
+      <div id="filaMensagens" aria-live="polite" hidden></div>
       <textarea id="txt" rows="1" placeholder="Pergunta qualquer coisa pra ZicoAI"></textarea>
       <div class="caixa-pe">
         <div class="anexar-wrap">
@@ -750,6 +756,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
             <button class="chip" id="cWeb" title="Pesquisar na web">🌐 Pesquisar</button>
             <button class="chip" id="cImg" title="Gerar imagem">🎨 Imagem</button>
             <button class="chip" id="cAgente" title="Mandar um agente fazer em segundo plano">🧠 Agente</button>
+            <button class="chip so-dono" id="cOficina" title="Oficina local de HTML, com provas e arquivo preservado">🛠 Oficina local</button>
           </div>
         </div>
         <input type="file" id="arquivo" accept="image/*,.txt,.md,.csv,.json,.tsv,.html,.htm,.js,.css,.gs,.py,.xml,.log,text/plain" hidden>
@@ -774,6 +781,7 @@ footer{padding:10px 18px calc(env(safe-area-inset-bottom) + 12px)}
             <button type="button" data-zmodo="executar"><b>🛠 Executar</b><span>Usa o agente no Auto; cria tarefa e mostra o andamento.</span></button>
           </div></div>
         <button class="chip-ic" id="bMic" title="Falar" aria-label="Falar" style="display:none">🎤</button>
+        <button class="chip-ic" id="bParar" aria-label="Parar espera" title="Parar espera e pausar fila" hidden>■</button>
         <button class="enviar" id="bEnviar" aria-label="Enviar">➤</button>
       </div>
     </div>
@@ -1040,7 +1048,7 @@ async function api(corpo, sinal){
   const t = await r.text();
   let j;
   try{ j = JSON.parse(t); }catch(e){ throw new Error('O script não respondeu direito. Confere se publicou com acesso "Qualquer pessoa".'); }
-  if(!j.ok){ const er = new Error(j.erro || 'Erro desconhecido'); er.passos = j.passos; er.detalhes = j.detalhes; throw er; }
+  if(!j.ok){ const er = new Error(j.erro || 'Erro desconhecido'); er.passos = j.passos; er.detalhes = j.detalhes; er.oficinaId=j.oficinaId; er.naoIniciado=j.naoIniciado; throw er; }
   return j;
 }
 function status(ok){
@@ -1398,18 +1406,20 @@ async function abrir(id){
   fechaLado();
   if(controle) return;
   if(nvAberto && nvSessao() !== id) api({ acao:'navegar', op:'soltar', chatId: nvSessao() }).catch(() => {});   // saiu da conversa: solta a aba dela
-  atual = id; guardaAtual();
+  atual = id; appAtual = LS.get('app_chat_' + id, null); mostraEdicao(); desenhaFila(); guardaAtual();
   if(nvAberto && nvDaConversa !== nvSessao()) abreNavegador();   // painel aberto: mostra a aba desta conversa
   mensagens = LS.get('msgs_' + id, []);
   desenha(); desenhaLista();
   try{
     const j = await api({ acao:'abrir', chatId: id });
+    if(j.oficinaId) registrarOficina(j.oficinaId,id);
     if(atual !== id) return;
     // mantém fotos, passos, opções e saídas que só existem neste aparelho
     const locais = mensagens;
     mensagens = j.mensagens.map((m, i) => Object.assign({}, locais[i] && locais[i].content === m.content ? locais[i] : {}, m));
     LS.set('msgs_' + id, mensagens);
     desenha();
+    desenhaFila();processaFila();
   }catch(e){ status(false); }
 }
 /** Depois de "Load failed": confere no cérebro (até ~4 min) se a resposta chegou e troca o aviso pela resposta. */
@@ -1441,7 +1451,7 @@ async function apagar(id){
 function novaConversa(proj){
   if(controle) return;
   projAtual = typeof proj === 'string' ? proj : null;
-  atual = null; mensagens = []; guardaAtual();
+  atual = null; mensagens = []; sessaoNovaFila = 'nova-' + Date.now().toString(36); LS.set('sessaoNovaFila',sessaoNovaFila); appAtual = null; mostraEdicao(); desenhaFila(); guardaAtual();
   desenha(); desenhaLista(); fechaLado(); $('txt').focus();
 }
 
@@ -2045,10 +2055,11 @@ function pedidoPendente(){
   return p && /^r[a-z0-9]{5,40}$/.test(String(p.reqId || '')) && Number(p.criado) > 0 ? p : null;
 }
 function gravaPedidoPendente(p){ LS.set(PENDENTE_CHAVE,p); }
-function limpaPedidoPendente(reqId){
+function limpaPedidoPendente(reqId,confirmado){
   const p = pedidoPendente();
   if(!p || p.reqId !== reqId) return;
   LS.set(PENDENTE_CHAVE,null);
+  if(fila.ativo && fila.ativo.reqId===reqId){fila.ativo=null;if(!confirmado){filaPausada=true;fila.restauraPrimeiro=true;}salvaFila();desenhaFila();}
   clearTimeout(recuperacaoTimer);
   $('recuperacaoEnvio').hidden = true;
 }
@@ -2104,7 +2115,7 @@ async function conferirPedidoPendente(){
       if(id){
         const conv = await api({acao:'abrir',chatId:id});
         if(conversaTemResposta(conv.mensagens,p)){
-          limpaPedidoPendente(p.reqId);
+          limpaPedidoPendente(p.reqId,true);
           if(!atual || atual===id){
             atual=id;guardaAtual();
             const anteriores = mensagens;
@@ -2143,6 +2154,7 @@ $('recuperacaoRestaurar').onclick=()=>{
   $('txt').focus();
 };
 function iniciarRecuperacao(){
+  if(!pedidoPendente() && fila.ativo && fila.ativo.item){const a=fila.ativo;gravaPedidoPendente({reqId:a.reqId,chatId:/^nova-/.test(a.sessao)?'':a.sessao,novo:/^nova-/.test(a.sessao),pergunta:a.item.texto,criado:a.inicio});}
   const p=pedidoPendente();if(!p)return;
   // Pedido recente persistido mesmo quando a conversa ainda não possuía ID.
   if(p.novo && !atual){mensagens=[{role:'user',content:p.pergunta}];desenha();}
@@ -2151,66 +2163,165 @@ function iniciarRecuperacao(){
 }
 
 /* ---------- enviar ---------- */
-async function envia(refazendo){
-  if(controle) return;
+let sessaoNovaFila = LS.get('sessaoNovaFila', null) || 'nova-' + Date.now().toString(36);
+LS.set('sessaoNovaFila',sessaoNovaFila);
+const FILA_CHAVE='fila_v104_'+(ABA_EXT?'ext_'+ABA_EXT:'app');
+let fila = LS.get(FILA_CHAVE, {itens:[],ativo:null});
+if(!fila || !Array.isArray(fila.itens)) fila = {itens:[],ativo:null};
+let filaPausada = !!(fila.ativo || fila.itens.length);
+let oficinasPC=LS.get('oficinas_pc',{}),oficinaTimer=null,oficinaConsultando=false;
+function registrarOficina(id,chatId){
+  if(!/^zof[a-f0-9]{36}$/.test(String(id))||!chatId)return;
+  oficinasPC[chatId]={id,estado:'aguardando'};LS.set('oficinas_pc',oficinasPC);
+  fila.esperaAgente=chatId;salvaFila();desenhaFila();
+  clearTimeout(oficinaTimer);oficinaTimer=setTimeout(conferirOficinas,1000);
+}
+async function conferirOficinas(){
+  if(oficinaConsultando)return;oficinaConsultando=true;
+  try{for(const chatId of Object.keys(oficinasPC)){
+    const o=oficinasPC[chatId];
+    try{
+      const j=await api({acao:'oficinaEstado',id:o.id});o.estado=j.estado;
+      if(chatId===atual){const etapas={pendente:'aguardando o PC',preparando_provas:'preparando os testes do pedido',corrigindo_contrato:'conferindo os testes do pedido',planejando:'organizando as etapas',programando:'criando ou ajustando o arquivo',testando:'testando o app',concluido:'arquivo aprovado nas provas',incerto:'aguardando confirmação do PC'};const box=$('recuperacaoEnvio');if(!pedidoPendente()){box.hidden=false;$('recuperacaoTexto').textContent='Oficina local: '+(j.erro||etapas[j.estado]||j.estado)+'. '+(j.finalizada?'Resultado registrado.':'O mesmo pedido continua acompanhado.');$('recuperacaoRestaurar').hidden=true;}}
+      if(j.finalizada){
+        delete oficinasPC[chatId];LS.set('oficinas_pc',oficinasPC);
+        if(fila.esperaAgente===chatId){fila.esperaAgente=null;salvaFila();}
+        if(chatId===atual&&!controle){await abrir(chatId);if(j.appAuto){appAtual=j.appAuto;salvaAppAtual();mostraEdicao();}if(j.estado==='erro')filaPausada=true;desenhaFila();processaFila();}
+      }
+    }catch(e){o.estado='sem conexão';}
+  }}finally{oficinaConsultando=false;clearTimeout(oficinaTimer);if(Object.keys(oficinasPC).length)oficinaTimer=setTimeout(conferirOficinas,7000);}
+}
+function sessaoDaFila(){ return atual || sessaoNovaFila; }
+function salvaFila(){
+  try{localStorage.setItem('zicoai_'+FILA_CHAVE,JSON.stringify(fila));return true;}
+  catch(e){return false;}
+}
+function migraFila(de,para){ fila.itens.forEach(x=>{if(x.sessao===de)x.sessao=para;}); if(fila.ativo && fila.ativo.sessao===de)fila.ativo.sessao=para; salvaFila(); }
+function desenhaFila(){
+  const box=$('filaMensagens'); if(!box)return;
+  const itens=fila.itens.filter(x=>x.sessao===sessaoDaFila());
+  const incerto=fila.ativo && fila.ativo.sessao===sessaoDaFila() && !controle;
+  const espera=fila.esperaAgente===atual || !!oficinasPC[atual];
+  box.hidden=!itens.length && !incerto; box.replaceChildren();
+  if(box.hidden)return;
+  const aviso=document.createElement('div'); aviso.textContent=incerto?'Envio anterior pendente de conferência.':espera?'A tarefa ainda está em execução. Os complementos aguardam o resultado.':filaPausada?'Fila pausada. Seus textos continuam guardados.':'Na fila: envia depois da resposta atual, com o histórico atualizado.';box.appendChild(aviso);
+  itens.forEach(x=>{
+    const row=document.createElement('div');row.className='fila-item';
+    const label=document.createElement('span');label.textContent=x.texto || (x.doc?'Arquivo':'Foto');row.appendChild(label);
+    const editar=document.createElement('button');editar.textContent='Editar';editar.onclick=()=>{const t=prompt('Editar mensagem na fila:',x.texto);if(t!==null){const anterior=x.texto;x.texto=t;if(!salvaFila()){x.texto=anterior;alert('Não consegui guardar a edição; mantive o texto anterior.');}desenhaFila();}};row.appendChild(editar);
+    const tirar=document.createElement('button');tirar.textContent='Remover';tirar.onclick=()=>{const anterior=fila.itens;fila.itens=fila.itens.filter(y=>y!==x);if(!salvaFila()){fila.itens=anterior;alert('Não consegui guardar a remoção; mantive a mensagem.');}desenhaFila();};row.appendChild(tirar);box.appendChild(row);
+  });
+  if(filaPausada || incerto){const b=document.createElement('button');b.textContent='Conferir e continuar';b.onclick=continuaFila;box.appendChild(b);}
+}
+async function continuaFila(){
+  if(controle)return;
+  if(fila.esperaAgente===atual || oficinasPC[atual]){alert('A tarefa ainda está em execução. A fila continua guardada.');return;}
+  const a=fila.ativo;
+  if(a){
+    if(a.sessao!==sessaoDaFila()){alert('Abra a conversa do envio anterior para conferir antes de continuar a fila.');return;}
+    try{
+      const r=await api({acao:'estadoChat',reqId:a.reqId});
+      if(r.estado==='rodando'){alert('O pedido anterior ainda está rodando no cérebro. A fila continua guardada.');return;}
+      if(r.estado!=='concluido'){alert('Ainda não consegui confirmar o envio anterior. Espere a conferência para evitar pedidos duplicados.');return;}
+      if(r.chatId){if(!atual){atual=r.chatId;migraFila(a.sessao,atual);guardaAtual();}await abrir(atual);}
+      else if(atual)await abrir(atual);
+      else {alert('Não consegui localizar a conversa anterior. Abra a conversa na lista e confira a resposta; não reenviei o pedido.');return;}
+      if(pedidoPendente()){await conferirPedidoPendente();if(pedidoPendente())return;}
+      fila.ativo=null;
+    }catch(e){alert('Não consegui conferir: '+e.message);return;}
+  }
+  filaPausada=false;salvaFila();desenhaFila();processaFila();
+}
+function enfileira(){
+  const item={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),sessao:sessaoDaFila(),texto:$('txt').value.trim(),foto:foto,miniatura:miniatura,doc:docAnexo,pagina:pagina,cerebro:cfg.cerebro,capricho:cfg.capricho,modo:modo,appSlug:appAtual};
+  if(!item.texto&&!item.foto&&!item.doc)return;
+  if(fila.restauraPrimeiro){fila.itens.unshift(item);fila.restauraPrimeiro=false;}else fila.itens.push(item);
+  if(!salvaFila()){fila.itens=fila.itens.filter(x=>x!==item);alert('Sem espaço para guardar a fila. O texto e os anexos continuam na caixa de envio.');return;}
+  $('txt').value='';ajusta();tiraFoto();tiraDoc();tiraPagina();desenhaFila();
+  if(!controle&&!filaPausada)processaFila();
+}
+async function processaFila(){
+  if(controle || filaPausada || fila.ativo || fila.esperaAgente===atual || oficinasPC[atual] || pedidoPendente())return;
+  const i=fila.itens.findIndex(x=>x.sessao===sessaoDaFila());if(i<0)return;
+  const item=fila.itens.splice(i,1)[0];
+  fila.ativo={sessao:item.sessao,reqId:item.id,inicio:Date.now(),item:item};
+  if(!salvaFila()){fila.itens.splice(i,0,item);fila.ativo=null;filaPausada=true;desenhaFila();return;}
+  await envia(false,item);
+}
+async function envia(refazendo, itemFila){
+  if(!refazendo && !itemFila){enfileira();return;}
+  if(controle)return;
   const antigo=pedidoPendente();
   if(antigo){mostraRecuperacao('Existe um pedido anterior sem confirmação. Confira antes de enviar outro para evitar duplicar a tarefa.',false);conferirPedidoPendente();return;}
-  const texto = $('txt').value.trim();
-  if(!refazendo && !texto && !foto && !docAnexo) return;
+  const texto = itemFila ? itemFila.texto : $('txt').value.trim();
+  const fotoTurno = itemFila ? itemFila.foto : foto;
+  const docTurno = itemFila ? itemFila.doc : docAnexo;
+  const paginaTurno = itemFila ? itemFila.pagina : pagina;
+  const modoTurno = itemFila ? itemFila.modo : modo;
+  let concluiu = false, reagendado=false;
+  if(!refazendo && !texto && !fotoTurno && !docTurno) return;
 
   let fotoEnvio = null, fotoRepetida = false;
   if(!refazendo){
-    let conteudo = texto || (docAnexo && !foto ? 'Lê esse arquivo e me diz do que se trata.' : 'O que tem nessa foto?');
-    if(docAnexo){ conteudo += docAnexo.colado ? docAnexo.colado : MARCA_DOC + docAnexo.nome + ']\n```\n' + docAnexo.texto + '\n```'; tiraDoc(); }
+    let conteudo = texto || (docTurno && !fotoTurno ? 'Lê esse arquivo e me diz do que se trata.' : 'O que tem nessa foto?');
+    if(docTurno){ conteudo += docTurno.colado ? docTurno.colado : MARCA_DOC + docTurno.nome + ']\n```\n' + docTurno.texto + '\n```'; }
     const m = { role:'user', content: conteudo };
-    if(foto){ m.foto = miniatura; fotoEnvio = foto; ultimaFoto = { chat: atual, dados: foto }; }
+    if(fotoTurno){ m.foto = itemFila ? itemFila.miniatura : miniatura; fotoEnvio = fotoTurno; ultimaFoto = { chat: atual, dados: fotoTurno }; }
     // falou da foto de antes sem mandar de novo: reenvia a última foto desta conversa (o cérebro só enxerga a foto que vem junto)
     else if(ultimaFoto && ultimaFoto.chat === atual && /\b(foto|print|imagem|screenshot|captura)\b/i.test(texto)){ fotoEnvio = ultimaFoto.dados; fotoRepetida = true; }
     mensagens.push(m);
-    $('txt').value = ''; ajusta(); tiraFoto();
+    if(!itemFila){ $('txt').value = ''; ajusta(); tiraFoto(); }
   }
   const ultimaPerg = [...mensagens].reverse().find(m => m.role === 'user');
   // o erro que o app mostrou antes (ex.: "Load failed") não vai no histórico; manda à parte pra ela saber explicar
   const iPerg = mensagens.lastIndexOf(ultimaPerg), antes = iPerg > 0 ? mensagens[iPerg - 1] : null;
   const erroAnterior = antes && antes.erro ? String(antes.content || '').replace(/^⚠️\s*/, '').slice(0, 300) : undefined;
   desenha();
-  const reqId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const reqId = itemFila ? itemFila.id : 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  if(!itemFila){fila.ativo={sessao:sessaoDaFila(),reqId,inicio:Date.now()};salvaFila();}
   const para = mostraTrabalhando(etapasPara(ultimaPerg.content, !!fotoEnvio), reqId);
   modoEnviando(true);
 
   let respostaConfirmadaNestaTela = false;
   const novo = !atual;
+  const sessaoEnvio = sessaoDaFila();
   // Crítico: registra o ID ANTES de enviar. Não armazena PIN, foto ou chaves.
   gravaPedidoPendente({reqId,chatId:atual || '',novo,pergunta:String(ultimaPerg.content || '').slice(0,20000),criado:Date.now()});
   if(atual) guarda();
   try{
     const hist = mensagens.filter(m => !m.erro).slice(-12).map(m => ({ role: m.role, content: m.content }));
-    if(pagina && !refazendo && hist.length){
+    if(paginaTurno && !refazendo && hist.length){
       const u = hist[hist.length - 1];
-      u.content += '\n\n---\nPÁGINA ABERTA NO CHROME: ' + pagina.titulo + ' (' + pagina.url + ')\n' + (pagina.selecao ? 'TRECHO SELECIONADO:\n' + pagina.selecao + '\n\nPÁGINA:\n' : '') + pagina.texto.slice(0, 12000);
-      tiraPagina();
+      u.content += '\n\n---\nPÁGINA ABERTA NO CHROME: ' + paginaTurno.titulo + ' (' + paginaTurno.url + ')\n' + (paginaTurno.selecao ? 'TRECHO SELECIONADO:\n' + paginaTurno.selecao + '\n\nPÁGINA:\n' : '') + paginaTurno.texto.slice(0, 12000);
+      if(!itemFila)tiraPagina();
     }
     const cAtual = chats.find(x => x.id === atual);
     const projEnvio = (cAtual && cAtual.projeto) || projAtual || undefined;
     const j = await api({
       acao:'chat', reqId, chatId: atual || undefined, mensagens: hist, projeto: projEnvio, naExtensao: NA_EXTENSAO || undefined, abaId: ABA_EXT || undefined, navId: NAV_EXT || undefined,
-      imagem: fotoEnvio || undefined, fotoRepetida: fotoRepetida || undefined, erroAnterior, modo, cerebro: cfg.cerebro, capricho: cfg.capricho === 'sempre' ? true : cfg.capricho === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: appAtual || undefined
+      imagem: fotoEnvio || undefined, fotoRepetida: fotoRepetida || undefined, erroAnterior, modo:modoTurno, cerebro:itemFila ? itemFila.cerebro : cfg.cerebro, capricho:(itemFila ? itemFila.capricho : cfg.capricho) === 'sempre' ? true : (itemFila ? itemFila.capricho : cfg.capricho) === 'nunca' ? false : undefined, refazer: !!refazendo, appSlug: (itemFila && itemFila.appSlug || appAtual) || undefined
     }, controle.signal);
     para();
+    if(j.cerebro==='agente')fila.esperaAgente=String(j.chatId || atual || sessaoEnvio);
     if(novo && j.chatId){
-      atual = j.chatId; guardaAtual();
+      atual = j.chatId; migraFila(sessaoEnvio,atual); salvaAppAtual(); guardaAtual();
       chats.unshift({ id: j.chatId, titulo: j.titulo || 'Conversa', atualizada: '', projeto: projEnvio || '' });
     } else {
       const c = chats.find(x => x.id === atual);
       if(c){ chats = [c].concat(chats.filter(x => x !== c)); }
     }
     LS.set('chats', chats);
-    if(j.appAuto && typeof j.appAuto === 'string' && j.appAuto !== appAtual){ appAtual = j.appAuto; LS.set('appAtual', appAtual); mostraEdicao(); }
+    if(j.limparApp){appAtual=null;salvaAppAtual();mostraEdicao();}
+    if(j.appAuto && typeof j.appAuto === 'string' && j.appAuto !== appAtual){ appAtual = j.appAuto; salvaAppAtual(); mostraEdicao(); }
+    if(j.oficinaId) registrarOficina(j.oficinaId,atual);
     respostaConfirmadaNestaTela = true;
     mensagens.push({ role:'assistant', content: j.resposta + (j.aviso ? '\n\n_' + j.aviso + '_' : ''), cerebro: j.cerebro, salvou: j.salvou, passos: j.passos, detalhes: Array.isArray(j.detalhes) ? j.detalhes.slice(0,60).map(d => ({tipo: mascaraDetalheUI(d.tipo), titulo: mascaraDetalheUI(d.titulo), pedido: mascaraDetalheUI(d.pedido, 6000), resposta: mascaraDetalheUI(d.resposta, 6000), ms: d.ms})) : [], ms: j.ms, opcoes: normalizaOpcoes(j.opcoes), _digitar: true });
-    status(true);
+    status(true); concluiu=true;
   }catch(e){
     para();
+    if(e.naoIniciado&&e.oficinaId&&fila.ativo&&fila.ativo.item){
+      const item=fila.ativo.item;fila.itens.unshift(item);fila.ativo=null;LS.set(PENDENTE_CHAVE,null);salvaFila();registrarOficina(e.oficinaId,atual);reagendado=true;
+    }
     const parou = e.name === 'AbortError';
     // "Load failed"/"Failed to fetch" = a conexão caiu (celular bloqueou, trocou de rede, demorou), mas o cérebro pode ter terminado
     const caiu = !parou && e instanceof TypeError && atual;
@@ -2219,25 +2330,31 @@ async function envia(refazendo){
     if(!parou) status(false);
     if(caiu) setTimeout(() => recuperarResposta(atual, mensagens.length), 8000);
   }
+  if(!concluiu&&!reagendado)filaPausada=true;
+  salvaFila();
   modoEnviando(false);
+  desenhaFila();
+  if(concluiu)setTimeout(processaFila,0);
   // Resposta recebida e gravada na UI: podemos limpar o pedido pendente.
   // Em erro de rede/aborto, primeiro consultamos estadoChat, sem repetir a chamada.
-  if(respostaConfirmadaNestaTela) limpaPedidoPendente(reqId);
+  if(respostaConfirmadaNestaTela) limpaPedidoPendente(reqId,true);
   else if(pedidoPendente()) { mostraRecuperacao('A resposta pode ter continuado no cérebro. Conferindo o pedido sem reenviar…',false); agendarRecuperacao(6000); }
-  if(modo === 'imagem' || modo === 'agente') setModo('auto');
+  if(modo === modoTurno && (modo === 'imagem' || modo === 'agente' || modo === 'oficina')) setModo('auto');
   guarda(); desenha(); desenhaLista();
   setTimeout(atualizaTarefas, 1500);
 }
 
 /* ---------- meus apps (estilo artefatos: abrir, editar conversando, versões) ---------- */
-let appAtual = LS.get('appAtual', null);
+let appAtual = atual ? LS.get('app_chat_' + atual, LS.get('appAtual',null)) : null;
+if(atual && appAtual){salvaAppAtual();LS.set('appAtual',null);}
+function salvaAppAtual(){ if(atual) LS.set('app_chat_' + atual, appAtual); }
 function mostraEdicao(){
   $('editando').classList.toggle('on', !!appAtual);
   if(appAtual) $('editandoNome').textContent = String(appAtual).replace(/^repo:/, '');
 }
-$('pararEdicao').onclick = () => { appAtual = null; LS.set('appAtual', null); mostraEdicao(); };
+$('pararEdicao').onclick = () => { appAtual = null; salvaAppAtual(); mostraEdicao(); };
 function editarApp(slug){
-  appAtual = slug; LS.set('appAtual', slug); mostraEdicao();
+  appAtual = slug; salvaAppAtual(); mostraEdicao();
   $('mApps').classList.remove('aberto');
   if(!$('txt').value) $('txt').value = 'No app ' + slug + ', ';
   $('txt').focus(); ajusta();
@@ -2316,7 +2433,7 @@ async function atualizaTarefas(){
     const antes = tarefas; tarefas = j.tarefas || [];
     // tarefa que acabou de concluir na conversa aberta: recarrega a conversa pra mostrar o resultado
     tarefas.forEach(t => {
-      if(t.status === 'concluída' && !vistas[t.id]){ vistas[t.id] = 1; LS.set('tarefas_vistas', vistas); if(t.chatId && t.chatId === atual && !controle) abrir(atual); }
+      if(t.status === 'concluída' && !vistas[t.id]){ vistas[t.id] = 1; LS.set('tarefas_vistas', vistas); if(t.chatId && t.chatId === atual && !controle) abrir(atual).then(()=>{if(fila.esperaAgente===t.chatId){fila.esperaAgente=null;salvaFila();desenhaFila();processaFila();}}); }
     });
     desenhaTarefas();
     vivoTarefaNaConversa();
@@ -2364,10 +2481,13 @@ function refazer(){
 }
 function modoEnviando(sim){
   const b = $('bEnviar');
-  if(sim){ controle = new AbortController(); b.classList.add('parar'); b.innerHTML = ico('parar', 18); b.setAttribute('aria-label','Parar'); }
-  else { controle = null; b.classList.remove('parar'); b.innerHTML = ico('enviar', 20); b.setAttribute('aria-label','Enviar'); }
+  if(sim)controle=new AbortController();else controle=null;
+  $('bParar').hidden=!sim;
+  b.classList.remove('parar');b.innerHTML=ico('enviar',20);b.setAttribute('aria-label',sim?'Adicionar à fila':'Enviar');
+  desenhaFila();
 }
-$('bEnviar').onclick = () => { if(controle) controle.abort(); else envia(); };
+$('bEnviar').onclick = () => envia();
+$('bParar').onclick = () => { filaPausada=true; if(controle)controle.abort(); desenhaFila(); };
 function guarda(){
   if(!atual) return;
   // fotos só ficam neste aparelho e em tamanho pequeno
@@ -2381,13 +2501,16 @@ function setModo(m){
   $('cWeb').classList.toggle('on', modo === 'web');
   $('cImg').classList.toggle('on', modo === 'imagem');
   $('cAgente').classList.toggle('on', modo === 'agente');
+  $('cOficina').classList.toggle('on', modo === 'oficina');
   $('txt').placeholder = modo === 'web' ? 'O que vc quer pesquisar?' : modo === 'imagem' ? 'Descreve a imagem que vc quer' : modo === 'agente' ? 'Descreve a tarefa grande (ela faz em segundo plano)' : 'Pergunta qualquer coisa pra ZicoAI';
+  if(modo==='oficina')$('txt').placeholder='Descreva o app HTML ou a correção para a oficina local';
   mostraModelo();
   $('txt').focus();
 }
 $('cWeb').onclick = () => setModo('web');
 $('cImg').onclick = () => setModo('imagem');
 $('cAgente').onclick = () => setModo('agente');
+$('cOficina').onclick = () => {if(cfg.cerebro!=='auto'){alert('Oficina local só no Auto. Mantive seu cérebro manual.');return;}setModo('oficina');};
 
 /* ---------- seletor de cérebro ---------- */
 const NOMES = { auto:'Auto', gemini:'Gemini', groq:'Groq', nvidia:'NVIDIA', mistral:'Mistral', zai:'Z.ai', pc:'PC de casa', mac:'Mac Mini' };
@@ -2451,6 +2574,7 @@ document.querySelectorAll('#menuModos button[data-zmodo]').forEach(b=>b.onclick=
 document.addEventListener('click',e=>{ if(!e.target.closest('#modoWrap')) fecharMenuModos(); });
 document.querySelectorAll('#menuModelo button[data-c]').forEach(b => b.onclick = () => {
   cfg.cerebro = b.dataset.c;
+  if(cfg.cerebro!=='auto' && modo==='oficina')setModo('oficina');
   if(cfg.cerebro !== 'auto' && modo === 'agente') setModo('agente');
   LS.set('cfg', cfg); mostraModelo(); $('menuModelo').classList.remove('aberto');
 });
@@ -3195,15 +3319,18 @@ sincronizaPainel();
 // O padrão desta abertura foi definido junto de cfg; não restaura seleção manual antiga.
 status();
 mostraModelo();
+mostraEdicao();
+desenhaFila();
 desenhaLista();
 desenha();
 if(cfg.url){ carregaLista(); if(atual) abrir(atual); setTimeout(atualizaTarefas, 2500); setTimeout(() => carregaProjetos().then(desenhaLista), 1200); setTimeout(iniciarRecuperacao,1800); }
 else setTimeout(() => $('bCfg').onclick(), 300);
+if(cfg.url && Object.keys(oficinasPC).length)setTimeout(conferirOficinas,1200);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 /* ---------- versão nova sem apagar o app ----------
  * O iPhone deixa o app "congelado" em segundo plano e não recarrega. Ao voltar pro app (e a cada 10 min), confere a versão
  * do sw.js no GitHub; mudou → aviso "Nova versão — toque pra atualizar" (não interrompe o que vc tá digitando). */
-const VERSAO_APP = 'zicoai-v52';
+const VERSAO_APP = 'zicoai-v53';
 function versaoTexto(){return 'Interface ' + VERSAO_APP.replace(/^zicoai-/,'');}
 // Uma fonte de verdade: os textos visíveis recebem a mesma versão ANTES do usuário tocar.
 // Evita a interface dizer "v51" ao abrir e "v52" ao entrar no menu.

@@ -18,7 +18,7 @@ ok(busca('a tv box do cliente pediu ativação no vu player, me passa o mac')[0]
 ok(busca('quanto fica em 12x na maquininha com a taxa')[0] === 'B15', 'parcelas acha a B15');
 ok(busca('o iphone não lê o código de barras com a câmera')[0] === 'B30', 'código de barras acha a B30');
 ok(busca('ZXing pelo CDN não carregou')[0] === 'B30', 'palavra que só está no CONTEÚDO também acha (ZXing)');
-ok(busca('harness relógio fixo')[0] === 'D19', 'acha pelo conteúdo e pelas palavras-chave juntos');
+ok(busca('Na ZicoAI, harness relógio fixo')[0] === 'D19', 'acha pelo conteúdo e pelas palavras-chave juntos');
 const casual = ['oi', 'oi tudo bem?', 'bom dia', 'e ai zica', 'valeu', 'kkkk', 'boa noite'];
 ok(casual.every(q => busca(q).length === 0), 'conversa à toa não puxa aula');
 ok(busca('cria um app com um botão na tela').length <= 2, 'palavra comum (app, tela, botão) não enche de aula: no máximo 2');

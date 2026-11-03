@@ -6,7 +6,7 @@ const resp = t => ({ getResponseCode: () => 200, getContentText: () => JSON.stri
 const json = o => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify(o) });
 const run = s => vm.runInContext(s, H.ctx);
 // cérebro forte ligado (no Apps Script vem de GEMINI_FORTE)
-H.PROPS.GEMINI_FORTE = 'gemini-forte-teste';
+H.PROPS.GEMINI_FORTE = 'gemini-forte-teste'; H.PROPS.ZICO_LOCAL_FIRST='nao';
 // Drive de mentira pro progresso das tarefas (estado entre rodadas)
 const FILES = {};
 const pasta = { getFilesByName: n => { let usado = false; return { hasNext: () => (n in FILES) && !usado, next: () => { usado = true; return { setContent: t => { FILES[n] = t; }, getBlob: () => ({ getDataAsString: () => FILES[n] }), setTrashed: () => { delete FILES[n]; } }; } }; }, createFile: (n, t) => { FILES[n] = t; return {}; } };
@@ -85,14 +85,14 @@ ok(/ANTES DE TERMINAR: etapa\(s\) 3 ainda sem fechar/.test(chamadas[6].ultimo), 
 ok(/CONFERÊNCIA FINAL/.test(chamadas[7].ultimo) && /✅ 2\. Ver o preço da Loja Z/.test(chamadas[7].ultimo), 'conferência final com o checklist');
 ok(chamadas[7].modelo === 'gemini-forte-teste', 'conferência final com o cérebro forte');
 ok(chamadas.filter(c => c.modelo === 'gemini-forte-teste').length === 2, 'cérebro forte usado só 2 vezes (plano + conferência)');
-ok(t[4] === 'concluída', 'tarefa concluída');
+ok(t[4] === 'erro', 'tarefa com etapas sem prova fica parcial');
 const fim = t[6];
 ok(/Não consegui abrir a Loja Z/.test(fim), 'resposta do cérebro no resultado');
 ok(/📋 \*\*Conferência das etapas\*\* \(1 de 3 com prova\)/.test(fim) && /✅ 1\. Ler nosso preço do iPhone 15 — prova: ler_planilha mostrou iPhone 15 por R\$ 3\.999 \(ler_planilha(, calcular)?\)/.test(fim), 'resultado lista o que foi conferido, com a prova');
 ok(/🔸 2\. Ver o preço da Loja Z — feita, mas NÃO conferida: a conta usou preço chutado/.test(fim) && /☐ 3\. Anotar a diferença na base — não chegou a fazer/.test(fim) && /\*\*Não conferido:\*\* etapas 2, 3/.test(fim), 'resultado honesto: o que NÃO foi conferido (rebaixada na conferência + não feita)');
 const pf = t[5].split(' | ');
-ok(/^📋 Plano: 1 de 3/.test(pf[0]) && /^🔸 2\./.test(pf[2]) && /Concluída com/.test(pf[pf.length - 1]), 'checklist final nos passos');
-ok(!FILES[id + '.json'], 'progresso apagado no fim');
+ok(/^📋 Plano: 1 de 3/.test(pf[0]) && /^🔸 2\./.test(pf[2]) && /Parcial com/.test(pf[pf.length - 1]), 'checklist final nos passos');
+ok(!!FILES[id + '.json'], 'progresso parcial fica preservado');
 const msg = H.sheets.mensagens.rows.find(x => /🧠 \*\*Resultado da tarefa\*\*/.test(x[2] || '') || /🧠 \*\*Resultado da tarefa\*\*/.test(String(x)));
 ok(msg && /Conferência das etapas/.test(String(msg)), 'mensagem "Resultado da tarefa" na conversa traz a conferência');
 const lt = run('listarTarefas')().find(x => x.id === id);

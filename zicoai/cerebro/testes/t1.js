@@ -26,7 +26,7 @@ const ab = H.post({ pin: '1234', acao: 'abrir', chatId: r.chatId });
 ok(ab.mensagens.length === 6, 'abrir traz 6 mensagens');
 // refazer
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: 'nova versão' } }] }) }));
-r = H.post({ pin: '1234', acao: 'chat', chatId: r.chatId, refazer: true, mensagens: [{ role: 'user', content: 'faz um código html de calculadora' }] });
+r = H.post({ pin: '1234', acao: 'chat', chatId: r.chatId, refazer: true, mensagens: [{ role: 'user', content: 'melhore a explicação anterior' }] });
 const ab2 = H.post({ pin: '1234', acao: 'abrir', chatId: r.chatId });
 ok(ab2.mensagens.length === 6 && ab2.mensagens[5].content === 'nova versão', 'refazer substitui última resposta');
 // pesquisa → gemini nativo com google

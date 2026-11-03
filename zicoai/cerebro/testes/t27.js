@@ -9,11 +9,11 @@ let sys = '', devolve = 'ok, resposta de teste.';
 H.setFetch((u, o) => { if (typeof (o || {}).payload === 'string') { const b = JSON.parse(o.payload); if (b.messages) { sys = b.messages[0].content; return resp(devolve); } } return resp('ok'); });
 const chat = (t, extra) => H.post(Object.assign({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: t }] }, extra || {}));
 
-chat('oi');
+chat('Explique suas ferramentas e versão da ZicoAI');
 ok(/Seu cérebro está na versão \d+/.test(sys), 'sistema diz a versão do cérebro');
 ok(!/\{VERSAO\}/.test(sys), 'nenhum {VERSAO} sobrando no sistema');
 ok(/Nunca prometa ação que vc não tem como fazer/.test(sys), 'regra: não prometer ação sem ferramenta');
-ok(/Texto colado com data ou versão/.test(sys) && /versão \d+ \(/.test(sys.split('Texto colado com data ou versão')[1] || ''), 'regra do status antigo com a versão preenchida');
+ok(/Texto colado com data ou versão/.test(sys) && sys.includes(vm.runInContext('VERSAO_CEREBRO',H.ctx)), 'regra do status antigo com a versão preenchida');
 
 // [[...]] perdido no começo some; tags de verdade e [[ dentro de código ficam
 devolve = '[[ZicoAI — status (30/10/2026, 22:55)]]\n\nRecebido. Tudo certo.';

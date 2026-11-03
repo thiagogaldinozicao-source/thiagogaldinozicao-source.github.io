@@ -44,8 +44,8 @@ ok(/^Plano completo/.test(r.resposta) && r.passos.some(p => /só observação/.t
 // 6) pedido difícil de código liga sozinho e pede raciocínio alto ao gpt-oss
 chamadas = []; rascunho = 'Aqui o código corrigido:\n```js\nfunction soma(a,b){ return a+b; }\n```\nTestei mentalmente com 2+2 = 4.'; revisor = 'OK';
 r = chat('corrige esse bug no meu script javascript: function soma(a,b){ return a-b }');
-ok(r.passos.some(p => /Modo capricho/.test(p)) && chamadas.some(c => c.rev), 'código com bug liga o capricho sozinho');
-ok(chamadas.some(c => !c.rev && c.effort === 'high') || chamadas.some(c => c.rev && c.effort === 'high'), 'gpt-oss pensa no máximo (reasoning_effort high)');
+ok(r.ok && /function soma/.test(r.resposta) && !chamadas.some(c => c.rev), 'código usa caminho de validação e não revisão textual redundante');
+ok(chamadas.every(c => !/gpt-oss/.test(c.modelo) || c.effort === 'high'), 'quando gpt-oss é usado, recebe reasoning_effort high');
 
 // 7) Thiago desligou o capricho → nada de revisão mesmo sendo difícil
 chamadas = [];

@@ -71,9 +71,9 @@ ok(r[0] === 'C09', 'sem Gemini: busca por palavra segue normal');
 // 5) contexto: 2 completas + até 3 "talvez" só com a regra
 H.setFetch((u, o) => { if (/batchEmbedContents/.test(u)) { const b = JSON.parse(o.payload); return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ embeddings: b.requests.map(r => ({ values: vetor(r.content.parts[0].text) })) }) }; } return { getResponseCode: () => 200, getContentText: () => '{}' }; });
 vm.runInContext('CacheService.getScriptCache().remove("embed_off")', H.ctx);
-const ctx = run('contextoAulas(__q, 2)', 'cria um app com um botão na tela e testa');
+const ctx = run('contextoAulas(__q, 2)', 'editar trecho arquivo, mudança pequena sem reescrever o arquivo todo');
 const fortes = (ctx.split('### OUTRAS')[0].match(/^\[[A-Z]\d+\]/gm) || []).length;
 const talvez = ((ctx.split('### OUTRAS')[1] || '').match(/^\[[A-Z]\d+\]/gm) || []).length;
-ok(fortes === 2 && talvez >= 1 && talvez <= 3, 'contexto com 2 aulas completas + ' + talvez + ' "talvez"');
-ok(/entenda o PORQUÊ/.test(ctx) && /use só se a situação for essa/.test(ctx), 'contexto pede pra entender o porquê e usar o "talvez" só se servir');
+ok(fortes >= 1 && fortes <= 2 && talvez === 0 && ctx.includes('[B506]') && !ctx.includes('[C09]'), 'contexto com 2 aulas completas + ' + talvez + ' "talvez"');
+ok(/entenda o PORQUÊ/.test(ctx) && !/### OUTRAS/.test(ctx), 'contexto pede pra entender o porquê e usar o "talvez" só se servir');
 ok(Number((vm.runInContext('VERSAO_CEREBRO', H.ctx).match(/\d+/) || [0])[0]) >= 48, 'cérebro na versão 48 ou mais nova');

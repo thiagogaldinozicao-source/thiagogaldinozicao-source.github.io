@@ -37,8 +37,8 @@ ok(/não é sua/.test(H.post({ convite: amigo.chave, acao: 'abrir', chatId: r.ch
 // convidado não vê a loja
 H.post({ convite: amigo.chave, acao: 'chat', mensagens: [{ role: 'user', content: 'que horas a loja abre?' }] });
 ok(/NÃO é da loja/.test(sis) && !/10h às 20h/.test(sis), 'amigo (convidado) não vê dado da loja');
-// Thiago continua com tudo e com a memória dele só dele
-H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi' }] });
+// Thiago continua com sua memória quando relevante
+H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'O que você lembra sobre eu gostar de café?' }] });
 ok(/PERFIL DO THIAGO/.test(sis) && /gosta de café/.test(sis) && !/Karina cuida do estoque/.test(sis), 'Thiago: perfil e memória dele, sem a memória da Karina');
 // cancelar
 H.post({ pin: '1234', acao: 'cancelarConvite', id: k.id });

@@ -19,8 +19,8 @@ H.setFetch(() => resp(200, JSON.stringify({ choices: [{ message: { content: 'ok'
 const t = run('testarZai()');
 ok(t.ok && /^200/.test(t['glm-4.6v-flash']) && !/segredo/.test(JSON.stringify(t)), 'testarZai testa os 3 modelos sem mostrar a chave');
 // propriedade vazia some (o Google não deixa salvar a tela de Propriedades com valor vazio)
-H.PROPS.MAC_PRIMARIO = 'cliente';
-run('PropertiesService.getScriptProperties().setProperty("PLACAR_MAC_CLIENTE", JSON.stringify({g:0,e:0,p:20}))');
-run('temCerebro = function(){ return true; }; motivoNaoCabe = function(){ return ""; }; var _lin = linhas; linhas = function(n){ return n === "destilacao" ? [["d","p1","","r1","Gemini","cliente","ok"],["d","p2","","r2","Gemini","cliente","ok"],["d","p3","","r3","Gemini","cliente","ok"]] : _lin(n); }; chamarCompat = function(c, m){ return /juiz/.test(m[0].content) ? \'{"melhor":"empate","motivo":"x"}\' : "resposta do mac"; };');
+H.PROPS.MAC_PRIMARIO_APROVADAS = 'cliente';
+run('PropertiesService.getScriptProperties().setProperty("PLACAR_MAC_APROVADAS_CLIENTE", JSON.stringify({g:0,e:0,p:20}))');
+run('temCerebro = function(){ return true; }; motivoNaoCabe = function(){ return ""; }; var _lin = linhas; linhas = function(n){ return n === "destilacao" ? [["d","p1","","r1","Gemini","cliente","aprovada"],["d","p2","","r2","Gemini","cliente","aprovada"],["d","p3","","r3","Gemini","cliente","aprovada"]] : _lin(n); }; chamarCompat = function(c, m){ return /juiz/.test(m[0].content) ? \'{"melhor":"empate","motivo":"x"}\' : "resposta do mac"; };');
 const pr = run('placarMacRodada("cliente")'); console.log(JSON.stringify(pr));
-ok(!('MAC_PRIMARIO' in H.PROPS) || H.PROPS.MAC_PRIMARIO === undefined, 'MAC_PRIMARIO sem nenhum assunto: apaga em vez de deixar vazio');
+ok(!('MAC_PRIMARIO_APROVADAS' in H.PROPS) || H.PROPS.MAC_PRIMARIO_APROVADAS === undefined, 'MAC_PRIMARIO_APROVADAS sem nenhum assunto: apaga em vez de deixar vazio');

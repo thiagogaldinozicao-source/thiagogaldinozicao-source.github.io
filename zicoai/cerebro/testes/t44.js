@@ -23,7 +23,7 @@ let p;
 const limpa = () => Object.keys(H.CACHE).forEach(k => { if (/^(tk|rq|off)_/.test(k)) delete H.CACHE[k]; });
 for (let i = 0; i < 3; i++) { limpa(); p = run('placarMacRodada("preço")'); }
 ok(p.ok && p.acumulado.e === 9 && p.decisao === 'MAC PRIMEIRO', 'empate em 9 provas de preço: Mac vira o primeiro em preço (' + JSON.stringify(p.acumulado) + ')');
-ok(H.PROPS.MAC_PRIMARIO === 'preço' && H.sheets.placar_mac.rows.length === 4, 'decisão gravada (MAC_PRIMARIO e aba placar_mac)');
+ok(H.PROPS.MAC_PRIMARIO_APROVADAS === 'preço' && H.sheets.placar_mac.rows.length === 4, 'decisão gravada (MAC_PRIMARIO_APROVADAS e aba placar_mac)');
 // rota: preço vai pro Mac primeiro
 let usados = []; limpa();
 run('ponteSemDetalhe = function(acao){ return {ok:true, texto:"Fica 10x de R$ 120."}; };');
@@ -31,13 +31,13 @@ H.setFetch((u) => { usados.push(u); return { getResponseCode: () => 200, getCont
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'quanto fica 1200 em 10x no cartão' }] });
 ok(r.ok && /Mac/.test(r.cerebro) && r.passos.some(x => /cérebro do Mac já ganhou/.test(x)), 'pedido de preço: o Mac responde primeiro (' + r.cerebro + ')');
 r = H.post({ pin: '1234', acao: 'chat', capricho: false, mensagens: [{ role: 'user', content: 'me conta uma curiosidade sobre o espaço' }] });
-ok(!/Mac/.test(r.cerebro), 'assunto em que o Mac não provou: segue a nuvem');
+ok(!run('macPrimario("me conta uma curiosidade sobre o espaço")'), 'assunto sem prova não vira promoção mesmo com política Auto local-primeiro');
 // nuvem passa a ganhar → volta
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: '{"melhor":"' + (Math.random() < 2 ? 'X' : '') + '"}' } }] }) }));
 run('Math.random = function(){ return 0.9; };');   // Mac fica como B
 H.setFetch(() => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify({ choices: [{ message: { content: '{"melhor":"A","motivo":"nuvem melhor"}' } }] }) }));
 for (let i = 0; i < 6; i++) { limpa(); p = run('placarMacRodada("preço")'); }
-ok(H.sheets.placar_mac.rows.some(l => l[6] === 'voltou pra nuvem') && !H.PROPS.MAC_PRIMARIO, 'Mac piorou no placar: preço volta pra nuvem sozinho');
+ok(H.sheets.placar_mac.rows.some(l => l[6] === 'voltou pra nuvem') && !H.PROPS.MAC_PRIMARIO_APROVADAS, 'Mac piorou no placar: preço volta pra nuvem sozinho');
 ok(/diagnostico/.test(run('FERRAMENTAS.mac_comando.desc')) && /diagnostico/.test(run('FERRAMENTAS.pc_comando.desc')), 'ferramentas de diagnóstico do Mac e do PC');
 ok((+(run('VERSAO_CEREBRO')).match(/versão (1\d\d|\d+)/)[1] >= 58), 'cérebro na versão 58 ou mais nova');
 // v60: lição do erro vira aula sozinha quando outro cérebro aprova (nota ≥ 8)

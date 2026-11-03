@@ -1,4 +1,4 @@
-﻿# ZicoAI - ponte do PC (Windows PowerShell 5.1, sem instalar nada) - versão 2
+# ZicoAI - ponte do PC (Windows PowerShell 5.1, sem instalar nada) - versão 2
 # O PC é que BUSCA os pedidos na ZicoAI (nada fica aberto no PC, não precisa de Funnel).
 # Regras: só pastas liberadas no config.json; NUNCA apaga; NUNCA sobrescreve (cria "nome (2)");
 # comandos só da lista segura. Cada pedido fica anotado em ponte-log.txt.
@@ -10,7 +10,7 @@ $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Dir) { $Dir = Join-Path $HOME 'ZicoAI-Ponte' }
 $CfgArq = Join-Path $Dir 'config.json'
 $LogArq = Join-Path $Dir 'ponte-log.txt'
-$Versao = '2.4'
+$Versao = '2.5'
 
 function Log($t) {
   $linha = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $t
@@ -276,9 +276,43 @@ function Executar($p) {
       'abrir'    { return (Abrir $d) }
       'comando'  { return (Comando $d) }
       'ollama_chat' { return (OllamaChat $d) }
+      'oficina_iniciar' { return (Oficina $acao $d) }
+      'oficina_estado' { return (Oficina $acao $d) }
       default    { return @{ ok = $false; erro = ('Ação desconhecida: ' + $acao) } }
     }
   } catch { return @{ ok = $false; erro = $_.Exception.Message } }
+}
+
+# Worker finito da oficina: só código local instalado, sem shell ou comandos do modelo.
+function Oficina([string]$acao, $dados) {
+  if ($env:ZICO_OFICINA -ne '1') { throw 'Oficina local não ativada na ponte do PC' }
+  $modulo = Join-Path $Dir 'agente-duravel\servico.cjs'
+  if (-not (Test-Path -LiteralPath $modulo -PathType Leaf)) { throw 'Módulo da oficina não instalado ao lado da ponte' }
+  $node = Get-Command node -ErrorAction SilentlyContinue
+  if (-not $node) { throw 'Node.js não disponível para a ponte; não iniciei a tarefa' }
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $node.Source
+  $psi.Arguments = '"' + $modulo + '"'
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $psi.RedirectStandardInput = $true
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.StandardOutputEncoding = New-Object Text.UTF8Encoding($false)
+  $psi.StandardErrorEncoding = New-Object Text.UTF8Encoding($false)
+  $processo = New-Object System.Diagnostics.Process
+  $processo.StartInfo = $psi
+  [void]$processo.Start()
+  $stdout = $processo.StandardOutput.ReadToEndAsync()
+  $stderr = $processo.StandardError.ReadToEndAsync()
+  $entrada = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -Compress -Depth 30 @{acao=$acao;dados=$dados}))
+  $processo.StandardInput.BaseStream.Write($entrada, 0, $entrada.Length)
+  $processo.StandardInput.Close()
+  if (-not $processo.WaitForExit(20000)) { throw 'Não confirmei a resposta da oficina; consulte o mesmo ID antes de tentar novamente' }
+  $txt = $stdout.GetAwaiter().GetResult()
+  $res = $txt | ConvertFrom-Json
+  if (-not $res) { throw 'Oficina devolveu resposta vazia' }
+  return $res
 }
 
 Log ('ponte ' + $Versao + ' ligada (busca pedidos na ZicoAI)')

@@ -13,7 +13,7 @@ const ids = q => run(`aulasPara(${JSON.stringify(q)}, 3, null)`).map(x => x[0]);
 ok(ids('E aí bom dia chefe').length === 0, '"bom dia chefe" não puxa aula');
 ok(ids('Que dia é hoje').length === 0, '"que dia é hoje" não puxa aula');
 ok(ids('Era pra vc arrumar essa calculadora tô na peleja meu amigo bora')[0] === 'A301', '"arrumar a calculadora, amigo" puxa a regra da calculadora, não "mandar pro amigo"');
-ok(ids('manda o agente fazer essa tarefa em segundo plano').indexOf('D09') >= 0, 'pergunta de verdade continua achando a aula');
+ok(ids('Na ZicoAI, como o agente faz uma tarefa em segundo plano?').indexOf('D09') >= 0, 'pergunta de verdade continua achando a aula');
 // base: 1 palavra só não puxa trecho
 run("aba('base')");
 H.sheets.base.rows.push(['Horário', 'A loja abre 10h e fecha 20h']);

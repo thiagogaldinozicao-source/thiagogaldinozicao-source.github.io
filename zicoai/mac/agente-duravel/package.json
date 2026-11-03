@@ -1,6 +1,6 @@
 {
   "name": "zicoai-agente-duravel",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Agente de leitura com checkpoints SQLite, opt-in na ponte do Mac",
   "type": "commonjs",
@@ -8,10 +8,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test agente.test.cjs"
+    "test": "node --test agente.test.cjs oficina.test.cjs ollama.test.cjs servico.test.cjs contrato-provas.test.cjs"
   },
   "dependencies": {
-    "@langchain/langgraph": "^1.0.0",
-    "@langchain/langgraph-checkpoint-sqlite": "^1.1.0"
+    "@langchain/langgraph": "1.6.0",
+    "@langchain/langgraph-checkpoint-sqlite": "1.1.0"
   }
 }

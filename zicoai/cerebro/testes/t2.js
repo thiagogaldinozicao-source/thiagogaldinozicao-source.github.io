@@ -10,7 +10,7 @@ ok(H.fetchLog[0].u.includes('generativelanguage'), 'sem PC: gemini primeiro');
 H.PROPS.PC_URL = 'https://desk.ts.net/zz/';
 H.fetchLog.length = 0; H.setFetch(u => resp(u.includes('ts.net') ? 'do pc' : 'nuvem'));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi tudo bem' }] });
-ok(H.fetchLog[0].u.includes('generativelanguage') && r.cerebro === 'Gemini' && !H.fetchLog.some(f => f.u.includes('ts.net')), 'PC ligado: texto vai pro Gemini, PC nem é chamado');
+ok(H.fetchLog[0].u.includes('ts.net') && r.cerebro === 'PC (zicoai)' && !H.fetchLog.some(f => f.u.includes('googleapis')), 'Auto com PC ligado prioriza local');
 // foto: gemini primeiro, PC reserva
 H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', imagem: 'data:image/jpeg;base64,AA', mensagens: [{ role: 'user', content: 'lê' }] });
@@ -18,13 +18,14 @@ ok(H.fetchLog[0].u.includes('generativelanguage') && r.cerebro === 'Gemini', 'fo
 // programação: groq primeiro
 H.fetchLog.length = 0;
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'faz um código html' }] });
-ok(H.fetchLog[0].u.includes('groq'), 'código vai pro groq');
+ok(H.fetchLog[0].u.includes('ts.net'), 'Auto com PC ligado também prioriza local no código');
 // nuvem toda fora (429) → PC responde
 H.fetchLog.length = 0;
-H.setFetch(u => u.includes('ts.net') ? resp('do pc') : cai(429, '{"error":{"message":"rate limit"}}'));
+H.setFetch(u => u.includes('ts.net') ? cai(503, 'local indisponível') : resp('reserva nuvem'));
 r = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'oi de novo' }] });
-ok(r.ok && r.cerebro === 'PC (zicoai)' && H.fetchLog[0].body.model !== 'zicoai' && H.fetchLog.some(f => f.u === 'https://desk.ts.net/zz/v1/chat/completions' && f.body.model === 'zicoai'), 'nuvem estourou → PC responde: ' + r.passos.join(' | '));
+ok(r.ok && /Gemini|Groq/.test(r.cerebro) && H.fetchLog.some(f => f.u.includes('ts.net')) && H.fetchLog.some(f => /googleapis|groq/.test(f.u)), 'local falhou → Auto usa reserva: ' + r.passos.join(' | '));
 Object.keys(H.CACHE).forEach(k => { if (/^off_/.test(k)) delete H.CACHE[k]; }); // tira o castigo do teste anterior
+delete H.CACHE.pc_off;
 // Thiago escolhe PC no seletor → PC primeiro
 H.fetchLog.length = 0; H.setFetch(u => resp(u.includes('ts.net') ? 'do pc' : 'nuvem'));
 r = H.post({ pin: '1234', acao: 'chat', cerebro: 'pc', mensagens: [{ role: 'user', content: 'x' }] });

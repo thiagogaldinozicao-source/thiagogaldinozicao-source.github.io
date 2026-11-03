@@ -59,7 +59,7 @@ H.setFetch((u, o) => { if (typeof o.payload !== 'string') return json({}); const
 r = H.post({ pin: '1234', acao: 'tarefa', pedido: 'me explica tabela price em 3 linhas' });
 H.ctx.rodarTarefas();
 const f2 = H.sheets.tarefas.rows.find(x => x[0] === r.id);
-ok(f2[4] === 'concluída' && /Resposta direta em texto/.test(f2[6]), 'modelo que não usa JSON ainda entrega resposta');
+ok(f2[4] === 'erro' && /formato exigido/.test(f2[6]), 'modelo fora do formato não declara tarefa concluída');
 // resposta dobrada: respondeu tudo E criou tarefa → fica só 1 linha + aviso do agente
 H.setFetch((u, o) => { const b = JSON.parse(o.payload); const sys2 = b.messages[0].content; if (/AGENTE em segundo plano/.test(sys2)) return resp('ok'); return resp('Vou pesquisar isso pra vc. Analisei o código e aqui vão 5 melhorias detalhadas: 1) feedback visual com escala 2) estética dourada 3) responsividade 4) prevenção de erro 5) placar. Quer que eu aplique agora? Só pedir. [[TAREFA: Listar apps publicados e analisar o jogo da velha]]'); });
 let rd = H.post({ pin: '1234', acao: 'chat', mensagens: [{ role: 'user', content: 'lê o jogo da velha e me fala o que melhorar' }] });

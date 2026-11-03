@@ -93,7 +93,7 @@ H.post({ pin: '1234', acao: 'cancelarTarefa', id: c2.id });
 ok(H.sheets.tarefas.rows.filter(x => x[9] === c2.id).every(x => x[4] === 'cancelada') && st(c2.id)[4] === 'cancelada', 'cancelou o chefe e as partes');
 
 // 7) nuvem toda sem cota do dia → PC de casa como reserva do agente
-H.PROPS.PC_URL = 'https://pc.ts.net/x'; H.PROPS.PC_MODELO_CODIGO = 'zicoai-dev';
+H.PROPS.PC_URL = 'https://pc.ts.net/x'; H.PROPS.PC_MODELO_CODIGO = 'zicoai-dev'; H.PROPS.PC_MODELO = 'zicoai-dev';
 ['gemini', 'groq', 'groq2'].forEach(n => { H.PROPS['rpd_' + n + '_20261030'] = '99999'; });
 const urls = [];
 H.setFetch((u, o) => { urls.push(u); return resp('{"resposta":"respondi pelo PC"}'); });
