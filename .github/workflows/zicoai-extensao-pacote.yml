@@ -1,0 +1,40 @@
+name: ZicoAI — pacote de instalação da extensão Chrome
+on:
+  pull_request:
+    paths:
+      - 'zicoai/extensao/**'
+      - '.github/workflows/zicoai-extensao-pacote.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  empacotar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Conferir manifesto e arquivos locais obrigatórios
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          const dir='zicoai/extensao';
+          const m=JSON.parse(fs.readFileSync(path.join(dir,'manifest.json'),'utf8'));
+          if(m.manifest_version!==3)throw Error('Manifest v3 necessário');
+          if(!/^\d+\.\d+(?:\.\d+){0,2}$/.test(m.version))throw Error('Número de versão inválido');
+          const arquivos=new Set(['manifest.json','fundo.js','painel.html','painel.js','pagina.js','seguranca.js','vigia.js','icone-128.png']);
+          for(const a of arquivos) if(!fs.existsSync(path.join(dir,a)))throw Error('Arquivo ausente: '+a);
+          const referidos=[m.background?.service_worker,m.side_panel?.default_path,...Object.values(m.icons||{}),...(m.content_scripts||[]).flatMap(c=>c.js||[])];
+          for(const a of referidos)if(!fs.existsSync(path.join(dir,a)))throw Error('Arquivo referenciado ausente: '+a);
+          console.log('Manifest v'+m.version+' verificado; '+arquivos.size+' arquivos presentes.');
+          NODE
+          for f in zicoai/extensao/*.js; do node --check "$f"; done
+      - name: Gerar ZIP pronto para carregar sem compactação
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZicoAI-Extensao-Chrome-v2.9
+          path: zicoai/extensao/
+          if-no-files-found: error
+          compression-level: 6
