@@ -2,6 +2,8 @@
 
 ## Oficina 0.3 — integrada na publicação v104
 
+**0.3.1:** conferência de texto vazio gerada no primeiro uso real agora recebe um único reparo completo do contrato. Nenhuma prova vazia é aceita ou descartada para aprovar o app. Persistência do erro após o reparo continua bloqueando a tarefa. A reprodução com o modelo real gerou contrato válido, e a suíte passou em 40/40 testes, sem pulos. A primeira tentativa foi preservada.
+
 Esta seção atualiza o estado da oficina; o registro 0.2 abaixo é histórico. O agente de leitura do Mac e sua flag `ZPONTE_LANGGRAPH` continuam independentes. A oficina conectada usa o **PC**, com seus dois modelos destilados, e não presume que localhost no Mac seja o PC.
 
 Fluxo implementado: PWA 53 → Apps Script 104 → `oficina_iniciar`/`oficina_estado` na ponte PC 2.5 candidata → `servico.cjs` → worker finito serial → contrato de provas → grafo com SQLite → candidato testado → rascunho novo na conversa. Nenhum serviço web é exposto. Apenas código fixo instalado é executado; o modelo não recebe terminal arbitrário.

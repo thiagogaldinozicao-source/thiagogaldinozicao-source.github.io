@@ -10,4 +10,6 @@ Referência de manutenção, 03/11/2026. Fora do índice automático de aulas e 
 
 **Erro observado na integração:** inserir um segundo `if` entre um `if/else` ligou o `else` ao teste errado e abriu a configuração com o app já configurado. A regressão espera a inicialização e verifica que o modal permanece fechado.
 
+**Erro observado no uso publicado:** contrato de provas com texto esperado vazio foi reprovado antes da edição. A correção permite um reparo completo limitado, preservando todas as exigências do teste. Não eliminar a prova que falhou para fabricar aprovação; se o novo contrato continuar inválido, informar a falha e preservar o trabalho.
+
 **Limite:** checkpoint não garante recuperação universal de crash nem qualidade de qualquer app. Trava abandonada exige reconciliação; HTML grande segue edição por trechos. Publicação autorizada em 03/11/2026: PC instalado, transporte Google/ponte e progresso Drive confirmados; Mac distribuído continua pendente. LoRA não foi iniciado.

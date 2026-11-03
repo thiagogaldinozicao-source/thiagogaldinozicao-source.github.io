@@ -36,9 +36,9 @@ async function gerarProvasUmaVez({pedido,html,modelo,fetchImpl=fetch}){
 async function gerarProvas(o){
   let provas;
   try{provas=await gerarProvasUmaVez(o);}catch(e){
-    if(!/reinício fraca|Tema não é texto/.test(e.message))throw e;
+    if(!/reinício fraca|Tema não é texto|Conferência vazia ou não permitida/.test(e.message))throw e;
     if(o.onReparo)o.onReparo(e.message);
-    provas=await gerarProvasUmaVez({...o,pedido:o.pedido+'\nCorreção obrigatória do contrato anterior: '+e.message+'. Não mude o pedido original.'});
+    provas=await gerarProvasUmaVez({...o,pedido:o.pedido+'\nCorreção obrigatória do contrato anterior: '+e.message+'. Revise TODO o contrato: texto exige valor visível esperado não vazio; para ausência de rolagem use tipo semRolagemHorizontal, para cores use temaEscuro. Para zerar/reset, altere o estado primeiro e só depois clique em zerar e confira o resultado. Não mude o pedido original.'});
   }
   if(/\b(tema|modo|fundo) escuro\b/i.test(o.pedido)&&!/(não|nao|sem)\s+(tema|modo|fundo) escuro/i.test(o.pedido)&&!provas.some(p=>p.conferir.some(c=>c.temaEscuro)))provas.push({nome:'Tema escuro medido pelas cores reais',passos:[],conferir:[{temaEscuro:true}]});
   return provas;

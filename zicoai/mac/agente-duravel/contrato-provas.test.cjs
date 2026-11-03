@@ -18,3 +18,11 @@ test('pedido explícito de tema escuro ganha prova real mesmo se o modelo esquec
  const sim=await gerarProvas({...base,pedido:'Crie contador com tema escuro'}),nao=await gerarProvas({...base,pedido:'Crie contador sem tema escuro'});
  assert(sim.some(p=>p.conferir.some(c=>c.temaEscuro)));assert(!nao.some(p=>p.conferir.some(c=>c.temaEscuro)));
 });
+test('conferência vazia permite um reparo limitado, sem aceitar nem apagar a prova inválida',async()=>{
+ let chamadas=0,reparos=0;const base={pedido:'Criar contador',html:'<html></html>',modelo:'pesado'};
+ const invalida=[{nome:'Layout',passos:[],conferir:[{tipo:'texto',seletor:'body',operador:'igual',valor:''}]}];
+ const valida=[{nome:'Soma',passos:[{acao:'clicar',seletor:'#somar',valor:''}],conferir:[{tipo:'texto',seletor:'#valor',operador:'igual',valor:'1'}]}];
+ const p=await gerarProvas({...base,onReparo:()=>reparos++,fetchImpl:async()=>fetchCom(++chamadas===1?invalida:valida)()});
+ assert.equal(chamadas,2);assert.equal(reparos,1);assert.deepEqual(p[0].conferir,[{texto:'#valor',igual:'1'}]);
+ chamadas=0;await assert.rejects(()=>gerarProvas({...base,fetchImpl:async()=>{chamadas++;return fetchCom(invalida)();}}),/Conferência vazia/);assert.equal(chamadas,2);
+});
