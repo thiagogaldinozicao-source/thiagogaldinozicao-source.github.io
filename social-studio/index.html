@@ -4595,7 +4595,7 @@ renderDay();renderIdeas();
         [android,'Androids anunciados'],[ac,'Tipos de acessórios anunciados']].map(x=>'<div class="live-kpi"><strong>'+x[0]+'</strong><span>'+x[1]+'</span></div>').join('')+'</div>'
       +'<div class="live-subtitle">🎯 Foco da vitrine nesta sincronização <span class="mini muted">4 escolhas para variar</span></div>'
       +'<div class="live-focus">'+(cardList.map((g,j)=>{
-        const reference=g.age>0? 'Na planilha de 16/11, '+g.age+' unidade(s) desse modelo tinham 45+ dias; conferir quais ainda estão na loja.':g.tag==='LACRADO EM DESTAQUE'?'Apresentar cores e caixas, sem inventar desconto.':'Atrai outra faixa de público além do iPhone.';
+        const reference=g.age>0? 'Projeção para 16/11: '+g.age+' unidade(s) desse modelo completam 45+ dias; confira as que ainda estão na loja.':g.tag==='LACRADO EM DESTAQUE'?'Apresentar cores e caixas, sem inventar desconto.':'Atrai outra faixa de público além do iPhone.';
         return '<article class="live-item"><span class="live-label">'+safe(g.tag)+'</span><strong>'+safe(g.nm)+'</strong>'
           +'<div class="meta">'+g.qty+' anunciado(s) na última sincronização · '+safe(reference)+'</div>'
           +'<div class="live-chip">'+(selectedDate===current()?'Preço anunciado agora: '+brl(price(g.examples[0])):'Preço: confirmar na data da postagem')+'</div>'
