@@ -35,7 +35,23 @@
 .live-check .bad{color:#ffa8a0;font-weight:850}
 .live-check .ok{color:#7de9c6;font-weight:850}
 .live-hint{font-size:11px;color:#aab9cb;margin-top:12px;line-height:1.6}
-@media(max-width:700px){.live-hero{padding:14px;margin:16px 0}.live-focus{grid-template-columns:1fr}.live-kpis{grid-template-columns:repeat(2,1fr)}.live-kpi strong{font-size:21px}.live-top h2{font-size:20px}.live-check{flex-wrap:wrap}}</style></head>
+@media(max-width:700px){.live-hero{padding:14px;margin:16px 0}.live-focus{grid-template-columns:1fr}.live-kpis{grid-template-columns:repeat(2,1fr)}.live-kpi strong{font-size:21px}.live-top h2{font-size:20px}.live-check{flex-wrap:wrap}}</style><style>
+/* Direção editorial e foco de conversão • 2026 */
+.smart-panel{background:linear-gradient(132deg,#1e2e43 0%,#101b2c 65%,#1a2131 100%);border:1px solid #3f4c5c;border-radius:18px;padding:16px 18px;margin:16px 0}
+.smart-panel h3{font-size:18px;color:#ffe1a8;margin:0 0 6px}
+.smart-panel p{font-size:12px;line-height:1.6;margin:0 0 10px}
+.smart-windows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.smart-win{background:#0d1727;border:1px solid #374a61;border-radius:12px;padding:10px 12px}
+.smart-win strong{display:block;font-size:17px;color:#f4d592}
+.smart-win span{display:block;font-size:11px;color:#bbcada}
+.smart-truth{margin-top:10px!important;color:#93b5cf!important}
+.smart-tag{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:850;letter-spacing:.04em;margin-right:5px}
+.smart-tag.must{color:#132519;background:#80e0af}
+.smart-tag.extra{color:#cbd5e5;background:#344156}
+.smart-tag.peak{color:#1d1708;background:#ffdc83}
+.smart-tag.plan{color:#e8d4ff;background:#4a385e}
+@media(max-width:700px){.smart-windows{grid-template-columns:1fr}.smart-panel{padding:13px}}
+</style></head>
 <body>
 <div class="app">
 <aside class="side">
@@ -60,7 +76,7 @@
  <div class="datebar"><button class="btn small" id="prevDay" aria-label="Dia anterior">❮</button><label for="dateInput">Data</label><input type="date" id="dateInput" min="2026-11-12" max="2026-12-31"><select class="day-select" id="daySelect" aria-label="Escolha o dia em português"></select><button class="btn small" id="nextDay" aria-label="Dia seguinte">❯</button><span class="daterange" id="dateExtra">50 dias planejados</span></div>
  <section id="view-hoje" class="view active">
   <div id="dayIntro"></div>
-  <div id="alerts"></div>
+  <div id="alerts"></div><section id="smartPanel" class="smart-panel" aria-label="Plano de horários que mais vendem"></section>
   <div class="section-head"><h2>📱 Os 4 aparelhos do dia</h2><span class="muted mini">Conferir estoque antes de postar</span></div>
   <div class="model-grid" id="models"></div>
   <div class="kpis" id="kpi"></div>
@@ -91,7 +107,7 @@
       "name": "iPhone 11 128 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Oferta de entrada; mostrar bateria e conservação da unidade."
     },
     {
@@ -99,7 +115,7 @@
       "name": "iPhone 12 64 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Unidades com baterias diferentes; conferir qual está disponível."
     },
     {
@@ -115,7 +131,7 @@
       "name": "iPhone 14 128 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Escolher unidade autorizada para promoção."
     },
     {
@@ -123,7 +139,7 @@
       "name": "iPhone 15 128 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Escolher unidade autorizada para promoção."
     },
     {
@@ -131,7 +147,7 @@
       "name": "iPhone 15 Pro 128 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Há preços e baterias diferentes; confirmar unidade exata."
     },
     {
@@ -139,7 +155,7 @@
       "name": "iPhone 15 Pro Max 256 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Confirmar bateria e condição de cada unidade."
     },
     {
@@ -147,7 +163,7 @@
       "name": "iPhone 15 Pro Max 512 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Confirmar unidade e condição antes do anúncio."
     },
     {
@@ -155,7 +171,7 @@
       "name": "iPhone 15 Pro 256 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Promoções variam por bateria; nunca generalizar para todas as unidades."
     },
     {
@@ -163,7 +179,7 @@
       "name": "iPhone 16 Pro Max 256 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Preço Black de unidades específicas; conferir etiqueta/IMEI internamente."
     },
     {
@@ -171,7 +187,7 @@
       "name": "iPhone 14 Pro Max 128 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Preço varia pela bateria, inclusive unidade de bateria muito baixa; mostrar estado completo."
     },
     {
@@ -179,7 +195,7 @@
       "name": "iPhone 14 Pro Max 256 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Conferir preço da unidade antes de falar."
     },
     {
@@ -187,7 +203,7 @@
       "name": "iPhone 14 Pro 128 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Conferir unidade e condição; aparelho com traseira trincada está pendente e não pode ser anunciado."
     },
     {
@@ -203,7 +219,7 @@
       "name": "iPhone 16 Pro 256 GB",
       "family": "iPhone",
       "condition": "seminovo",
-      "black":null,
+      "black": null,
       "note": "Preço Black de unidade específica, margem baixa; conferir disponibilidade."
     },
     {
@@ -368,57 +384,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -456,57 +472,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -549,7 +565,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -564,7 +580,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -574,12 +590,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -612,37 +628,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -680,57 +696,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -768,57 +784,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -856,57 +872,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -944,57 +960,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1027,37 +1043,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -1100,7 +1116,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -1115,7 +1131,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -1125,12 +1141,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -1163,37 +1179,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -1231,57 +1247,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1319,57 +1335,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1407,57 +1423,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1495,57 +1511,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1583,57 +1599,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1676,7 +1692,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -1691,7 +1707,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -1701,12 +1717,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -1739,37 +1755,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -1807,57 +1823,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1895,57 +1911,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -1983,57 +1999,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2071,57 +2087,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2159,57 +2175,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2252,7 +2268,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -2267,7 +2283,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -2277,12 +2293,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -2315,37 +2331,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -2383,57 +2399,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2471,57 +2487,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2559,57 +2575,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2647,57 +2663,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2735,57 +2751,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -2828,7 +2844,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -2843,7 +2859,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -2853,12 +2869,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -2891,37 +2907,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -2959,57 +2975,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3047,57 +3063,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3135,57 +3151,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3223,57 +3239,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3311,57 +3327,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3404,7 +3420,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -3419,7 +3435,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -3429,12 +3445,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -3467,37 +3483,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -3535,57 +3551,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3623,57 +3639,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3711,57 +3727,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3799,57 +3815,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -3882,37 +3898,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -3955,7 +3971,7 @@
           2
         ],
         [
-          "10:05",
+          "10:10",
           "produto2",
           2
         ],
@@ -3970,7 +3986,7 @@
           2
         ],
         [
-          "12:05",
+          "12:10",
           "produto3",
           2
         ],
@@ -3980,12 +3996,12 @@
           1
         ],
         [
-          "13:20",
+          "13:25",
           "produto4",
           2
         ],
         [
-          "14:15",
+          "14:20",
           "fecho",
           1
         ]
@@ -4018,37 +4034,37 @@
       "reel": false,
       "slots": [
         [
-          "09:10",
+          "10:00",
           "saudacao",
           1
         ],
         [
-          "10:20",
+          "12:30",
           "produto",
           2
         ],
         [
-          "11:35",
+          "15:00",
           "produto2",
           2
         ],
         [
-          "13:00",
+          "17:40",
           "interacao",
           1
         ],
         [
-          "14:40",
+          "18:30",
           "produto3",
           1
         ],
         [
-          "16:00",
+          "18:50",
           "produto4",
           1
         ],
         [
-          "17:20",
+          "19:05",
           "fecho",
           1
         ]
@@ -4086,57 +4102,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -4174,57 +4190,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -4262,57 +4278,57 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
@@ -4350,64 +4366,64 @@
           2
         ],
         [
-          "09:40",
+          "09:50",
           "produto",
           2
         ],
         [
-          "10:25",
+          "10:40",
           "produto2",
           2
         ],
         [
-          "11:15",
+          "11:20",
           "interacao",
           1
         ],
         [
-          "12:05",
+          "12:15",
           "acessorio",
           2
         ],
         [
-          "13:10",
+          "13:00",
           "dica",
           1
         ],
         [
-          "14:00",
+          "13:40",
           "produto3",
           2
         ],
         [
-          "14:55",
+          "14:30",
           "bastidor",
           1
         ],
         [
-          "15:40",
+          "15:10",
           "produto4",
           2
         ],
         [
-          "16:30",
+          "16:05",
           "acessorio2",
           1
         ],
         [
-          "17:10",
+          "16:55",
           "resposta",
           1
         ],
         [
-          "17:45",
+          "17:35",
           "fecho",
           1
         ]
       ]
     }
   ],
-  "updated": "Catálogo público de 12/11/2026 (base editorial; confirme estoque e preços no dia)",
+  "updated": "Zicão Social Studio • horários comerciais revisados em 12/11/2026 • consultar insights do Instagram e estoque no dia",
   "source_url": "https://thiagogaldinozicao-source.github.io/catalogo/"
 }</script>
 <script>
@@ -4454,9 +4470,9 @@ function mediaTask(day,type){const p=productFor(day,type==='feed'?1:0);const key
  if(reel){const title=day.date==='2026-12-31'?'Obrigado, 2026!':day.date==='2026-11-27'?'As ofertas reais da sexta de Black':day.date==='2026-11-16'?'Abrimos a Black!':day.date==='2026-12-24'?'Mensagem especial da equipe':`${p.name}: veja antes de escolher`;
  const shot=ownerVideo?'Cena 1 (0–3s): dono gravando do escritório. Cena 2 (3–10s): Isis mostrando aparelho real na loja. Cena 3 (10–17s): close de outro modelo e acessório. Cena 4 (17–23s): CTA na tela.':'Cena 1 (0–3s): gancho em texto. Cena 2 (3–10s): frente e traseira do aparelho. Cena 3 (10–17s): comparar com segundo aparelho do dia. Cena 4 (17–23s): Isis aparece com chamada para conversar.';
  const script=day.date==='2026-12-31'?'Do nosso escritório e da nossa loja, obrigado por fazer parte de 2026 com a Zicão Store! Qual produto você quer ver em 2027?':day.date==='2026-12-24'?'Passando pra desejar um Natal muito especial! Obrigado por cada visita, conversa e compra na Zicão Store.':`Quer saber se o ${p.name} é pra você? Olha os detalhes da unidade, compara com outra opção e chama a gente pra escolher sem adivinhação.`;
- return {id:`${day.date}-${key}`,time:day.saturday?'11:50':'16:05',kind:'reel',label:'Reel · 20–30 s',count:0,name:'🎬 REEL — '+title,who:ownerVideo?'Dono (escritório) + Isis + Thuane':'Isis (vídeo) + Thuane (edição)',shot,script,cta:'Legenda: "'+day.focus+'. Quer vídeo e condições atualizadas? Chama no direct ou WhatsApp. 📱 #ZicaoStore"',why:'Vídeo curto e bem editado alcança quem ainda não acompanha os Stories. Se ficar sem tempo, grave os clipes hoje e agende a edição com Thuane.',disclaimer:priceMention(p,day)};}
+ return {id:`${day.date}-${key}`,time:day.sunday?'18:30':day.saturday?'11:55':(date.getDay()===2||date.getDay()===3?'14:35':'14:15'),kind:'reel',label:'Reel · 20–30 s',count:0,name:'🎬 REEL — '+title,who:ownerVideo?'Dono (escritório) + Isis + Thuane':'Isis (vídeo) + Thuane (edição)',shot,script,cta:'Legenda: "'+day.focus+'. Quer vídeo e condições atualizadas? Chama no direct ou WhatsApp. 📱 #ZicaoStore"',why:'Vídeo curto e bem editado alcança quem ainda não acompanha os Stories. Se ficar sem tempo, grave os clipes hoje e agende a edição com Thuane.',disclaimer:priceMention(p,day)};}
  const shot='Carrossel de 4 ou 5 páginas: (1) capa com gancho, (2) modelo '+productFor(day,0).name+', (3) '+productFor(day,1).name+', (4) '+productFor(day,2).name+', (5) chamada de WhatsApp. Thuane faz o acabamento; Isis envia vídeos/fotos da loja.';
- return {id:`${day.date}-${key}`,time:day.saturday?'12:30':'12:25',kind:'feed',label:'Post de feed · carrossel',count:0,name:'🖼 POST — '+day.focus,who:'Isis (imagens) + Thuane (arte)',shot,script:`Qual combina mais com você? 📱✨ Hoje separamos ${productFor(day,0).name}, ${productFor(day,1).name} e ${productFor(day,2).name}. Tem opções novas/lacradas e seminovas, conforme os produtos do dia. Passe pro lado e chama a Zicão Store pra conferir disponibilidade, conservação, bateria e valores atualizados.`,cta:'Legenda e imagens devem usar as condições reais do dia; sem desconto fictício nem garantia inventada.',why:'Feed deixa um conteúdo salvável e compartilhável que ajuda a receber pedidos de orçamento.',disclaimer:'Post não deve misturar preços Black em lacrados; no Natal, não repetir promoções vencidas.'};
+ return {id:`${day.date}-${key}`,time:day.sunday?'19:10':day.saturday?'12:35':'12:35',kind:'feed',label:'Post de feed · carrossel',count:0,name:'🖼 POST — '+day.focus,who:'Isis (imagens) + Thuane (arte)',shot,script:`Qual combina mais com você? 📱✨ Hoje separamos ${productFor(day,0).name}, ${productFor(day,1).name} e ${productFor(day,2).name}. Tem opções novas/lacradas e seminovas, conforme os produtos do dia. Passe pro lado e chama a Zicão Store pra conferir disponibilidade, conservação, bateria e valores atualizados.`,cta:'Legenda e imagens devem usar as condições reais do dia; sem desconto fictício nem garantia inventada.',why:'Feed deixa um conteúdo salvável e compartilhável que ajuda a receber pedidos de orçamento.',disclaimer:'Post não deve misturar preços Black em lacrados; no Natal, não repetir promoções vencidas.'};
 }
 function allTasks(day){let t=day.slots.map((slot,i)=>mkStory(day,slot,i));if(day.feed)t.push(mediaTask(day,'feed'));if(day.reel)t.push(mediaTask(day,'reel'));return t.sort((a,b)=>a.time.localeCompare(b.time)||a.kind.localeCompare(b.kind));}
 function doneFor(day){return allTasks(day).filter(t=>state.done[t.id]).length}function fullDone(day){const t=allTasks(day);return t.length>0&&t.every(x=>state.done[x.id])}
@@ -4467,10 +4483,23 @@ function renderModels(day){$('models').innerHTML=day.devices.map((id,i)=>{const 
 const checksList=['Abrir Gestão e confirmar estoque, condição e preço dos 4 aparelhos','Separar e limpar os aparelhos; esconder IMEI e dados de cliente','Conferir acessórios compatíveis, iluminação e câmera limpa','Combinar com Karina e enviar material de arte/Reel à Thuane'];
 function renderPreflight(day){$('preflight').innerHTML=checksList.map((c,i)=>{const key=day.date+'-prep-'+i;return `<div class="checkline"><input type="checkbox" id="c${i}" data-prep="${i}" ${state.checks[key]?'checked':''}><label for="c${i}">${safe(c)}</label></div>`}).join('')}
 function taskHtml(day,t){const done=!!state.done[t.id],isP=t.productIndex!==undefined&&t.productIndex!==null;const p=isP?productFor(day,t.productIndex):null;const opts=isP?`<select class="quickedit" data-swap="${t.productIndex}" aria-label="Substituir modelo"><option value="">Trocar modelo se indisponível…</option>${DATA.catalog.map(x=>`<option value="${x.id}" ${p.id===x.id?'selected':''}>${safe(x.name)}${x.condition==='lacrado'?' · lacrado':''}</option>`).join('')}</select>`:'';
-return `<article class="task ${done?'completed':''}" data-task="${safe(t.id)}" data-kind="${t.kind}"><div class="tm">${safe(t.time)}</div><div class="taskbody"><div class="tasktop"><div style="min-width:0"><div class="taskname">${safe(t.name)}</div><div class="subrow"><span class="pill ${t.kind==='story'?'':t.kind}">${safe(t.label)}</span><span class="who">👤 ${safe(t.who)}</span></div></div><label class="chk"><input type="checkbox" data-done="${safe(t.id)}" ${done?'checked':''}> Feito</label></div><div class="doit">🎥 O que filmar:</div><div class="shot">${safe(t.shot)}</div><div class="doit">🗣 Fala / legenda pronta:</div><div class="talk">${safe(t.script)}</div><div class="shot cta">→ ${safe(t.cta)}</div><div class="whyline">🎯 Por quê: ${safe(t.why)}</div>${t.disclaimer?`<div class="miniwarn">⚠ ${safe(t.disclaimer)}</div>`:''}<div class="taskactions">${opts}<button class="btn small ghost" data-copy="${safe(t.id)}">⧉ Copiar fala</button><button class="btn small" data-detail="${safe(t.id)}">📋 Copiar roteiro completo</button></div></div></article>`}
+const group=t.kind==='story'?(new Set(['saudacao','produto','produto2','acessorio','produto3','produto4','fecho']).has(t.id.split('-').pop())?'ESSENCIAL':'EXTRA'):'CONTEÚDO';const timeN=Number(t.time.slice(0,2))*60+Number(t.time.slice(3));const forte=t.kind!=='story'&&(timeN>=11*60&&timeN<=16*60)||(t.kind==='story'&&timeN>=12*60&&timeN<15*60);const etiquetas=`<span class="smart-tag ${group==='ESSENCIAL'?'must':'extra'}">${group}</span>${forte?'<span class="smart-tag peak">★ JANELA FORTE</span>':''}${day.sunday||day.holiday?'<span class="smart-tag plan">PROGRAMAR</span>':''}`;
+ return `<article class="task ${done?'completed':''}" data-task="${safe(t.id)}" data-kind="${t.kind}"><div class="tm">${safe(t.time)}</div><div class="taskbody"><div class="tasktop"><div style="min-width:0"><div class="taskname">${safe(t.name)}</div><div class="subrow"><span class="pill ${t.kind==='story'?'':t.kind}">${safe(t.label)}</span><span class="who">👤 ${safe(t.who)}</span>${etiquetas}</div></div><label class="chk"><input type="checkbox" data-done="${safe(t.id)}" ${done?'checked':''}> Feito</label></div><div class="doit">🎥 O que filmar:</div><div class="shot">${safe(t.shot)}</div><div class="doit">🗣 Fala / legenda pronta:</div><div class="talk">${safe(t.script)}</div><div class="shot cta">→ ${safe(t.cta)}</div><div class="whyline">🎯 Por quê: ${safe(t.why)}</div>${t.disclaimer?`<div class="miniwarn">⚠ ${safe(t.disclaimer)}</div>`:''}<div class="taskactions">${opts}<button class="btn small ghost" data-copy="${safe(t.id)}">⧉ Copiar fala</button><button class="btn small" data-detail="${safe(t.id)}">📋 Copiar roteiro completo</button></div></div></article>`}
 function renderTasks(day){const tasks=allTasks(day);$('timeline').innerHTML=tasks.filter(t=>filter==='todos'||t.kind===filter).map(t=>taskHtml(day,t)).join('')||'<div class="empty">Nenhuma publicação deste tipo neste dia.</div>'}
 function renderProgress(day){const tasks=allTasks(day),done=doneFor(day),stories=tasks.filter(t=>t.kind==='story').reduce((sum,t)=>sum+t.count,0),storiesDone=tasks.filter(t=>t.kind==='story'&&state.done[t.id]).reduce((sum,t)=>sum+t.count,0);$('kpi').innerHTML=[{n:stories,t:'Stories planejados'},{n:day.feed?'1':'—',t:'Post de feed'},{n:day.reel?'1':'—',t:'Reel do dia'},{n:done+'/'+tasks.length,t:'Blocos concluídos'}].map(x=>`<div class="kpi"><div class="n">${x.n}</div><div class="t">${x.t}</div></div>`).join('');$('progText').textContent=`${done} de ${tasks.length} blocos feitos · ${storiesDone}/${stories} Stories`; $('progFill').style.width=(tasks.length?done/tasks.length*100:0)+'%'}
-function renderDay(){const d=BYDAY[selectedDate];renderHeader(d);renderModels(d);renderPreflight(d);renderTasks(d);renderProgress(d);renderCalendar();$('prevDay').disabled=selectedDate===KEYS[0];$('nextDay').disabled=selectedDate===KEYS[KEYS.length-1];$('dayNotes').value=state.notes[d.date]||'';for(const k of ['directs','leads','sales'])$('metric-'+k).value=state.metrics[d.date]?.[k]??'';let msg=[];if(d.phase==='black')msg.push('Campanha Black de 16 a 30/11: só seminovos selecionados com desconto aprovado. Os lacrados são destaque sem promoção.');if(d.phase==='christmas')msg.push('Natal de 01 a 25/12: descontos Black NÃO continuam automaticamente.');if(d.sunday||d.holiday)msg.push('Este dia é de conteúdo PROGRAMADO. Não afirmar que a loja está aberta.');if(d.specialHours)msg.push('Expediente não confirmado para esta data: prefira conteúdo pré-gravado e não divulgue horários sem conferir.');if(d.devices.some((_,i)=>productFor(d,i)?.condition==='pendente'))msg.push('Existe tablet com cadastro pendente: não divulgar antes da liberação. Troque o modelo pelo seletor se necessário.');$('alerts').innerHTML=msg.map(m=>`<div class="notice">⚠ <div>${safe(m)}</div></div>`).join('')}
+function renderSmart(day){
+ const el=document.getElementById('smartPanel');if(!el)return;
+ const now=day.sunday||day.holiday;
+ const reel=day.reel?allTasks(day).find(t=>t.kind==='reel'):null;
+ const feed=day.feed?allTasks(day).find(t=>t.kind==='feed'):null;
+ const lbl=day.phase==='black'?'🔥 Black: seminovos aprovados; lacrados sem desconto inventado':day.phase==='christmas'?'🎄 Natal: presentes, Androids e acessórios; sem preço Black vencido':'📱 Varejo diário: seminovos + lacrados + Androids + acessórios';
+ el.innerHTML='<h3>🎯 O que priorizar para vender hoje</h3><p>'+safe(lbl)+'. Stories em blocos durante o dia, oferta ou comparativo no almoço e conversa no WhatsApp. Os 4 aparelhos do roteiro são sugestões: confirmar estoque e condições.</p>'
+ +'<div class="smart-windows"><div class="smart-win"><strong>'+(now?'Programado':'09h–11h30')+'</strong><span>'+(now?'Gravar antes; não anunciar loja aberta':'Rosto da Isis, confiança e demonstração de dois modelos')+'</span></div>'
+ +'<div class="smart-win"><strong>'+(now?'12h30–19h10':'12h–15h')+'</strong><span>'+(now?'Distribuir Stories pré-gravados, sem depender do expediente':'Janela forte a testar: oferta real, lacrado, Android e enquete')+'</span></div>'
+ +'<div class="smart-win"><strong>'+(reel?'Reel '+reel.time:feed?'Feed '+feed.time:'15h–18h')+'</strong><span>'+(reel?'Vídeo vertical 20–30 s: gancho, demonstração e CTA':feed?'Carrossel de comparação com CTA; Thuane finaliza':'Acessório em uso, prova social autorizada e responder directs')+'</span></div></div>'
+ +'<p class="smart-truth"><b>ESSENCIAL</b> = 10–13 Stories como base prática; <b>EXTRA</b> = ideias adicionais para dias com movimento. Não postar só por volume. Medir directs, consultas e vendas por 7 dias; ajustar aos Insights dos seguidores do @zicao.store. Horários são hipótese inicial baseada em dados de varejo, não promessa de vendas.</p>';
+}
+function renderDay(){const d=BYDAY[selectedDate];renderHeader(d);renderSmart(d);renderModels(d);renderPreflight(d);renderTasks(d);renderProgress(d);renderCalendar();$('prevDay').disabled=selectedDate===KEYS[0];$('nextDay').disabled=selectedDate===KEYS[KEYS.length-1];$('dayNotes').value=state.notes[d.date]||'';for(const k of ['directs','leads','sales'])$('metric-'+k).value=state.metrics[d.date]?.[k]??'';let msg=[];if(d.phase==='black')msg.push('Campanha Black de 16 a 30/11: só seminovos selecionados com desconto aprovado. Os lacrados são destaque sem promoção.');if(d.phase==='christmas')msg.push('Natal de 01 a 25/12: descontos Black NÃO continuam automaticamente.');if(d.sunday||d.holiday)msg.push('Este dia é de conteúdo PROGRAMADO. Não afirmar que a loja está aberta.');if(d.specialHours)msg.push('Expediente não confirmado para esta data: prefira conteúdo pré-gravado e não divulgue horários sem conferir.');if(d.devices.some((_,i)=>productFor(d,i)?.condition==='pendente'))msg.push('Existe tablet com cadastro pendente: não divulgar antes da liberação. Troque o modelo pelo seletor se necessário.');$('alerts').innerHTML=msg.map(m=>`<div class="notice">⚠ <div>${safe(m)}</div></div>`).join('')}
 function setDate(d){if(!BYDAY[d])return;selectedDate=d;renderDay();if(currentView==='semana')renderWeek();if(currentView==='resultados')renderResults();if(window.innerWidth<740)window.scrollTo({top:0,behavior:'smooth'});}
 function view(name){currentView=name;document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active',el.id==='view-'+name));document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===name));if(name==='semana')renderWeek();if(name==='ideias')renderIdeas();if(name==='resultados')renderResults();window.scrollTo({top:0,behavior:'smooth'})}
 function renderWeek(){const dt=asDate(selectedDate),diff=(dt.getDay()+6)%7;const base=new Date(dt);base.setDate(base.getDate()-diff);let arr=[];for(let i=0;i<7;i++){const x=new Date(base);x.setDate(x.getDate()+i);const iso=[x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(x.getDate()).padStart(2,'0')].join('-');if(BYDAY[iso])arr.push(BYDAY[iso])} $('weekView').innerHTML=`<div class="mini muted" style="margin-bottom:12px">${arr.length?short(arr[0].date)+' até '+short(arr.at(-1).date):''}</div><div style="overflow:auto"><table class="weektable"><thead><tr><th>Data</th><th>Tema e aparelhos</th><th>Conteúdo</th><th>Progresso</th></tr></thead><tbody>${arr.map(d=>{const t=allTasks(d);const n=t.filter(x=>x.kind==='story').reduce((a,b)=>a+b.count,0);return `<tr><td><button class="datepick" data-week-day="${d.date}">${safe(short(d.date))}</button></td><td><b>${safe(d.focus)}</b><div class="modelsline">${d.devices.map((_,i)=>safe(productFor(d,i).name)).join(' · ')}</div></td><td>${n} stories${d.feed?' · Post':''}${d.reel?' · Reel':''}</td><td>${doneFor(d)}/${t.length}</td></tr>`}).join('')}</tbody></table></div>`}
