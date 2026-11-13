@@ -1,0 +1,14 @@
+/* Instagram Analytics — Zicão Social Studio */
+.igs-shell{margin:20px 0 24px;padding:20px;border:1px solid #3c495e;border-radius:20px;background:linear-gradient(125deg,#1b2a41,#101b2b 58%,#152035)}
+.igs-top{display:flex;justify-content:space-between;align-items:start;gap:14px}.igs-top h3{font-size:20px;margin:3px 0 8px;color:#f7d28d}.igs-top p{font-size:12px;max-width:710px;line-height:1.6}
+.igs-kicker{font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:#70dec0}
+.igs-link{display:inline-block;white-space:nowrap;color:#ffe3b0;border:1px solid #735a37;padding:9px 12px;border-radius:10px;text-decoration:none;font-size:11px}
+.igs-buttons{display:flex;flex-wrap:wrap;gap:9px;margin:10px 0}.igs-buttons button,.igs-upload{font-size:12px;font-weight:800;background:#314861;color:#fff;border:1px solid #65778b;border-radius:10px;padding:10px 12px;cursor:pointer}
+.igs-upload{background:#bb9452;color:#17120c;border-color:#ebc789}.igs-buttons .igs-quiet{background:transparent;color:#aebed1;border-color:#485668}
+.igs-meta,.igs-fine{font-size:11px;color:#abbdd2;line-height:1.6}.igs-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px 0}
+.igs-kpi{padding:12px;border:1px solid #3e5166;border-radius:12px;background:#0d1829}.igs-kpi strong{display:block;font-size:22px;line-height:1.2;color:#fff}.igs-kpi span{display:block;font-size:10px;color:#b8c7db;margin-top:4px}
+.igs-two{display:grid;grid-template-columns:1.25fr 1fr;gap:12px}.igs-card,.igs-empty{background:#0e1a2c;border:1px solid #3e5067;border-radius:14px;padding:16px;margin:12px 0}.igs-card h4{font-size:15px;margin:0 0 12px;color:#ffe3b2}
+.igs-table{width:100%;font-size:12px;border-collapse:collapse;text-align:left}.igs-table td,.igs-table th{padding:8px 5px;border-bottom:1px solid #314155}.igs-table td:not(:first-child),.igs-table th:not(:first-child){text-align:right}.igs-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #37455b}.igs-line strong{color:#f8d894}.igs-line span{font-size:11px;color:#b7c9dc}
+.igs-bestrow{padding:10px 0;border-bottom:1px solid #314155}.igs-bestrow strong,.igs-bestrow span{display:block;line-height:1.55}.igs-bestrow span{color:#adc2d7;font-size:11px}.igs-insights p,.igs-empty p{font-size:12px;line-height:1.7}
+.igs-safety,.igs-warning{border:1px solid #575845;background:#24291e;border-radius:12px;padding:11px 13px;color:#c8d5bc;font-size:11px;line-height:1.7;margin-top:12px}.igs-warning{border-color:#8d5651;background:#301e27;color:#ffd0c9}
+@media(max-width:830px){.igs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.igs-two{grid-template-columns:1fr}.igs-top{flex-wrap:wrap}.igs-shell{padding:14px}.igs-kpi strong{font-size:18px}}

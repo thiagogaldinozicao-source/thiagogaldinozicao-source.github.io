@@ -1,0 +1,117 @@
+[
+  {
+    "arquivo": "index.html",
+    "sha256": "ce1f3e923829f73dbf8ff2d496fa3bc79bbb29604b3cdf375ae909d1eab687eb",
+    "bytes": 157685
+  },
+  {
+    "arquivo": "PROJETO.md",
+    "sha256": "1cf627539e90b496e82553c1a85c5fdd31f2655ca813f0f90443d789f621ac14",
+    "bytes": 1499
+  },
+  {
+    "arquivo": "shared-20261113/cloud-backup.js",
+    "sha256": "cb85c76498336b163cf7ac459790da138a873acf2ae0a2109d76f15bd64a7f5a",
+    "bytes": 5561
+  },
+  {
+    "arquivo": "shared-20261113/index.html",
+    "sha256": "906e580e995638f38e305e46b01f90a242db2246c5a3184b765cc8ad04eb907f",
+    "bytes": 157397
+  },
+  {
+    "arquivo": "shared-20261113/core.js",
+    "sha256": "096646336256d6fc7eb5e689848d0657ed122a0c1f185aac4e37e6b59104ee87",
+    "bytes": 7777
+  },
+  {
+    "arquivo": "shared-20261113/equipe.js",
+    "sha256": "cc7852bcec3bed0d5dfb3af63baa0faab4c83e997a25e4a7be18c3537d59bd57",
+    "bytes": 2328
+  },
+  {
+    "arquivo": "shared-20261113/isis.css",
+    "sha256": "e6b27cecd3f4fd5da91b3e726176bb4e83d32d47495250c04b8dd5e7f5dcfa64",
+    "bytes": 2995
+  },
+  {
+    "arquivo": "shared-20261113/legacy.js",
+    "sha256": "fb01838630ef193acd3a2f6a1eb80b954af961a47ed03797090c265569fd9828",
+    "bytes": 2711
+  },
+  {
+    "arquivo": "shared-20261113/cloud-runtime.js",
+    "sha256": "c0213fb19b6022011603d6630bf4638005f96c1054de845dd2d27f2321b14809",
+    "bytes": 11434
+  },
+  {
+    "arquivo": "shared-20261113/shared-core.js",
+    "sha256": "a99d80f4eb5ac95a50869f8746c7441f92a795bc9287470f9ac52f13204f96d5",
+    "bytes": 5970
+  },
+  {
+    "arquivo": "shared-20261113/analytics.js",
+    "sha256": "d65063be1f27b8d5affb59a184cb7bcf95501ec94394178d32dc3baf466ee132",
+    "bytes": 7205
+  },
+  {
+    "arquivo": "shared-20261113/logo-original.png",
+    "sha256": "ae6f97f9d37196bb4f4408893192205d9899390c1e6693fd418a1916a18329b7",
+    "bytes": 324608
+  },
+  {
+    "arquivo": "shared-20261113/brand.css",
+    "sha256": "6fe79dea42f89e06d034c7c64a652f0d6dda4e8cfc20e0570558ab82ae9d02da",
+    "bytes": 2838
+  },
+  {
+    "arquivo": "shared-20261113/manifest.webmanifest",
+    "sha256": "9fe0d83f7bc7b10af7ce635a029eb9afa945cea95b29194f26f8bf31136b17cd",
+    "bytes": 292
+  },
+  {
+    "arquivo": "shared-20261113/firebase-config.js",
+    "sha256": "42c459625e588c749943eb366125a856ae460701ac670066106e0acdb662dc60",
+    "bytes": 357
+  },
+  {
+    "arquivo": "shared-20261113/app-icon.svg",
+    "sha256": "845f70f4c057923d35bb6492e2d1de318151a77d6fed6d1e7b6e9a4e8225980c",
+    "bytes": 255
+  },
+  {
+    "arquivo": "shared-20261113/cloud.css",
+    "sha256": "724be41b53342fe9c19bedd7bc2e5a5fc25b5fc95a461ad9de99783161019e9f",
+    "bytes": 1601
+  },
+  {
+    "arquivo": "shared-20261113/isis.js",
+    "sha256": "09a7d1675a6a0cac92d7329f1eadaf68fc013c05f32701c7d78dc2e525f9b9ee",
+    "bytes": 4976
+  },
+  {
+    "arquivo": "shared-20261113/analytics.css",
+    "sha256": "58a0d207d4335602af0699575f8e742a9a6a5e3903103a3899b6a5dcf5182068",
+    "bytes": 2775
+  },
+  {
+    "arquivo": "anterior/index.html",
+    "sha256": "804b779fe0f1d6ca3f6c6edf9ad4ca6624eeb37e836a346c1db5a549e780e096",
+    "bytes": 155933
+  },
+  {
+    "arquivo": "anterior/analytics.js",
+    "sha256": "1fc254a833ae7dc3a6cdbb375514ab17f715a2ea00beb43ff138711ad3fa9d2a",
+    "bytes": 14643
+  },
+  {
+    "arquivo": "anterior/PROJETO.md",
+    "sha256": "b1c67a5d8a622502238e643fc07b2e4cf82aa0e58df4db6457058403f264a0cf",
+    "bytes": 3060
+  },
+  {
+    "arquivo": "anterior/analytics.css",
+    "sha256": "dfc979c6697ac7ba362444877e3a865e262de16d23a00213baf3c873f70a65ef",
+    "bytes": 2774
+  }
+]
