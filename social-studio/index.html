@@ -51,7 +51,8 @@
 .smart-tag.peak{color:#1d1708;background:#ffdc83}
 .smart-tag.plan{color:#e8d4ff;background:#4a385e}
 @media(max-width:700px){.smart-windows{grid-template-columns:1fr}.smart-panel{padding:13px}}
-</style></head>
+</style><link rel="stylesheet" href="./analytics.css?v=1">
+</head>
 <body>
 <div class="app">
 <aside class="side">
@@ -61,7 +62,7 @@
   <button data-view="hoje" class="active">◉ &nbsp; Plano de hoje</button>
   <button data-view="semana">▦ &nbsp; Visão da semana</button>
   <button data-view="ideias">✦ &nbsp; Banco de ideias</button>
-  <button data-view="resultados">▤ &nbsp; Resultados e notas</button>
+  <button data-view="resultados">▤ &nbsp; Resultados e Instagram</button>
   <button data-view="ajuda">ⓘ &nbsp; Como usar</button>
  </nav>
  <div class="smallcap">Pular para uma data</div>
@@ -94,7 +95,7 @@
  <div class="datafoot">ZICÃO SOCIAL STUDIO · calendário fechado de 12/11 a 31/12/2026 · Planejamento editorial, não automação de postagem. Atualize disponibilidade, preços e horários reais antes de publicar. Feito com foco em execução simples.</div>
 </main>
 </div>
-<nav class="mobilebar" id="mobileNav"><button data-view="hoje" class="active"><span>◉</span>Hoje</button><button data-view="semana"><span>▦</span>Semana</button><button data-view="ideias"><span>✦</span>Ideias</button><button data-view="resultados"><span>▤</span>Controle</button><button data-view="ajuda"><span>ⓘ</span>Ajuda</button></nav>
+<nav class="mobilebar" id="mobileNav"><button data-view="hoje" class="active"><span>◉</span>Hoje</button><button data-view="semana"><span>▦</span>Semana</button><button data-view="ideias"><span>✦</span>Ideias</button><button data-view="resultados"><span>▤</span>Resultados</button><button data-view="ajuda"><span>ⓘ</span>Ajuda</button></nav>
 <div id="toast" class="toast hide" role="status"></div>
 <script id="DATA" type="application/json">{
   "period": {
@@ -4662,5 +4663,6 @@ renderDay();renderIdeas();
   renderDay=function(){base();draw()};
   refresh();setInterval(refresh,15*60*1000);
   window.addEventListener('online',refresh);
-})();</script></body>
+})();</script><script src="./analytics.js?v=1" defer></script>
+</body>
 </html>
