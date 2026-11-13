@@ -1,8 +1,8 @@
 [
   {
     "arquivo": "PROJETO.md",
-    "bytes": 3229,
-    "sha256": "30cd350611ed66b6483f435c5a86d494be28cf127318148ef6988ef273acc0b1"
+    "bytes": 4789,
+    "sha256": "0734e0755622f6a427531431775d187abc0b9ffbbf588d9da8d1415d917ba5fa"
   },
   {
     "arquivo": "anterior/PROJETO.md",
@@ -26,8 +26,8 @@
   },
   {
     "arquivo": "index.html",
-    "bytes": 157925,
-    "sha256": "4a27f3bfb08309fb47988c7c35257ba01d4ca383551b59ee253366856cc3f7e9"
+    "bytes": 158121,
+    "sha256": "9bc1d685b07f02b6dda6656f0d106c00cf5194727a2d36fee085f291890d8cf2"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -61,18 +61,23 @@
   },
   {
     "arquivo": "shared-20261113/cloud-runtime.js",
-    "bytes": 15191,
-    "sha256": "246cdb5a853d94b78adf91e513a5fb0c6d7f1e11b8018e32353d59f8aaf9cc22"
+    "bytes": 16145,
+    "sha256": "1a9985ac565037dee6c59cd0d55b5921038613032a48a8df21a0319a7ee123e0"
   },
   {
     "arquivo": "shared-20261113/cloud.css",
-    "bytes": 1601,
-    "sha256": "724be41b53342fe9c19bedd7bc2e5a5fc25b5fc95a461ad9de99783161019e9f"
+    "bytes": 1974,
+    "sha256": "b5c81dc0aff8b3ab7b25ebfe3f277ff5ceff0157339159ab37c3f9c79c508956"
   },
   {
     "arquivo": "shared-20261113/core.js",
     "bytes": 7777,
     "sha256": "096646336256d6fc7eb5e689848d0657ed122a0c1f185aac4e37e6b59104ee87"
+  },
+  {
+    "arquivo": "shared-20261113/editorial.js",
+    "bytes": 5613,
+    "sha256": "2e43dec5abd1cdf0e15c362fa38171f2da91151d3967712642dd69b6c813603b"
   },
   {
     "arquivo": "shared-20261113/equipe.js",
@@ -86,8 +91,8 @@
   },
   {
     "arquivo": "shared-20261113/index.html",
-    "bytes": 157621,
-    "sha256": "c5ebf75887f4996fac49df4ddc484a0a397eaae3c4d89fe96401d2225d35eb0d"
+    "bytes": 157769,
+    "sha256": "0b7e89591c6f58fd04b21b0000a76220b24809e5b9683c6714a6c63525b6dba7"
   },
   {
     "arquivo": "shared-20261113/isis.css",
@@ -102,7 +107,7 @@
   {
     "arquivo": "shared-20261113/legacy.js",
     "bytes": 2850,
-    "sha256": "4301d3b3fa7b62844d0c321e2a2d37e6df2509abeda406e2985f7aedadf1f32d"
+    "sha256": "2faee8107adc57789976624f67972b9c6932c6ad8c2d13bf2e981ce6229abaa6"
   },
   {
     "arquivo": "shared-20261113/logo-original.png",
@@ -118,5 +123,15 @@
     "arquivo": "shared-20261113/shared-core.js",
     "bytes": 5970,
     "sha256": "a99d80f4eb5ac95a50869f8746c7441f92a795bc9287470f9ac52f13204f96d5"
+  },
+  {
+    "arquivo": "shared-20261113/store-access.js",
+    "bytes": 678,
+    "sha256": "b5150df41396ae7fade509d4c9b81371a3d8bbbba77bc8b43e9d29e03f622bd4"
+  },
+  {
+    "arquivo": "shared-20261113/store-login.js",
+    "bytes": 3748,
+    "sha256": "106bf7f417ae7753781b8bd75bca739dd9fec519a895cb9cffbcbc3ecb0bdff8"
   }
 ]

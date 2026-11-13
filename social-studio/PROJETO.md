@@ -23,3 +23,15 @@ Um recibo por conta/origem impede repetir a migração e trazer marcações anti
 Limites: até 8 milhões de caracteres na cópia; até 5 mil campos no backup. Dados inválidos ou além do limite continuam intactos na origem, com aviso para revisão. O JSON normal de backup v3 exporta o estado compartilhado atual; não inclui todos os arquivos brutos históricos de migração.
 
 Somente este navegador pode detectar seus dados antigos: não funciona após limpar os dados, em janela anônima ou em outro navegador. O cadastro individual da Isis/Karina continua necessário.
+
+## Reels e participação da Toani
+
+Plano editorial ajustado: um Reel principal por semana, em 13, 18 e 27/11; 04, 11, 18, 24 e 31/12. Vídeos simples de 8–20 segundos, sem depender de edição da Toani. Isis e Karina gravam; Thiago participa quando disponível. Toani apoia artes de feed eventualmente. Stories e atendimentos continuam prioridades diárias. Não é uma promessa de desempenho: a captura do perfil não informa alcance ou conversões.
+
+Reels antigos já marcados continuam como histórico com o mesmo identificador. Produtos, preços, Stories e arquivos brutos do plano são preservados; editorial.js aplica a nova frequência em memória. Login por usuário/senha está preparado localmente e aguarda aprovação específica para criar contas/permissões; não faz parte desta publicação editorial.
+
+## Acessos da loja
+
+Três contas internas foram explicitamente autorizadas: thiago administrador; isis/karina equipe. Identificadores técnicos no domínio do projeto não são caixas de correio. Senhas só passam pelo Firebase Authentication. O administrador Google continua ativo. A tela de primeiro acesso usa link privado de uso único para cada pessoa definir sua senha; nenhum link ou senha fica nos arquivos públicos. Ao esquecer a senha ou expirar o link, é necessário gerar outro pelo administrador.
+
+A criação das três contas e a publicação no endereço atual foram autorizadas explicitamente pelo usuário. Senhas serão definidas individualmente nos links privados; esses links não fazem parte desta pasta pública.
