@@ -1,7 +1,7 @@
 /* Firebase adapter: per-field transactions, revision checks, persisted per-user drafts. */
 (()=>{'use strict';
 const S=StudioShared,STUDIO='zicao-social-studio',subscribers=new Set();
-let sdk,db,auth,user=null,role=null,authorized=false,seenServer=false,serverFresh=false,records=new Map(),pending=new Map(),uiState=new Map(),stop=null,timer,busy=false,lastError='';
+let sdk,db,auth,user=null,role=null,authorized=false,seenServer=false,serverFresh=false,records=new Map(),pending=new Map(),uiState=new Map(),stop=null,timer,busy=false,lastError='',migrationBusy=false;
 const gate=document.getElementById('cloud-gate'),status=document.getElementById('cloud-status'),login=document.getElementById('cloud-login'),message=document.getElementById('cloud-login-message');
 document.body.dataset.cloudLocked='true';
 const draftKey=()=>user?'zicao_social_shared_drafts_v1:'+user.uid:null;
@@ -20,11 +20,43 @@ try{await sdk.runTransaction(db,async tx=>{const snap=await tx.get(reference),cu
 }
 async function flush(){if(busy||!authorized||!seenServer||!navigator.onLine)return;busy=true;
 try{for(const [id,op]of [...pending]){if(op.conflict||op.failed)continue;try{const result=await commit(op.entry,op.expectedRev,'painel');records.set(id,result);const latest=pending.get(id);if(latest===op)pending.delete(id);else if(latest&&latest.expectedRev===op.expectedRev)latest.expectedRev=result.rev;lastError=''}catch(e){const latest=pending.get(id);if(latest){latest.conflict=e.code==='conflict';latest.failed=!latest.conflict;}lastError=e.code==='conflict'?'Há um campo para comparar antes de salvar.':'Não foi possível enviar uma alteração. O rascunho não está compartilhado; tente novamente ou exporte um backup.';if(e.code!=='conflict')break}persist();apply()}}finally{busy=false;drawStatus();if([...pending.values()].some(p=>!p.failed&&!p.conflict))timer=setTimeout(flush,600)}}
+// Automatic migration is restricted to this authenticated member's browser snapshot.
+async function migrateLegacy(archive,sourceHash){
+ canEdit();if(migrationBusy)throw Error('A transferência já está em andamento.');if(pending.size)throw Error('Aguarde o envio dos rascunhos antes de transferir as marcações antigas.');
+ if(!/^[a-f0-9]{64}$/.test(sourceHash))throw Error('Identificação de cópia inválida');
+ const account=user.uid,actorEmail=user.email;const check=()=>{if(!authorized||user?.uid!==account)throw Error('A conta mudou. Entre novamente para concluir a transferência.')};
+ const receiptRef=sdk.doc(db,'studios',STUDIO,'migrationReceipts',account+'_'+sourceHash);
+ migrationBusy=true;
+ try{
+  const receipt=await sdk.getDocFromServer(receiptRef);check();if(receipt.exists())return {...receipt.data(),alreadyDone:true};
+  const payload=JSON.stringify(archive.raw);if(payload.length>8000000)throw Error('Cópia antiga muito grande para transferência automática. Os dados originais permanecem preservados.');
+  const chunks=[];for(let offset=0;offset<payload.length;){let end=Math.min(offset+120000,payload.length);const last=payload.charCodeAt(end-1);if(end<payload.length&&last>=0xD800&&last<=0xDBFF)end--;chunks.push(payload.slice(offset,end));offset=end}
+  for(let part=0;part<chunks.length;part++){check();const ref=sdk.doc(db,'studios',STUDIO,'migrationArchives',account+'_'+sourceHash+'_'+part);const existing=await sdk.getDocFromServer(ref);check();if(existing.exists()){if(existing.data().payload!==chunks[part])throw Error('A cópia de segurança não corresponde à origem.');continue}try{await sdk.setDoc(ref,{actorUid:account,actorEmail,sourceHash,part,total:chunks.length,payload:chunks[part],createdAt:sdk.serverTimestamp()})}catch(error){const retry=await sdk.getDocFromServer(ref);if(!retry.exists()||retry.data().payload!==chunks[part])throw error}check()}
+  // The complete raw snapshot is safely stored before interpreting or merging any field.
+  const raw=archive.raw.zicao_isis_social_2026_v1;
+  const incoming=raw===null?[]:S.readBackup({app:'zicao-social-isis',version:1,state:{done:{},checks:{},overrides:{},notes:{},metrics:{},...JSON.parse(raw)}});
+  let added=0,same=0,conflicts=0,empty=0;
+  const preserve=entry=>{conflicts++;if(!pending.has(entry.id))pending.set(entry.id,{entry,expectedRev:records.get(entry.id)?.rev||0,conflict:true,failed:false,origin:'migracao-antiga'});persist();apply()};
+  for(const entry of incoming){check();if(entry.value===''||entry.value===false){empty++;continue}
+   if(pending.has(entry.id)){preserve(entry);continue}
+   const current=records.get(entry.id);
+   if(current){if(S.equal(current.value,entry.value)||(entry.section==='done'&&current.value&&entry.value)){same++;continue}preserve(entry);continue}
+   try{const result=await commit(entry,0,'migracao-antiga:'+sourceHash.slice(0,20));check();records.set(entry.id,result);added++;apply()}
+   catch(error){check();if(error.code==='conflict'){const fresh=await sdk.getDocFromServer(sdk.doc(db,'studios',STUDIO,'entries',entry.id));check();if(fresh.exists())records.set(entry.id,{...entry,...fresh.data()});preserve(entry)}else throw error}
+  }
+  check();const result={actorUid:account,actorEmail,sourceHash,added,same,conflicts,empty,createdAt:sdk.serverTimestamp()};
+  // Creating a receipt only after all fields prevents stale legacy data from reappearing
+  // after someone later unchecks a successfully migrated block.
+  try{await sdk.setDoc(receiptRef,result)}catch(error){const retry=await sdk.getDocFromServer(receiptRef);if(!retry.exists())throw error;check();apply();return {...retry.data(),alreadyDone:true}}check();apply();return result;
+ }finally{migrationBusy=false}
+}
+
 save=function(){try{canEdit();const after=S.flatten(state);for(const entry of S.changes(uiState,after)){const previous=pending.get(entry.id);pending.set(entry.id,{entry,expectedRev:previous?.expectedRev??records.get(entry.id)?.rev??0,conflict:previous?.conflict||false,failed:false})}uiState=after;persist();lastError='';drawStatus();clearTimeout(timer);timer=setTimeout(flush,650)}catch(e){lastError=e.message;drawStatus();apply()}};
 window.addEventListener('beforeunload',e=>{if(pending.size){e.preventDefault();e.returnValue='Há rascunhos ainda não sincronizados.'}});
 window.addEventListener('online',()=>{for(const p of pending.values())if(!p.conflict)p.failed=false;flush()});window.addEventListener('offline',()=>{serverFresh=false;drawStatus()});
 window.StudioCloud={
  subscribe(fn){subscribers.add(fn);fn(S.materialize(currentRecords().values()).analytics);return()=>subscribers.delete(fn)},
+ migrateLegacy,
  get role(){return role},get ready(){return authorized&&seenServer},get pendingCount(){return pending.size},
  get records(){return new Map(records)},get projectId(){return window.ZICAO_FIREBASE_CONFIG?.projectId||null},
  snapshot(){canEdit();const b=S.backup(currentRecords().values(),this.projectId);b.cloud.unsentDrafts=pending.size;return b},
