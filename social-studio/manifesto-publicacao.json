@@ -27,7 +27,7 @@
   {
     "arquivo": "index.html",
     "bytes": 158121,
-    "sha256": "9bc1d685b07f02b6dda6656f0d106c00cf5194727a2d36fee085f291890d8cf2"
+    "sha256": "44e61506cdfbdc0cf82d70c20c41b4fc425d976879ec637c09db2a5da803f4b1"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -76,8 +76,8 @@
   },
   {
     "arquivo": "shared-20261113/editorial.js",
-    "bytes": 5613,
-    "sha256": "2e43dec5abd1cdf0e15c362fa38171f2da91151d3967712642dd69b6c813603b"
+    "bytes": 5638,
+    "sha256": "b136ba34764de59a94e901d1a0b7c6660a4d7cd114fdc7ed987f4d3a356fa7e5"
   },
   {
     "arquivo": "shared-20261113/equipe.js",
@@ -92,7 +92,7 @@
   {
     "arquivo": "shared-20261113/index.html",
     "bytes": 157769,
-    "sha256": "0b7e89591c6f58fd04b21b0000a76220b24809e5b9683c6714a6c63525b6dba7"
+    "sha256": "a2dd5a9dc716f630f9619c91ea115c551961ccbd02beef2b12e9a6e2463c2b51"
   },
   {
     "arquivo": "shared-20261113/isis.css",
