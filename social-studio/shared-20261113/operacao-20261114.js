@@ -42,6 +42,7 @@ mkStory=function(day,slot,idx){
  const task=antigoStory(day,slot,idx);
  const type=slot[1];
  if(day.sunday){
+   task.id=day.date+'-dono-domingo';
    task.name='Domingo do dono — Story opcional';
    task.who='Thiago (dono, de casa — opcional)';
    task.shot='Selfie vertical, 8 a 15 segundos, de casa. Sem equipe, sem loja aberta e sem obrigação de postar. Pode usar enquete do Instagram.';
@@ -53,6 +54,7 @@ mkStory=function(day,slot,idx){
    return task;
  }
  if(day.date==='2026-12-25'){
+   task.id=day.date+'-dono-natal';
    task.name='Natal — mensagem opcional do dono';
    task.who='Thiago (opcional; pode deixar programado)';
    task.shot='Vídeo curto de agradecimento gravado antes do Natal. Nada de exigir gravação ou atendimento no feriado.';
@@ -142,11 +144,28 @@ if(help)for(const panel of help.querySelectorAll('.panel')){
 const foot=document.querySelector('.side-foot small');
 if(foot)foot.textContent='Até 31/12: Stories úteis em blocos, 1 Reel principal por semana, posts selecionados e atendimento real. Domingo é folga da equipe.';
 const note=document.getElementById('editorial-frequency');
+const renderHeaderAntes=renderHeader;
+renderHeader=function(day){
+ renderHeaderAntes(day);
+ const chips=document.querySelectorAll('#dayIntro .stage .chip');
+ if(day.sunday||day.date==='2026-12-25'){
+   const status=day.sunday?'Domingo · loja fechada · equipe de folga':'Natal · equipe de folga';
+   document.getElementById('dateExtra').textContent=status;
+   if(chips[1])chips[1].textContent=status;
+   if(chips[2])chips[2].textContent='1 Story opcional do dono';
+ }else if(chips[2]){
+   chips[2].textContent='2 destaques + acessórios'+(day.feed?' + feed':'')+(day.reel?' + Reel':'');
+ }
+};
 const renderAntes=renderDay;
 renderDay=function(){
  renderAntes();
  const d=BYDAY[selectedDate];
  if(!d)return;
+ if(d.sunday||d.date==='2026-12-25'){
+   const prep=document.getElementById('preflight');if(prep)prep.innerHTML='<p class="mini">Sem preparação obrigatória da equipe neste dia.</p>';
+   const models=document.getElementById('models');if(models)models.innerHTML='<p class="mini">Não há aparelhos obrigatórios para demonstrar hoje. Story do dono é opcional.</p>';
+ }
  if(note){
    note.textContent=d.sunday?'DOMINGO: loja fechada, equipe de folga. Thiago pode gravar 1 Story de casa, se quiser.':
    d.date==='2026-12-25'?'NATAL: mensagem pré-gravada opcional. Nenhuma tarefa para a equipe.':
