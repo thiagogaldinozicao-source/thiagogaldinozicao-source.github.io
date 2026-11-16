@@ -1,8 +1,8 @@
 [
   {
     "arquivo": "PROJETO.md",
-    "bytes": 10497,
-    "sha256": "60a6edb3d7194f1ab41c9568c0dc7c28134e552233adcb4e5e0585ab7971004e"
+    "bytes": 11129,
+    "sha256": "e7a305fb3ebbb16331fb67ca271d33c4235f92b3a186502b511087a936a231d6"
   },
   {
     "arquivo": "analytics.css",
@@ -36,8 +36,8 @@
   },
   {
     "arquivo": "index.html",
-    "bytes": 159981,
-    "sha256": "ca1aa7109f6e07abde0d2989818137f41e300a73ee095aef29bfdc2c8ea597ca"
+    "bytes": 160142,
+    "sha256": "959ed69a301a0b21513615775933ce2c07b11a610d5e2cadb08c7a9b73fd5088"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -101,8 +101,8 @@
   },
   {
     "arquivo": "shared-20261113/index.html",
-    "bytes": 159613,
-    "sha256": "d38e1b8addece0e516f557b2382885bddcb18674e90bf998762bab4b79a85364"
+    "bytes": 159742,
+    "sha256": "46d1e3a9f85ee08bc6d4b8044ac80a9bb77630c7a856019c64137072922b3b64"
   },
   {
     "arquivo": "shared-20261113/isis.css",
@@ -128,6 +128,16 @@
     "arquivo": "shared-20261113/manifest.webmanifest",
     "bytes": 292,
     "sha256": "9fe0d83f7bc7b10af7ce635a029eb9afa945cea95b29194f26f8bf31136b17cd"
+  },
+  {
+    "arquivo": "shared-20261113/metricool-insights.js",
+    "bytes": 8550,
+    "sha256": "5d7aacdaa0e939c2ce82bd9264dd4bd3cc9fd71b8f6a8a2160c790d866a2d8cb"
+  },
+  {
+    "arquivo": "shared-20261113/metricool-model.js",
+    "bytes": 3525,
+    "sha256": "cfe7e86ec0d38db9077b19d4a05a7e56780b279c11b4d710744672d0359ad669"
   },
   {
     "arquivo": "shared-20261113/operacao-20261114.js",

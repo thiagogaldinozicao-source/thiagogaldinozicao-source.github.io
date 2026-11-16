@@ -73,3 +73,8 @@ Thuane: identificação por usuário e primeiro acesso adicionados à fonte/paco
 O proprietário autorizou publicar esta revisão no mesmo endereço, somente em social-studio/. Esta versão inclui o usuário thuane, com conta Authentication e perfil editor já configurados no projeto existente. A senha foi definida pelo usuário; não está no pacote. As correções de folgas, histórico, roteiros, progresso e comparação de métricas fazem parte deste pacote.
 
 Os registros anteriores de “revisão local / não publicada” descrevem a etapa de preparação e são substituídos por esta autorização. Nenhum arquivo privado de acesso acompanha a publicação. As marcações permanecem no banco existente, com IDs preservados; não há limpeza de armazenamento, importação em massa, troca de banco ou publicação de regras nesta atualização. Evidências da conclusão serão registradas localmente em firebase/PUBLICACAO.md após a validação.
+
+
+## Métricas do Metricool — 16/11/2026
+
+Resultados e Instagram inclui uma área protegida para a última importação pontual da marca zicao.store. Séries diárias, Reels históricos, sugestões de horários e recomendações aparecem separados do CSV e do checklist. O painel mostra cobertura, ausência de dados e dia parcial; não apresenta pontuações de horários como previsão de alcance. Não há atualização automática. Backups das métricas podem ser baixados no próprio painel; dados privados permanecem no Firestore, fora destes arquivos públicos. Domingos e feriados continuam sem obrigação para a equipe.
