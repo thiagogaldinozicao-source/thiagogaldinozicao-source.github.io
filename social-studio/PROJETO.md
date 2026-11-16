@@ -55,3 +55,21 @@ Implementação: \`shared-20261113/operacao-20261114.js\`, carregado depois de e
 - Não mexe em dados de estoque, preços, Gestão, Sleep Player ou Central-IA; não publica no Instagram.
 
 Rollback desta atualização: reverter somente a inclusão do script \`operacao-20261114.js\` em \`social-studio/index.html\` e a alteração pontual em \`isis.js\`, mantendo a versão do Firebase e os dados já sincronizados. Não limpar armazenamento nem excluir arquivos históricos. Os identificadores das tarefas existentes são preservados; rotinas retiradas da agenda continuam preservadas no banco, e posts antigos já marcados permanecem acessíveis como histórico.
+
+
+## Revisão local — 16/11/2026 — NÃO PUBLICADA
+
+A base foi atualizada a partir do site publicado correspondente à revisão 48a277e33bf3869c2f442a677632a1b70277a746, posterior a 71ce692. Cópia exata da base pública em base-publicada-48a277e-2026-11-16/; fonte/pacote local anterior e ZIP preparados preservados em backup-local-antes-correcoes-2026-11-16-153259/. Nenhum commit, deploy ou atualização das regras Firebase nesta revisão.
+
+Correções locais: domingos e feriados sem blocos obrigatórios; opcionais e histórico fora dos denominadores de progresso diário/semanal/período; Stories retirados mas já marcados visíveis como histórico com os IDs originais; enquete no roteiro principal e sem promessa de demonstração no domingo; dois destaques e preparação coerente; Reels mantidos em oito semanas; horários tratados como sugestões. Comparação de métricas por formato/hora com amostra e cobertura, sem estimar ausências nem declarar horário vencedor. Importação continua por CSV confirmado.
+
+Thuane: identificação por usuário e primeiro acesso adicionados à fonte/pacote local. Perfil members/thuane@zicao-social-studio.firebaseapp.com criado no projeto existente, active=true, role=editor, name=Thuane, conforme pedido específico. Conta Authentication criada e confirmada nesta sessão. A senha foi inserida pelo próprio usuário no console, sem ser lida pelo agente. Identificador interno verificado administrativamente, conta habilitada e perfil editor ativo confirmados por consulta às APIs oficiais. Nenhuma senha foi alterada pelo agente. O site atualmente publicado não reconhece o usuário thuane: precisará de futura publicação autorizada da atualização de login. Não afirmar que o acesso está funcionando ou que um link privado já foi gerado.
+
+47 testes isolados aprovados (16 modelo, 13 runtime/migração, 2 origem, 4 editorial, 3 identificadores, 9 operação/métricas/Thuane). Originais, logo e JSON de planejamento íntegros; Java ausente, emuladores não repetidos. Prévia visual local com Firebase e consulta externa desativados confirmou feriado/domingo sem cobrança e a visão semanal; detalhes em manutencao-2026-11-16/. Nenhuma marcação real foi alterada ou removida.
+
+
+## Pacote autorizado para publicação — 16/11/2026
+
+O proprietário autorizou publicar esta revisão no mesmo endereço, somente em social-studio/. Esta versão inclui o usuário thuane, com conta Authentication e perfil editor já configurados no projeto existente. A senha foi definida pelo usuário; não está no pacote. As correções de folgas, histórico, roteiros, progresso e comparação de métricas fazem parte deste pacote.
+
+Os registros anteriores de “revisão local / não publicada” descrevem a etapa de preparação e são substituídos por esta autorização. Nenhum arquivo privado de acesso acompanha a publicação. As marcações permanecem no banco existente, com IDs preservados; não há limpeza de armazenamento, importação em massa, troca de banco ou publicação de regras nesta atualização. Evidências da conclusão serão registradas localmente em firebase/PUBLICACAO.md após a validação.

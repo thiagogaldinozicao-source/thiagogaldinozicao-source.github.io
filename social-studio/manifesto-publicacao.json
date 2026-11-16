@@ -1,8 +1,18 @@
 [
   {
     "arquivo": "PROJETO.md",
-    "bytes": 4789,
-    "sha256": "0734e0755622f6a427531431775d187abc0b9ffbbf588d9da8d1415d917ba5fa"
+    "bytes": 10497,
+    "sha256": "60a6edb3d7194f1ab41c9568c0dc7c28134e552233adcb4e5e0585ab7971004e"
+  },
+  {
+    "arquivo": "analytics.css",
+    "bytes": 2774,
+    "sha256": "dfc979c6697ac7ba362444877e3a865e262de16d23a00213baf3c873f70a65ef"
+  },
+  {
+    "arquivo": "analytics.js",
+    "bytes": 14643,
+    "sha256": "1fc254a833ae7dc3a6cdbb375514ab17f715a2ea00beb43ff138711ad3fa9d2a"
   },
   {
     "arquivo": "anterior/PROJETO.md",
@@ -26,8 +36,8 @@
   },
   {
     "arquivo": "index.html",
-    "bytes": 158121,
-    "sha256": "44e61506cdfbdc0cf82d70c20c41b4fc425d976879ec637c09db2a5da803f4b1"
+    "bytes": 159981,
+    "sha256": "ca1aa7109f6e07abde0d2989818137f41e300a73ee095aef29bfdc2c8ea597ca"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -36,8 +46,8 @@
   },
   {
     "arquivo": "shared-20261113/analytics.js",
-    "bytes": 7205,
-    "sha256": "d65063be1f27b8d5affb59a184cb7bcf95501ec94394178d32dc3baf466ee132"
+    "bytes": 8660,
+    "sha256": "824bf6411be3e0e987c87a398b6d0b0e72f0975b42d3ced7d4840a333b9f7710"
   },
   {
     "arquivo": "shared-20261113/app-icon.svg",
@@ -71,13 +81,13 @@
   },
   {
     "arquivo": "shared-20261113/core.js",
-    "bytes": 7777,
-    "sha256": "096646336256d6fc7eb5e689848d0657ed122a0c1f185aac4e37e6b59104ee87"
+    "bytes": 8271,
+    "sha256": "f6746bbf35ab358a8d67a2017ce73db94405d5f2a6212ef9b362d4adbce0ded1"
   },
   {
     "arquivo": "shared-20261113/editorial.js",
-    "bytes": 5638,
-    "sha256": "b136ba34764de59a94e901d1a0b7c6660a4d7cd114fdc7ed987f4d3a356fa7e5"
+    "bytes": 5655,
+    "sha256": "b5302c6429b7188d6270451ceabcf7e3e0fc7b7277dca1f71794f3d0cdadc615"
   },
   {
     "arquivo": "shared-20261113/equipe.js",
@@ -91,8 +101,8 @@
   },
   {
     "arquivo": "shared-20261113/index.html",
-    "bytes": 157769,
-    "sha256": "a2dd5a9dc716f630f9619c91ea115c551961ccbd02beef2b12e9a6e2463c2b51"
+    "bytes": 159613,
+    "sha256": "d38e1b8addece0e516f557b2382885bddcb18674e90bf998762bab4b79a85364"
   },
   {
     "arquivo": "shared-20261113/isis.css",
@@ -101,8 +111,8 @@
   },
   {
     "arquivo": "shared-20261113/isis.js",
-    "bytes": 4976,
-    "sha256": "09a7d1675a6a0cac92d7329f1eadaf68fc013c05f32701c7d78dc2e525f9b9ee"
+    "bytes": 6432,
+    "sha256": "f029294233f8af0cf9674a10bf90f600e77f83256368774666e23cb1d0dfb432"
   },
   {
     "arquivo": "shared-20261113/legacy.js",
@@ -120,18 +130,23 @@
     "sha256": "9fe0d83f7bc7b10af7ce635a029eb9afa945cea95b29194f26f8bf31136b17cd"
   },
   {
+    "arquivo": "shared-20261113/operacao-20261114.js",
+    "bytes": 12972,
+    "sha256": "5b1feb6e5887a862efd8ec2630391a37b257def39f3f55843f459ef3d965f732"
+  },
+  {
     "arquivo": "shared-20261113/shared-core.js",
     "bytes": 5970,
     "sha256": "a99d80f4eb5ac95a50869f8746c7441f92a795bc9287470f9ac52f13204f96d5"
   },
   {
     "arquivo": "shared-20261113/store-access.js",
-    "bytes": 678,
-    "sha256": "b5150df41396ae7fade509d4c9b81371a3d8bbbba77bc8b43e9d29e03f622bd4"
+    "bytes": 702,
+    "sha256": "de75cbbfa2286f6572fbb542508161348f1484774552b3446a813a8f9ab1c521"
   },
   {
     "arquivo": "shared-20261113/store-login.js",
-    "bytes": 3748,
-    "sha256": "106bf7f417ae7753781b8bd75bca739dd9fec519a895cb9cffbcbc3ecb0bdff8"
+    "bytes": 3756,
+    "sha256": "afb814b2de7ac6d75e0a281cf281c65dd5d55661de764b678adefd7d98188a81"
   }
 ]

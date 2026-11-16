@@ -1,6 +1,6 @@
 /* Guided execution, using the existing task IDs and progress. Test version only. */
 (()=>{'use strict';
-const essential=new Set(['saudacao','produto','produto2','acessorio','produto3','produto4','fecho']);
+const essential=new Set(['saudacao','produto','produto2','interacao','acessorio','produto3','produto4','fecho']);
 let lastMarked=null;
 const guide=document.createElement('section');guide.id='isis-guide';guide.className='isis-guide';guide.setAttribute('aria-label','Próximo passo da Isis');
 document.getElementById('dayIntro').after(guide);
@@ -9,17 +9,17 @@ const first=document.getElementById('live-hero'),last=document.getElementById('p
 if(first&&last){let nodes=[],n=first;while(n){nodes.push(n);if(n===last)break;n=n.nextElementSibling}fold('isis-prep','Conferir aparelhos e preparação',nodes)}
 const timeline=document.getElementById('timeline');const full=fold('isis-full','Ver roteiro completo e extras',[timeline.previousElementSibling,timeline]);
 const closing=document.querySelector('#view-hoje .cols2');fold('isis-closing','Encerrar o dia: anotações e atendimentos',[closing]);
-document.querySelector('.mast h1').textContent='Isis, vamos por partes.';
+document.querySelector('.mast h1').textContent='Equipe Zicão, vamos por partes.';
 document.querySelector('.mast .lead').textContent='Confira o próximo bloco, grave e marque depois de publicar. O roteiro completo continua logo abaixo.';
 function draw(){const d=BYDAY[selectedDate];if(!d)return;
-if(d.sunday||d.date==='2026-12-25'){
- const t=allTasks(d).find(x=>x.kind==='story');
+if(d.sunday||d.holiday){
+ const t=allTasks(d).find(x=>x.kind==='story'&&!x.history);
  const owner=window.StudioCloud&&window.StudioCloud.role==='owner';
  const done=t&&!!state.done[t.id];
  guide.innerHTML='<div class="isis-topline"><span>DESCANSO DA EQUIPE</span><span>Sem blocos obrigatórios</span></div>'+
- '<h2 id="isis-task-title" tabindex="-1">'+(d.sunday?'Domingo — loja fechada':'Natal — mensagem opcional')+'</h2>'+
- '<p>Isis, Karina e Thuane estão de folga. Nenhum Story é obrigatório para a equipe neste dia.</p>'+
- (t?'<p class="isis-owner">Story opcional: <b>'+safe(t.who)+'</b></p><p>'+safe(t.shot)+'</p><blockquote>'+safe(t.script)+'</blockquote><p class="isis-cta">'+safe(t.cta)+'</p>':'')+
+ '<h2 id="isis-task-title" tabindex="-1">'+(d.sunday?'Domingo — loja fechada':d.date==='2026-12-25'?'Natal — mensagem opcional':'Feriado — conteúdo opcional')+'</h2>'+
+ '<p>Nenhum Story é obrigatório para Isis, Karina ou Thuane neste dia. Use somente conteúdo preparado antes, se quiser.</p>'+
+ (t?'<p class="isis-owner">Conteúdo opcional: <b>'+safe(t.who)+'</b></p><p>'+safe(t.shot)+'</p><blockquote>'+safe(t.script)+'</blockquote><p class="isis-cta">'+safe(t.cta)+'</p>':'')+
  (owner&&t?'<div class="isis-actions"><button id="isis-copy" class="btn" type="button">Copiar fala</button><button id="isis-done" class="btn primary" type="button">'+(done?'Desfazer marcação':'Marquei que publiquei ✓')+'</button></div>':'')+
  '<p class="isis-check">A loja não deve ser anunciada como aberta. A publicação é opcional e não é uma tarefa da equipe.</p>';
  const copyButton=document.getElementById('isis-copy');
@@ -28,7 +28,7 @@ if(d.sunday||d.date==='2026-12-25'){
  if(doneButton)doneButton.onclick=()=>setTaskDone(t.id,!done);
  return;
 }
-const main=allTasks(d).filter(t=>t.kind!=='story'||essential.has(t.id.split('-').pop()));
+const main=requiredTasks(d).filter(t=>t.kind!=='story'||essential.has(t.id.split('-').pop()));
 const finished=main.filter(t=>state.done[t.id]).length,remaining=main.filter(t=>!state.done[t.id]),t=remaining[0];
 guide.innerHTML='<div class="isis-topline"><span>ROTEIRO PRINCIPAL</span><span>'+finished+' de '+main.length+' blocos marcados</span></div>'+
 ((d.sunday||d.holiday||d.specialHours)?'<p class="isis-check">Conteúdo pré-gravado ou programado. Confirme o expediente; não anuncie a loja aberta sem conferir.</p>':'')+

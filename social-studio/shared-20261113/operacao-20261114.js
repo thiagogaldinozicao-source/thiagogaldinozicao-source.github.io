@@ -2,6 +2,7 @@
    Só altera planejamento em memória. Não altera Firebase, preços nem estoque. */
 (function(){
 'use strict';
+const originalSlots=new Map(DAYS.map(d=>[d.date,d.slots.map(slot=>slot.slice())]));
 const feedOriginal=new Set(DAYS.filter(function(d){return d.feed}).map(function(d){return d.date}));
 const datasFeedEspecial=new Set(['2026-11-16','2026-12-01','2026-12-24','2026-12-31']);
 const datasAberturaDono={
@@ -46,11 +47,11 @@ mkStory=function(day,slot,idx){
    task.name='Domingo do dono — Story opcional';
    task.who='Thiago (dono, de casa — opcional)';
    task.shot='Selfie vertical, 8 a 15 segundos, de casa. Sem equipe, sem loja aberta e sem obrigação de postar. Pode usar enquete do Instagram.';
-   task.script='Falaaaa, galeraaaaa! Domingão por aqui, a loja está fechada e a equipe está de folga. '+(temasDomingo[day.date]||'O que vocês gostariam de ver na Zicão esta semana?');
+   task.script='Fala, galera! Hoje a loja está fechada e a equipe está de folga. '+(temasDomingo[day.date]||'O que vocês gostariam de ver na Zicão esta semana?');
    task.cta='Responde à enquete ou deixa sua sugestão. A equipe responde no próximo expediente.';
    task.why='Presença humana do dono sem ocupar o descanso da equipe.';
    task.disclaimer='DOMINGO: loja fechada. Sem tarefa para Isis, Karina ou Thuane. Publicação inteiramente opcional.';
-   task.optional=true;
+   task.optional=true;task.ownerOnly=true;
    return task;
  }
  if(day.date==='2026-12-25'){
@@ -62,11 +63,14 @@ mkStory=function(day,slot,idx){
    task.cta='A equipe retorna às mensagens no próximo expediente confirmado.';
    task.why='Mensagem humana sem movimentar a equipe no feriado.';
    task.disclaimer='25/12: nenhuma tarefa para Isis, Karina ou Thuane. Não anunciar a loja como aberta.';
-   task.optional=true;
+   task.optional=true;task.ownerOnly=true;
    return task;
  }
  if(day.holiday){
-   task.who='Conteúdo preparado previamente (somente se expediente confirmado)';
+   task.optional=true;
+   task.who='Pré-gravado opcional, sem obrigação da equipe';
+   task.cta='Pode deixar sua dúvida. A equipe responde no próximo expediente confirmado.';
+   if(type==='saudacao'){task.script='Hoje é feriado. Deixamos este conteúdo preparado para vocês; a equipe retorna no próximo expediente confirmado. Qual aparelho você quer conhecer melhor?';task.shot='Use uma mensagem pré-gravada curta. Não simule abertura da loja.';}
    task.shot+=' Confirmar expediente de feriado antes de anunciar abertura; gravar antes, se a loja não funcionar.';
    task.disclaimer='Feriado: expediente não confirmado. Não exigir trabalho fora da escala.';
  }
@@ -104,7 +108,7 @@ mediaTask=function(day,type){
    task.shot='Karina confere e fotografa os aparelhos reais; Isis escolhe uma legenda curta e publica. Thuane pode aprimorar a arte quando disponível. '+task.shot;
  }
  if(type==='reel'&&reelsDono[day.date]){
-   task.name='Reel da semana — participação do dono';
+   task.name+=' · participação do dono';
    task.who='Thiago (fala, se disponível) + Karina (demonstra) + Isis (publica)';
    task.shot='Thiago grava fala de 8–15 segundos. Karina mostra aparelho ou acessório real; Isis publica. Se Thiago não puder, a equipe grava sem adiar o Reel.';
    task.script=reelsDono[day.date];
@@ -120,11 +124,13 @@ allTasks=function(day){
  if(!day.feed&&feedOriginal.has(day.date)&&state.done[day.date+'-feed']){
    const hist=antigoMedia(day,'feed');
    tasks.push(Object.assign({},hist,{
-     name:'Post marcado anteriormente — histórico',
+     history:true,name:'Post marcado anteriormente — histórico',
      who:'Registro preservado; não é uma nova tarefa',
      disclaimer:'Post anteriormente concluído, mantido somente no histórico. Nenhuma nova publicação exigida.'
    }));
  }
+ // Removed Stories stay visible as history with their original IDs; no mark is rewritten.
+ for(const slot of originalSlots.get(day.date)||[]){const id=day.date+'-'+slot[1];if(state.done[id]&&!tasks.some(t=>t.id===id)){const hist=antigoStory(day,slot,0);tasks.push(Object.assign({},hist,{history:true,name:'Story marcado anteriormente — histórico',who:'Registro anterior preservado',disclaimer:'Não é uma nova obrigação. A marcação original permanece no backup.'}))}}
  return tasks.sort(function(a,b){return a.time.localeCompare(b.time)||a.kind.localeCompare(b.kind)});
 };
 const team=document.getElementById('isis-team');
@@ -148,11 +154,11 @@ const renderHeaderAntes=renderHeader;
 renderHeader=function(day){
  renderHeaderAntes(day);
  const chips=document.querySelectorAll('#dayIntro .stage .chip');
- if(day.sunday||day.date==='2026-12-25'){
-   const status=day.sunday?'Domingo · loja fechada · equipe de folga':'Natal · equipe de folga';
+ if(day.sunday||day.holiday){
+   const status=day.sunday?'Domingo · loja fechada · equipe de folga':day.date==='2026-12-25'?'Natal · equipe de folga':'Feriado · sem obrigação da equipe';
    document.getElementById('dateExtra').textContent=status;
    if(chips[1])chips[1].textContent=status;
-   if(chips[2])chips[2].textContent='1 Story opcional do dono';
+   if(chips[2])chips[2].textContent=day.sunday||day.date==='2026-12-25'?'1 Story opcional do dono':'Conteúdo pré-gravado opcional';
  }else if(chips[2]){
    chips[2].textContent='2 destaques + acessórios'+(day.feed?' + feed':'')+(day.reel?' + Reel':'');
  }
@@ -162,14 +168,14 @@ renderDay=function(){
  renderAntes();
  const d=BYDAY[selectedDate];
  if(!d)return;
- if(d.sunday||d.date==='2026-12-25'){
+ if(d.sunday||d.holiday){
    const prep=document.getElementById('preflight');if(prep)prep.innerHTML='<p class="mini">Sem preparação obrigatória da equipe neste dia.</p>';
-   const models=document.getElementById('models');if(models)models.innerHTML='<p class="mini">Não há aparelhos obrigatórios para demonstrar hoje. Story do dono é opcional.</p>';
+   const models=document.getElementById('models');if(models)models.innerHTML='<p class="mini">Não há aparelhos obrigatórios para demonstrar hoje. Conteúdo pré-gravado é opcional.</p>';
  }
  if(note){
    note.textContent=d.sunday?'DOMINGO: loja fechada, equipe de folga. Thiago pode gravar 1 Story de casa, se quiser.':
    d.date==='2026-12-25'?'NATAL: mensagem pré-gravada opcional. Nenhuma tarefa para a equipe.':
-   d.holiday?'FERIADO: confirmar expediente. Conteúdo pode ser preparado antes.':
+   d.holiday?'FERIADO: nenhuma obrigação da equipe. Conteúdo pré-gravado opcional; não anunciar expediente sem confirmar.':
    d.reel?'Reel principal da semana: Thiago participa nas datas previstas, se disponível. Isis e Karina têm alternativa.':
    'Hoje: priorizar atendimento, Stories úteis e demonstrações reais; sem obrigação de Reel.';
  }
