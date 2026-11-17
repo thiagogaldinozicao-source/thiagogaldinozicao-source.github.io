@@ -36,8 +36,8 @@
   },
   {
     "arquivo": "index.html",
-    "bytes": 160142,
-    "sha256": "a1c86c7c7a8d75e7df26e479a4e0c923c0cc30c678bf6bd30d582408950ab01a"
+    "bytes": 160296,
+    "sha256": "db513d257c920875659a46bf9ee126437c3561dcb414b4906da8a439eca56e82"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -101,8 +101,13 @@
   },
   {
     "arquivo": "shared-20261113/index.html",
-    "bytes": 159742,
-    "sha256": "654807ed192dddc3b17979e2900a10310504862ea42a5e83fbd75a9fd4ff1429"
+    "bytes": 159864,
+    "sha256": "19a97b5c92181a0dcf460b8a176daad933d8e33e9e571cc291a341ff86f76774"
+  },
+  {
+    "arquivo": "shared-20261113/instagram-insights.js",
+    "bytes": 5721,
+    "sha256": "0e2ae6dab5f31916c0fd51786a85f615a20ef7aecb2e9475ec55cd6129d932bc"
   },
   {
     "arquivo": "shared-20261113/isis.css",
@@ -131,8 +136,8 @@
   },
   {
     "arquivo": "shared-20261113/metricool-insights.js",
-    "bytes": 8887,
-    "sha256": "f75b1e59f4f5102c5a724928378748b57740e818a7dd9c6f82b9325102f41ff5"
+    "bytes": 8904,
+    "sha256": "18320410187e994d075c68aa451587609585b7a8021b96884e96619061467bd1"
   },
   {
     "arquivo": "shared-20261113/metricool-model.js",
@@ -143,6 +148,11 @@
     "arquivo": "shared-20261113/operacao-20261114.js",
     "bytes": 12972,
     "sha256": "5b1feb6e5887a862efd8ec2630391a37b257def39f3f55843f459ef3d965f732"
+  },
+  {
+    "arquivo": "shared-20261113/roteiros-20261117.js",
+    "bytes": 10159,
+    "sha256": "ed6029162219827c8241927e16aad446b6b0d16866fac8403aa18aae8e4e2da6"
   },
   {
     "arquivo": "shared-20261113/shared-core.js",
