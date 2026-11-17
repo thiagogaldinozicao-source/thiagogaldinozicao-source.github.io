@@ -78,3 +78,8 @@ Os registros anteriores de “revisão local / não publicada” descrevem a eta
 ## Métricas do Metricool — 16/11/2026
 
 Resultados e Instagram inclui uma área protegida para a última importação pontual da marca zicao.store. Séries diárias, Reels históricos, sugestões de horários e recomendações aparecem separados do CSV e do checklist. O painel mostra cobertura, ausência de dados e dia parcial; não apresenta pontuações de horários como previsão de alcance. Não há atualização automática. Backups das métricas podem ser baixados no próprio painel; dados privados permanecem no Firestore, fora destes arquivos públicos. Domingos e feriados continuam sem obrigação para a equipe.
+
+
+## Coleta agendada — 17/11/2026
+
+Rotina diária às 09h de São Paulo pelo Codex, condicionada ao Mac ligado, aplicativo aberto e conexões autorizadas disponíveis. A rotina adiciona snapshots privados e mantém os anteriores; não altera marcações ou tarefas. Falha mantém a coleta válida mais recente. Ao abrir Resultados, o Studio busca a última importação; enquanto a área estiver visível, consulta novamente a cada cinco minutos. Isso não é uma consulta direta do navegador à API Metricool.
