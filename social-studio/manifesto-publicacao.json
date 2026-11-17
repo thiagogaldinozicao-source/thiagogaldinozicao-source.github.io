@@ -37,7 +37,7 @@
   {
     "arquivo": "index.html",
     "bytes": 160296,
-    "sha256": "db513d257c920875659a46bf9ee126437c3561dcb414b4906da8a439eca56e82"
+    "sha256": "080740be32ce6a827b282d0c67811c978add1e35603801e42129a65393bb2dbe"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -46,8 +46,8 @@
   },
   {
     "arquivo": "shared-20261113/analytics.js",
-    "bytes": 8660,
-    "sha256": "824bf6411be3e0e987c87a398b6d0b0e72f0975b42d3ced7d4840a333b9f7710"
+    "bytes": 8704,
+    "sha256": "444189a97350c074d905695740d84ea7eadb52e76f7fe6625bc45d1070343bb6"
   },
   {
     "arquivo": "shared-20261113/app-icon.svg",
@@ -102,7 +102,7 @@
   {
     "arquivo": "shared-20261113/index.html",
     "bytes": 159864,
-    "sha256": "19a97b5c92181a0dcf460b8a176daad933d8e33e9e571cc291a341ff86f76774"
+    "sha256": "318791147061448e3e3669ceb5b8e1d5fbaedf6050f864b1868d7189b787ec2d"
   },
   {
     "arquivo": "shared-20261113/instagram-insights.js",
