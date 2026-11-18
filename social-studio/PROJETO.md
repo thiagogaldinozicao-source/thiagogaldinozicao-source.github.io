@@ -83,3 +83,10 @@ Resultados e Instagram inclui uma área protegida para a última importação po
 ## Coleta agendada — 17/11/2026
 
 Rotina diária às 09h de São Paulo pelo Codex, condicionada ao Mac ligado, aplicativo aberto e conexões autorizadas disponíveis. A rotina adiciona snapshots privados e mantém os anteriores; não altera marcações ou tarefas. Falha mantém a coleta válida mais recente. Ao abrir Resultados, o Studio busca a última importação; enquanto a área estiver visível, consulta novamente a cada cinco minutos. Isso não é uma consulta direta do navegador à API Metricool.
+
+
+## Atualização vigente — 17/11/2026 — nuvem e campanhas comerciais
+
+Instagram direto passa a coletar métricas em nuvem, com credenciais privadas, snapshots imutáveis e agenda quatro vezes por dia. A coleta das 21h17 foi observada no Studio. A automação local anterior do Metricool está pausada; seu histórico permanece disponível. As seções anteriores descrevem etapas anteriores.
+
+Campanhas e ideias reúne sete sequências por necessidade e estoque anunciado: oito Stories nos blocos existentes, opção de Reel semanal com Isis/Karina/Thiago, referências oficiais Apple/Xiaomi e código de atendimento. Só prepara dia de atendimento sem preparação/publicação marcada. Preço e disponibilidade são reconferidos antes de copiar/preparar; encomendas, quantidade zero e tablets não viram seleção de celulares presentes na loja. Condição, bateria e observações entram na apresentação. Conversas, orçamentos e vendas exigem registro comercial; não são deduzidos das views. Não há alteração do sistema de estoque nem publicação automática de conteúdo.

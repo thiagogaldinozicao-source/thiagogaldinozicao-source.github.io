@@ -53,7 +53,8 @@
 @media(max-width:700px){.smart-windows{grid-template-columns:1fr}.smart-panel{padding:13px}}
 </style><link rel="stylesheet" href="./analytics.css?v=1">
 <link rel="stylesheet" href="./brand.css?v=20261113-5"><link rel="stylesheet" href="./isis.css?v=20261113-5">
-<link rel="stylesheet" href="./cloud.css?v=cloud-6"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./app-icon.svg" type="image/svg+xml"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Social Studio"></head>
+<link rel="stylesheet" href="./cloud.css?v=cloud-6"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./app-icon.svg" type="image/svg+xml"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Social Studio"><link rel="stylesheet" href="./vendas.css?v=20261117-1">
+</head>
 <body data-cloud-locked="true"><section id="cloud-gate" role="region" aria-label="Acesso da equipe"><div class="cloud-login-card"><svg class="studio-logo" viewBox="991 2013 5006 2209" role="img" aria-label="Zicão Store"><image href="./logo-original.png" width="7500" height="6000"/></svg><h1>Zicão Social Studio</h1><p id="cloud-login-message">Preparando acesso protegido…</p><button id="cloud-login" class="btn primary" disabled>Entrar com Google</button><p>Se houver marcações antigas neste navegador, elas serão transferidas automaticamente após entrar, com cópia de segurança.</p></div></section><section id="cloud-status" role="status" aria-live="polite">Aguardando conexão</section><div id="cloud-conflicts"></div><div class="test-banner">SOCIAL STUDIO · EQUIPE <span>Marcações e resultados compartilhados</span></div>
 <div class="app">
 <aside class="side">
@@ -4566,8 +4567,8 @@ renderDay();renderIdeas();
   const anchor=document.getElementById('alerts');if(!anchor)return;anchor.insertAdjacentElement('afterend',host);
   let catalog=[],last='',loading=true,failed=false,updatedAt='';
   const nice=(v)=>String(v||'').replace(/[^a-zA-Z0-9À-ÿ\s\-\/]/g,'').slice(0,90);
-  const isPhone=(x)=>x.tipo==='iPhone'||x.tipo==='Android';
-  const inStock=(x)=>x&&Number(x.preco)>0&&x.modelo&&x.tipo;
+  const isPhone=(x)=>(x.tipo==='iPhone'||x.tipo==='Android')&&!/ipad|galaxy\s*tab|tablet/i.test(x.modelo||'');
+  const inStock=(x)=>x&&!x.enc&&Number(x.preco)>0&&x.modelo&&x.tipo&&(x.q==null||Number(x.q)>0);
   const friendly=(x)=>[x.modelo,x.cap].filter(Boolean).join(' ');
   const find=(p)=>{
     if(!p||p.condition==='pendente')return [];
@@ -4645,7 +4646,7 @@ renderDay();renderIdeas();
         return '<div class="live-check"><span><b>'+safe(p.name)+'</b></span><span class="'+(present?'ok':'bad')+'">'+safe(warn)+'</span>'
           +(!present&&!loading&&!failed?'<button class="live-action" data-auto-swap="'+i+'">Trocar por anunciado</button>':'')+'</div>';
       }).join('')+'</div>'
-      +'<div class="live-hint">⏱ O catálogo costuma atualizar nas rodadas da loja; isto não é estoque em tempo real. “Parado” é referência por modelo da planilha com corte em 16/11, não idade individual atualizada. Confirme preço, condição, bateria, quantidade e qualquer defeito diretamente no Gestão. iPad/Galaxy Tab pendentes ficam bloqueados.</div>';
+      +'<div class="live-hint">⏱ O catálogo costuma atualizar nas rodadas da loja; isto não é estoque em tempo real. Giro usa levantamento do estoque de 12/11, com dias calculados até 16/11 e referência de 45 dias; não é idade individual atualizada. Itens por encomenda não entram nas seleções da loja. Confirme preço, condição, bateria, quantidade e qualquer defeito diretamente no Gestão. iPad/Galaxy Tab pendentes ficam bloqueados.</div>';
     document.getElementById('liveRefresh').onclick=refresh;
     host.querySelectorAll('[data-auto-swap]').forEach(b=>b.onclick=()=>autoSwap(Number(b.dataset.autoSwap)));
     host.querySelectorAll('[data-live-copy]').forEach(b=>b.onclick=()=>{
@@ -4670,6 +4671,6 @@ renderDay();renderIdeas();
   renderDay=function(){base();draw()};
   refresh();setInterval(refresh,15*60*1000);
   window.addEventListener('online',refresh);
-})();</script><script src="./firebase-config.js?v=cloud-6" defer></script><script src="./core.js?v=20261116-1" defer></script><script src="./shared-core.js?v=cloud-6" defer></script><script src="./legacy.js?v=cloud-6" defer></script><script src="./store-access.js?v=20261116-1" defer></script><script src="./cloud-runtime.js?v=cloud-6" defer></script><script src="./store-login.js?v=20261116-1" defer></script><script src="./cloud-backup.js?v=cloud-6" defer></script><script src="./auto-migration.js?v=cloud-6" defer></script><script src="./analytics.js?v=20261117-1" defer></script><script src="./metricool-model.js?v=20261116-1" defer></script><script src="./metricool-insights.js?v=20261117-2" defer></script><script src="./instagram-insights.js?v=20261117-1" defer></script><script src="./equipe.js?v=20261113-5" defer></script><script src="./editorial.js?v=weekly-4" defer></script><script src="./operacao-20261114.js?v=2" defer></script><script src="./roteiros-20261117.js?v=2" defer></script><script src="./isis.js?v=20261116-1" defer></script>
+})();</script><script src="./firebase-config.js?v=cloud-6" defer></script><script src="./core.js?v=20261116-1" defer></script><script src="./shared-core.js?v=cloud-6" defer></script><script src="./legacy.js?v=cloud-6" defer></script><script src="./store-access.js?v=20261116-1" defer></script><script src="./cloud-runtime.js?v=cloud-6" defer></script><script src="./store-login.js?v=20261116-1" defer></script><script src="./cloud-backup.js?v=cloud-6" defer></script><script src="./auto-migration.js?v=cloud-6" defer></script><script src="./analytics.js?v=20261117-1" defer></script><script src="./metricool-model.js?v=20261116-1" defer></script><script src="./metricool-insights.js?v=20261117-2" defer></script><script src="./instagram-insights.js?v=20261117-1" defer></script><script src="./equipe.js?v=20261113-5" defer></script><script src="./editorial.js?v=weekly-4" defer></script><script src="./operacao-20261114.js?v=2" defer></script><script src="./roteiros-20261117.js?v=2" defer></script><script src="./vendas-model.js?v=20261117-3" defer></script><script src="./vendas-studio.js?v=20261117-3" defer></script><script src="./isis.js?v=20261116-1" defer></script>
 </body>
 </html>
