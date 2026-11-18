@@ -1,8 +1,8 @@
 [
   {
     "arquivo": "PROJETO.md",
-    "bytes": 13219,
-    "sha256": "d80fb425b79fac2f369596ffb78f1b3f82dd6b8be661bc1e784381561b691acf"
+    "bytes": 13625,
+    "sha256": "061184653061012d613851c51ab33aafe95b67bfaa58a5f5239d62daa03952bf"
   },
   {
     "arquivo": "analytics.css",
@@ -36,8 +36,8 @@
   },
   {
     "arquivo": "index.html",
-    "bytes": 160697,
-    "sha256": "4a23f4aff8151af7e4d9380c04c96e3b02a1d387e8a250903c0720421a05f73d"
+    "bytes": 160774,
+    "sha256": "f6665d93173c9acc3912b1d182bd663cc8d584de2db95dfe282e5d22771c7eab"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -101,8 +101,8 @@
   },
   {
     "arquivo": "shared-20261113/index.html",
-    "bytes": 160217,
-    "sha256": "5ca2ddb4c296c4603a6f2ece007222a770a504cff9ebedd34ebd178c29ec0a39"
+    "bytes": 160278,
+    "sha256": "1640a6a411542ce57478af0a21d6608e9109967e69bd0d10e12ab9abd2541715"
   },
   {
     "arquivo": "shared-20261113/instagram-insights.js",
@@ -150,6 +150,11 @@
     "sha256": "5b1feb6e5887a862efd8ec2630391a37b257def39f3f55843f459ef3d965f732"
   },
   {
+    "arquivo": "shared-20261113/roteiro-dia19.js",
+    "bytes": 6733,
+    "sha256": "bb081f866e5bae5c073fc8525231b7158bf826008eb39837c8d16bab849070b5"
+  },
+  {
     "arquivo": "shared-20261113/roteiros-20261117.js",
     "bytes": 10159,
     "sha256": "ed6029162219827c8241927e16aad446b6b0d16866fac8403aa18aae8e4e2da6"
@@ -176,8 +181,8 @@
   },
   {
     "arquivo": "shared-20261113/vendas-studio.js",
-    "bytes": 16639,
-    "sha256": "14faa1094ccdb5cb7f242feca37227c0b2d7cb163119c6710594326a34b0ea92"
+    "bytes": 17751,
+    "sha256": "a9a728da67613abf357c767ec92e762362814bf8ad7851206d0951388b1f9ada"
   },
   {
     "arquivo": "shared-20261113/vendas.css",

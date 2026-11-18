@@ -95,3 +95,8 @@ Campanhas e ideias reúne sete sequências por necessidade e estoque anunciado: 
 ## Apresentação vigente — 18/11/2026
 
 Isis cuida do Instagram e é a apresentadora principal dos Stories e Reels. Os sete planos podem ser gravados por ela sozinha. Karina aparece ocasionalmente para variar e demonstrar; pode apoiar sem aparecer. Thiago participa pontualmente quando for conveniente e útil. Nenhum vídeo exige reunir os três. A nova orientação substitui as distribuições anteriores, sem modificar marcações, histórico, horários, quantidade ou folgas.
+
+
+## Roteiro de 19/11/2026
+
+Sequência aprovada para Isis: 14 Pro Max 128 GB e 15 Pro Max 256 GB, oito Stories em seis blocos, Capa Devia compatível quando disponível e chamada MAX. Três ofertas opcionais intercaladas, sem fala obrigatória, com Pix, 12 parcelas e total conforme tabela pública do catálogo. Extras não aumentam o checklist principal. Somente 19/11; demais dias e folgas preservados.
