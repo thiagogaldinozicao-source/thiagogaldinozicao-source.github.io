@@ -90,3 +90,8 @@ Rotina diária às 09h de São Paulo pelo Codex, condicionada ao Mac ligado, apl
 Instagram direto passa a coletar métricas em nuvem, com credenciais privadas, snapshots imutáveis e agenda quatro vezes por dia. A coleta das 21h17 foi observada no Studio. A automação local anterior do Metricool está pausada; seu histórico permanece disponível. As seções anteriores descrevem etapas anteriores.
 
 Campanhas e ideias reúne sete sequências por necessidade e estoque anunciado: oito Stories nos blocos existentes, opção de Reel semanal com Isis/Karina/Thiago, referências oficiais Apple/Xiaomi e código de atendimento. Só prepara dia de atendimento sem preparação/publicação marcada. Preço e disponibilidade são reconferidos antes de copiar/preparar; encomendas, quantidade zero e tablets não viram seleção de celulares presentes na loja. Condição, bateria e observações entram na apresentação. Conversas, orçamentos e vendas exigem registro comercial; não são deduzidos das views. Não há alteração do sistema de estoque nem publicação automática de conteúdo.
+
+
+## Apresentação vigente — 18/11/2026
+
+Isis cuida do Instagram e é a apresentadora principal dos Stories e Reels. Os sete planos podem ser gravados por ela sozinha. Karina aparece ocasionalmente para variar e demonstrar; pode apoiar sem aparecer. Thiago participa pontualmente quando for conveniente e útil. Nenhum vídeo exige reunir os três. A nova orientação substitui as distribuições anteriores, sem modificar marcações, histórico, horários, quantidade ou folgas.

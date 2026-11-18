@@ -1,8 +1,8 @@
 [
   {
     "arquivo": "PROJETO.md",
-    "bytes": 12734,
-    "sha256": "0dca0de346ee0e926ecbadf1cdf5075dd8a105b69736396c0612a8ecbdd68cab"
+    "bytes": 13219,
+    "sha256": "d80fb425b79fac2f369596ffb78f1b3f82dd6b8be661bc1e784381561b691acf"
   },
   {
     "arquivo": "analytics.css",
@@ -37,7 +37,7 @@
   {
     "arquivo": "index.html",
     "bytes": 160697,
-    "sha256": "43219a52bee5249cdcfab4d71fd16aeeeb0600e0a0482bdbfe07bbe829449c35"
+    "sha256": "4a23f4aff8151af7e4d9380c04c96e3b02a1d387e8a250903c0720421a05f73d"
   },
   {
     "arquivo": "shared-20261113/analytics.css",
@@ -102,7 +102,7 @@
   {
     "arquivo": "shared-20261113/index.html",
     "bytes": 160217,
-    "sha256": "1cc92c0593e7f599c10b96dbaf00f4fd06e8c63dd9d6fc97019f7a7b66f13358"
+    "sha256": "5ca2ddb4c296c4603a6f2ece007222a770a504cff9ebedd34ebd178c29ec0a39"
   },
   {
     "arquivo": "shared-20261113/instagram-insights.js",
@@ -171,13 +171,13 @@
   },
   {
     "arquivo": "shared-20261113/vendas-model.js",
-    "bytes": 20289,
-    "sha256": "c5158b4a6fcc3c89b2bebbb29d8520d6ba1cb2e6765b44e5d2f03f219c3b912f"
+    "bytes": 20488,
+    "sha256": "04a75daea57ecd99baeb3c0d9d6a1bd4f044196d7eb82bca959a4682fff03083"
   },
   {
     "arquivo": "shared-20261113/vendas-studio.js",
-    "bytes": 13554,
-    "sha256": "46402010a7962619e1e9956f1b0ac2488e87d5011c04000646f13162c83a03e3"
+    "bytes": 16639,
+    "sha256": "14faa1094ccdb5cb7f242feca37227c0b2d7cb163119c6710594326a34b0ea92"
   },
   {
     "arquivo": "shared-20261113/vendas.css",
